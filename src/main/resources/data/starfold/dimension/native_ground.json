@@ -1,0 +1,1 @@
+{"type":"starfold:native_ground","generator":{"type":"minecraft:flat","settings":{"biome":"minecraft:plains","features":false,"lakes":false,"layers":[{"height":1,"block":"minecraft:bedrock"},{"height":187,"block":"minecraft:stone"},{"height":3,"block":"minecraft:dirt"},{"height":1,"block":"minecraft:grass_block"}],"structure_overrides":[]}}}

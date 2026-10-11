@@ -1,0 +1,187 @@
+# dev.46: dev.34 upward acceleration makes the old 500-tick boosted setup leave the chart.
+# Setup uses 200 ticks ordinary lift; all measurement holds unchanged.
+# Disposable COPY of the saved pad world; standing pilot, normal keyboard handler.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+abilities aboard
+cmd sable info @n
+wait 4
+trace on
+cargowatch 1
+press 32 1
+wait 200
+press 32 0
+wait 160
+log setup-high
+abilities setup-high
+log BEGIN-space
+cargo BEGIN-space
+abilities BEGIN-space
+requiretypewriter
+press 32 1
+wait 200
+log END-space
+abilities END-space
+cargo END-space
+cmd sable info @n
+wait 4
+press 32 0
+wait 160
+log BEGIN-space-ctrl
+cargo BEGIN-space-ctrl
+abilities BEGIN-space-ctrl
+requiretypewriter
+press 32 1
+press 341 1
+wait 200
+log END-space-ctrl
+abilities END-space-ctrl
+cargo END-space-ctrl
+cmd sable info @n
+wait 4
+press 341 0
+press 32 0
+wait 160
+log BEGIN-shift
+cargo BEGIN-shift
+abilities BEGIN-shift
+requiretypewriter
+press 340 1
+wait 200
+log END-shift
+abilities END-shift
+cargo END-shift
+cmd sable info @n
+wait 4
+press 340 0
+wait 160
+log BEGIN-shift-ctrl
+cargo BEGIN-shift-ctrl
+abilities BEGIN-shift-ctrl
+requiretypewriter
+press 340 1
+press 341 1
+wait 100
+log END-shift-ctrl
+abilities END-shift-ctrl
+cargo END-shift-ctrl
+cmd sable info @n
+wait 4
+press 341 0
+press 340 0
+wait 160
+log BEGIN-w
+cargo BEGIN-w
+abilities BEGIN-w
+requiretypewriter
+press 87 1
+wait 200
+log END-w
+abilities END-w
+cargo END-w
+cmd sable info @n
+wait 4
+press 87 0
+wait 160
+log BEGIN-w-ctrl
+cargo BEGIN-w-ctrl
+abilities BEGIN-w-ctrl
+requiretypewriter
+press 87 1
+press 341 1
+wait 200
+log END-w-ctrl
+abilities END-w-ctrl
+cargo END-w-ctrl
+cmd sable info @n
+wait 4
+press 341 0
+press 87 0
+wait 160
+log BEGIN-s
+cargo BEGIN-s
+abilities BEGIN-s
+requiretypewriter
+press 83 1
+wait 200
+log END-s
+abilities END-s
+cargo END-s
+cmd sable info @n
+wait 4
+press 83 0
+wait 160
+log BEGIN-s-ctrl
+cargo BEGIN-s-ctrl
+abilities BEGIN-s-ctrl
+requiretypewriter
+press 83 1
+press 341 1
+wait 200
+log END-s-ctrl
+abilities END-s-ctrl
+cargo END-s-ctrl
+cmd sable info @n
+wait 4
+press 341 0
+press 83 0
+wait 160
+log BEGIN-a
+cargo BEGIN-a
+abilities BEGIN-a
+requiretypewriter
+press 65 1
+wait 200
+log END-a
+abilities END-a
+cargo END-a
+cmd sable info @n
+wait 4
+press 65 0
+wait 160
+log BEGIN-a-ctrl
+cargo BEGIN-a-ctrl
+abilities BEGIN-a-ctrl
+requiretypewriter
+press 65 1
+press 341 1
+wait 200
+log END-a-ctrl
+abilities END-a-ctrl
+cargo END-a-ctrl
+cmd sable info @n
+wait 4
+press 341 0
+press 65 0
+wait 160
+log BEGIN-none
+cargo BEGIN-none
+abilities BEGIN-none
+requiretypewriter
+wait 200
+log END-none
+abilities END-none
+cargo END-none
+cmd sable info @n
+wait 4
+wait 160
+trace off
+cargowatch 0
+cmd save-all flush
+wait 100
+quit

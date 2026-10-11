@@ -1,0 +1,55 @@
+waitworld
+wait 100
+hud off
+cmd gamemode creative
+cmd weather clear
+cmd gamerule doWeatherCycle false
+cmd packprobe visit 0
+wait 200
+look 30 8
+port sky noon
+wait 80
+shot port1-after-home-ground
+cmd packprobe orbit 0
+wait 400
+aim track
+wait 80
+aim free
+port hold true
+port sky noon
+wait 80
+shot port1-after-home-orbit
+wait 100
+shot port1-after-home-repeat
+port audit
+port legacy true
+wait 500
+shot port1-home-legacy
+wait 100
+shot port1-home-legacy-repeat
+port legacy false
+wait 500
+shot port1-home-new-again
+port hold false
+port sky live
+cmd packprobe visit 1
+wait 200
+look 30 8
+port sky noon
+wait 80
+shot port1-after-B-ground
+look free
+cmd packprobe orbit 1
+wait 400
+aim track
+wait 80
+aim free
+port hold true
+port sky noon
+wait 80
+shot port1-after-B-orbit
+port hold false
+port sky live
+cmd save-all flush
+wait 60
+quit

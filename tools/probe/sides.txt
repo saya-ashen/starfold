@@ -1,0 +1,63 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect clear @s
+cmd starfold nav target a
+wait 20
+cmd starfold face 0
+wait 80
+cmd starfold orbit
+wait 20
+aim track
+wait 100
+nav side-0
+shot side-0
+aim free
+cmd starfold face 1
+wait 80
+cmd starfold orbit
+wait 20
+aim track
+wait 100
+nav side-1
+shot side-1
+aim free
+cmd starfold face 2
+wait 80
+cmd starfold orbit
+wait 20
+aim track
+wait 100
+nav side-2
+shot side-2
+aim free
+cmd starfold face 3
+wait 80
+cmd starfold orbit
+wait 20
+aim track
+wait 100
+nav side-3
+shot side-3
+aim free
+cmd starfold face 4
+wait 80
+cmd starfold orbit
+wait 20
+aim track
+wait 100
+nav side-4
+shot side-4
+aim free
+cmd starfold face 5
+wait 80
+cmd starfold orbit
+wait 20
+aim track
+wait 100
+nav side-5
+shot side-5
+aim free
+quit

@@ -1,0 +1,59 @@
+{
+  "biome": "minecraft:stony_peaks",
+  "size": {
+    "min": 416,
+    "max": 416
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 0.65,
+  "ore_bias": 0.06,
+  "cave_width": 0.08,
+  "shell": "core_shell",
+  "palette": {
+    "rock": "minecraft:granite",
+    "dark": "minecraft:blackstone",
+    "light": "minecraft:granite",
+    "deep": "minecraft:deepslate"
+  },
+  "creatures": false,
+  "features": false,
+  "structures": false,
+  "minerals": {
+    "ores": [
+      {
+        "block": "minecraft:iron_ore",
+        "from": 0,
+        "to": 1,
+        "rarity": 0.8,
+        "deep": "minecraft:deepslate_iron_ore"
+      },
+      {
+        "block": "minecraft:copper_ore",
+        "from": 0,
+        "to": 0.65,
+        "rarity": 0.84
+      },
+      {
+        "block": "minecraft:coal_ore",
+        "from": 0,
+        "to": 0.6,
+        "rarity": 0.9
+      },
+      {
+        "block": "minecraft:gold_ore",
+        "from": 0.4,
+        "to": 1,
+        "rarity": 0.95,
+        "deep": "minecraft:deepslate_gold_ore"
+      },
+      {
+        "block": "minecraft:diamond_ore",
+        "from": 0.8,
+        "to": 1,
+        "rarity": 0.995,
+        "deep": "minecraft:deepslate_diamond_ore"
+      }
+    ]
+  }
+}

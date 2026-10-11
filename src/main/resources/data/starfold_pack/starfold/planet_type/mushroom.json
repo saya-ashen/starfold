@@ -1,0 +1,34 @@
+{
+  "biome": "starfold_pack:mushroom_haven",
+  "size": {
+    "min": 768,
+    "max": 768
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 0.3,
+  "ore_bias": 0.02,
+  "cave_width": 0.08,
+  "shell": "core_shell",
+  "palette": {
+    "rock": "minecraft:dirt",
+    "dark": "minecraft:mushroom_stem",
+    "light": "minecraft:dirt",
+    "deep": "minecraft:deepslate",
+    "cover": "minecraft:mycelium"
+  },
+  "creatures": true,
+  "features": true,
+  "structures": false,
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:stone"
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.65
+      }
+    ]
+  }
+}

@@ -1,0 +1,105 @@
+# Disposable COPY of the saved pad world; standing pilot, normal keyboard handler.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+abilities aboard
+cmd sable info @n
+wait 4
+cmd gamemode survival
+wait 40
+look 72 25
+wait 240
+wait 20
+camera pad-chase
+log pad-chase
+shot helm-fixed-seam-pad-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera pad-first
+log pad-first
+shot helm-fixed-seam-pad-first
+press 294 1
+press 294 0
+wait 2
+press 32 1
+press 341 1
+until y> 400 1200
+wait 20
+camera climb-chase
+log climb-chase
+shot helm-fixed-seam-climb-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera climb-first
+log climb-first
+shot helm-fixed-seam-climb-first
+press 294 1
+press 294 0
+wait 2
+press 32 0
+press 341 0
+wait 160
+press 65 1
+wait 80
+wait 20
+camera turn-chase
+log turn-chase
+shot helm-fixed-seam-turn-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera turn-first
+log turn-first
+shot helm-fixed-seam-turn-first
+press 294 1
+press 294 0
+wait 2
+press 65 0
+wait 160
+press 87 1
+press 341 1
+wait 400
+wait 20
+cmd tick freeze
+wait 20
+camera fixed-seam-chase
+log fixed-seam-chase
+shot helm-fixed-seam-seam-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera fixed-seam-first
+log fixed-seam-first
+shot helm-fixed-seam-seam-first
+cmd tick unfreeze
+cmd save-all flush
+wait 100
+quit

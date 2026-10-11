@@ -1,0 +1,50 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5112.5 170 2036.5 0 30
+wait 300
+look 0 30
+cmd kill @e[type=create:stationary_contraption]
+cmd fill 5104 170 2030 5136 178 2066 air
+wait 20
+cmd fill 5110 170 2030 5110 170 2039 create:piston_extension_pole[facing=south]
+cmd setblock 5110 170 2040 create:mechanical_piston[facing=south,axis_along_first=true]
+cmd setblock 5110 170 2041 minecraft:gold_block
+cmd setblock 5109 170 2040 create:creative_motor[facing=east]
+cmd fill 5114 170 2030 5114 170 2039 create:piston_extension_pole[facing=south]
+cmd setblock 5114 170 2040 create:mechanical_piston[facing=south,axis_along_first=true]
+cmd setblock 5114 170 2041 minecraft:diamond_block
+cmd setblock 5115 170 2040 create:creative_motor[facing=west]
+wait 40
+cmd data get block 5110 170 2040 Speed
+cmd data get block 5114 170 2040 Speed
+blockat 5110 170 2040
+shot piston-0
+wait 100
+entities
+cmd execute as @e[type=create:stationary_contraption] run data get entity @s Pos
+blockat 5110 170 2041
+blockat 5114 170 2041
+shot piston-100
+wait 200
+cmd execute as @e[type=create:stationary_contraption] run data get entity @s Pos
+shot piston-300
+wait 300
+cmd execute as @e[type=create:stationary_contraption] run data get entity @s Pos
+entities
+blockat 5110 170 2049
+blockat 5110 170 2050
+blockat 5110 170 2051
+blockat 5114 170 2049
+blockat 5114 170 2050
+blockat 5114 170 2051
+shot piston-600
+cmd tp @s 5112.5 170 2056.5 180 25
+wait 80
+look 180 25
+wait 20
+log piston-far
+shot piston-far
+quit

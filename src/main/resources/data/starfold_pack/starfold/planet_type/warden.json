@@ -1,0 +1,44 @@
+{
+  "biome": "starfold_pack:sculk_wastes",
+  "size": {
+    "min": 1024,
+    "max": 1024
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 0.45,
+  "ore_bias": 0.02,
+  "cave_width": 0.08,
+  "shell": "core_shell",
+  "palette": {
+    "rock": "minecraft:deepslate",
+    "dark": "minecraft:basalt",
+    "light": "minecraft:deepslate",
+    "deep": "minecraft:deepslate",
+    "cover": "minecraft:sculk"
+  },
+  "creatures": true,
+  "features": true,
+  "structures": false,
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:deepslate"
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:deepslate_diamond_ore",
+        "from": 0.7,
+        "to": 1,
+        "rarity": 0.975
+      },
+      {
+        "block": "minecraft:deepslate_redstone_ore",
+        "from": 0.3,
+        "to": 1,
+        "rarity": 0.9
+      }
+    ]
+  }
+}

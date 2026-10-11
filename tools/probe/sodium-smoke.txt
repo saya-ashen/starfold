@@ -1,0 +1,49 @@
+# Unsupported-renderer warning and ordinary-world/planet walk; not projection acceptance.
+waitworld
+wait 100
+waitworld
+strict
+cmd gamemode creative
+cmd starfold leave
+wait 100
+waitworld
+check overworld in minecraft:overworld
+log sodium1-overworld
+look 0 10
+wait 20
+shot sodium1-overworld
+key forward on
+wait 40
+key forward off
+log sodium1-overworld-walk
+cmd starfold enter
+wait 160
+waitworld
+check planet in starfold:native_ground
+cmd starfold face 0
+wait 100
+cmd tp @s 1024.5 132 1024.5
+wait 80
+fly off
+until ground 200
+look -90 0
+wait 20
+log sodium1-face
+shot sodium1-horizon
+look -90 70
+wait 20
+shot sodium1-ground
+cmd tp @s 2034.5 128 1024.5
+wait 100
+look -90 15
+wait 20
+log sodium1-seam-before
+key forward on
+wait 160
+key forward off
+wait 40
+log sodium1-seam-after
+shot sodium1-seam
+cmd starfold status
+wait 20
+quit

@@ -1,0 +1,58 @@
+# DESTRUCTIVE: disposable devworld-create1 only. The starter rocket (tools/ship/rocket.py) with its pilot on deck:
+# what each step of the lift lever does, the climb out of the air and out of weight, and the gyro.
+# The pilot rides.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+fly off
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 200
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:analog_lever[face=floor,facing=north]{State:9}
+cmd setblock 5294 142 862 starfold:gyro
+cmd setblock 5294 142 863 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5289 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 minecraft:lever[face=floor,facing=north,powered=false]
+cmd tp @s 5291.5 142.2 862.5 90 20
+wait 20
+cmd sable assemble area 5288 141 860 5296 142 864
+wait 10
+cmd tellraw @s "CASE lift9"
+cmd sable info @l
+wait 60
+log lift9-1
+cmd sable info @l
+wait 60
+log lift9-2
+cmd sable info @l
+wait 60
+log lift9-3
+cmd sable info @l
+wait 60
+log lift9-4
+cmd sable info @l
+wait 60
+log lift9-5
+cmd sable info @l
+quit

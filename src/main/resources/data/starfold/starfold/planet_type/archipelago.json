@@ -1,0 +1,21 @@
+{
+  "biome": "minecraft:plains",
+  "size": {
+    "min": 1024,
+    "max": 2048
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "ecology",
+  "biomes": {
+    "forest": "minecraft:forest",
+    "plains": "minecraft:plains",
+    "desert": "minecraft:desert",
+    "ocean": "minecraft:ocean"
+  },
+  "ocean": 0.88,
+  "climate": {
+    "humidity": 0.15,
+    "temperature": 0.0,
+    "latitude": 0.15
+  }
+}

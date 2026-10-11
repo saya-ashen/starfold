@@ -1,0 +1,29 @@
+strict
+waitworld
+wait 160
+waitworld
+press 342 1
+helmstate before
+wait 20
+view FIRST_PERSON
+find typewriter
+usehit first
+wait 20
+helmstate first
+wait 20
+view FIRST_PERSON
+find typewriter
+usehit second
+wait 20
+helmstate second
+wait 20
+view FIRST_PERSON
+find typewriter
+usehit third
+wait 20
+helmstate third
+wait 20
+press 342 0
+cmd save-all flush
+wait 100
+quit

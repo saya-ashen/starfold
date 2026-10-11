@@ -1,0 +1,112 @@
+waitworld
+strict
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd gamemode creative
+cmd tp @s 1000 240 1000 0 50
+wait 100
+fly on
+cmd execute if block 1000 -525 1000 starfold:core_shell
+cmd execute if block 1000 -526 1000 minecraft:air
+cmd execute unless block 1000 -400 1000 minecraft:air
+cmd execute unless block 1000 -64 1000 minecraft:bedrock
+cmd fill 996 -522 996 1004 -516 1004 air
+cmd fill 997 -524 997 1003 -523 1003 air
+cmd setblock 1004 -521 1000 minecraft:glowstone
+cmd tp @s 1000.5 -522 1000.5 0 20
+wait 100
+nav a-deep
+shot deep-a-room
+cmd effect clear @s minecraft:night_vision
+cmd setblock 1004 -521 1000 air
+wait 40
+shot deep-a-shell-dark
+check shell-before if block 1000 -525 1000 starfold:core_shell
+cmd setblock 1000 -525 1000 minecraft:air
+check shell-setblock if block 1000 -525 1000 starfold:core_shell
+cmd fill 999 -525 999 1001 -525 1001 minecraft:stone
+check shell-fill-min if block 999 -525 999 starfold:core_shell
+check shell-fill-center if block 1000 -525 1000 starfold:core_shell
+check shell-fill-max if block 1001 -525 1001 starfold:core_shell
+cmd gamemode creative
+cmd tp @s 1000.5 -524 1000.5 0 90
+wait 40
+break 1000 -525 1000
+wait 20
+check shell-creative if block 1000 -525 1000 starfold:core_shell
+cmd tp @s 1000.5 -522 1000.5 0 20
+# A downward piston tries to extend into the floor.
+cmd setblock 1002 -524 1000 minecraft:piston[facing=down]
+cmd setblock 1003 -524 1000 minecraft:redstone_block
+wait 20
+check shell-push if block 1002 -525 1000 starfold:core_shell
+check piston-blocked if block 1002 -524 1000 minecraft:piston[extended=false]
+cmd setblock 1003 -524 1000 minecraft:air
+cmd setblock 1002 -524 1000 minecraft:air
+# This piston can extend above the floor, then tries to pull the shell upward.
+cmd setblock 1002 -523 1000 minecraft:sticky_piston[facing=down]
+cmd setblock 1003 -523 1000 minecraft:redstone_block
+wait 20
+check sticky-extended if block 1002 -523 1000 minecraft:sticky_piston[extended=true]
+cmd setblock 1003 -523 1000 minecraft:air
+wait 20
+check shell-pull if block 1002 -525 1000 starfold:core_shell
+check sticky-retracted if block 1002 -523 1000 minecraft:sticky_piston[extended=false]
+check shell-not-pulled if block 1002 -524 1000 minecraft:air
+cmd setblock 1002 -523 1000 minecraft:air
+cmd summon minecraft:tnt 1000 -524 1002 {fuse:0}
+wait 40
+check shell-tnt if block 1000 -525 1002 starfold:core_shell
+cmd summon minecraft:end_crystal 1000.5 -524 1002.5 {Tags:["core_shell_probe"],ShowBottom:0b}
+check crystal-present if entity @e[type=minecraft:end_crystal,tag=core_shell_probe]
+cmd damage @e[type=minecraft:end_crystal,tag=core_shell_probe,limit=1] 1 minecraft:generic
+wait 40
+check crystal-exploded unless entity @e[type=minecraft:end_crystal,tag=core_shell_probe]
+check shell-crystal if block 1000 -525 1002 starfold:core_shell
+check shell-blast-neighbor if block 1001 -525 1001 starfold:core_shell
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd fill 1000 -515 1000 1000 250 1000 air
+cmd tp @s 1000.5 -300 1000.5 0 -90
+wait 60
+nav a-shaft
+shot deep-a-shaft
+cmd tp @s 1000.5 -522 1000.5 0 0
+wait 20
+fly off
+wait 60
+nav a-stand
+cmd starfold status
+fly on
+cmd tp @s 1003.5 200 1000.5 90 50
+wait 100
+shot deep-a-surface
+cmd tp @s 33280 240 512 0 50
+wait 100
+fly on
+cmd execute if block 33280 -199 512 starfold:core_shell
+cmd execute if block 33280 -200 512 minecraft:air
+cmd setblock 33280 -199 512 minecraft:air
+check b-shell-setblock if block 33280 -199 512 starfold:core_shell
+cmd fill 33279 -199 511 33281 -199 513 minecraft:stone
+check b-shell-fill if block 33280 -199 512 starfold:core_shell
+cmd fill 33276 -196 508 33284 -190 516 air
+cmd setblock 33280 -197 512 minecraft:glowstone
+cmd fill 33280 -189 512 33280 200 512 air
+cmd tp @s 33280.5 -196 512.5 0 20
+wait 100
+nav b-deep
+shot deep-b-room
+fly off
+wait 60
+nav b-stand
+cmd starfold status
+fly on
+cmd tp @s 33283.5 200 512.5 90 50
+wait 100
+shot deep-b-surface
+cmd save-all flush
+wait 60
+quit

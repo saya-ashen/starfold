@@ -1,0 +1,52 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamerule doDaylightCycle false
+cmd starfold nav target a
+key jump on
+wait 4
+fly on
+key sprint on
+until controlled 1500
+wait 100
+key jump off
+aim track
+key forward on
+until alt< 6500 4000
+nav a-6500
+shot sea-a6500
+until alt< 4500 3000
+nav a-4500
+shot sea-a4500
+until alt< 3300 3000
+nav a-3300
+shot sea-a3300
+key forward off
+key sprint off
+cmd starfold nav brake on
+wait 300
+nav a-held
+shot sea-a-held
+cmd starfold nav target b
+wait 20
+aim track
+key sprint on
+key forward on
+until alt< 6500 4000
+nav b-6500
+shot sea-b6500
+until alt< 4500 3000
+nav b-4500
+shot sea-b4500
+until alt< 3300 3000
+nav b-3300
+shot sea-b3300
+key forward off
+key sprint off
+cmd starfold nav brake on
+wait 300
+nav b-held
+shot sea-b-held
+quit

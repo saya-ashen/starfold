@@ -1,0 +1,74 @@
+strict
+waitworld
+wait 100
+cmd gamemode creative
+cmd starfold terrain
+wait 100
+cmd tp @s 5288.5 145 862.5 90 20
+fly on
+wait 100
+cmd fill 5260 138 830 5320 139 890 minecraft:smooth_stone
+cmd fill 5285 140 855 5300 155 870 minecraft:air
+cmd setblock 5290 141 860 minecraft:oak_planks
+cmd setblock 5291 141 860 starfold:thruster[facing=north]
+cmd setblock 5292 141 860 starfold:airstair[facing=north]
+cmd setblock 5293 141 860 starfold:thruster[facing=north]
+cmd setblock 5294 141 860 minecraft:oak_planks
+cmd setblock 5290 141 861 starfold:thruster[facing=west]
+cmd setblock 5291 141 861 minecraft:oak_planks
+cmd setblock 5292 141 861 starfold:thruster[facing=down]
+cmd setblock 5293 141 861 minecraft:oak_planks
+cmd setblock 5294 141 861 starfold:thruster[facing=east]
+cmd setblock 5290 141 862 minecraft:oak_planks
+cmd setblock 5291 141 862 starfold:thruster[facing=up]
+cmd setblock 5292 141 862 minecraft:oak_planks
+cmd setblock 5293 141 862 starfold:thruster[facing=up]
+cmd setblock 5294 141 862 minecraft:oak_planks
+cmd setblock 5290 141 863 starfold:thruster[facing=west]
+cmd setblock 5291 141 863 minecraft:oak_planks
+cmd setblock 5292 141 863 starfold:thruster[facing=down]
+cmd setblock 5293 141 863 minecraft:oak_planks
+cmd setblock 5294 141 863 starfold:thruster[facing=east]
+cmd setblock 5290 141 864 minecraft:oak_planks
+cmd setblock 5291 141 864 starfold:thruster[facing=south]
+cmd setblock 5292 141 864 starfold:airstair[facing=south]
+cmd setblock 5293 141 864 starfold:thruster[facing=south]
+cmd setblock 5294 141 864 minecraft:oak_planks
+cmd setblock 5292 142 860 minecraft:oak_door[facing=north,half=lower,open=true]
+cmd setblock 5290 142 862 starfold:gyro
+cmd setblock 5292 142 862 starfold:helm[facing=west]
+cmd setblock 5294 142 862 starfold:gyro
+cmd setblock 5292 142 864 minecraft:oak_door[facing=south,half=lower,open=true]
+cmd setblock 5292 143 860 minecraft:oak_door[facing=north,half=upper,open=true]
+cmd setblock 5290 143 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 143 862 starfold:scope_nav[facing=west]
+cmd setblock 5294 143 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 143 864 minecraft:oak_door[facing=south,half=upper,open=true]
+wait 40
+cmd sable assemble area 5290 141 860 5294 143 864
+wait 200
+helmstate A-built
+cmd tp @s 5293.5 142.2 863.5 90 30
+fly off
+wait 100
+cmd gamemode survival
+wait 40
+find starfold:helm
+wait 5
+usehit helm
+wait 40
+requirehelm
+look free
+helmstate A-rest
+trace on
+press 32 1
+wait 19
+press 32 0
+helmstate A-release
+wait 200
+helmstate A-coast
+wait 200
+helmstate A-hover
+trace off
+shot blueprint1-A-hover
+quit

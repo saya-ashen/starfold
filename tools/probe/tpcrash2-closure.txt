@@ -1,0 +1,27 @@
+waitworld
+strict
+wait 40
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+cmd starfold face 0
+wait 60
+cmd tp @s 1003.5 202 1000.5 90 20
+wait 100
+cmd setblock 1000 200 1000 starfold:anomaly_core
+check closure-fixture-before if block 1000 200 1000 starfold:anomaly_core
+cmd sable assemble area 1000 200 1000 1000 200 1000
+wait 60
+hullblocks closure-only
+check closure-fixture-after if block 1000 200 1000 starfold:anomaly_core
+cmd setblock 1000 201 1000 minecraft:stone
+cmd sable assemble area 1000 200 1000 1000 201 1000
+wait 60
+hullblocks closure-mixed
+check closure-mixed-source if block 1000 200 1000 starfold:anomaly_core if block 1000 201 1000 minecraft:air
+cmd sable remove @e
+wait 40
+cmd starfold face 0
+wait 100
+shot tpcrash2-closure-end
+quit

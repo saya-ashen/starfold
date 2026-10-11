@@ -1,0 +1,66 @@
+waitworld
+strict
+wait 80
+cmd tick rate 20
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd clear @s
+cmd effect clear @s
+look free
+cmd tp @s 1024 200 1024 0 0
+wait 120
+cmd starfold face 0
+wait 80
+cmd tp @s 166.5 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+cmd tp @s 166.5 175 2040.5 90 -12
+wait 3
+fly on
+cmd starfold spin on
+wait 60
+cmd tick rate 200
+solarplan day
+cmd tick rate 20
+cmd starfold spin off
+wait 60
+press 290 1
+press 290 0
+cmd tp @s 166.5 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+solar day-150
+corner day-150
+shot verify2-7-day-150
+cmd tp @s 96.5 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+solar day-80
+corner day-80
+shot verify2-7-day-80
+cmd tp @s 56.5 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+solar day-40
+corner day-40
+shot verify2-7-day-40
+cmd tp @s 26.5 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+solar day-10
+corner day-10
+shot verify2-7-day-10
+press 290 1
+press 290 0
+cmd tick rate 20
+cmd starfold spin on
+cmd save-all flush
+wait 60
+shot verify2-7-end
+quit

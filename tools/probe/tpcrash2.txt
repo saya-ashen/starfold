@@ -1,0 +1,233 @@
+waitworld
+strict
+wait 40
+cmd gamemode creative
+cmd starfold terrain
+wait 100
+cmd starfold face 0
+wait 80
+cmd tp @s 33280 200 512
+wait 200
+log b-start
+cmd tp @s 26.5 0 2040.5
+wait 400
+log settled-1-a-corner
+shot tpcrash2-settled-1-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 400
+log settled-1-b-corner
+shot tpcrash2-settled-1-b-corner
+cmd tp @s 1024 200 1024
+wait 400
+log settled-1-a-centre
+shot tpcrash2-settled-1-a-centre
+cmd tp @s 33280 200 512
+wait 400
+log settled-1-b-centre
+shot tpcrash2-settled-1-b-centre
+cmd tp @s 1024 200 1024
+wait 400
+log settled-1-a-back
+shot tpcrash2-settled-1-a-back
+wait 400
+log settled-1-recovered
+cmd tp @s 26.5 0 2040.5
+wait 400
+log settled-2-a-corner
+shot tpcrash2-settled-2-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 400
+log settled-2-b-corner
+shot tpcrash2-settled-2-b-corner
+cmd tp @s 1024 200 1024
+wait 400
+log settled-2-a-centre
+shot tpcrash2-settled-2-a-centre
+cmd tp @s 33280 200 512
+wait 400
+log settled-2-b-centre
+shot tpcrash2-settled-2-b-centre
+cmd tp @s 1024 200 1024
+wait 400
+log settled-2-a-back
+shot tpcrash2-settled-2-a-back
+wait 400
+log settled-2-recovered
+cmd tp @s 26.5 0 2040.5
+wait 400
+log settled-3-a-corner
+shot tpcrash2-settled-3-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 400
+log settled-3-b-corner
+shot tpcrash2-settled-3-b-corner
+cmd tp @s 1024 200 1024
+wait 400
+log settled-3-a-centre
+shot tpcrash2-settled-3-a-centre
+cmd tp @s 33280 200 512
+wait 400
+log settled-3-b-centre
+shot tpcrash2-settled-3-b-centre
+cmd tp @s 1024 200 1024
+wait 400
+log settled-3-a-back
+shot tpcrash2-settled-3-a-back
+wait 400
+log settled-3-recovered
+cmd tp @s 26.5 0 2040.5
+wait 400
+log settled-4-a-corner
+shot tpcrash2-settled-4-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 400
+log settled-4-b-corner
+shot tpcrash2-settled-4-b-corner
+cmd tp @s 1024 200 1024
+wait 400
+log settled-4-a-centre
+shot tpcrash2-settled-4-a-centre
+cmd tp @s 33280 200 512
+wait 400
+log settled-4-b-centre
+shot tpcrash2-settled-4-b-centre
+cmd tp @s 1024 200 1024
+wait 400
+log settled-4-a-back
+shot tpcrash2-settled-4-a-back
+wait 400
+log settled-4-recovered
+cmd tp @s 26.5 0 2040.5
+wait 400
+log settled-5-a-corner
+shot tpcrash2-settled-5-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 400
+log settled-5-b-corner
+shot tpcrash2-settled-5-b-corner
+cmd tp @s 1024 200 1024
+wait 400
+log settled-5-a-centre
+shot tpcrash2-settled-5-a-centre
+cmd tp @s 33280 200 512
+wait 400
+log settled-5-b-centre
+shot tpcrash2-settled-5-b-centre
+cmd tp @s 1024 200 1024
+wait 400
+log settled-5-a-back
+shot tpcrash2-settled-5-a-back
+wait 400
+log settled-5-recovered
+cmd tp @s 26.5 0 2040.5
+wait 4
+log rapid-1-a-corner
+shot tpcrash2-rapid-1-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 4
+log rapid-1-b-corner
+shot tpcrash2-rapid-1-b-corner
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-1-a-centre
+shot tpcrash2-rapid-1-a-centre
+cmd tp @s 33280 200 512
+wait 4
+log rapid-1-b-centre
+shot tpcrash2-rapid-1-b-centre
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-1-a-back
+shot tpcrash2-rapid-1-a-back
+wait 400
+log rapid-1-recovered
+cmd tp @s 26.5 0 2040.5
+wait 4
+log rapid-2-a-corner
+shot tpcrash2-rapid-2-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 4
+log rapid-2-b-corner
+shot tpcrash2-rapid-2-b-corner
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-2-a-centre
+shot tpcrash2-rapid-2-a-centre
+cmd tp @s 33280 200 512
+wait 4
+log rapid-2-b-centre
+shot tpcrash2-rapid-2-b-centre
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-2-a-back
+shot tpcrash2-rapid-2-a-back
+wait 400
+log rapid-2-recovered
+cmd tp @s 26.5 0 2040.5
+wait 4
+log rapid-3-a-corner
+shot tpcrash2-rapid-3-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 4
+log rapid-3-b-corner
+shot tpcrash2-rapid-3-b-corner
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-3-a-centre
+shot tpcrash2-rapid-3-a-centre
+cmd tp @s 33280 200 512
+wait 4
+log rapid-3-b-centre
+shot tpcrash2-rapid-3-b-centre
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-3-a-back
+shot tpcrash2-rapid-3-a-back
+wait 400
+log rapid-3-recovered
+cmd tp @s 26.5 0 2040.5
+wait 4
+log rapid-4-a-corner
+shot tpcrash2-rapid-4-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 4
+log rapid-4-b-corner
+shot tpcrash2-rapid-4-b-corner
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-4-a-centre
+shot tpcrash2-rapid-4-a-centre
+cmd tp @s 33280 200 512
+wait 4
+log rapid-4-b-centre
+shot tpcrash2-rapid-4-b-centre
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-4-a-back
+shot tpcrash2-rapid-4-a-back
+wait 400
+log rapid-4-recovered
+cmd tp @s 26.5 0 2040.5
+wait 4
+log rapid-5-a-corner
+shot tpcrash2-rapid-5-a-corner
+cmd tp @s 32794.5 0 1016.5
+wait 4
+log rapid-5-b-corner
+shot tpcrash2-rapid-5-b-corner
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-5-a-centre
+shot tpcrash2-rapid-5-a-centre
+cmd tp @s 33280 200 512
+wait 4
+log rapid-5-b-centre
+shot tpcrash2-rapid-5-b-centre
+cmd tp @s 1024 200 1024
+wait 4
+log rapid-5-a-back
+shot tpcrash2-rapid-5-a-back
+wait 400
+log rapid-5-recovered
+shot tpcrash2-end
+quit

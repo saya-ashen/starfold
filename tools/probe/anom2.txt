@@ -1,0 +1,37 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+key sneak on
+until ground 4000
+key sneak off
+wait 40
+cmd starfold face 0
+wait 60
+cmd tp @s 110 190 1938 45 20
+wait 3
+fly on
+look 45 20
+wait 240
+nav approach
+shot af-approach
+cmd tp @s 45 215 2003 45 75
+wait 3
+fly on
+look 45 75
+wait 160
+nav above
+shot af-above
+cmd tp @s 40 141 2008 45 0
+wait 3
+fly on
+look 45 -5
+wait 120
+nav field
+shot af-field
+look -135 5
+wait 20
+shot af-outward
+quit

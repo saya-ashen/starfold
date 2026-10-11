@@ -1,0 +1,83 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect clear @s
+cmd starfold nav target b
+wait 20
+key jump on
+wait 4
+fly on
+key sprint on
+until controlled 1500
+wait 200
+key jump off
+nav up-high
+log up-high
+aim track
+key forward on
+until planet!= 0 8000
+nav at-b
+wait 100
+cmd starfold nav target a
+wait 20
+until planet!= 1 8000
+nav back-a-t0
+shot ua-t0
+key forward off
+key sprint off
+cmd starfold nav brake on
+wait 40
+nav back-a-t40
+log back-a-t40
+wait 40
+nav back-a-t80
+log back-a-t80
+wait 40
+nav back-a-t120
+log back-a-t120
+wait 40
+nav back-a-t160
+log back-a-t160
+shot ua-t160
+wait 40
+nav back-a-t200
+log back-a-t200
+wait 40
+nav back-a-t240
+log back-a-t240
+shot ua-t240
+wait 40
+nav back-a-t280
+log back-a-t280
+shot ua-t280
+wait 40
+nav back-a-t320
+log back-a-t320
+shot ua-t320
+wait 80
+nav back-a-t400
+log back-a-t400
+wait 80
+nav back-a-t480
+log back-a-t480
+shot ua-t480
+wait 80
+nav back-a-t560
+log back-a-t560
+wait 80
+nav back-a-t640
+log back-a-t640
+shot ua-t640
+wait 160
+nav back-a-t800
+log back-a-t800
+shot ua-t800
+wait 200
+nav back-a-t1000
+log back-a-t1000
+wait 200
+nav back-a-t1200
+log back-a-t1200
+quit

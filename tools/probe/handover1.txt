@@ -1,0 +1,42 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd gamerule doDaylightCycle false
+cmd time set noon
+cmd starfold nav target b
+wait 20
+key jump on
+wait 4
+fly on
+key sprint on
+until controlled 1500
+nav up-controlled
+wait 200
+key jump off
+nav up-high
+shot ho-0-high
+aim track
+key forward on
+until planet!= 0 6000
+nav ho-t0
+shot ho-1-t0
+wait 5
+nav ho-t5
+shot ho-2-t5
+wait 15
+nav ho-t20
+wait 40
+nav ho-t60
+shot ho-3-t60
+wait 140
+nav ho-t200
+shot ho-4-t200
+wait 400
+nav ho-t600
+shot ho-5-t600
+key forward off
+key sprint off
+quit

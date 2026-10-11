@@ -1,0 +1,36 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Needs the ice lane vehicle-seam2.txt builds at x 5119..5125.
+# An observer who has WALKED south over the rotated seam z=2048 of face 1 (frame turned a quarter) looks at an
+# asymmetric three-colour shape before and after it is assembled into a body: the two pictures must agree.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5122.5 180 2036.5 0 20
+wait 200
+cmd sable remove @e
+cmd fill 5119 180 2020 5125 186 2090 air
+cmd fill 5119 179 2020 5125 179 2090 minecraft:smooth_stone
+wait 10
+fly off
+look 0 20
+key forward on
+wait 62
+key forward off
+wait 20
+log walked
+cmd fill 18420 180 1026 18422 180 1026 minecraft:red_wool
+cmd setblock 18420 180 1027 minecraft:blue_wool
+cmd setblock 18422 181 1026 minecraft:yellow_wool
+wait 20
+look 0 20
+shot rotated-blocks
+cmd sable assemble area 18420 180 1026 18422 181 1027
+wait 80
+cmd sable info @l
+log assembled
+shot rotated-body
+quit

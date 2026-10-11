@@ -1,0 +1,62 @@
+# Fresh copied pad. Turn 120 degrees in cruise, return below APPROACH, observe only.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+cmd gamemode survival
+wait 40
+look 90 25
+press 32 1
+press 341 1
+until region 2000
+until height> 4400 2000
+press 32 0
+press 341 0
+until w< 10 1600
+trace on
+log approach-turn-start
+press 265 1
+wait 52
+press 265 0
+wait 9
+log approach-120
+abilities approach-120
+press 83 1
+press 341 1
+until height< 4096 1800
+log approach-cross4096
+abilities approach-cross4096
+press 83 0
+press 340 1
+wait 19
+log approach-1s
+wait 19
+log approach-2s
+wait 39
+log approach-4s
+until chart 1800
+press 340 0
+press 341 0
+log approach-arrived
+abilities approach-arrived
+requiretypewriter
+wait 199
+log approach-arrived-10s
+abilities approach-arrived-10s
+trace off
+cmd save-all flush
+wait 100
+quit

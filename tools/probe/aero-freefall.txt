@@ -1,0 +1,30 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5291.5 140 852.5 -30 -5
+wait 200
+look -30 -5
+cmd fill 5292 140 855 5316 156 866 air
+cmd fill 5296 148 858 5298 149 860 minecraft:oak_planks
+cmd fill 5308 150 858 5310 151 860 minecraft:gold_block
+wait 20
+shot aero-f0
+cmd sable assemble area 5296 148 858 5298 149 860
+cmd sable assemble area 5308 150 858 5310 151 860
+wait 10
+blockat 5297 148 859
+shot aero-f1
+wait 30
+shot aero-f2
+wait 100
+shot aero-f3
+wait 200
+shot aero-f4
+cmd tp @s 5305.5 140 866.5 150 10
+wait 60
+look 150 10
+wait 10
+shot aero-f5
+quit

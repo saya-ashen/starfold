@@ -1,0 +1,22 @@
+# What is at y=295 over the test pad?
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd sable info @e
+cmd tp @s 5275.5 285 862.5 90 -60
+wait 5
+fly on
+wait 100
+look 90 -60
+wait 10
+shot ceiling-up
+look 90 0
+wait 10
+shot ceiling-west
+blockat 5268 297 862
+blockat 5268 300 862
+blockat 5268 310 862
+cmd sable info @e
+quit

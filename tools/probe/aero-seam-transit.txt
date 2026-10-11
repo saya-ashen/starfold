@@ -1,0 +1,55 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Ordinary seam at x=4096.
+# Assemble a balloon on face 1, stand on deck, let it lift, apply horizontal impulse.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4118.5 141 848.5 90 -20
+wait 200
+cmd sable remove @e
+cmd fill 4050 176 856 4116 190 872 air
+cmd fill 4104 140 858 4112 155 866 air
+cmd fill 4104 139 858 4112 139 866 minecraft:smooth_stone
+cmd fill 4107 140 861 4109 140 863 minecraft:oak_planks
+cmd fill 4107 141 861 4107 142 861 minecraft:oak_planks
+cmd fill 4109 141 861 4109 142 861 minecraft:oak_planks
+cmd fill 4107 141 863 4107 142 863 minecraft:oak_planks
+cmd fill 4109 141 863 4109 142 863 minecraft:oak_planks
+cmd fill 4104 143 858 4112 149 866 aeronautics:white_envelope hollow
+cmd fill 4105 143 859 4111 143 865 air
+cmd fill 4104 143 861 4112 143 861 minecraft:oak_planks
+cmd fill 4104 143 863 4112 143 863 minecraft:oak_planks
+cmd setblock 4108 140 862 minecraft:redstone_block
+cmd setblock 4108 141 862 aeronautics:adjustable_burner
+cmd tp @s 4107.5 141 862.5 90 0
+wait 40
+fly off
+look 90 0
+cmd sable assemble area 4104 140 858 4112 149 866
+wait 160
+log seam-before
+cmd sable info @l
+shot transit-before
+cmd sable physics impulse @l linear -1800 0 0 global
+wait 20
+log seam-20
+cmd sable info @l
+shot transit-20
+wait 40
+log seam-60
+cmd sable info @l
+shot transit-60
+wait 80
+log seam-140
+cmd sable info @l
+shot transit-140
+wait 100
+log seam-240
+abilities seam-240
+cmd sable info @l
+shot transit-240
+quit

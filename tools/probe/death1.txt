@@ -1,0 +1,33 @@
+# Flight death cleanup; waitworld automatically requests respawn from DeathScreen.
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd difficulty peaceful
+cmd gamemode survival
+cmd item replace entity @s armor.chest with starfold:thruster_pack
+wait 60
+abilities before-takeoff
+cmd starfold nav target 0
+cmd tp @s 2000 280 1024 0 0
+wait 40
+look 0 0
+key jump on
+wait 4
+fly on
+until alt> 300 900
+until controlled 200
+key jump off
+wait 20
+nav before-kill
+abilities before-kill
+cmd kill @s
+wait 60
+waitworld
+wait 100
+nav after-respawn
+abilities after-respawn
+cmd starfold status
+wait 20
+quit

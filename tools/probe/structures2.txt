@@ -1,0 +1,25 @@
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd time set 6000
+cmd tp @s 4400 200 1060
+wait 900
+look 0 15
+wait 60
+shot struct-village
+census 60
+cmd tp @s 5264 200 580
+wait 900
+look 0 5
+wait 60
+shot struct-outpost
+census 40
+cmd tp @s 5376 200 262
+wait 900
+look 0 20
+wait 60
+shot struct-portal
+census 24
+quit

@@ -1,0 +1,81 @@
+strict
+waitworld
+loopstate login
+solar login
+wait 160
+check S2-B-chest if block {baseb:0,-10,0} chest
+check S2-B-slot0 if data block {baseb:0,-10,0} Items[{Slot:0b,id:"minecraft:copper_ingot",count:7}]
+check S2-B-slot1 unless data block {baseb:0,-10,0} Items[{Slot:1b}]
+check S2-B-slot2 unless data block {baseb:0,-10,0} Items[{Slot:2b}]
+check S2-B-slot3 unless data block {baseb:0,-10,0} Items[{Slot:3b}]
+check S2-B-slot4 unless data block {baseb:0,-10,0} Items[{Slot:4b}]
+check S2-B-slot5 if data block {baseb:0,-10,0} Items[{Slot:5b,id:"minecraft:coal",count:13}]
+check S2-B-slot6 unless data block {baseb:0,-10,0} Items[{Slot:6b}]
+check S2-B-slot7 unless data block {baseb:0,-10,0} Items[{Slot:7b}]
+check S2-B-slot8 unless data block {baseb:0,-10,0} Items[{Slot:8b}]
+check S2-B-slot9 unless data block {baseb:0,-10,0} Items[{Slot:9b}]
+check S2-B-slot10 unless data block {baseb:0,-10,0} Items[{Slot:10b}]
+check S2-B-slot11 unless data block {baseb:0,-10,0} Items[{Slot:11b}]
+check S2-B-slot12 unless data block {baseb:0,-10,0} Items[{Slot:12b}]
+check S2-B-slot13 unless data block {baseb:0,-10,0} Items[{Slot:13b}]
+check S2-B-slot14 unless data block {baseb:0,-10,0} Items[{Slot:14b}]
+check S2-B-slot15 unless data block {baseb:0,-10,0} Items[{Slot:15b}]
+check S2-B-slot16 unless data block {baseb:0,-10,0} Items[{Slot:16b}]
+check S2-B-slot17 unless data block {baseb:0,-10,0} Items[{Slot:17b}]
+check S2-B-slot18 unless data block {baseb:0,-10,0} Items[{Slot:18b}]
+check S2-B-slot19 unless data block {baseb:0,-10,0} Items[{Slot:19b}]
+check S2-B-slot20 unless data block {baseb:0,-10,0} Items[{Slot:20b}]
+check S2-B-slot21 unless data block {baseb:0,-10,0} Items[{Slot:21b}]
+check S2-B-slot22 unless data block {baseb:0,-10,0} Items[{Slot:22b}]
+check S2-B-slot23 unless data block {baseb:0,-10,0} Items[{Slot:23b}]
+check S2-B-slot24 unless data block {baseb:0,-10,0} Items[{Slot:24b}]
+check S2-B-slot25 unless data block {baseb:0,-10,0} Items[{Slot:25b}]
+check S2-B-slot26 if data block {baseb:0,-10,0} Items[{Slot:26b,id:"minecraft:raw_iron",count:11}]
+check S2-B-copper_block if block {baseb:1,0,0} copper_block
+check S2-B-amethyst_block if block {baseb:2,0,0} amethyst_block
+check S2-B-emerald_block if block {baseb:2,1,0} emerald_block
+check S2-B-shaft1 if block {baseb:-1,-1,0} air
+check S2-B-shaft2 if block {baseb:-1,-2,0} air
+check S2-B-shaft3 if block {baseb:-1,-3,0} air
+check S2-B-shaft4 if block {baseb:-1,-4,0} air
+check S2-B-shaft5 if block {baseb:-1,-5,0} air
+check S2-B-shaft6 if block {baseb:-1,-6,0} air
+check S2-B-shaft7 if block {baseb:-1,-7,0} air
+check S2-B-shaft8 if block {baseb:-1,-8,0} air
+check S2-B-shaft9 if block {baseb:-1,-9,0} air
+check S2-B-shaft10 if block {baseb:-1,-10,0} air
+cmd data get block {baseb:3,0,0}
+loopstate S2-B
+wait 20
+solar S2-B
+wait 240
+cmd data get block {baseb:3,0,0}
+loopstate furnace-240
+cmd tp @s {boardb}
+wait 100
+aboardelsequit
+find typewriter
+wait 6
+usehit first
+wait 40
+useifidle
+wait 40
+requiretypewriter
+find throttle
+wait 6
+throttle 0
+throttle 15
+sample 100
+until region 4000
+throttle 0
+steer 0 50
+requireref 1
+loopstate space-stop
+sample 0
+cmd save-all flush
+wait 80
+loopstate final-save
+solar final-save
+wait 20
+shot space-loop2-final
+quit

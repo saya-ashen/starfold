@@ -1,0 +1,58 @@
+{
+  "display": {
+    "icon": {
+      "id": "starfold:airstair"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.airstair.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.airstair.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "item0": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "starfold:airstair"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "item0"
+    ]
+  ],
+  "parent": "starfold:ship_without_workshop/scope",
+  "rewards": {
+    "recipes": [
+      "starfold:airstair"
+    ]
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:and",
+        "values": [
+          {
+            "type": "neoforge:mod_loaded",
+            "modid": "create"
+          },
+          {
+            "type": "neoforge:mod_loaded",
+            "modid": "simulated"
+          }
+        ]
+      }
+    }
+  ]
+}

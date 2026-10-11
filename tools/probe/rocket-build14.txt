@@ -1,0 +1,76 @@
+strict
+# Fresh rocket-test-40-*; dev.64 boarding ladder rocket. No Create links or Simulated helm.
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd tp @s 4148.5 140 1020.5 180 20
+wait 20
+fly on
+wait 160
+cmd fill 4140 128 1006 4160 130 1026 minecraft:smooth_stone
+cmd fill 4140 131 1006 4160 146 1026 minecraft:air
+wait 40
+cmd fill 4143 132 1011 4153 136 1017 minecraft:glass
+cmd fill 4144 133 1012 4152 135 1016 minecraft:air
+cmd fill 4143 132 1011 4153 132 1017 minecraft:spruce_planks
+cmd setblock 4148 133 1017 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock 4148 134 1017 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd setblock 4149 133 1017 minecraft:oak_door[half=lower,facing=north,hinge=right]
+cmd setblock 4149 134 1017 minecraft:oak_door[half=upper,facing=north,hinge=right]
+cmd setblock 4148 132 1017 starfold:boarding_ladder[facing=south]
+cmd setblock 4148 133 1011 minecraft:oak_door[half=lower,facing=south,hinge=right]
+cmd setblock 4148 134 1011 minecraft:oak_door[half=upper,facing=south,hinge=right]
+cmd setblock 4149 133 1011 minecraft:oak_door[half=lower,facing=south,hinge=left]
+cmd setblock 4149 134 1011 minecraft:oak_door[half=upper,facing=south,hinge=left]
+cmd setblock 4148 132 1011 starfold:boarding_ladder[facing=north]
+cmd fill 4144 132 1012 4152 132 1016 minecraft:spruce_planks
+cmd setblock 4146 132 1013 minecraft:iron_block
+cmd setblock 4146 132 1015 minecraft:iron_block
+cmd setblock 4148 132 1013 minecraft:iron_block
+cmd setblock 4148 132 1015 minecraft:iron_block
+cmd setblock 4150 132 1013 minecraft:iron_block
+cmd setblock 4150 132 1015 minecraft:iron_block
+cmd setblock 4148 132 1014 starfold:thruster[facing=down]
+cmd setblock 4149 133 1013 starfold:thruster[facing=up]
+cmd setblock 4149 133 1015 starfold:thruster[facing=up]
+cmd setblock 4152 133 1014 starfold:thruster[facing=east]
+cmd setblock 4150 133 1013 starfold:booster
+cmd setblock 4150 133 1015 starfold:booster
+cmd setblock 4144 132 1014 starfold:thruster[facing=west]
+cmd setblock 4144 132 1012 starfold:thruster[facing=north]
+cmd setblock 4152 133 1016 starfold:thruster[facing=south]
+cmd setblock 4144 132 1016 starfold:thruster[facing=south]
+cmd setblock 4152 133 1012 starfold:thruster[facing=north]
+cmd setblock 4147 133 1016 starfold:gyro
+cmd setblock 4147 134 1016 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 4147 133 1012 starfold:gyro
+cmd setblock 4147 134 1012 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 4146 133 1014 starfold:helm[facing=west]
+cmd setblock 4143 134 1014 starfold:scope_precise[facing=west]
+cmd setblock 4145 132 1014 starfold:scope_precise[facing=down]
+cmd setblock 4148 133 1015 minecraft:oak_sign[rotation=12]{front_text:{messages:['{"text":"右键控制器"}','{"text":"W前 S后"}','{"text":"空格升 Shift降"}','{"text":"Ctrl各方向加速"}']}}
+cmd setblock 4148 133 1013 minecraft:oak_sign[rotation=12]{front_text:{messages:['{"text":"R或右键退出"}','{"text":"A左 D右"}','{"text":"星球转向"}','{"text":"太空滚转"}']}}
+wait 60
+cmd sable assemble area 4143 131 1009 4153 136 1019
+wait 200
+cmd sable info @e
+wait 200
+cmd sable info @e
+wait 400
+cmd sable info @e
+cmd tp @s 4148.5 131 1021.5 180 0
+fly off
+cmd effect clear @s
+cmd time set day
+cmd weather clear
+wait 80
+probeui
+wait 20
+shot ladder-pad-built
+log final
+cmd save-all flush
+wait 100
+quit

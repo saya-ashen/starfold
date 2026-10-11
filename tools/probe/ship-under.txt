@@ -1,0 +1,13 @@
+# Where on the home planet the target planet stands overhead, now and a little later (the planet turns).
+waitworld
+wait 100
+waitworld
+cmd starfold face 1
+wait 100
+until free 200
+cmd starfold spin off
+wait 40
+nav under-0
+wait 600
+nav under-600
+quit

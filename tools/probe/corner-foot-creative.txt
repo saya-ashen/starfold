@@ -1,0 +1,59 @@
+waitworld
+wait 60
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd effect clear @s
+cmd gamerule doWeatherCycle false
+cmd weather clear
+cmd tp @s 141.4214 195 1906.5786 45 0
+wait 80
+fly off
+wait 100
+cmd gamemode creative
+wait 20
+cornerwatch 20
+corner start-200
+shot corner-creative-start
+look 45 0
+key forward on
+wait 230
+corner 150
+shot corner-creative-150
+wait 325
+corner 80
+shot corner-creative-80
+wait 185
+corner 40
+shot corner-creative-40
+wait 420
+corner stop
+shot corner-creative-stop
+key forward off
+corner stopped
+key jump on
+key forward on
+wait 450
+key forward off
+key jump off
+corner after-jumping
+fly on
+key forward on
+wait 220
+key forward off
+corner flying-low
+key jump on
+wait 160
+key jump off
+key forward on
+wait 220
+key forward off
+corner flying-over
+shot corner-creative-over
+cmd data get entity @s Pos
+cmd data get entity @s Health
+cmd save-all flush
+wait 60
+quit

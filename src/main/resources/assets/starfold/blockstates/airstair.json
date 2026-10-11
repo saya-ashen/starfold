@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "starfold:block/airstair",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "starfold:block/airstair",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "starfold:block/airstair",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "starfold:block/airstair",
+      "y": 270
+    }
+  }
+}

@@ -1,0 +1,54 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect clear @s
+cmd starfold nav target b
+wait 20
+key jump on
+wait 4
+fly on
+key sprint on
+until controlled 1500
+wait 200
+key jump off
+nav up-high
+aim track
+key forward on
+until planet!= 0 8000
+nav left-a
+shot lb-left
+key forward off
+key sprint off
+cmd starfold nav brake on
+cmd starfold nav target a
+wait 4
+nav look-t4
+shot lb-t4
+wait 6
+nav look-t10
+shot lb-t10
+wait 50
+nav look-t60
+shot lb-t60
+wait 140
+nav look-t200
+shot lb-t200
+wait 400
+nav look-t600
+shot lb-t600
+key sprint on
+key forward on
+until planet!= 1 8000
+key forward off
+key sprint off
+nav home-t0
+shot lb-home-t0
+wait 60
+nav home-t60
+shot lb-home-t60
+wait 300
+nav home-t360
+shot lb-home-t360
+quit

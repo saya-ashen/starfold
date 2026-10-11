@@ -1,0 +1,48 @@
+# DESTRUCTIVE fixture: only run in disposable devworld-create1; removes all Sable bodies in that level.
+# Requires Create 6.0.10, Aeronautics 1.3.2 and Sable 2.0.5.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5280.5 140 848.5 -40 -20
+wait 200
+cmd sable remove @e
+cmd fill 5284 140 852 5302 160 872 air
+cmd fill 5286 139 854 5302 139 872 minecraft:smooth_stone
+cmd fill 5291 140 861 5293 140 863 minecraft:oak_planks
+cmd fill 5291 141 861 5291 142 861 minecraft:oak_planks
+cmd fill 5293 141 861 5293 142 861 minecraft:oak_planks
+cmd fill 5291 141 863 5291 142 863 minecraft:oak_planks
+cmd fill 5293 141 863 5293 142 863 minecraft:oak_planks
+cmd fill 5288 143 858 5296 149 866 aeronautics:white_envelope hollow
+cmd fill 5289 143 859 5295 143 865 air
+cmd fill 5288 143 861 5296 143 861 minecraft:oak_planks
+cmd fill 5288 143 863 5296 143 863 minecraft:oak_planks
+cmd setblock 5292 140 862 minecraft:redstone_block
+cmd setblock 5292 141 862 aeronautics:adjustable_burner
+wait 40
+look -40 -20
+shot ship-0
+cmd sable assemble area 5288 140 858 5296 149 866
+wait 20
+cmd sable info @l
+shot ship-1
+wait 100
+cmd sable info @l
+shot ship-2
+wait 200
+cmd sable info @l
+look -40 -40
+wait 5
+shot ship-3
+wait 300
+cmd sable info @l
+shot ship-4
+wait 300
+cmd sable info @l
+shot ship-5
+quit

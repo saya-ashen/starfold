@@ -1,0 +1,124 @@
+# The world handed to Saya: a platform on the sea 60 blocks east of the west seam of face 1 (x=4096), the starter
+# airship (tools/ship/airship.py) on it with every lever up, a bed and four signs. The design was flown in ship-levers.txt
+# and ship-speed.txt; this script only builds. Run once on the fresh world airship1.
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4168.5 140 1024.5 90 10
+wait 5
+fly on
+wait 100
+cmd sable remove @e
+cmd fill 4141 128 1009 4171 130 1039 minecraft:smooth_stone
+cmd fill 4141 131 1009 4171 150 1039 minecraft:air
+wait 20
+cmd fill 4151 132 1022 4161 132 1026 minecraft:spruce_planks
+cmd fill 4154 131 1024 4158 131 1024 minecraft:iron_block
+cmd fill 4155 133 1023 4155 134 1023 minecraft:spruce_fence
+cmd fill 4155 133 1025 4155 134 1025 minecraft:spruce_fence
+cmd fill 4157 133 1023 4157 134 1023 minecraft:spruce_fence
+cmd fill 4157 133 1025 4157 134 1025 minecraft:spruce_fence
+cmd fill 4152 135 1020 4160 141 1028 aeronautics:white_envelope hollow
+cmd fill 4153 135 1021 4159 135 1027 minecraft:air
+cmd fill 4152 135 1023 4160 135 1023 minecraft:spruce_planks
+cmd fill 4152 135 1025 4160 135 1025 minecraft:spruce_planks
+cmd setblock 4156 133 1024 aeronautics:adjustable_burner
+cmd setblock 4156 133 1025 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 4159 133 1024 create:creative_motor[facing=east]{ScrollValue:256}
+cmd setblock 4160 133 1024 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 4161 133 1024 aeronautics:wooden_propeller[facing=east]
+cmd setblock 4160 133 1023 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 4160 133 1025 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 4152 133 1024 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 4152 133 1025 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 4152 133 1026 aeronautics:wooden_propeller[facing=south]
+cmd setblock 4151 133 1025 minecraft:lever[face=floor,facing=west,powered=false]
+cmd setblock 4153 133 1025 minecraft:lever[face=floor,facing=east,powered=false]
+cmd setblock 4159 133 1023 minecraft:oak_sign[rotation=4]{front_text:{messages:['{"text":"前进"}','{"text":"拉下此侧拉杆"}','{"text":""}','{"text":""}']}}
+cmd setblock 4159 133 1025 minecraft:oak_sign[rotation=4]{front_text:{messages:['{"text":"后退"}','{"text":"拉下此侧拉杆"}','{"text":""}','{"text":""}']}}
+cmd setblock 4156 133 1026 minecraft:oak_sign[rotation=8]{front_text:{messages:['{"text":"燃烧器"}','{"text":"拉下=上升"}','{"text":"抬起=下降"}','{"text":""}']}}
+cmd setblock 4151 133 1026 minecraft:oak_sign[rotation=8]{front_text:{messages:['{"text":"右转"}','{"text":""}','{"text":""}','{"text":""}']}}
+cmd setblock 4153 133 1026 minecraft:oak_sign[rotation=8]{front_text:{messages:['{"text":"左转"}','{"text":""}','{"text":""}','{"text":""}']}}
+cmd setblock 4151 133 1022 minecraft:spruce_fence
+cmd setblock 4152 133 1022 minecraft:spruce_fence
+cmd setblock 4153 133 1022 minecraft:spruce_fence
+cmd setblock 4154 133 1022 minecraft:spruce_fence
+cmd setblock 4154 133 1026 minecraft:spruce_fence
+cmd setblock 4155 133 1022 minecraft:spruce_fence
+cmd setblock 4155 133 1026 minecraft:spruce_fence
+cmd setblock 4156 133 1022 minecraft:spruce_fence
+cmd setblock 4157 133 1022 minecraft:spruce_fence
+cmd setblock 4157 133 1026 minecraft:spruce_fence
+cmd setblock 4158 133 1022 minecraft:spruce_fence
+cmd setblock 4158 133 1026 minecraft:spruce_fence
+cmd setblock 4159 133 1022 minecraft:spruce_fence
+cmd setblock 4159 133 1026 minecraft:spruce_fence
+cmd setblock 4160 133 1022 minecraft:spruce_fence
+cmd setblock 4160 133 1026 minecraft:spruce_fence
+cmd setblock 4161 133 1022 minecraft:spruce_fence
+cmd setblock 4161 133 1026 minecraft:spruce_fence
+cmd setblock 4166 131 1020 minecraft:red_bed[facing=north,part=foot]
+cmd setblock 4166 131 1019 minecraft:red_bed[facing=north,part=head]
+cmd setblock 4165 131 1022 minecraft:oak_sign[rotation=12]{front_text:{messages:['{"text":"飞艇试飞场"}','{"text":"船头朝西"}','{"text":"向西60格是"}','{"text":"星球的接缝"}']}}
+cmd setblock 4165 131 1024 minecraft:oak_sign[rotation=12]{front_text:{messages:['{"text":"1 上船后拉下"}','{"text":"燃烧器拉杆"}','{"text":"飞艇就会上升"}','{"text":"抬起则下降"}']}}
+cmd setblock 4165 131 1026 minecraft:oak_sign[rotation=12]{front_text:{messages:['{"text":"2 船尾两根拉杆"}','{"text":"前进 / 后退"}','{"text":"3 船头两根拉杆"}','{"text":"左转 / 右转"}']}}
+cmd setblock 4165 131 1028 minecraft:oak_sign[rotation=12]{front_text:{messages:['{"text":"天黑可以睡觉"}','{"text":"一觉到天亮"}','{"text":"拉杆用完记得"}','{"text":"抬起来"}']}}
+wait 40
+fly off
+cmd tp @s 4168.5 131 1024.5 90 5
+wait 20
+look 90 5
+shot ship-blocks
+cmd sable assemble area 4151 131 1020 4161 141 1028
+wait 120
+cmd sable info @l
+look 90 5
+shot ship-final
+cmd tp @s 4156.5 133 1012.5 0 5
+wait 40
+look 0 5
+shot ship-north
+cmd tp @s 4155.5 133.3 1024.5 90 10
+wait 60
+look 90 10
+log on-deck
+shot ship-deck
+look -90 10
+wait 10
+shot ship-deck-stern
+# Every lever is there and up.
+cmd tp @s 4156.5 133.2 1026.5 180 55
+wait 30
+look 180 55
+wait 6
+hit burner
+cmd tp @s 4161.5 133.2 1023.5 90 55
+wait 30
+look 90 55
+wait 6
+hit forward
+cmd tp @s 4161.5 133.2 1025.5 90 55
+wait 30
+look 90 55
+wait 6
+hit reverse
+cmd tp @s 4151.5 133.2 1024.5 0 55
+wait 30
+look 0 55
+wait 6
+hit right
+cmd tp @s 4153.5 133.2 1024.5 0 55
+wait 30
+look 0 55
+wait 6
+hit left
+cmd tp @s 4168.5 131 1024.5 90 5
+wait 40
+look 90 5
+cmd sable info @l
+cmd effect clear @s
+wait 20
+log final
+quit

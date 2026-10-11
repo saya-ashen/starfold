@@ -1,0 +1,64 @@
+# DESTRUCTIVE to the ship's place: flies the handed-over airship by its own five levers, then ship-build.txt puts it back.
+waitworld
+wait 200
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4156.5 133.2 1026.5 180 55
+wait 30
+look 180 55
+wait 6
+usehit burner
+wait 80
+cmd tellraw @s "CASE burner"
+cmd sable info @l
+cmd tp @s ~5 ~0.3 ~-3
+wait 30
+look 90 55
+wait 6
+usehit forward
+wait 100
+cmd tellraw @s "CASE forward"
+cmd sable info @l
+look 90 55
+wait 6
+usehit forward-off
+wait 40
+cmd tp @s ~0 ~0.3 ~2
+wait 30
+look 90 55
+wait 6
+usehit reverse
+wait 100
+cmd tellraw @s "CASE reverse"
+cmd sable info @l
+look 90 55
+wait 6
+usehit reverse-off
+wait 40
+cmd tp @s ~-10 ~0.3 ~-1
+wait 30
+look 0 55
+wait 6
+usehit right
+wait 60
+cmd tellraw @s "CASE right"
+cmd sable info @l
+look 0 55
+wait 6
+usehit right-off
+wait 40
+cmd tp @s ~2 ~0.3 ~0
+wait 30
+look 0 55
+wait 6
+usehit left
+wait 60
+cmd tellraw @s "CASE left"
+cmd sable info @l
+look 0 55
+wait 6
+usehit left-off
+wait 40
+shot levers-end
+cmd effect clear @s
+quit

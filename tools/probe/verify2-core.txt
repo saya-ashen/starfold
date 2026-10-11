@@ -1,0 +1,427 @@
+waitworld
+strict
+wait 60
+cmd gamemode creative
+cmd starfold terrain
+wait 240
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd gamerule doMobSpawning false
+cmd tp @s 1000.5 240 1000.5 0 50
+wait 240
+fly on
+scandown 1000 1000 140 -526
+check A-floor if block 1000 -525 1000 starfold:core_shell
+check A-below if block 1000 -526 1000 minecraft:air
+cmd fill 995 -524 995 1005 -513 1005 air
+cmd tp @s 1000.5 -522 1000.5 0 90
+wait 80
+fly on
+shot verify2-1-A-room
+log A-before
+cmd tellraw @s "VERIFY2 A-before"
+check A-before-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd setblock 1000 -525 1000 air
+log A-setblock
+cmd tellraw @s "VERIFY2 A-setblock"
+check A-setblock-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd fill 999 -525 999 1001 -525 1001 stone
+log A-fill
+cmd tellraw @s "VERIFY2 A-fill"
+check A-fill-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd tp @s 1000.5 -524 1000.5 0 90
+wait 40
+break 1000 -525 1000
+wait 40
+log A-creative
+cmd tellraw @s "VERIFY2 A-creative"
+check A-creative-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd tp @s 1003.5 -523 1000.5 90 20
+wait 20
+cmd setblock 1000 -524 1000 minecraft:piston[facing=down]
+cmd setblock 1001 -524 1000 redstone_block
+wait 40
+check A-piston-blocked if block 1000 -524 1000 minecraft:piston[extended=false]
+log A-push
+cmd tellraw @s "VERIFY2 A-push"
+check A-push-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd setblock 1001 -524 1000 air
+cmd setblock 1000 -524 1000 air
+cmd setblock 1000 -523 1000 minecraft:sticky_piston[facing=down]
+cmd setblock 1001 -523 1000 redstone_block
+wait 30
+check A-sticky-extended if block 1000 -523 1000 minecraft:sticky_piston[extended=true]
+cmd setblock 1001 -523 1000 air
+wait 30
+check A-sticky-retracted if block 1000 -523 1000 minecraft:sticky_piston[extended=false]
+check A-not-pulled if block 1000 -524 1000 air
+log A-pull
+cmd tellraw @s "VERIFY2 A-pull"
+check A-pull-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd setblock 1000 -523 1000 air
+cmd summon tnt 1000.5 -524 1000.5 {fuse:0}
+wait 60
+log A-tnt
+cmd tellraw @s "VERIFY2 A-tnt"
+check A-tnt-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd summon end_crystal 1000.5 -524 1000.5 {Tags:["verify2_crystal"],ShowBottom:0b}
+check A-crystal-present if entity @e[type=end_crystal,tag=verify2_crystal]
+cmd damage @e[type=end_crystal,tag=verify2_crystal,limit=1] 1 minecraft:generic
+wait 60
+check A-crystal-exploded unless entity @e[type=end_crystal,tag=verify2_crystal]
+log A-crystal
+cmd tellraw @s "VERIFY2 A-crystal"
+check A-crystal-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd setblock 1000 -524 1000 create:mechanical_drill[facing=down]
+cmd setblock 1000 -523 1000 create:shaft[axis=y]
+cmd setblock 1000 -522 1000 create:creative_motor[facing=down]{ScrollValue:256}
+wait 240
+cmd data get block 1000 -524 1000
+cmd data get block 1000 -523 1000
+shot verify2-1-A-drill
+log A-stationary-drill
+cmd tellraw @s "VERIFY2 A-stationary-drill"
+check A-stationary-drill-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd fill 1000 -524 1000 1000 -522 1000 air
+cmd tp @s 1000.5 -524 1000.5 0 90
+wait 20
+cmd gamemode survival
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_pickaxe[minecraft:enchantments={levels:{"minecraft:efficiency":5}}]
+cmd effect give @s minecraft:resistance 60 4 true
+cmd effect give @s minecraft:saturation 60 4 true
+wait 30
+hit A-mining-target
+log A-mining-start
+break 1000 -525 1000
+wait 600
+log A-mining-end
+log A-survival-startbreak-only
+cmd tellraw @s "VERIFY2 A-survival-startbreak-only"
+check A-survival-startbreak-only-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd gamemode creative
+wait 20
+cmd tp @s 1003.5 -523 1000.5 90 20
+wait 30
+cmd sable assemble area 1000 -525 1000 1000 -525 1000
+wait 100
+cmd sable info @e
+hullblocks A-shell
+log A-sable
+cmd tellraw @s "VERIFY2 A-sable"
+check A-sable-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd sable remove @e
+wait 30
+cmd tp @s 1000.5 240 1000.5 0 50
+wait 100
+fly on
+shot verify2-1-A-surface
+cmd tp @s 33280.5 240 512.5 0 50
+wait 240
+fly on
+scandown 33280 512 140 -200
+check B-floor if block 33280 -199 512 starfold:core_shell
+check B-below if block 33280 -200 512 minecraft:air
+cmd fill 33275 -198 507 33285 -187 517 air
+cmd tp @s 33280.5 -196 512.5 0 90
+wait 80
+fly on
+shot verify2-1-B-room
+log B-before
+cmd tellraw @s "VERIFY2 B-before"
+check B-before-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd setblock 33280 -199 512 air
+log B-setblock
+cmd tellraw @s "VERIFY2 B-setblock"
+check B-setblock-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd fill 33279 -199 511 33281 -199 513 stone
+log B-fill
+cmd tellraw @s "VERIFY2 B-fill"
+check B-fill-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd tp @s 33280.5 -198 512.5 0 90
+wait 40
+break 33280 -199 512
+wait 40
+log B-creative
+cmd tellraw @s "VERIFY2 B-creative"
+check B-creative-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd tp @s 33283.5 -197 512.5 90 20
+wait 20
+cmd setblock 33280 -198 512 minecraft:piston[facing=down]
+cmd setblock 33281 -198 512 redstone_block
+wait 40
+check B-piston-blocked if block 33280 -198 512 minecraft:piston[extended=false]
+log B-push
+cmd tellraw @s "VERIFY2 B-push"
+check B-push-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd setblock 33281 -198 512 air
+cmd setblock 33280 -198 512 air
+cmd setblock 33280 -197 512 minecraft:sticky_piston[facing=down]
+cmd setblock 33281 -197 512 redstone_block
+wait 30
+check B-sticky-extended if block 33280 -197 512 minecraft:sticky_piston[extended=true]
+cmd setblock 33281 -197 512 air
+wait 30
+check B-sticky-retracted if block 33280 -197 512 minecraft:sticky_piston[extended=false]
+check B-not-pulled if block 33280 -198 512 air
+log B-pull
+cmd tellraw @s "VERIFY2 B-pull"
+check B-pull-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd setblock 33280 -197 512 air
+cmd summon tnt 33280.5 -198 512.5 {fuse:0}
+wait 60
+log B-tnt
+cmd tellraw @s "VERIFY2 B-tnt"
+check B-tnt-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd summon end_crystal 33280.5 -198 512.5 {Tags:["verify2_crystal"],ShowBottom:0b}
+check B-crystal-present if entity @e[type=end_crystal,tag=verify2_crystal]
+cmd damage @e[type=end_crystal,tag=verify2_crystal,limit=1] 1 minecraft:generic
+wait 60
+check B-crystal-exploded unless entity @e[type=end_crystal,tag=verify2_crystal]
+log B-crystal
+cmd tellraw @s "VERIFY2 B-crystal"
+check B-crystal-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd setblock 33280 -198 512 create:mechanical_drill[facing=down]
+cmd setblock 33280 -197 512 create:shaft[axis=y]
+cmd setblock 33280 -196 512 create:creative_motor[facing=down]{ScrollValue:256}
+wait 240
+cmd data get block 33280 -198 512
+cmd data get block 33280 -197 512
+shot verify2-1-B-drill
+log B-stationary-drill
+cmd tellraw @s "VERIFY2 B-stationary-drill"
+check B-stationary-drill-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd fill 33280 -198 512 33280 -196 512 air
+cmd tp @s 33280.5 -198 512.5 0 90
+wait 20
+cmd gamemode survival
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_pickaxe[minecraft:enchantments={levels:{"minecraft:efficiency":5}}]
+cmd effect give @s minecraft:resistance 60 4 true
+cmd effect give @s minecraft:saturation 60 4 true
+wait 30
+hit B-mining-target
+log B-mining-start
+break 33280 -199 512
+wait 600
+log B-mining-end
+log B-survival-startbreak-only
+cmd tellraw @s "VERIFY2 B-survival-startbreak-only"
+check B-survival-startbreak-only-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd gamemode creative
+wait 20
+cmd tp @s 33283.5 -197 512.5 90 20
+wait 30
+cmd sable assemble area 33280 -199 512 33280 -199 512
+wait 100
+cmd sable info @e
+hullblocks B-shell
+log B-sable
+cmd tellraw @s "VERIFY2 B-sable"
+check B-sable-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd sable remove @e
+wait 30
+cmd tp @s 33280.5 240 512.5 0 50
+wait 100
+fly on
+shot verify2-1-B-surface
+cmd save-all flush
+wait 60
+shot verify2-1-end
+quit

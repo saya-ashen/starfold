@@ -1,0 +1,102 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamerule doDaylightCycle false
+cmd time set noon
+cmd starfold nav target a
+wait 20
+nav start
+cmd starfold nav brake off
+cmd starfold nav land on
+wait 20
+aim track
+key sprint on
+key forward on
+until alt> 6000 2000
+until alt< 3000 6000
+nav near-a
+key sprint off
+until alt< 500 3000
+key forward off
+aim free
+look 30 35
+key sneak on
+until alt< 300 3000
+nav dn-300
+shot a-d300
+until alt< 230 3000
+nav dn-230
+shot a-d230
+until alt< 205 3000
+nav dn-205
+shot a-d205
+until alt< 185 3000
+nav dn-185
+shot a-d185
+until alt< 172 3000
+nav dn-172
+shot a-d172
+until alt< 160 3000
+nav dn-160
+shot a-d160
+until alt< 150 3000
+nav dn-150
+shot a-d150
+until alt< 140 3000
+nav dn-140
+shot a-d140
+until alt< 130 3000
+nav dn-130
+shot a-d130
+until alt< 115 3000
+nav dn-115
+shot a-d115
+until alt< 100 3000
+nav dn-100
+shot a-d100
+until alt< 80 3000
+nav dn-80
+shot a-d080
+until ground 3000
+key sneak off
+fly off
+wait 60
+nav ground
+shot a-ground
+key jump on
+wait 4
+fly on
+until alt> 80 3000
+nav up-80
+shot a-u080
+until alt> 130 3000
+nav up-130
+shot a-u130
+until alt> 150 3000
+nav up-150
+shot a-u150
+until alt> 160 3000
+nav up-160
+shot a-u160
+until alt> 172 3000
+nav up-172
+shot a-u172
+until alt> 185 3000
+nav up-185
+shot a-u185
+until alt> 205 3000
+nav up-205
+shot a-u205
+until alt> 230 3000
+nav up-230
+shot a-u230
+until alt> 300 3000
+nav up-300
+shot a-u300
+until alt> 400 3000
+nav up-400
+shot a-u400
+key jump off
+quit

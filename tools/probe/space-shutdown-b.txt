@@ -1,0 +1,24 @@
+waitworld
+log shutdown-b-login
+wait 100
+cmd sable info @e
+find typewriter
+wait 6
+usehit first
+wait 40
+useifidle
+wait 40
+requiretypewriter
+find throttle
+wait 6
+throttle 15
+sample 40
+until y> 1500 2500
+throttle 0
+wait 120
+log shutdown-b-high
+abilities shutdown-b-high
+cmd data get entity @s Pos
+cmd sable info @e
+wait 20
+quit

@@ -1,0 +1,12 @@
+{
+  "biome": "minecraft:stony_peaks",
+  "size": {"min": 512, "max": 1024},
+  "algorithm": "rocky_craters",
+  "relief": 0.7,
+  "palette": {
+    "rock": "minecraft:tuff",
+    "dark": "minecraft:basalt",
+    "light": "minecraft:andesite",
+    "deep": "minecraft:deepslate"
+  }
+}

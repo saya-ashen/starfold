@@ -1,0 +1,85 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5268.5 131 862.5 -60 10
+wait 100
+cmd fill 5266 139 860 5280 139 868 minecraft:smooth_stone
+cmd tp @s 5268.5 140 862.5 -60 10
+wait 40
+look -60 10
+cmd setblock 5270 140 864 create:creative_motor[facing=up]
+cmd setblock 5270 141 864 create:mechanical_bearing[facing=up]
+cmd fill 5270 142 864 5275 142 864 minecraft:slime_block
+wait 40
+cmd data get block 5270 141 864 Speed
+shot dyn-home-0
+use 5270 141 864 west
+wait 30
+entities
+blockat 5274 142 864
+cmd execute as @e[type=create:stationary_contraption] run data get entity @s Pos
+shot dyn-home-1
+wait 60
+shot dyn-home-2
+cmd fill 5260 200 860 5272 200 870 minecraft:smooth_stone
+cmd setblock 5266 201 866 create:creative_motor[facing=east]
+cmd setblock 5267 201 866 create:shaft[axis=x]
+cmd tp @s 5263.5 201 863.5 -50 15
+wait 100
+look -50 15
+wait 20
+cmd data get block 5266 201 866 Speed
+cmd data get block 5267 201 866 Speed
+blockat 5266 201 866
+blockat 5266 200 866
+log high200
+shot dyn-high200
+cmd tp @s 5120.5 176 2038.5 0 35
+wait 20
+look 0 35
+wait 700
+cmd fill 5104 170 2030 5136 178 2066 air
+cmd fill 5104 169 2030 5136 169 2066 minecraft:smooth_stone
+wait 20
+cmd tp @s 5122.5 170 2040.5 0 20
+wait 40
+look 0 20
+cmd setblock 5120 170 2033 create:creative_motor[facing=south]
+cmd fill 5120 170 2034 5120 170 2062 create:shaft[axis=z]
+wait 100
+cmd data get block 5120 170 2034 Speed
+cmd data get block 5120 170 2047 Speed
+cmd data get block 5120 170 2048 Speed
+cmd data get block 5120 170 2049 Speed
+cmd data get block 5120 170 2062 Speed
+blockat 5120 170 2047
+blockat 5120 170 2049
+log rot-seam
+shot rot-seam-shaft
+cmd setblock 5126 170 2046 create:creative_motor[facing=up]
+cmd setblock 5126 171 2046 create:mechanical_bearing[facing=up]
+cmd fill 5126 172 2046 5126 172 2051 minecraft:slime_block
+cmd tp @s 5124.5 170 2044.5 -40 -10
+wait 40
+look -40 -10
+shot rot-seam-bearing-0
+use 5126 171 2046 west
+wait 30
+entities
+blockat 5126 172 2050
+cmd execute as @e[type=create:stationary_contraption] run data get entity @s Pos
+shot rot-seam-bearing-1
+wait 50
+shot rot-seam-bearing-2
+wait 50
+shot rot-seam-bearing-3
+cmd tp @s 5122.5 170 2056.5 180 20
+wait 80
+look 180 20
+wait 20
+log rot-seam-far
+entities
+shot rot-seam-far
+quit

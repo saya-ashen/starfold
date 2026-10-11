@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "starfold:block/helm",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "starfold:block/helm",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "starfold:block/helm",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "starfold:block/helm",
+      "y": 270
+    }
+  }
+}

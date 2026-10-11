@@ -1,0 +1,34 @@
+waitworld
+wait 200
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd gamemode creative
+cmd tp @s 490.5 200 8448.5 -90 20
+wait 300
+cmd fill 480 169 8446 540 169 8450 stone
+cmd fill 480 170 8446 540 174 8450 air
+cmd tp @s 490.5 170 8448.5 -90 20
+wait 40
+fly off
+log c-before-seam
+blockat 500 169 8448
+blockat 520 169 8448
+look -90 20
+key forward on
+wait 160
+key forward off
+wait 20
+log c-after-seam
+cmd starfold status
+cmd setblock ~ ~ ~2 minecraft:gold_block
+wait 20
+shot row-walk-after
+look 90 20
+key forward on
+wait 160
+key forward off
+wait 20
+log c-back
+cmd save-all flush
+wait 60
+quit

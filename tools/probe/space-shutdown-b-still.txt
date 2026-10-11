@@ -1,0 +1,16 @@
+waitworld
+log shutdown-still-login
+cmd gamemode creative
+fly on
+cmd tp @s 37362.74 1603.5 269.71
+wait 100
+fly off
+trace on
+sample 40
+wait 200
+log shutdown-still-aboard
+abilities shutdown-still-aboard
+cmd sable info @e
+cmd data get entity @s Pos
+wait 40
+quit

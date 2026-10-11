@@ -1,0 +1,29 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamerule doDaylightCycle false
+cmd starfold orbit
+wait 300
+nav orbit
+cmd starfold nav target 2
+wait 10
+aim target
+wait 10
+cmd starfold nav target 1
+wait 200
+nav c-while-target-b
+shot trio-sky-c-target-b
+aim target
+wait 60
+nav b
+shot trio-sky-b
+cmd starfold nav target 0
+wait 100
+cmd starfold nav target 2
+wait 10
+aim target
+wait 100
+shot trio-sky-c
+quit

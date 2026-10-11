@@ -1,0 +1,46 @@
+{
+  "display": {
+    "icon": {
+      "id": "starfold:scope_nav"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.space.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.space.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "earned": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "earned"
+    ]
+  ],
+  "parent": "starfold:ship_without_workshop/lift_off",
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:and",
+        "values": [
+          {
+            "type": "neoforge:mod_loaded",
+            "modid": "create"
+          },
+          {
+            "type": "neoforge:mod_loaded",
+            "modid": "simulated"
+          }
+        ]
+      }
+    }
+  ]
+}

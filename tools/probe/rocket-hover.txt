@@ -1,0 +1,1535 @@
+# Disposable devworld-create1 ONLY; one unchanged fixture, off -> on -> lifted.
+waitworld
+log hover-start
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+fly off
+nav start
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5287 141 859 5297 145 865 minecraft:glass
+cmd fill 5288 142 860 5296 144 864 minecraft:air
+cmd fill 5287 141 859 5297 141 865 minecraft:spruce_planks
+cmd setblock 5292 142 865 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock 5292 143 865 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 860 starfold:thruster[facing=up]
+cmd setblock 5293 143 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 864 starfold:thruster[facing=up]
+cmd setblock 5293 143 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 862 simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock 5293 141 862 starfold:thruster[facing=down]
+cmd setblock 5293 142 861 starfold:thruster[facing=down]
+cmd setblock 5293 142 863 starfold:thruster[facing=down]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 861 starfold:thruster[facing=east]
+cmd setblock 5296 143 861 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 863 starfold:thruster[facing=east]
+cmd setblock 5296 143 863 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 143 862 starfold:thruster[facing=east]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5288 143 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 864 starfold:thruster[facing=south]
+cmd setblock 5295 142 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 860 starfold:thruster[facing=north]
+cmd setblock 5295 142 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5291 142 864 starfold:gyro
+cmd setblock 5291 143 864 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5291 142 860 starfold:gyro
+cmd setblock 5291 143 860 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5290 142 862 simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+wait 20
+cmd sable assemble area 5287 141 859 5297 145 865
+log assembly-0
+cmd tellraw @s "HOVER assembly-0"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-1
+cmd tellraw @s "HOVER assembly-1"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-2
+cmd tellraw @s "HOVER assembly-2"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-3
+cmd tellraw @s "HOVER assembly-3"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-4
+cmd tellraw @s "HOVER assembly-4"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-5
+cmd tellraw @s "HOVER assembly-5"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-6
+cmd tellraw @s "HOVER assembly-6"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-7
+cmd tellraw @s "HOVER assembly-7"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-8
+cmd tellraw @s "HOVER assembly-8"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-9
+cmd tellraw @s "HOVER assembly-9"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-10
+cmd tellraw @s "HOVER assembly-10"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-11
+cmd tellraw @s "HOVER assembly-11"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-12
+cmd tellraw @s "HOVER assembly-12"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-13
+cmd tellraw @s "HOVER assembly-13"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-14
+cmd tellraw @s "HOVER assembly-14"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-15
+cmd tellraw @s "HOVER assembly-15"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-16
+cmd tellraw @s "HOVER assembly-16"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-17
+cmd tellraw @s "HOVER assembly-17"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-18
+cmd tellraw @s "HOVER assembly-18"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-19
+cmd tellraw @s "HOVER assembly-19"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-20
+cmd tellraw @s "HOVER assembly-20"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-21
+cmd tellraw @s "HOVER assembly-21"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-22
+cmd tellraw @s "HOVER assembly-22"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-23
+cmd tellraw @s "HOVER assembly-23"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-24
+cmd tellraw @s "HOVER assembly-24"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-25
+cmd tellraw @s "HOVER assembly-25"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-26
+cmd tellraw @s "HOVER assembly-26"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-27
+cmd tellraw @s "HOVER assembly-27"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-28
+cmd tellraw @s "HOVER assembly-28"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-29
+cmd tellraw @s "HOVER assembly-29"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-30
+cmd tellraw @s "HOVER assembly-30"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-31
+cmd tellraw @s "HOVER assembly-31"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-32
+cmd tellraw @s "HOVER assembly-32"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-33
+cmd tellraw @s "HOVER assembly-33"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-34
+cmd tellraw @s "HOVER assembly-34"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-35
+cmd tellraw @s "HOVER assembly-35"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-36
+cmd tellraw @s "HOVER assembly-36"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-37
+cmd tellraw @s "HOVER assembly-37"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-38
+cmd tellraw @s "HOVER assembly-38"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-39
+cmd tellraw @s "HOVER assembly-39"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-40
+cmd tellraw @s "HOVER assembly-40"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-41
+cmd tellraw @s "HOVER assembly-41"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-42
+cmd tellraw @s "HOVER assembly-42"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-43
+cmd tellraw @s "HOVER assembly-43"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-44
+cmd tellraw @s "HOVER assembly-44"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-45
+cmd tellraw @s "HOVER assembly-45"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-46
+cmd tellraw @s "HOVER assembly-46"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-47
+cmd tellraw @s "HOVER assembly-47"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-48
+cmd tellraw @s "HOVER assembly-48"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-49
+cmd tellraw @s "HOVER assembly-49"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-50
+cmd tellraw @s "HOVER assembly-50"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-51
+cmd tellraw @s "HOVER assembly-51"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-52
+cmd tellraw @s "HOVER assembly-52"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-53
+cmd tellraw @s "HOVER assembly-53"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-54
+cmd tellraw @s "HOVER assembly-54"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-55
+cmd tellraw @s "HOVER assembly-55"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-56
+cmd tellraw @s "HOVER assembly-56"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-57
+cmd tellraw @s "HOVER assembly-57"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-58
+cmd tellraw @s "HOVER assembly-58"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-59
+cmd tellraw @s "HOVER assembly-59"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log assembly-60
+cmd tellraw @s "HOVER assembly-60"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+log park-off-0
+cmd tellraw @s "HOVER park-off-0"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-1
+cmd tellraw @s "HOVER park-off-1"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-2
+cmd tellraw @s "HOVER park-off-2"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-3
+cmd tellraw @s "HOVER park-off-3"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-4
+cmd tellraw @s "HOVER park-off-4"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-5
+cmd tellraw @s "HOVER park-off-5"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-6
+cmd tellraw @s "HOVER park-off-6"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-7
+cmd tellraw @s "HOVER park-off-7"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-8
+cmd tellraw @s "HOVER park-off-8"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-9
+cmd tellraw @s "HOVER park-off-9"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-10
+cmd tellraw @s "HOVER park-off-10"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-11
+cmd tellraw @s "HOVER park-off-11"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-12
+cmd tellraw @s "HOVER park-off-12"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-13
+cmd tellraw @s "HOVER park-off-13"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-14
+cmd tellraw @s "HOVER park-off-14"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-15
+cmd tellraw @s "HOVER park-off-15"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-16
+cmd tellraw @s "HOVER park-off-16"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-17
+cmd tellraw @s "HOVER park-off-17"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-18
+cmd tellraw @s "HOVER park-off-18"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-19
+cmd tellraw @s "HOVER park-off-19"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-20
+cmd tellraw @s "HOVER park-off-20"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-21
+cmd tellraw @s "HOVER park-off-21"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-22
+cmd tellraw @s "HOVER park-off-22"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-23
+cmd tellraw @s "HOVER park-off-23"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-24
+cmd tellraw @s "HOVER park-off-24"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-25
+cmd tellraw @s "HOVER park-off-25"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-26
+cmd tellraw @s "HOVER park-off-26"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-27
+cmd tellraw @s "HOVER park-off-27"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-28
+cmd tellraw @s "HOVER park-off-28"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-29
+cmd tellraw @s "HOVER park-off-29"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-30
+cmd tellraw @s "HOVER park-off-30"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-31
+cmd tellraw @s "HOVER park-off-31"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-32
+cmd tellraw @s "HOVER park-off-32"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-33
+cmd tellraw @s "HOVER park-off-33"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-34
+cmd tellraw @s "HOVER park-off-34"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-35
+cmd tellraw @s "HOVER park-off-35"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-36
+cmd tellraw @s "HOVER park-off-36"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-37
+cmd tellraw @s "HOVER park-off-37"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-38
+cmd tellraw @s "HOVER park-off-38"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-39
+cmd tellraw @s "HOVER park-off-39"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-40
+cmd tellraw @s "HOVER park-off-40"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-41
+cmd tellraw @s "HOVER park-off-41"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-42
+cmd tellraw @s "HOVER park-off-42"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-43
+cmd tellraw @s "HOVER park-off-43"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-44
+cmd tellraw @s "HOVER park-off-44"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-45
+cmd tellraw @s "HOVER park-off-45"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-46
+cmd tellraw @s "HOVER park-off-46"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-47
+cmd tellraw @s "HOVER park-off-47"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-48
+cmd tellraw @s "HOVER park-off-48"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-49
+cmd tellraw @s "HOVER park-off-49"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-50
+cmd tellraw @s "HOVER park-off-50"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-51
+cmd tellraw @s "HOVER park-off-51"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-52
+cmd tellraw @s "HOVER park-off-52"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-53
+cmd tellraw @s "HOVER park-off-53"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-54
+cmd tellraw @s "HOVER park-off-54"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-55
+cmd tellraw @s "HOVER park-off-55"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-56
+cmd tellraw @s "HOVER park-off-56"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-57
+cmd tellraw @s "HOVER park-off-57"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-58
+cmd tellraw @s "HOVER park-off-58"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-59
+cmd tellraw @s "HOVER park-off-59"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-off-60
+cmd tellraw @s "HOVER park-off-60"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+cmd tp @s 5291.5 141.3 862.5 90 52
+wait 60
+find throttle
+wait 5
+throttle ?
+leverdo setblock {lever:-2,1,2} minecraft:lever[face=floor,facing=north,powered=true]
+leverdo setblock {lever:-2,1,-2} minecraft:lever[face=floor,facing=north,powered=true]
+wait 19
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 100
+log park-on-0
+cmd tellraw @s "HOVER park-on-0"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-1
+cmd tellraw @s "HOVER park-on-1"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-2
+cmd tellraw @s "HOVER park-on-2"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-3
+cmd tellraw @s "HOVER park-on-3"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-4
+cmd tellraw @s "HOVER park-on-4"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-5
+cmd tellraw @s "HOVER park-on-5"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-6
+cmd tellraw @s "HOVER park-on-6"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-7
+cmd tellraw @s "HOVER park-on-7"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-8
+cmd tellraw @s "HOVER park-on-8"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-9
+cmd tellraw @s "HOVER park-on-9"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-10
+cmd tellraw @s "HOVER park-on-10"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-11
+cmd tellraw @s "HOVER park-on-11"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-12
+cmd tellraw @s "HOVER park-on-12"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-13
+cmd tellraw @s "HOVER park-on-13"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-14
+cmd tellraw @s "HOVER park-on-14"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-15
+cmd tellraw @s "HOVER park-on-15"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-16
+cmd tellraw @s "HOVER park-on-16"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-17
+cmd tellraw @s "HOVER park-on-17"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-18
+cmd tellraw @s "HOVER park-on-18"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-19
+cmd tellraw @s "HOVER park-on-19"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-20
+cmd tellraw @s "HOVER park-on-20"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-21
+cmd tellraw @s "HOVER park-on-21"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-22
+cmd tellraw @s "HOVER park-on-22"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-23
+cmd tellraw @s "HOVER park-on-23"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-24
+cmd tellraw @s "HOVER park-on-24"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-25
+cmd tellraw @s "HOVER park-on-25"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-26
+cmd tellraw @s "HOVER park-on-26"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-27
+cmd tellraw @s "HOVER park-on-27"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-28
+cmd tellraw @s "HOVER park-on-28"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-29
+cmd tellraw @s "HOVER park-on-29"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-30
+cmd tellraw @s "HOVER park-on-30"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-31
+cmd tellraw @s "HOVER park-on-31"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-32
+cmd tellraw @s "HOVER park-on-32"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-33
+cmd tellraw @s "HOVER park-on-33"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-34
+cmd tellraw @s "HOVER park-on-34"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-35
+cmd tellraw @s "HOVER park-on-35"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-36
+cmd tellraw @s "HOVER park-on-36"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-37
+cmd tellraw @s "HOVER park-on-37"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-38
+cmd tellraw @s "HOVER park-on-38"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-39
+cmd tellraw @s "HOVER park-on-39"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-40
+cmd tellraw @s "HOVER park-on-40"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-41
+cmd tellraw @s "HOVER park-on-41"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-42
+cmd tellraw @s "HOVER park-on-42"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-43
+cmd tellraw @s "HOVER park-on-43"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-44
+cmd tellraw @s "HOVER park-on-44"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-45
+cmd tellraw @s "HOVER park-on-45"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-46
+cmd tellraw @s "HOVER park-on-46"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-47
+cmd tellraw @s "HOVER park-on-47"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-48
+cmd tellraw @s "HOVER park-on-48"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-49
+cmd tellraw @s "HOVER park-on-49"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-50
+cmd tellraw @s "HOVER park-on-50"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-51
+cmd tellraw @s "HOVER park-on-51"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-52
+cmd tellraw @s "HOVER park-on-52"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-53
+cmd tellraw @s "HOVER park-on-53"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-54
+cmd tellraw @s "HOVER park-on-54"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-55
+cmd tellraw @s "HOVER park-on-55"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-56
+cmd tellraw @s "HOVER park-on-56"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-57
+cmd tellraw @s "HOVER park-on-57"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-58
+cmd tellraw @s "HOVER park-on-58"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-59
+cmd tellraw @s "HOVER park-on-59"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log park-on-60
+cmd tellraw @s "HOVER park-on-60"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+cmd sable teleport @n 5292.5588235370815 162.5632166001995 862.4828639179468
+wait 199
+log hover-0
+cmd tellraw @s "HOVER hover-0"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-1
+cmd tellraw @s "HOVER hover-1"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-2
+cmd tellraw @s "HOVER hover-2"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-3
+cmd tellraw @s "HOVER hover-3"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-4
+cmd tellraw @s "HOVER hover-4"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-5
+cmd tellraw @s "HOVER hover-5"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-6
+cmd tellraw @s "HOVER hover-6"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-7
+cmd tellraw @s "HOVER hover-7"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-8
+cmd tellraw @s "HOVER hover-8"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-9
+cmd tellraw @s "HOVER hover-9"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-10
+cmd tellraw @s "HOVER hover-10"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-11
+cmd tellraw @s "HOVER hover-11"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-12
+cmd tellraw @s "HOVER hover-12"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-13
+cmd tellraw @s "HOVER hover-13"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-14
+cmd tellraw @s "HOVER hover-14"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-15
+cmd tellraw @s "HOVER hover-15"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-16
+cmd tellraw @s "HOVER hover-16"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-17
+cmd tellraw @s "HOVER hover-17"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-18
+cmd tellraw @s "HOVER hover-18"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-19
+cmd tellraw @s "HOVER hover-19"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-20
+cmd tellraw @s "HOVER hover-20"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-21
+cmd tellraw @s "HOVER hover-21"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-22
+cmd tellraw @s "HOVER hover-22"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-23
+cmd tellraw @s "HOVER hover-23"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-24
+cmd tellraw @s "HOVER hover-24"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-25
+cmd tellraw @s "HOVER hover-25"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-26
+cmd tellraw @s "HOVER hover-26"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-27
+cmd tellraw @s "HOVER hover-27"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-28
+cmd tellraw @s "HOVER hover-28"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-29
+cmd tellraw @s "HOVER hover-29"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-30
+cmd tellraw @s "HOVER hover-30"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-31
+cmd tellraw @s "HOVER hover-31"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-32
+cmd tellraw @s "HOVER hover-32"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-33
+cmd tellraw @s "HOVER hover-33"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-34
+cmd tellraw @s "HOVER hover-34"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-35
+cmd tellraw @s "HOVER hover-35"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-36
+cmd tellraw @s "HOVER hover-36"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-37
+cmd tellraw @s "HOVER hover-37"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-38
+cmd tellraw @s "HOVER hover-38"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-39
+cmd tellraw @s "HOVER hover-39"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-40
+cmd tellraw @s "HOVER hover-40"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-41
+cmd tellraw @s "HOVER hover-41"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-42
+cmd tellraw @s "HOVER hover-42"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-43
+cmd tellraw @s "HOVER hover-43"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-44
+cmd tellraw @s "HOVER hover-44"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-45
+cmd tellraw @s "HOVER hover-45"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-46
+cmd tellraw @s "HOVER hover-46"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-47
+cmd tellraw @s "HOVER hover-47"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-48
+cmd tellraw @s "HOVER hover-48"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-49
+cmd tellraw @s "HOVER hover-49"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-50
+cmd tellraw @s "HOVER hover-50"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-51
+cmd tellraw @s "HOVER hover-51"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-52
+cmd tellraw @s "HOVER hover-52"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-53
+cmd tellraw @s "HOVER hover-53"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-54
+cmd tellraw @s "HOVER hover-54"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-55
+cmd tellraw @s "HOVER hover-55"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-56
+cmd tellraw @s "HOVER hover-56"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-57
+cmd tellraw @s "HOVER hover-57"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-58
+cmd tellraw @s "HOVER hover-58"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-59
+cmd tellraw @s "HOVER hover-59"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+log hover-60
+cmd tellraw @s "HOVER hover-60"
+cmd time query gametime
+cmd data get entity @s Pos
+cmd sable info @n
+wait 19
+quit

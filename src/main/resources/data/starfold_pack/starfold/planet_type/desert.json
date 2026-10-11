@@ -1,0 +1,72 @@
+{
+  "biome": "minecraft:desert",
+  "size": {
+    "min": 512,
+    "max": 2048
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 0.8,
+  "ore_bias": 0.03,
+  "cave_width": 0.08,
+  "palette": {
+    "rock": "minecraft:sandstone",
+    "dark": "minecraft:red_sandstone",
+    "light": "minecraft:smooth_sandstone",
+    "deep": "minecraft:stone",
+    "cover": "minecraft:red_sand"
+  },
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:sandstone"
+      },
+      {
+        "block": "minecraft:terracotta",
+        "from": 0.3
+      },
+      {
+        "block": "minecraft:stone",
+        "from": 0.55
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.8
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:gold_ore",
+        "deep": "minecraft:deepslate_gold_ore",
+        "from": 0.2,
+        "rarity": 0.86
+      },
+      {
+        "block": "minecraft:copper_ore",
+        "deep": "minecraft:deepslate_copper_ore",
+        "to": 0.6,
+        "rarity": 0.85
+      },
+      {
+        "block": "minecraft:iron_ore",
+        "deep": "minecraft:deepslate_iron_ore",
+        "rarity": 0.88
+      },
+      {
+        "block": "minecraft:redstone_ore",
+        "deep": "minecraft:deepslate_redstone_ore",
+        "from": 0.5,
+        "rarity": 0.88
+      },
+      {
+        "block": "minecraft:diamond_ore",
+        "deep": "minecraft:deepslate_diamond_ore",
+        "from": 0.8,
+        "rarity": 0.96
+      }
+    ]
+  },
+  "creatures": true,
+  "features": true,
+  "structures": true
+}

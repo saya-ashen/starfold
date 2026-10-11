@@ -1,0 +1,26 @@
+waitworld
+log L3-login
+trace on
+sample 20
+cmd sable info @e
+wait 200
+log L3-loaded
+abilities L3-loaded
+cmd sable info @e
+find typewriter
+wait 6
+hit rejoin-helm
+usehit rejoin-first
+wait 40
+log L3-one-click
+useifidle
+wait 40
+log L3-two-click
+requiretypewriter
+wait 200
+log L3-rejoined
+cmd sable info @e
+look 0 0
+wait 4
+shot space-trip4-rejoined
+quit

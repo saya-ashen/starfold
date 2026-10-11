@@ -1,0 +1,249 @@
+# Historical landing PASS / centre-line WALK FAIL; see blueprint1.md for the successful 0.15-offset walk retry.
+# Its final helm lookup also needs a settled lower-console aim (looklocal 0 7.25 0).
+# Disposable blueprint1 world only; this removes its previous hull.
+strict
+waitworld
+pronefps 60
+press 82 1
+wait 2
+press 82 0
+cmd gamemode creative
+fly on
+cmd tp @s 5288.5 156 862.5 90 20
+cmd sable remove @e
+wait 60
+cmd fill 5285 140 855 5300 159 870 minecraft:air
+cmd setblock 5290 180 860 minecraft:cobblestone
+cmd setblock 5291 180 860 minecraft:cobblestone
+cmd setblock 5292 180 860 minecraft:cobblestone
+cmd setblock 5293 180 860 minecraft:cobblestone
+cmd setblock 5294 180 860 minecraft:cobblestone
+cmd setblock 5290 180 861 minecraft:cobblestone
+cmd setblock 5291 180 861 minecraft:cobblestone
+cmd setblock 5292 180 861 minecraft:cobblestone
+cmd setblock 5293 180 861 minecraft:cobblestone
+cmd setblock 5294 180 861 minecraft:cobblestone
+cmd setblock 5290 180 862 minecraft:cobblestone
+cmd setblock 5291 180 862 minecraft:cobblestone
+cmd setblock 5292 180 862 minecraft:cobblestone
+cmd setblock 5293 180 862 minecraft:cobblestone
+cmd setblock 5294 180 862 minecraft:cobblestone
+cmd setblock 5290 180 863 minecraft:cobblestone
+cmd setblock 5291 180 863 minecraft:cobblestone
+cmd setblock 5292 180 863 minecraft:cobblestone
+cmd setblock 5293 180 863 minecraft:cobblestone
+cmd setblock 5294 180 863 minecraft:cobblestone
+cmd setblock 5290 180 864 minecraft:cobblestone
+cmd setblock 5291 180 864 minecraft:cobblestone
+cmd setblock 5292 180 864 minecraft:cobblestone
+cmd setblock 5293 180 864 minecraft:cobblestone
+cmd setblock 5294 180 864 minecraft:cobblestone
+cmd setblock 5290 181 860 minecraft:cobblestone
+cmd setblock 5291 181 860 minecraft:cobblestone
+cmd setblock 5292 181 860 minecraft:cobblestone
+cmd setblock 5293 181 860 minecraft:cobblestone
+cmd setblock 5294 181 860 minecraft:cobblestone
+cmd setblock 5290 181 861 minecraft:cobblestone
+cmd setblock 5291 181 861 minecraft:cobblestone
+cmd setblock 5292 181 861 minecraft:cobblestone
+cmd setblock 5293 181 861 minecraft:cobblestone
+cmd setblock 5294 181 861 minecraft:cobblestone
+cmd setblock 5290 181 862 minecraft:cobblestone
+cmd setblock 5291 181 862 minecraft:cobblestone
+cmd setblock 5292 181 862 minecraft:cobblestone
+cmd setblock 5293 181 862 minecraft:cobblestone
+cmd setblock 5294 181 862 minecraft:cobblestone
+cmd setblock 5290 181 863 minecraft:cobblestone
+cmd setblock 5291 181 863 minecraft:cobblestone
+cmd setblock 5292 181 863 minecraft:cobblestone
+cmd setblock 5293 181 863 minecraft:cobblestone
+cmd setblock 5294 181 863 minecraft:cobblestone
+cmd setblock 5290 181 864 minecraft:cobblestone
+cmd setblock 5291 181 864 minecraft:cobblestone
+cmd setblock 5292 181 864 minecraft:cobblestone
+cmd setblock 5293 181 864 minecraft:cobblestone
+cmd setblock 5294 181 864 minecraft:cobblestone
+cmd setblock 5290 182 860 minecraft:cobblestone
+cmd setblock 5291 182 860 minecraft:cobblestone
+cmd setblock 5292 182 860 minecraft:cobblestone
+cmd setblock 5293 182 860 minecraft:cobblestone
+cmd setblock 5294 182 860 minecraft:cobblestone
+cmd setblock 5290 182 861 minecraft:cobblestone
+cmd setblock 5291 182 861 minecraft:cobblestone
+cmd setblock 5292 182 861 minecraft:cobblestone
+cmd setblock 5293 182 861 minecraft:cobblestone
+cmd setblock 5294 182 861 minecraft:cobblestone
+cmd setblock 5290 182 862 minecraft:cobblestone
+cmd setblock 5291 182 862 minecraft:cobblestone
+cmd setblock 5292 182 862 minecraft:cobblestone
+cmd setblock 5293 182 862 minecraft:cobblestone
+cmd setblock 5294 182 862 minecraft:cobblestone
+cmd setblock 5290 182 863 minecraft:cobblestone
+cmd setblock 5291 182 863 minecraft:cobblestone
+cmd setblock 5292 182 863 minecraft:cobblestone
+cmd setblock 5293 182 863 minecraft:cobblestone
+cmd setblock 5294 182 863 minecraft:cobblestone
+cmd setblock 5290 182 864 minecraft:cobblestone
+cmd setblock 5291 182 864 minecraft:cobblestone
+cmd setblock 5292 182 864 minecraft:cobblestone
+cmd setblock 5293 182 864 minecraft:cobblestone
+cmd setblock 5294 182 864 minecraft:cobblestone
+cmd setblock 5290 183 860 minecraft:cobblestone
+cmd setblock 5291 183 860 starfold:thruster[facing=north]
+cmd setblock 5292 183 860 minecraft:cobblestone
+cmd setblock 5293 183 860 starfold:thruster[facing=north]
+cmd setblock 5294 183 860 minecraft:cobblestone
+cmd setblock 5290 183 861 starfold:thruster[facing=west]
+cmd setblock 5291 183 861 minecraft:cobblestone
+cmd setblock 5292 183 861 minecraft:cobblestone
+cmd setblock 5293 183 861 minecraft:cobblestone
+cmd setblock 5294 183 861 starfold:thruster[facing=east]
+cmd setblock 5290 183 862 minecraft:cobblestone
+cmd setblock 5291 183 862 minecraft:cobblestone
+cmd setblock 5292 183 862 minecraft:cobblestone
+cmd setblock 5293 183 862 minecraft:cobblestone
+cmd setblock 5294 183 862 minecraft:cobblestone
+cmd setblock 5290 183 863 starfold:thruster[facing=west]
+cmd setblock 5291 183 863 minecraft:cobblestone
+cmd setblock 5292 183 863 minecraft:cobblestone
+cmd setblock 5293 183 863 minecraft:cobblestone
+cmd setblock 5294 183 863 starfold:thruster[facing=east]
+cmd setblock 5290 183 864 minecraft:cobblestone
+cmd setblock 5291 183 864 starfold:thruster[facing=south]
+cmd setblock 5292 183 864 minecraft:cobblestone
+cmd setblock 5293 183 864 starfold:thruster[facing=south]
+cmd setblock 5294 183 864 minecraft:cobblestone
+cmd setblock 5290 184 860 minecraft:cobblestone
+cmd setblock 5291 184 860 minecraft:cobblestone
+cmd setblock 5292 184 860 minecraft:cobblestone
+cmd setblock 5293 184 860 minecraft:cobblestone
+cmd setblock 5294 184 860 minecraft:cobblestone
+cmd setblock 5290 184 861 minecraft:cobblestone
+cmd setblock 5291 184 861 minecraft:cobblestone
+cmd setblock 5292 184 861 minecraft:cobblestone
+cmd setblock 5293 184 861 minecraft:cobblestone
+cmd setblock 5294 184 861 minecraft:cobblestone
+cmd setblock 5290 184 862 minecraft:cobblestone
+cmd setblock 5291 184 862 minecraft:cobblestone
+cmd setblock 5292 184 862 minecraft:cobblestone
+cmd setblock 5293 184 862 minecraft:cobblestone
+cmd setblock 5294 184 862 minecraft:cobblestone
+cmd setblock 5290 184 863 minecraft:cobblestone
+cmd setblock 5291 184 863 minecraft:cobblestone
+cmd setblock 5292 184 863 minecraft:cobblestone
+cmd setblock 5293 184 863 minecraft:cobblestone
+cmd setblock 5294 184 863 minecraft:cobblestone
+cmd setblock 5290 184 864 minecraft:cobblestone
+cmd setblock 5291 184 864 minecraft:cobblestone
+cmd setblock 5292 184 864 minecraft:cobblestone
+cmd setblock 5293 184 864 minecraft:cobblestone
+cmd setblock 5294 184 864 minecraft:cobblestone
+cmd setblock 5290 185 860 minecraft:cobblestone
+cmd setblock 5291 185 860 minecraft:cobblestone
+cmd setblock 5292 185 860 minecraft:cobblestone
+cmd setblock 5293 185 860 minecraft:cobblestone
+cmd setblock 5294 185 860 minecraft:cobblestone
+cmd setblock 5290 185 861 minecraft:cobblestone
+cmd setblock 5291 185 861 minecraft:cobblestone
+cmd setblock 5292 185 861 minecraft:cobblestone
+cmd setblock 5293 185 861 minecraft:cobblestone
+cmd setblock 5294 185 861 minecraft:cobblestone
+cmd setblock 5290 185 862 minecraft:cobblestone
+cmd setblock 5291 185 862 minecraft:cobblestone
+cmd setblock 5292 185 862 minecraft:cobblestone
+cmd setblock 5293 185 862 minecraft:cobblestone
+cmd setblock 5294 185 862 minecraft:cobblestone
+cmd setblock 5290 185 863 minecraft:cobblestone
+cmd setblock 5291 185 863 minecraft:cobblestone
+cmd setblock 5292 185 863 minecraft:cobblestone
+cmd setblock 5293 185 863 minecraft:cobblestone
+cmd setblock 5294 185 863 minecraft:cobblestone
+cmd setblock 5290 185 864 minecraft:cobblestone
+cmd setblock 5291 185 864 minecraft:cobblestone
+cmd setblock 5292 185 864 minecraft:cobblestone
+cmd setblock 5293 185 864 minecraft:cobblestone
+cmd setblock 5294 185 864 minecraft:cobblestone
+cmd setblock 5290 186 860 minecraft:oak_planks
+cmd setblock 5291 186 860 minecraft:oak_planks
+cmd setblock 5292 186 860 starfold:airstair[facing=north]
+cmd setblock 5293 186 860 minecraft:oak_planks
+cmd setblock 5294 186 860 minecraft:oak_planks
+cmd setblock 5290 186 861 minecraft:oak_planks
+cmd setblock 5291 186 861 minecraft:oak_planks
+cmd setblock 5292 186 861 starfold:thruster[facing=down]
+cmd setblock 5293 186 861 minecraft:oak_planks
+cmd setblock 5294 186 861 minecraft:oak_planks
+cmd setblock 5290 186 862 minecraft:oak_planks
+cmd setblock 5291 186 862 starfold:thruster[facing=up]
+cmd setblock 5292 186 862 minecraft:oak_planks
+cmd setblock 5293 186 862 starfold:thruster[facing=up]
+cmd setblock 5294 186 862 minecraft:oak_planks
+cmd setblock 5290 186 863 minecraft:oak_planks
+cmd setblock 5291 186 863 minecraft:oak_planks
+cmd setblock 5292 186 863 starfold:thruster[facing=down]
+cmd setblock 5293 186 863 minecraft:oak_planks
+cmd setblock 5294 186 863 minecraft:oak_planks
+cmd setblock 5290 186 864 minecraft:oak_planks
+cmd setblock 5291 186 864 minecraft:oak_planks
+cmd setblock 5292 186 864 starfold:airstair[facing=south]
+cmd setblock 5293 186 864 minecraft:oak_planks
+cmd setblock 5294 186 864 minecraft:oak_planks
+cmd setblock 5292 187 860 minecraft:oak_door[facing=north,half=lower,open=true]
+cmd setblock 5290 187 862 starfold:gyro
+cmd setblock 5292 187 862 starfold:helm[facing=west]
+cmd setblock 5294 187 862 starfold:gyro
+cmd setblock 5292 187 864 minecraft:oak_door[facing=south,half=lower,open=true]
+cmd setblock 5292 188 860 minecraft:oak_door[facing=north,half=upper,open=true]
+cmd setblock 5290 188 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 188 862 starfold:scope_nav[facing=west]
+cmd setblock 5294 188 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 188 864 minecraft:oak_door[facing=south,half=upper,open=true]
+wait 40
+cmd sable assemble area 5290 180 860 5294 189 864
+wait 200
+helmstate B6L-built
+cmd tp @s 5293.5 187.2 863.5 90 30
+fly off
+wait 100
+cmd gamemode survival
+wait 40
+find starfold:helm
+wait 5
+usehit helm
+wait 40
+requirehelm
+look free
+trace on
+helmstate B6L-yaw-start
+chartheading 70 400
+wait 160
+helmstate B6L-yaw-stop
+helmstate B6L-descent-rest
+press 340 1
+until clearance< 0.15 1400
+press 340 0
+wait 200
+helmstate B6L-land
+requirehelm
+trace off
+shot blueprint1-B6-land
+press 82 1
+wait 2
+press 82 0
+wait 40
+requirenohelm
+walklocal 1 -1 160
+walklocal 0 -1 160
+walklocal 0 -12 400
+helmstate B6L-walk-out
+shot blueprint1-B6-walk-out
+walklocal 0 -1 400
+helmstate B6L-walk-in
+shot blueprint1-B6-walk-in
+find starfold:helm
+wait 5
+usehit helm
+wait 40
+requirehelm
+helmstate B6L-reboard
+quit

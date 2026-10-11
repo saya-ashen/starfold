@@ -1,0 +1,21 @@
+{
+  "vertex":"starfold:native_ground_sun","fragment":"starfold:native_ground_sun",
+  "attributes":["Position"],"samplers":[],
+  "uniforms":[
+    {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"SpaceLens","type":"float","count":3,"values":[0,1,1]},
+    {"name":"DrawCenter","type":"float","count":3,"values":[0,0,0]},
+    {"name":"ChartU","type":"float","count":3,"values":[1,0,0]},
+    {"name":"ChartUp","type":"float","count":3,"values":[0,1,0]},
+    {"name":"ChartV","type":"float","count":3,"values":[0,0,1]},
+    {"name":"SunBody","type":"float","count":3,"values":[0,0,8192]},
+    {"name":"EyeBody","type":"float","count":3,"values":[0,1305,0]},
+    {"name":"SunRadius","type":"float","count":1,"values":[512]},
+    {"name":"DrawRadius","type":"float","count":1,"values":[1]},
+    {"name":"PlanetRadius","type":"float","count":1,"values":[1303.7873]},
+    {"name":"Background","type":"float","count":1,"values":[0]},
+    {"name":"Halo","type":"float","count":1,"values":[0]},
+    {"name":"SunTime","type":"float","count":1,"values":[0]}
+  ]
+}

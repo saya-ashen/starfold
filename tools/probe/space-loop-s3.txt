@@ -1,0 +1,76 @@
+waitworld
+log session-login
+loopstate login
+wait 160
+aboardelsequit
+find typewriter
+wait 6
+usehit first
+wait 40
+useifidle
+wait 40
+requiretypewriter
+find throttle
+wait 6
+throttle 0
+steer 0 540
+requirechart
+requireplanet 0
+log S3-A-arrival
+loopstate S3-A-arrival
+aboardelsequit
+requiretypewriter
+press 340 0
+wait 100
+press 340 1
+until y< 170 3200
+wait 500
+press 340 0
+wait 100
+log S3-A-landed
+surfacehere
+loopstate S3-A-landed
+shot space-loop-S3-A-landed
+sample 0
+cmd execute at @s run summon marker ~ ~ ~ {Tags:["loop_board_a_return"]}
+cmd execute at @s run forceload add ~-48 ~-48 ~48 ~48
+find typewriter
+wait 6
+usehit release
+wait 40
+# Pilot-only surface relocation: no ship movement or reconstruction.
+cmd execute at @s positioned ~12 ~ ~ run spreadplayers ~ ~ 0 1 false @s
+wait 120
+fly off
+loopstate a_return-walk-start
+look 0 0
+key forward on
+wait 110
+key forward off
+wait 40
+loopstate a_return-walk-end
+cmd tp @s @e[tag=loop_a,limit=1]
+wait 160
+cmd data get block 5122 260 1569
+cmd execute unless block 5122 260 1569 chest run say CHECK_S3_A_CHEST_ABSENT
+cmd execute unless block 5123 260 1569 gold_block run say CHECK_S3_A_GOLD_ABSENT
+cmd execute unless block 5124 260 1569 lapis_block run say CHECK_S3_A_LAPIS_ABSENT
+cmd execute unless block 5124 261 1569 redstone_block run say CHECK_S3_A_REDSTONE_ABSENT
+log S3-A-checks
+cmd data get entity @e[tag=loop_a,limit=1] Pos
+cmd execute at @e[tag=loop_a,limit=1] run data get block ~ ~ ~ Items
+cmd execute at @e[tag=loop_a,limit=1] run data get block ~ ~ ~ Items[{Slot:0b}]
+cmd execute at @e[tag=loop_a,limit=1] run data get block ~ ~ ~ Items[{Slot:5b}]
+cmd execute at @e[tag=loop_a,limit=1] run data get block ~ ~ ~ Items[{Slot:26b}]
+cmd execute at @e[tag=loop_a,limit=1] if block ~1 ~ ~ gold_block run say CHECK_S3-A_gold_block_PASS
+cmd execute at @e[tag=loop_a,limit=1] if block ~2 ~ ~ lapis_block run say CHECK_S3-A_lapis_block_PASS
+cmd execute at @e[tag=loop_a,limit=1] if block ~2 ~1 ~ redstone_block run say CHECK_S3-A_redstone_block_PASS
+loopstate S3-A
+wait 40
+sample 0
+cmd save-all flush
+wait 80
+loopstate final-save
+wait 20
+shot space-loop-final
+quit

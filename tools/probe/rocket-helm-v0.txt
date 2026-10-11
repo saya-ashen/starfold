@@ -1,0 +1,39 @@
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+look 72 20
+wait 20
+log V0-first
+shot helm-v0-first
+press 294 1
+press 294 0
+wait 20
+log V0-behind
+shot helm-v0-behind
+look 162 35
+wait 20
+shot helm-v0-side
+press 294 1
+press 294 0
+wait 20
+shot helm-v0-front
+press 294 1
+press 294 0
+wait 20
+cmd save-all flush
+wait 100
+quit

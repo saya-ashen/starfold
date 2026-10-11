@@ -1,0 +1,22 @@
+{
+  "suns": [
+    {
+      "position": [0, 0, 0],
+      "radius": 512,
+      "planets": [
+        {"type": "starfold:temperate", "size": 2048, "seed": 20261001, "name": "Aster", "orbit": {"radius": 8192, "period": 24000, "phase": 0}, "spin": {"period": 48000, "tilt": 23.5}},
+        {"type": "handwritten:ash", "size": 768, "name": "Cinder", "orbit": {"radius": 8192, "period": 24000, "phase": 3.141592653589793}},
+        {"type": "starfold:ice", "name": "Rime", "orbit": {"radius": 17000, "period": 90000, "phase": 1.2}, "spin": {"period": 72000, "tilt": -12}}
+      ]
+    },
+    {
+      "position": [60000, 4000, -20000],
+      "radius": 420,
+      "planets": [
+        {"type": "handwritten:ash", "size": 512, "orbit": {"radius": 9000, "period": 36000, "phase": 0.7}},
+        {"type": "starfold:desert", "size": 1024, "name": "Dune", "orbit": {"radius": 18000, "period": 110000, "phase": 2.4}}
+      ]
+    }
+  ],
+  "home": {"sun": 0, "planet": 0}
+}

@@ -1,0 +1,67 @@
+{
+  "biome": "minecraft:snowy_plains",
+  "size": {
+    "min": 448,
+    "max": 1024
+  },
+  "depth_ratio": 0.4,
+  "algorithm": "rocky_craters",
+  "relief": 1.4,
+  "ore_bias": 0.02,
+  "cave_width": 0.1,
+  "palette": {
+    "rock": "minecraft:packed_ice",
+    "dark": "minecraft:blue_ice",
+    "light": "minecraft:snow_block",
+    "deep": "minecraft:stone",
+    "cover": "minecraft:snow_block"
+  },
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:packed_ice"
+      },
+      {
+        "block": "minecraft:blue_ice",
+        "from": 0.35
+      },
+      {
+        "block": "minecraft:stone",
+        "from": 0.6
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.85
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:lapis_ore",
+        "deep": "minecraft:deepslate_lapis_ore",
+        "from": 0.3,
+        "rarity": 0.88
+      },
+      {
+        "block": "minecraft:iron_ore",
+        "deep": "minecraft:deepslate_iron_ore",
+        "from": 0.55,
+        "rarity": 0.86
+      },
+      {
+        "block": "minecraft:diamond_ore",
+        "deep": "minecraft:deepslate_diamond_ore",
+        "from": 0.7,
+        "rarity": 0.93
+      },
+      {
+        "block": "minecraft:emerald_ore",
+        "deep": "minecraft:deepslate_emerald_ore",
+        "from": 0.6,
+        "rarity": 0.95
+      }
+    ]
+  },
+  "creatures": true,
+  "features": false,
+  "structures": true
+}

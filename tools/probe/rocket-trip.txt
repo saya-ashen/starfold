@@ -1,0 +1,235 @@
+# DESTRUCTIVE: disposable devworld-create1 only. The whole trip in the starter rocket: up from planet A by its climb
+# dial, held open all the way to where planet B comes by (leadsite: the two pass at 85 blocks/s; a ship that stops
+# pushing is stilled by Sable's own drag within a thousand blocks, wherever it is), the hand-over to B, the dial shut,
+# and down to B's ground by shift. Keys and the dial go as the client sends them.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 100
+fly off
+cmd tp @s 5264.5 131 864.5 180 20
+wait 200
+cmd starfold nav target b
+wait 60
+nav home
+cmd effect give @s minecraft:night_vision infinite 0 true
+fly on
+leadsite 3720 262
+wait 120
+fly on
+log site
+cmd sable remove @e
+cmd fill ~-10 ~-3 ~-10 ~10 ~-3 ~10 minecraft:smooth_stone
+cmd fill ~-10 ~-2 ~-10 ~10 ~9 ~10 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~2 ~3 minecraft:glass
+cmd fill ~-4 ~-1 ~-2 ~4 ~1 ~2 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~-2 ~3 minecraft:spruce_planks
+cmd setblock ~ ~-1 ~3 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock ~ ~ ~3 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill ~-4 ~-2 ~-2 ~4 ~-2 ~2 minecraft:spruce_planks
+cmd setblock ~-2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~-2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~-1 minecraft:iron_block
+cmd setblock ~ ~-2 ~1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~ ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~-2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~ simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock ~1 ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~-1 starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~1 starfold:thruster[facing=down]
+cmd setblock ~4 ~-1 ~ starfold:thruster[facing=east]
+cmd setblock ~3 ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~-1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~ ~ starfold:thruster[facing=east]
+cmd setblock ~-4 ~-1 ~ starfold:thruster[facing=west]
+cmd setblock ~-4 ~ ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~-3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~-3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-1 ~-1 ~2 starfold:gyro
+cmd setblock ~-1 ~ ~2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-1 ~-1 ~-2 starfold:gyro
+cmd setblock ~-1 ~ ~-2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-2 ~-1 ~ simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+wait 10
+cmd tp @s ~ ~14 ~
+wait 20
+cmd sable assemble area ~-5 ~-16 ~-3 ~5 ~-12 ~3
+wait 700
+cmd sable info @n
+cmd tp @s ~-0.5 ~-14.8 ~0.5
+fly off
+wait 40
+log aboard
+nav aboard
+abilities aboard
+cmd sable info @n
+wait 2
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 10
+find throttle
+wait 6
+hit dial
+throttle ?
+throttle 15
+wait 10
+throttle ?
+wait 4
+until y> 1000 2400
+log air-ends
+nav air-ends
+abilities air-ends
+cmd sable info @n
+wait 2
+until y> 3000 2400
+log cut
+nav cut
+abilities cut
+cmd sable info @n
+wait 2
+until chart!= 0 4000
+log handed-over
+nav handed-over
+abilities handed-over
+cmd sable info @n
+wait 2
+wait 20
+shot trip-handover
+wait 20
+log righting-1
+nav righting-1
+abilities righting-1
+cmd sable info @n
+wait 2
+wait 20
+log righting-2
+nav righting-2
+abilities righting-2
+cmd sable info @n
+wait 2
+wait 20
+log righting-3
+nav righting-3
+abilities righting-3
+cmd sable info @n
+wait 2
+wait 20
+log righting-4
+nav righting-4
+abilities righting-4
+cmd sable info @n
+wait 2
+wait 100
+log arrived
+nav arrived
+abilities arrived
+cmd sable info @n
+wait 2
+shot trip-arrived
+find throttle
+wait 4
+leverdo data get block {lever} State
+throttle 0
+wait 40
+leverdo data get block {lever} State
+wait 100
+log shut-1
+nav shut-1
+abilities shut-1
+cmd sable info @n
+wait 2
+wait 100
+log shut-2
+nav shut-2
+abilities shut-2
+cmd sable info @n
+wait 2
+wait 100
+log shut-3
+nav shut-3
+abilities shut-3
+cmd sable info @n
+wait 2
+wait 100
+log shut-4
+nav shut-4
+abilities shut-4
+cmd sable info @n
+wait 2
+wait 100
+log shut-5
+nav shut-5
+abilities shut-5
+cmd sable info @n
+wait 2
+wait 100
+log shut-6
+nav shut-6
+abilities shut-6
+cmd sable info @n
+wait 2
+wait 100
+log shut-7
+nav shut-7
+abilities shut-7
+cmd sable info @n
+wait 2
+wait 100
+log shut-8
+nav shut-8
+abilities shut-8
+cmd sable info @n
+wait 2
+look 0 80
+wait 4
+shot trip-stilled-down
+log stilled
+nav stilled
+abilities stilled
+cmd sable info @n
+wait 2
+find typewriter
+wait 6
+hit helm
+press 340 1
+wait 2
+until y< 3000 3000
+look 0 60
+wait 4
+shot trip-3000-down
+until y< 400 6000
+log low
+nav low
+abilities low
+cmd sable info @n
+wait 2
+wait 600
+press 340 0
+wait 200
+log landed
+nav landed
+abilities landed
+cmd sable info @n
+wait 2
+shot rocket-trip
+wait 5
+quit

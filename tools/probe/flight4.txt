@@ -1,0 +1,33 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 100
+waitworld
+fly on
+cmd tp @s 2000 280 1024 -90 15
+wait 20
+look -90 15
+wait 100
+cmd starfold nav target 0
+wait 20
+key sprint on
+key jump on
+until alt> 5000 5000
+key jump off
+log up
+nav up
+shot fl-up
+wait 40
+cmd starfold nav target b
+wait 10
+nav target-b
+cmd starfold nav target 0
+wait 20
+key sneak on
+until free 5000
+key sneak off
+key sprint off
+log down
+nav down
+shot fl-down
+quit

@@ -1,0 +1,40 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd tp @s 5264.5 131 864.5 0 -40
+wait 100
+look 0 -40
+cmd fill 5262 160 868 5268 160 870 minecraft:smooth_stone
+cmd setblock 5264 161 869 create:creative_motor[facing=east]
+cmd setblock 5265 161 869 create:shaft[axis=x]
+wait 80
+cmd data get block 5264 161 869 Speed
+cmd data get block 5265 161 869 Speed
+wait 10
+shot create-high
+cmd tp @s 4110.5 131 865.5 90 15
+wait 200
+cmd fill 4084 130 862 4112 130 866 minecraft:smooth_stone
+cmd fill 4086 131 864 4104 131 864 air
+wait 40
+look 90 15
+cmd setblock 4104 131 864 create:creative_motor[facing=west]
+cmd fill 4086 131 864 4103 131 864 create:shaft[axis=x]
+wait 100
+cmd data get block 4104 131 864 Speed
+cmd data get block 4103 131 864 Speed
+cmd data get block 4096 131 864 Speed
+cmd data get block 4095 131 864 Speed
+cmd data get block 4088 131 864 Speed
+wait 10
+log seam-east
+shot create-seam-a
+cmd tp @s 4098.5 131 866.5 120 20
+wait 60
+look 120 20
+wait 20
+shot create-seam-b
+wait 40
+log create-seam-complete
+quit

@@ -1,0 +1,255 @@
+strict
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 100
+fly off
+cmd tp @s 5264.5 131 864.5 180 20
+wait 200
+cmd starfold nav target b
+wait 60
+nav home
+cmd effect give @s minecraft:night_vision infinite 0 true
+fly on
+cmd tp @s 5114.5 262 1561.5 180 20
+wait 120
+fly on
+log site
+cmd sable info @e
+wait 80
+cmd sable info @e
+cmd fill ~-10 ~-3 ~-10 ~10 ~-3 ~10 minecraft:smooth_stone
+cmd fill ~-10 ~-2 ~-10 ~10 ~9 ~10 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~2 ~3 minecraft:glass
+cmd fill ~-4 ~-1 ~-2 ~4 ~1 ~2 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~-2 ~3 minecraft:spruce_planks
+cmd setblock ~ ~-1 ~3 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock ~ ~ ~3 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill ~-4 ~-2 ~-2 ~4 ~-2 ~2 minecraft:spruce_planks
+cmd setblock ~-2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~-2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~-1 minecraft:iron_block
+cmd setblock ~ ~-2 ~1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~ ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~-2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~ simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock ~1 ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~-1 starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~1 starfold:thruster[facing=down]
+cmd setblock ~4 ~-1 ~ starfold:thruster[facing=east]
+cmd setblock ~3 ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~-1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~ ~ starfold:thruster[facing=east]
+cmd setblock ~-4 ~-1 ~ starfold:thruster[facing=west]
+cmd setblock ~-4 ~ ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~-3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~-3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-1 ~-1 ~2 starfold:gyro
+cmd setblock ~-1 ~ ~2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-1 ~-1 ~-2 starfold:gyro
+cmd setblock ~-1 ~ ~-2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-2 ~-1 ~ simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+cmd setblock ~-1 ~-2 ~ minecraft:glass
+cmd setblock ~-1 ~-2 ~1 minecraft:glass
+cmd setblock 5122 260 1569 chest
+wait 4
+cmd item replace block 5122 260 1569 container.0 with cobblestone 17
+wait 4
+cmd item replace block 5122 260 1569 container.5 with iron_ingot 3
+wait 4
+cmd item replace block 5122 260 1569 container.26 with oak_log 9
+wait 4
+cmd setblock 5123 260 1569 gold_block
+wait 4
+cmd setblock 5124 260 1569 lapis_block
+wait 4
+cmd setblock 5124 261 1569 redstone_block
+wait 4
+check S1-A-chest if block 5122 260 1569 chest
+check S1-A-slot0 if data block 5122 260 1569 Items[{Slot:0b,id:"minecraft:cobblestone",count:17}]
+check S1-A-slot1 unless data block 5122 260 1569 Items[{Slot:1b}]
+check S1-A-slot2 unless data block 5122 260 1569 Items[{Slot:2b}]
+check S1-A-slot3 unless data block 5122 260 1569 Items[{Slot:3b}]
+check S1-A-slot4 unless data block 5122 260 1569 Items[{Slot:4b}]
+check S1-A-slot5 if data block 5122 260 1569 Items[{Slot:5b,id:"minecraft:iron_ingot",count:3}]
+check S1-A-slot6 unless data block 5122 260 1569 Items[{Slot:6b}]
+check S1-A-slot7 unless data block 5122 260 1569 Items[{Slot:7b}]
+check S1-A-slot8 unless data block 5122 260 1569 Items[{Slot:8b}]
+check S1-A-slot9 unless data block 5122 260 1569 Items[{Slot:9b}]
+check S1-A-slot10 unless data block 5122 260 1569 Items[{Slot:10b}]
+check S1-A-slot11 unless data block 5122 260 1569 Items[{Slot:11b}]
+check S1-A-slot12 unless data block 5122 260 1569 Items[{Slot:12b}]
+check S1-A-slot13 unless data block 5122 260 1569 Items[{Slot:13b}]
+check S1-A-slot14 unless data block 5122 260 1569 Items[{Slot:14b}]
+check S1-A-slot15 unless data block 5122 260 1569 Items[{Slot:15b}]
+check S1-A-slot16 unless data block 5122 260 1569 Items[{Slot:16b}]
+check S1-A-slot17 unless data block 5122 260 1569 Items[{Slot:17b}]
+check S1-A-slot18 unless data block 5122 260 1569 Items[{Slot:18b}]
+check S1-A-slot19 unless data block 5122 260 1569 Items[{Slot:19b}]
+check S1-A-slot20 unless data block 5122 260 1569 Items[{Slot:20b}]
+check S1-A-slot21 unless data block 5122 260 1569 Items[{Slot:21b}]
+check S1-A-slot22 unless data block 5122 260 1569 Items[{Slot:22b}]
+check S1-A-slot23 unless data block 5122 260 1569 Items[{Slot:23b}]
+check S1-A-slot24 unless data block 5122 260 1569 Items[{Slot:24b}]
+check S1-A-slot25 unless data block 5122 260 1569 Items[{Slot:25b}]
+check S1-A-slot26 if data block 5122 260 1569 Items[{Slot:26b,id:"minecraft:oak_log",count:9}]
+check S1-A-gold_block if block 5123 260 1569 gold_block
+check S1-A-lapis_block if block 5124 260 1569 lapis_block
+check S1-A-redstone_block if block 5124 261 1569 redstone_block
+loopstate S1-A
+wait 20
+wait 10
+cmd tp @s ~ ~14 ~
+wait 20
+cmd sable assemble area ~-5 ~-16 ~-3 ~5 ~-12 ~3
+wait 700
+cmd sable info @n
+cmd tp @s ~-0.5 ~-14.8 ~0.5
+fly off
+wait 40
+log aboard
+nav aboard
+abilities aboard
+cmd sable info @n
+wait 2
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+useifidle
+wait 20
+requiretypewriter
+find throttle
+wait 6
+hit dial
+throttle ?
+throttle 0
+wait 10
+throttle ?
+wait 4
+loopstate hull-baseline
+throttle 15
+sample 100
+until region 4000
+throttle 0
+steer 1 540
+requirechart
+requireplanet 1
+aboardelsequit
+requiretypewriter
+press 340 0
+wait 40
+press 340 1
+landguard 4000
+press 340 0
+wait 40
+loopstate landed-1
+sample 0
+recordpos boardb
+find typewriter
+wait 6
+usehit release
+wait 40
+cmd execute at @s positioned ~12 ~ ~ run spreadplayers ~ ~ 0 1 false @s
+wait 120
+fly off
+look 90 0
+key jump on
+walk20 800
+key jump off
+wait 40
+record baseb
+cmd fill {baseb:-1,-10,0} {baseb:0,-1,0} air
+wait 10
+cmd setblock {baseb:0,-10,0} chest
+wait 4
+cmd item replace block {baseb:0,-10,0} container.0 with copper_ingot 7
+wait 4
+cmd item replace block {baseb:0,-10,0} container.5 with coal 13
+wait 4
+cmd item replace block {baseb:0,-10,0} container.26 with raw_iron 11
+wait 4
+cmd setblock {baseb:1,0,0} copper_block
+wait 4
+cmd setblock {baseb:2,0,0} amethyst_block
+wait 4
+cmd setblock {baseb:2,1,0} emerald_block
+wait 4
+cmd setblock {baseb:3,0,0} furnace
+wait 4
+cmd item replace block {baseb:3,0,0} container.0 with raw_iron 64
+wait 4
+cmd item replace block {baseb:3,0,0} container.1 with coal 16
+wait 10
+check furnace-total if data block {baseb:3,0,0} {CookTimeTotal:200}
+cmd data get block {baseb:3,0,0}
+loopstate furnace-start
+wait 240
+check S1-B-chest if block {baseb:0,-10,0} chest
+check S1-B-slot0 if data block {baseb:0,-10,0} Items[{Slot:0b,id:"minecraft:copper_ingot",count:7}]
+check S1-B-slot1 unless data block {baseb:0,-10,0} Items[{Slot:1b}]
+check S1-B-slot2 unless data block {baseb:0,-10,0} Items[{Slot:2b}]
+check S1-B-slot3 unless data block {baseb:0,-10,0} Items[{Slot:3b}]
+check S1-B-slot4 unless data block {baseb:0,-10,0} Items[{Slot:4b}]
+check S1-B-slot5 if data block {baseb:0,-10,0} Items[{Slot:5b,id:"minecraft:coal",count:13}]
+check S1-B-slot6 unless data block {baseb:0,-10,0} Items[{Slot:6b}]
+check S1-B-slot7 unless data block {baseb:0,-10,0} Items[{Slot:7b}]
+check S1-B-slot8 unless data block {baseb:0,-10,0} Items[{Slot:8b}]
+check S1-B-slot9 unless data block {baseb:0,-10,0} Items[{Slot:9b}]
+check S1-B-slot10 unless data block {baseb:0,-10,0} Items[{Slot:10b}]
+check S1-B-slot11 unless data block {baseb:0,-10,0} Items[{Slot:11b}]
+check S1-B-slot12 unless data block {baseb:0,-10,0} Items[{Slot:12b}]
+check S1-B-slot13 unless data block {baseb:0,-10,0} Items[{Slot:13b}]
+check S1-B-slot14 unless data block {baseb:0,-10,0} Items[{Slot:14b}]
+check S1-B-slot15 unless data block {baseb:0,-10,0} Items[{Slot:15b}]
+check S1-B-slot16 unless data block {baseb:0,-10,0} Items[{Slot:16b}]
+check S1-B-slot17 unless data block {baseb:0,-10,0} Items[{Slot:17b}]
+check S1-B-slot18 unless data block {baseb:0,-10,0} Items[{Slot:18b}]
+check S1-B-slot19 unless data block {baseb:0,-10,0} Items[{Slot:19b}]
+check S1-B-slot20 unless data block {baseb:0,-10,0} Items[{Slot:20b}]
+check S1-B-slot21 unless data block {baseb:0,-10,0} Items[{Slot:21b}]
+check S1-B-slot22 unless data block {baseb:0,-10,0} Items[{Slot:22b}]
+check S1-B-slot23 unless data block {baseb:0,-10,0} Items[{Slot:23b}]
+check S1-B-slot24 unless data block {baseb:0,-10,0} Items[{Slot:24b}]
+check S1-B-slot25 unless data block {baseb:0,-10,0} Items[{Slot:25b}]
+check S1-B-slot26 if data block {baseb:0,-10,0} Items[{Slot:26b,id:"minecraft:raw_iron",count:11}]
+check S1-B-copper_block if block {baseb:1,0,0} copper_block
+check S1-B-amethyst_block if block {baseb:2,0,0} amethyst_block
+check S1-B-emerald_block if block {baseb:2,1,0} emerald_block
+check S1-B-shaft1 if block {baseb:-1,-1,0} air
+check S1-B-shaft2 if block {baseb:-1,-2,0} air
+check S1-B-shaft3 if block {baseb:-1,-3,0} air
+check S1-B-shaft4 if block {baseb:-1,-4,0} air
+check S1-B-shaft5 if block {baseb:-1,-5,0} air
+check S1-B-shaft6 if block {baseb:-1,-6,0} air
+check S1-B-shaft7 if block {baseb:-1,-7,0} air
+check S1-B-shaft8 if block {baseb:-1,-8,0} air
+check S1-B-shaft9 if block {baseb:-1,-9,0} air
+check S1-B-shaft10 if block {baseb:-1,-10,0} air
+cmd data get block {baseb:3,0,0}
+loopstate S1-B
+wait 20
+sample 0
+cmd save-all flush
+wait 80
+loopstate final-save
+solar final-save
+wait 20
+shot space-loop2-final
+quit

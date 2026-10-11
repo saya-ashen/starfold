@@ -1,0 +1,110 @@
+waitworld
+wait 60
+cmd ride @s dismount
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd tp @s 300 168 2040 90 0
+wait 140
+fly on
+cmd effect clear @s
+cmd forceload add 0 2032 320 2047
+wait 160
+cmd tp @s 300.5 190 2040.5 90 20
+wait 3
+fly on
+wait 100
+cmd sable info @e
+cmd sable remove @e
+wait 60
+cmd fill 290 171 2030 310 171 2050 minecraft:smooth_stone
+cmd fill 290 172 2030 310 183 2050 minecraft:air
+cmd fill 295 172 2037 305 176 2043 minecraft:glass
+cmd fill 296 173 2038 304 175 2042 minecraft:air
+cmd fill 295 172 2037 305 172 2043 minecraft:spruce_planks
+cmd setblock 300 173 2043 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock 300 174 2043 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill 296 172 2038 304 172 2042 minecraft:spruce_planks
+cmd setblock 298 172 2039 minecraft:iron_block
+cmd setblock 298 172 2041 minecraft:iron_block
+cmd setblock 300 172 2039 minecraft:iron_block
+cmd setblock 300 172 2041 minecraft:iron_block
+cmd setblock 302 172 2039 minecraft:iron_block
+cmd setblock 302 172 2041 minecraft:iron_block
+cmd setblock 300 172 2040 starfold:thruster[facing=down]
+cmd setblock 300 173 2040 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 301 173 2038 starfold:thruster[facing=up]
+cmd setblock 301 174 2038 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 301 173 2042 starfold:thruster[facing=up]
+cmd setblock 301 174 2042 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 301 173 2040 simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock 301 172 2040 starfold:thruster[facing=down]
+cmd setblock 301 173 2039 starfold:thruster[facing=down]
+cmd setblock 301 173 2041 starfold:thruster[facing=down]
+cmd setblock 304 173 2040 starfold:thruster[facing=east]
+cmd setblock 303 173 2040 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 304 173 2039 starfold:thruster[facing=east]
+cmd setblock 304 174 2039 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 304 173 2041 starfold:thruster[facing=east]
+cmd setblock 304 174 2041 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 304 174 2040 starfold:thruster[facing=east]
+cmd setblock 296 173 2040 starfold:thruster[facing=west]
+cmd setblock 296 174 2040 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 296 173 2038 starfold:thruster[facing=north]
+cmd setblock 297 173 2038 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 304 173 2042 starfold:thruster[facing=south]
+cmd setblock 303 173 2042 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 296 173 2042 starfold:thruster[facing=south]
+cmd setblock 297 173 2042 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 304 173 2038 starfold:thruster[facing=north]
+cmd setblock 303 173 2038 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 299 173 2042 starfold:gyro
+cmd setblock 299 174 2042 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 299 173 2038 starfold:gyro
+cmd setblock 299 174 2038 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 298 173 2040 simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+wait 40
+cmd sable assemble area 295 172 2037 305 176 2043
+wait 300
+cmd sable info @n
+cmd tp @s 299.5 173.2 2040.5
+wait 3
+fly off
+wait 60
+corner boarded
+cmd data get entity @s SelectedItem
+cmd clear @s
+wait 20
+trace on
+find typewriter
+wait 6
+usehit helm
+wait 20
+useifidle
+wait 20
+requiretypewriter
+find throttle
+wait 6
+throttle 0
+wait 20
+press 32 1
+until y> 1200 4000
+press 32 0
+wait 100
+cornerwatch 10
+sample 40
+trace on
+corner ship-start
+look 90 5
+press 87 1
+wait 1000
+press 87 0
+wait 80
+corner ship-stop
+shot corner-ship-1200
+cmd sable info @e
+cmd save-all flush
+wait 60
+quit

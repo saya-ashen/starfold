@@ -1,0 +1,31 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold leave
+wait 200
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s ~ 200 ~ -40 10
+wait 10
+cmd fill ~-2 199 ~-2 ~8 199 ~8 minecraft:smooth_stone
+cmd tp @s ~ 200 ~ -40 0
+wait 100
+look -40 0
+log overworld
+cmd setblock ~3 200 ~4 simulated:swivel_bearing[facing=up]
+cmd fill ~3 201 ~4 ~3 202 ~4 minecraft:slime_block
+cmd fill ~3 202 ~4 ~6 202 ~4 minecraft:slime_block
+wait 20
+shot aero-o0
+cmd setblock ~4 199 ~4 create:creative_motor[facing=up]
+cmd setblock ~4 200 ~4 create:cogwheel[axis=y]
+wait 80
+cmd data get block ~3 200 ~4
+shot aero-o1
+wait 100
+shot aero-o2
+cmd starfold terrain
+wait 200
+waitworld
+quit

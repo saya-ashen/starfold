@@ -1,0 +1,34 @@
+{
+  "biome": "minecraft:jungle",
+  "size": {
+    "min": 1024,
+    "max": 1024
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 0.35,
+  "ore_bias": 0.02,
+  "cave_width": 0.08,
+  "shell": "core_shell",
+  "palette": {
+    "rock": "minecraft:dirt",
+    "dark": "minecraft:moss_block",
+    "light": "minecraft:dirt",
+    "deep": "minecraft:deepslate",
+    "cover": "minecraft:grass_block"
+  },
+  "creatures": true,
+  "features": true,
+  "structures": true,
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:stone"
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.65
+      }
+    ]
+  }
+}

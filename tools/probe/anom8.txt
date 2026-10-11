@@ -1,0 +1,58 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+key sneak on
+until ground 5000
+key sneak off
+wait 40
+cmd starfold face 0
+wait 60
+cmd tp @s 40 170 2020 90 0
+wait 3
+fly on
+look 90 0
+wait 100
+key forward on
+wait 110
+key forward off
+log second
+look -25 -50
+wait 20
+shot sf-second-up
+look -25 -50
+wait 20
+shot sf-second-up
+look -25 -15
+wait 10
+shot sf-second-level
+look 0 0
+wait 5
+key forward on
+wait 40
+key forward off
+log close
+look -20 -70
+wait 10
+shot sf-close-a
+look 40 -60
+wait 10
+shot sf-close-b
+look -60 -45
+wait 10
+shot sf-close-c
+cmd tp @s 34 170 2014 45 -55
+wait 3
+fly on
+look 45 -55
+wait 100
+shot sf-own-up
+cmd tp @s 60 150 1988 45 -10
+wait 3
+fly on
+look 45 -10
+wait 60
+shot sf-own-far
+quit

@@ -1,0 +1,159 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Which lever does what on the starter airship (tools/ship/airship.py).
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 200
+cmd sable remove @e
+cmd fill 5282 140 852 5302 152 872 air
+cmd fill 5287 140 860 5297 140 864 minecraft:spruce_planks
+cmd fill 5291 141 861 5291 142 861 minecraft:spruce_fence
+cmd fill 5291 141 863 5291 142 863 minecraft:spruce_fence
+cmd fill 5293 141 861 5293 142 861 minecraft:spruce_fence
+cmd fill 5293 141 863 5293 142 863 minecraft:spruce_fence
+cmd fill 5288 143 858 5296 149 866 aeronautics:white_envelope hollow
+cmd fill 5289 143 859 5295 143 865 minecraft:air
+cmd fill 5288 143 861 5296 143 861 minecraft:spruce_planks
+cmd fill 5288 143 863 5296 143 863 minecraft:spruce_planks
+cmd setblock 5292 141 862 aeronautics:adjustable_burner
+cmd setblock 5292 141 863 minecraft:lever[face=floor,facing=south,powered=true]
+cmd setblock 5295 141 862 create:creative_motor[facing=east]{ScrollValue:128}
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 5297 141 862 aeronautics:wooden_propeller[facing=east]
+cmd setblock 5296 141 861 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 141 863 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 5288 141 862 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 5288 141 863 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 5288 141 864 aeronautics:wooden_propeller[facing=south]
+cmd setblock 5287 141 863 minecraft:lever[face=floor,facing=west,powered=false]
+cmd setblock 5289 141 863 minecraft:lever[face=floor,facing=east,powered=false]
+wait 30
+cmd tellraw @s "CASE thrustA"
+cmd data get block 5297 141 862 Speed
+cmd data get block 5288 141 864 Speed
+look -45 0
+shot ship-thrustA-built
+cmd sable assemble area 5287 140 858 5297 149 866
+wait 80
+cmd sable info @l
+wait 60
+cmd sable info @l
+wait 60
+cmd sable info @l
+cmd sable remove @e
+cmd fill 5282 140 852 5302 152 872 air
+cmd fill 5287 140 860 5297 140 864 minecraft:spruce_planks
+cmd fill 5291 141 861 5291 142 861 minecraft:spruce_fence
+cmd fill 5291 141 863 5291 142 863 minecraft:spruce_fence
+cmd fill 5293 141 861 5293 142 861 minecraft:spruce_fence
+cmd fill 5293 141 863 5293 142 863 minecraft:spruce_fence
+cmd fill 5288 143 858 5296 149 866 aeronautics:white_envelope hollow
+cmd fill 5289 143 859 5295 143 865 minecraft:air
+cmd fill 5288 143 861 5296 143 861 minecraft:spruce_planks
+cmd fill 5288 143 863 5296 143 863 minecraft:spruce_planks
+cmd setblock 5292 141 862 aeronautics:adjustable_burner
+cmd setblock 5292 141 863 minecraft:lever[face=floor,facing=south,powered=true]
+cmd setblock 5295 141 862 create:creative_motor[facing=east]{ScrollValue:128}
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 5297 141 862 aeronautics:wooden_propeller[facing=east]
+cmd setblock 5296 141 861 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5296 141 863 minecraft:lever[face=floor,facing=south,powered=true]
+cmd setblock 5288 141 862 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 5288 141 863 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 5288 141 864 aeronautics:wooden_propeller[facing=south]
+cmd setblock 5287 141 863 minecraft:lever[face=floor,facing=west,powered=false]
+cmd setblock 5289 141 863 minecraft:lever[face=floor,facing=east,powered=false]
+wait 30
+cmd tellraw @s "CASE thrustB"
+cmd data get block 5297 141 862 Speed
+cmd data get block 5288 141 864 Speed
+look -45 0
+shot ship-thrustB-built
+cmd sable assemble area 5287 140 858 5297 149 866
+wait 80
+cmd sable info @l
+wait 60
+cmd sable info @l
+wait 60
+cmd sable info @l
+cmd sable remove @e
+cmd fill 5282 140 852 5302 152 872 air
+cmd fill 5287 140 860 5297 140 864 minecraft:spruce_planks
+cmd fill 5291 141 861 5291 142 861 minecraft:spruce_fence
+cmd fill 5291 141 863 5291 142 863 minecraft:spruce_fence
+cmd fill 5293 141 861 5293 142 861 minecraft:spruce_fence
+cmd fill 5293 141 863 5293 142 863 minecraft:spruce_fence
+cmd fill 5288 143 858 5296 149 866 aeronautics:white_envelope hollow
+cmd fill 5289 143 859 5295 143 865 minecraft:air
+cmd fill 5288 143 861 5296 143 861 minecraft:spruce_planks
+cmd fill 5288 143 863 5296 143 863 minecraft:spruce_planks
+cmd setblock 5292 141 862 aeronautics:adjustable_burner
+cmd setblock 5292 141 863 minecraft:lever[face=floor,facing=south,powered=true]
+cmd setblock 5295 141 862 create:creative_motor[facing=east]{ScrollValue:128}
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 5297 141 862 aeronautics:wooden_propeller[facing=east]
+cmd setblock 5296 141 861 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5296 141 863 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 5288 141 862 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 5288 141 863 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 5288 141 864 aeronautics:wooden_propeller[facing=south]
+cmd setblock 5287 141 863 minecraft:lever[face=floor,facing=west,powered=true]
+cmd setblock 5289 141 863 minecraft:lever[face=floor,facing=east,powered=false]
+wait 30
+cmd tellraw @s "CASE yawA"
+cmd data get block 5297 141 862 Speed
+cmd data get block 5288 141 864 Speed
+look -45 0
+shot ship-yawA-built
+cmd sable assemble area 5287 140 858 5297 149 866
+wait 80
+cmd sable info @l
+wait 60
+cmd sable info @l
+wait 60
+cmd sable info @l
+cmd sable remove @e
+cmd fill 5282 140 852 5302 152 872 air
+cmd fill 5287 140 860 5297 140 864 minecraft:spruce_planks
+cmd fill 5291 141 861 5291 142 861 minecraft:spruce_fence
+cmd fill 5291 141 863 5291 142 863 minecraft:spruce_fence
+cmd fill 5293 141 861 5293 142 861 minecraft:spruce_fence
+cmd fill 5293 141 863 5293 142 863 minecraft:spruce_fence
+cmd fill 5288 143 858 5296 149 866 aeronautics:white_envelope hollow
+cmd fill 5289 143 859 5295 143 865 minecraft:air
+cmd fill 5288 143 861 5296 143 861 minecraft:spruce_planks
+cmd fill 5288 143 863 5296 143 863 minecraft:spruce_planks
+cmd setblock 5292 141 862 aeronautics:adjustable_burner
+cmd setblock 5292 141 863 minecraft:lever[face=floor,facing=south,powered=true]
+cmd setblock 5295 141 862 create:creative_motor[facing=east]{ScrollValue:128}
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 5297 141 862 aeronautics:wooden_propeller[facing=east]
+cmd setblock 5296 141 861 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5296 141 863 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 5288 141 862 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 5288 141 863 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 5288 141 864 aeronautics:wooden_propeller[facing=south]
+cmd setblock 5287 141 863 minecraft:lever[face=floor,facing=west,powered=false]
+cmd setblock 5289 141 863 minecraft:lever[face=floor,facing=east,powered=true]
+wait 30
+cmd tellraw @s "CASE yawB"
+cmd data get block 5297 141 862 Speed
+cmd data get block 5288 141 864 Speed
+look -45 0
+shot ship-yawB-built
+cmd sable assemble area 5287 140 858 5297 149 866
+wait 80
+cmd sable info @l
+wait 60
+cmd sable info @l
+wait 60
+cmd sable info @l
+quit

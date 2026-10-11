@@ -1,0 +1,62 @@
+strict
+waitworld
+loopstate supplemental-work-retry-login
+solar login
+wait 160
+cmd data get block {baseb:3,0,0}
+check furnace-total if data block {baseb:3,0,0} {CookTimeTotal:200}
+cmd data get block {baseb:3,0,0}
+loopstate furnace-start
+wait 240
+check S1-B-chest if block {baseb:0,-10,0} chest
+check S1-B-slot0 if data block {baseb:0,-10,0} Items[{Slot:0b,id:"minecraft:copper_ingot",count:7}]
+check S1-B-slot1 unless data block {baseb:0,-10,0} Items[{Slot:1b}]
+check S1-B-slot2 unless data block {baseb:0,-10,0} Items[{Slot:2b}]
+check S1-B-slot3 unless data block {baseb:0,-10,0} Items[{Slot:3b}]
+check S1-B-slot4 unless data block {baseb:0,-10,0} Items[{Slot:4b}]
+check S1-B-slot5 if data block {baseb:0,-10,0} Items[{Slot:5b,id:"minecraft:coal",count:13}]
+check S1-B-slot6 unless data block {baseb:0,-10,0} Items[{Slot:6b}]
+check S1-B-slot7 unless data block {baseb:0,-10,0} Items[{Slot:7b}]
+check S1-B-slot8 unless data block {baseb:0,-10,0} Items[{Slot:8b}]
+check S1-B-slot9 unless data block {baseb:0,-10,0} Items[{Slot:9b}]
+check S1-B-slot10 unless data block {baseb:0,-10,0} Items[{Slot:10b}]
+check S1-B-slot11 unless data block {baseb:0,-10,0} Items[{Slot:11b}]
+check S1-B-slot12 unless data block {baseb:0,-10,0} Items[{Slot:12b}]
+check S1-B-slot13 unless data block {baseb:0,-10,0} Items[{Slot:13b}]
+check S1-B-slot14 unless data block {baseb:0,-10,0} Items[{Slot:14b}]
+check S1-B-slot15 unless data block {baseb:0,-10,0} Items[{Slot:15b}]
+check S1-B-slot16 unless data block {baseb:0,-10,0} Items[{Slot:16b}]
+check S1-B-slot17 unless data block {baseb:0,-10,0} Items[{Slot:17b}]
+check S1-B-slot18 unless data block {baseb:0,-10,0} Items[{Slot:18b}]
+check S1-B-slot19 unless data block {baseb:0,-10,0} Items[{Slot:19b}]
+check S1-B-slot20 unless data block {baseb:0,-10,0} Items[{Slot:20b}]
+check S1-B-slot21 unless data block {baseb:0,-10,0} Items[{Slot:21b}]
+check S1-B-slot22 unless data block {baseb:0,-10,0} Items[{Slot:22b}]
+check S1-B-slot23 unless data block {baseb:0,-10,0} Items[{Slot:23b}]
+check S1-B-slot24 unless data block {baseb:0,-10,0} Items[{Slot:24b}]
+check S1-B-slot25 unless data block {baseb:0,-10,0} Items[{Slot:25b}]
+check S1-B-slot26 if data block {baseb:0,-10,0} Items[{Slot:26b,id:"minecraft:raw_iron",count:11}]
+check S1-B-copper_block if block {baseb:1,0,0} copper_block
+check S1-B-amethyst_block if block {baseb:2,0,0} amethyst_block
+check S1-B-emerald_block if block {baseb:2,1,0} emerald_block
+check S1-B-shaft1 if block {baseb:-1,-1,0} air
+check S1-B-shaft2 if block {baseb:-1,-2,0} air
+check S1-B-shaft3 if block {baseb:-1,-3,0} air
+check S1-B-shaft4 if block {baseb:-1,-4,0} air
+check S1-B-shaft5 if block {baseb:-1,-5,0} air
+check S1-B-shaft6 if block {baseb:-1,-6,0} air
+check S1-B-shaft7 if block {baseb:-1,-7,0} air
+check S1-B-shaft8 if block {baseb:-1,-8,0} air
+check S1-B-shaft9 if block {baseb:-1,-9,0} air
+check S1-B-shaft10 if block {baseb:-1,-10,0} air
+cmd data get block {baseb:3,0,0}
+loopstate S1-B
+wait 20
+sample 0
+cmd save-all flush
+wait 80
+loopstate final-save
+solar final-save
+wait 20
+shot space-loop2-final
+quit

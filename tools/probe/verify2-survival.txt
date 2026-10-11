@@ -1,0 +1,256 @@
+waitworld
+strict
+wait 80
+cmd tick rate 20
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd effect clear @s
+look free
+cmd tp @s 166 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-150
+corner night-150
+shot verify2-5-night-150
+cmd tp @s 96 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-80
+corner night-80
+shot verify2-5-night-80
+cmd tp @s 56 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-40
+corner night-40
+shot verify2-5-night-40
+cmd tp @s 26 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-10
+corner night-10
+shot verify2-5-night-10
+cmd starfold spin on
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 1000.5 180 1000.5 0 0
+wait 120
+cmd tp @s 1000.5 -524 1000.5 0 90
+wait 100
+look 0 90
+cmd gamemode survival
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_pickaxe[minecraft:enchantments={levels:{"minecraft:efficiency":5}}]
+cmd effect give @s minecraft:resistance 120 4 true
+cmd effect give @s minecraft:saturation 120 4 true
+cmd data get entity @s SelectedItem
+wait 20
+log INPUT_ARM A-held-mine 34
+wait 40
+input A-held-mine-0
+hit A-held-mine-0
+wait 100
+input A-held-mine-1
+hit A-held-mine-1
+wait 100
+input A-held-mine-2
+hit A-held-mine-2
+wait 100
+input A-held-mine-3
+hit A-held-mine-3
+wait 100
+input A-held-mine-4
+hit A-held-mine-4
+wait 100
+input A-held-mine-5
+hit A-held-mine-5
+wait 100
+input A-held-mine-6
+hit A-held-mine-6
+wait 100
+wait 40
+check A-held-mine-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+cmd gamemode creative
+look free
+cmd tp @s 1003.5 -523 1000.5 90 20
+wait 40
+cmd summon minecraft:wither 1000.5 -524 1000.5 {Tags:["verify2_wither"],Invul:1,NoAI:1b}
+wait 120
+cmd data get entity @e[type=wither,tag=verify2_wither,limit=1] Invul
+check A-wither-birth-blast-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+cmd kill @e[type=wither,tag=verify2_wither]
+wait 20
+cmd tp @s 33280.5 180 512.5 0 0
+wait 120
+cmd tp @s 33280.5 -198 512.5 0 90
+wait 100
+look 0 90
+cmd gamemode survival
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_pickaxe[minecraft:enchantments={levels:{"minecraft:efficiency":5}}]
+cmd effect give @s minecraft:resistance 120 4 true
+cmd effect give @s minecraft:saturation 120 4 true
+cmd data get entity @s SelectedItem
+wait 20
+log INPUT_ARM B-held-mine 34
+wait 40
+input B-held-mine-0
+hit B-held-mine-0
+wait 100
+input B-held-mine-1
+hit B-held-mine-1
+wait 100
+input B-held-mine-2
+hit B-held-mine-2
+wait 100
+input B-held-mine-3
+hit B-held-mine-3
+wait 100
+input B-held-mine-4
+hit B-held-mine-4
+wait 100
+input B-held-mine-5
+hit B-held-mine-5
+wait 100
+input B-held-mine-6
+hit B-held-mine-6
+wait 100
+wait 40
+check B-held-mine-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+cmd gamemode creative
+look free
+cmd tp @s 33283.5 -197 512.5 90 20
+wait 40
+cmd summon minecraft:wither 33280.5 -198 512.5 {Tags:["verify2_wither"],Invul:1,NoAI:1b}
+wait 120
+cmd data get entity @e[type=wither,tag=verify2_wither,limit=1] Invul
+check B-wither-birth-blast-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+cmd kill @e[type=wither,tag=verify2_wither]
+wait 20
+cmd tp @s 33280.5 -198 512.5 -90 29.25
+wait 40
+look -90 29.25
+cmd clear @s
+cmd gamemode survival
+cmd give @s iron_ingot 8
+cmd give @s copper_ingot 5
+cmd give @s redstone_block 1
+cmd give @s blast_furnace 1
+cmd give @s redstone 1
+cmd give @s compass 1
+cmd give @s amethyst_shard 1
+cmd data get entity @s Inventory
+cmd tellraw @s "VERIFY2 recipe starfold:thruster"
+cmd recipe take @s starfold:thruster
+cmd recipe give @s starfold:thruster
+cmd tellraw @s "VERIFY2 recipe starfold:gyro"
+cmd recipe take @s starfold:gyro
+cmd recipe give @s starfold:gyro
+cmd setblock 33282 -198 514 crafting_table
+use 33282 -198 514 up
+wait 40
+input crafting-gui
+shot verify2-5-crafting-table
+press 256 1
+press 256 0
+wait 40
+cmd kill @e[type=item,distance=..12]
+cmd item replace entity @s weapon.mainhand with starfold:thruster
+wait 10
+use 33282 -199 512 up
+wait 40
+check thruster-iron-placed if block 33282 -198 512 starfold:thruster
+cmd item replace entity @s weapon.mainhand with minecraft:iron_pickaxe
+cmd data get entity @s SelectedItem
+look -90 29.25
+wait 20
+log INPUT_ARM thruster-iron 8
+wait 40
+input thruster-iron-0
+hit thruster-iron-0
+wait 100
+input thruster-iron-1
+hit thruster-iron-1
+wait 100
+wait 40
+check thruster-iron-mined if block 33282 -198 512 air
+cmd execute as @e[type=item,distance=..12] run data get entity @s Item
+check thruster-iron-drop if entity @e[type=item,distance=..12,nbt={Item:{id:"starfold:thruster"}}]
+shot verify2-5-thruster-iron
+cmd kill @e[type=item,distance=..12]
+cmd item replace entity @s weapon.mainhand with starfold:thruster
+wait 10
+use 33282 -199 512 up
+wait 40
+check thruster-stone-placed if block 33282 -198 512 starfold:thruster
+cmd item replace entity @s weapon.mainhand with minecraft:stone_pickaxe
+cmd data get entity @s SelectedItem
+look -90 29.25
+wait 20
+log INPUT_ARM thruster-stone 8
+wait 40
+input thruster-stone-0
+hit thruster-stone-0
+wait 100
+input thruster-stone-1
+hit thruster-stone-1
+wait 100
+wait 40
+check thruster-stone-mined if block 33282 -198 512 air
+cmd execute as @e[type=item,distance=..12] run data get entity @s Item
+check thruster-stone-drop unless entity @e[type=item,distance=..12,nbt={Item:{id:"starfold:thruster"}}]
+shot verify2-5-thruster-stone
+cmd kill @e[type=item,distance=..12]
+cmd item replace entity @s weapon.mainhand with starfold:gyro
+wait 10
+use 33282 -199 512 up
+wait 40
+check gyro-iron-placed if block 33282 -198 512 starfold:gyro
+cmd item replace entity @s weapon.mainhand with minecraft:iron_pickaxe
+cmd data get entity @s SelectedItem
+look -90 29.25
+wait 20
+log INPUT_ARM gyro-iron 8
+wait 40
+input gyro-iron-0
+hit gyro-iron-0
+wait 100
+input gyro-iron-1
+hit gyro-iron-1
+wait 100
+wait 40
+check gyro-iron-mined if block 33282 -198 512 air
+cmd execute as @e[type=item,distance=..12] run data get entity @s Item
+check gyro-iron-drop if entity @e[type=item,distance=..12,nbt={Item:{id:"starfold:gyro"}}]
+shot verify2-5-gyro-iron
+cmd kill @e[type=item,distance=..12]
+cmd item replace entity @s weapon.mainhand with starfold:gyro
+wait 10
+use 33282 -199 512 up
+wait 40
+check gyro-stone-placed if block 33282 -198 512 starfold:gyro
+cmd item replace entity @s weapon.mainhand with minecraft:stone_pickaxe
+cmd data get entity @s SelectedItem
+look -90 29.25
+wait 20
+log INPUT_ARM gyro-stone 8
+wait 40
+input gyro-stone-0
+hit gyro-stone-0
+wait 100
+input gyro-stone-1
+hit gyro-stone-1
+wait 100
+wait 40
+check gyro-stone-mined if block 33282 -198 512 air
+cmd execute as @e[type=item,distance=..12] run data get entity @s Item
+check gyro-stone-drop unless entity @e[type=item,distance=..12,nbt={Item:{id:"starfold:gyro"}}]
+shot verify2-5-gyro-stone
+look free
+cmd gamemode creative
+cmd save-all flush
+wait 60
+shot verify2-5-end
+quit

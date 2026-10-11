@@ -1,0 +1,43 @@
+{
+  "display": {
+    "icon": {
+      "id": "starfold:thruster"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.lift_off.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.lift_off.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "earned": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "earned"
+    ]
+  ],
+  "parent": "starfold:ship/airstair",
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:and",
+      "values": [
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "create"
+        },
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "simulated"
+        }
+      ]
+    }
+  ]
+}

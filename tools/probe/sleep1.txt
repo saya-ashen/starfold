@@ -1,0 +1,143 @@
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd difficulty peaceful
+cmd gamerule doMobSpawning false
+wait 40
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep home-40
+wait 50
+asleep home-90
+wait 80
+asleep home-170
+log home
+cmd starfold status
+wait 20
+cmd starfold face 0
+wait 300
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep face0-40
+wait 50
+asleep face0-90
+wait 80
+asleep face0-170
+log face0
+cmd starfold status
+wait 20
+cmd starfold face 1
+wait 300
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep face1-40
+wait 50
+asleep face1-90
+wait 80
+asleep face1-170
+log face1
+cmd starfold status
+wait 20
+cmd starfold face 2
+wait 300
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep face2-40
+wait 50
+asleep face2-90
+wait 80
+asleep face2-170
+log face2
+cmd starfold status
+wait 20
+cmd starfold face 3
+wait 300
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep face3-40
+wait 50
+asleep face3-90
+wait 80
+asleep face3-170
+log face3
+cmd starfold status
+wait 20
+cmd starfold face 4
+wait 300
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep face4-40
+wait 50
+asleep face4-90
+wait 80
+asleep face4-170
+log face4
+cmd starfold status
+wait 20
+cmd starfold face 5
+wait 300
+cmd starfold status
+cmd execute at @s run fill ~-3 ~-1 ~-3 ~3 ~-1 ~3 stone
+cmd execute at @s run fill ~-3 ~ ~-3 ~3 ~3 ~3 air
+cmd item replace entity @s weapon.mainhand with red_bed
+wait 30
+usenear 2 -1 0 up
+wait 10
+usenear 2 0 0 up
+wait 40
+asleep face5-40
+wait 50
+asleep face5-90
+wait 80
+asleep face5-170
+log face5
+cmd starfold status
+wait 20
+wait 60
+shot sleep-end
+cmd starfold status
+wait 10
+quit

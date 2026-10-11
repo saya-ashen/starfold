@@ -1,0 +1,46 @@
+strict
+waitworld
+wait 160
+waitworld
+press 342 1
+helmstate before
+wait 20
+view FIRST_PERSON
+find typewriter
+usehit first
+wait 20
+helmstate first
+wait 20
+view FIRST_PERSON
+find typewriter
+usehit second
+wait 20
+helmstate second
+wait 20
+view FIRST_PERSON
+find typewriter
+usehit third
+wait 20
+helmstate third
+wait 20
+requiretypewriter
+view FIRST_PERSON
+look 90 0
+wait 40
+camera helm2-first
+abilities helm2-first
+shot helm2-first
+wait 20
+view THIRD_PERSON_BACK
+wait 40
+camera helm2-chase
+shot helm2-chase
+wait 20
+press 342 0
+helmstate active-save
+wait 20
+cmd say CP_PROBE_SERVER_ACK
+wait 20
+cmd stop
+wait 100
+exit

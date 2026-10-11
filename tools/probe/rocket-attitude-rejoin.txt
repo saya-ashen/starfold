@@ -1,0 +1,17 @@
+# Reopen rocket-test-11-b without teleporting, piloting or resetting the frame.
+strict
+waitworld
+wait 160
+waitworld
+trace on
+loopstate rejoin-first
+log rejoin-first
+abilities rejoin-first
+wait 199
+loopstate rejoin-later
+log rejoin-later
+abilities rejoin-later
+trace off
+cmd save-all flush
+wait 100
+quit

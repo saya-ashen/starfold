@@ -1,0 +1,236 @@
+waitworld
+log R-clean-login
+wait 120
+cmd sable info @e
+cmd sable remove @e
+wait 100
+cmd sable info @e
+cmd gamemode creative
+fly on
+cmd tp @s -16078 4551 -8095
+wait 200
+cmd sable info @e
+cmd sable remove @e
+wait 100
+cmd sable info @e
+cmd tp @s -16476 15581 -16565
+wait 200
+cmd sable info @e
+cmd sable remove @e
+wait 100
+cmd sable info @e
+cmd tp @s -16384 8192 -16384
+wait 200
+cmd sable info @e
+cmd sable remove @e
+wait 100
+cmd sable info @e
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 100
+fly off
+cmd tp @s 5264.5 131 864.5 180 20
+wait 200
+cmd starfold nav target b
+wait 60
+nav home
+cmd effect give @s minecraft:night_vision infinite 0 true
+fly on
+leadsite 4800 262
+wait 120
+fly on
+log site
+cmd sable info @e
+cmd sable remove @e
+wait 80
+cmd sable info @e
+cmd fill ~-10 ~-3 ~-10 ~10 ~-3 ~10 minecraft:smooth_stone
+cmd fill ~-10 ~-2 ~-10 ~10 ~9 ~10 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~2 ~3 minecraft:glass
+cmd fill ~-4 ~-1 ~-2 ~4 ~1 ~2 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~-2 ~3 minecraft:spruce_planks
+cmd setblock ~ ~-1 ~3 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock ~ ~ ~3 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill ~-4 ~-2 ~-2 ~4 ~-2 ~2 minecraft:spruce_planks
+cmd setblock ~-2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~-2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~-1 minecraft:iron_block
+cmd setblock ~ ~-2 ~1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~ ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~-2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~ simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock ~1 ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~-1 starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~1 starfold:thruster[facing=down]
+cmd setblock ~4 ~-1 ~ starfold:thruster[facing=east]
+cmd setblock ~3 ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~-1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~ ~ starfold:thruster[facing=east]
+cmd setblock ~-4 ~-1 ~ starfold:thruster[facing=west]
+cmd setblock ~-4 ~ ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~-3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~-3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-1 ~-1 ~2 starfold:gyro
+cmd setblock ~-1 ~ ~2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-1 ~-1 ~-2 starfold:gyro
+cmd setblock ~-1 ~ ~-2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-2 ~-1 ~ simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+wait 10
+cmd tp @s ~ ~14 ~
+wait 20
+cmd sable assemble area ~-5 ~-16 ~-3 ~5 ~-12 ~3
+wait 700
+cmd sable info @n
+cmd tp @s ~-0.5 ~-14.8 ~0.5
+fly off
+wait 40
+log aboard
+nav aboard
+abilities aboard
+cmd sable info @n
+wait 2
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+useifidle
+wait 20
+requiretypewriter
+find throttle
+wait 6
+hit dial
+throttle ?
+throttle 15
+wait 10
+throttle ?
+wait 4
+log R2-launch
+sample 20
+until y> 1920 4000
+trace on
+until region 1600
+log R2-entry
+skylook 1
+wait 4
+shot space-trip3-2-mid-B
+until ref 1 4000
+throttle 0
+log R2-reference
+requireref 1
+wait 1200
+log R2-turned-rest
+heading 1 400
+wait 30
+skylook 1
+wait 4
+shot space-trip3-2-B-aligned
+press 340 1
+until chart 3600
+press 340 0
+throttle 0
+requirechart
+requireplanet 1
+log R3-B-arrival
+abilities R3-B-arrival
+cmd sable info @n
+look 90 60
+wait 4
+shot space-trip3-2-R3-B-arrival
+wait 396
+log R3-B-plus20
+abilities R3-B-plus20
+throttle ?
+census 16
+aboardelsequit
+requiretypewriter
+press 340 1
+wait 3200
+press 340 0
+wait 80
+log R3-B-land
+surfacehere
+census 16
+abilities R3-B-land
+cmd sable info @n
+look 90 30
+wait 4
+shot space-trip3-2-R3-B-land
+requiretypewriter
+aboardelsequit
+throttle 15
+log R4-takeoff
+until region 4000
+log R4-region
+throttle 0
+wait 1000
+heading 0 400
+wait 30
+log R4-heading
+skylook 0
+wait 4
+shot space-trip3-2-mid-A
+burn 0
+until ref 0 4000
+press 87 0
+press 341 0
+press 340 0
+throttle 0
+log R4-reference
+requireref 0
+wait 1200
+log R4-turned-rest
+skylook 0
+wait 4
+shot space-trip3-2-A-aligned
+press 340 1
+until chart 4000
+press 340 0
+throttle 0
+requirechart
+requireplanet 0
+log R4-A-arrival
+abilities R4-A-arrival
+cmd sable info @n
+look 90 60
+wait 4
+shot space-trip3-2-R4-A-arrival
+wait 396
+log R4-A-plus20
+abilities R4-A-plus20
+throttle ?
+census 16
+aboardelsequit
+requiretypewriter
+press 340 1
+wait 3200
+press 340 0
+wait 80
+log R4-A-land
+surfacehere
+census 16
+abilities R4-A-land
+cmd sable info @n
+look 90 30
+wait 4
+shot space-trip3-2-R4-A-land
+log R4-end
+trace off
+sample 0
+quit

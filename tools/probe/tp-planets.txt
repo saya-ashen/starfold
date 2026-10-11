@@ -1,0 +1,24 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd gamemode creative
+fly on
+cmd tp @s 33280 240 512 0 50
+wait 200
+nav at-b
+cmd tp @s 1000 240 1000 0 50
+wait 200
+nav at-a
+shot tp-a
+cmd tp @s 33280 240 512 0 50
+wait 200
+nav at-b2
+shot tp-b
+cmd tp @s 1500 240 1900 0 50
+wait 200
+nav at-a2
+shot tp-a2
+quit

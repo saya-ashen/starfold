@@ -1,0 +1,91 @@
+waitworld
+strict
+wait 60
+cmd tick rate 20
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 33283.5 -198 512.5 90 -25
+wait 160
+check B-final-restart-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+cmd fill 33276 -198 508 33284 -189 516 air
+cmd fill 33280 -193 512 33280 -190 512 create:piston_extension_pole[facing=down]
+cmd setblock 33280 -194 512 create:mechanical_piston[facing=down,axis_along_first=true]
+cmd setblock 33280 -195 512 create:mechanical_drill[facing=down]
+cmd setblock 33279 -194 512 create:creative_motor[facing=east]{ScrollValue:32}
+wait 5
+log B-moving-5
+cmd data get block 33280 -194 512
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 33280 -198 512
+shot verify2-6-B-moving-5
+wait 15
+log B-moving-15
+cmd data get block 33280 -194 512
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 33280 -198 512
+shot verify2-6-B-moving-15
+wait 40
+log B-moving-40
+cmd data get block 33280 -194 512
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 33280 -198 512
+shot verify2-6-B-moving-40
+wait 100
+log B-moving-100
+cmd data get block 33280 -194 512
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 33280 -198 512
+shot verify2-6-B-moving-100
+check B-moving-end-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+cmd kill @e[type=create:stationary_contraption,distance=..20]
+cmd fill 33279 -198 512 33280 -190 512 air
+cmd tp @s 1003.5 -524 1000.5 90 -25
+wait 160
+check A-final-restart-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+cmd fill 996 -524 996 1004 -515 1004 air
+cmd fill 1000 -519 1000 1000 -516 1000 create:piston_extension_pole[facing=down]
+cmd setblock 1000 -520 1000 create:mechanical_piston[facing=down,axis_along_first=true]
+cmd setblock 1000 -521 1000 create:mechanical_drill[facing=down]
+cmd setblock 999 -520 1000 create:creative_motor[facing=east]{ScrollValue:32}
+wait 5
+log A-moving-5
+cmd data get block 1000 -520 1000
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 1000 -524 1000
+shot verify2-6-A-moving-5
+wait 15
+log A-moving-15
+cmd data get block 1000 -520 1000
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 1000 -524 1000
+shot verify2-6-A-moving-15
+wait 40
+log A-moving-40
+cmd data get block 1000 -520 1000
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 1000 -524 1000
+shot verify2-6-A-moving-40
+wait 100
+log A-moving-100
+cmd data get block 1000 -520 1000
+cmd execute as @e[type=create:stationary_contraption,distance=..20] run data get entity @s
+entities
+blockat 1000 -524 1000
+shot verify2-6-A-moving-100
+check A-moving-end-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+cmd kill @e[type=create:stationary_contraption,distance=..20]
+cmd fill 999 -524 1000 1000 -516 1000 air
+cmd forceload remove all
+cmd save-all flush
+wait 60
+shot verify2-6-end
+quit

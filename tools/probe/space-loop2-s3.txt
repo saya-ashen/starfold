@@ -1,0 +1,80 @@
+strict
+waitworld
+loopstate login
+solar login
+wait 160
+aboardelsequit
+find typewriter
+wait 6
+usehit first
+wait 40
+useifidle
+wait 40
+requiretypewriter
+find throttle
+wait 6
+throttle 0
+steer 0 540
+requirechart
+requireplanet 0
+aboardelsequit
+requiretypewriter
+press 340 0
+wait 40
+press 340 1
+landguard 4000
+press 340 0
+wait 40
+loopstate landed-0
+sample 0
+recordpos boarda
+find typewriter
+wait 6
+usehit release
+wait 40
+cmd execute at @s positioned ~12 ~ ~ run spreadplayers ~ ~ 0 1 false @s
+wait 120
+fly off
+cmd tp @s 5122.5 260 1569.5
+wait 160
+check S3-A-chest if block 5122 260 1569 chest
+check S3-A-slot0 if data block 5122 260 1569 Items[{Slot:0b,id:"minecraft:cobblestone",count:17}]
+check S3-A-slot1 unless data block 5122 260 1569 Items[{Slot:1b}]
+check S3-A-slot2 unless data block 5122 260 1569 Items[{Slot:2b}]
+check S3-A-slot3 unless data block 5122 260 1569 Items[{Slot:3b}]
+check S3-A-slot4 unless data block 5122 260 1569 Items[{Slot:4b}]
+check S3-A-slot5 if data block 5122 260 1569 Items[{Slot:5b,id:"minecraft:iron_ingot",count:3}]
+check S3-A-slot6 unless data block 5122 260 1569 Items[{Slot:6b}]
+check S3-A-slot7 unless data block 5122 260 1569 Items[{Slot:7b}]
+check S3-A-slot8 unless data block 5122 260 1569 Items[{Slot:8b}]
+check S3-A-slot9 unless data block 5122 260 1569 Items[{Slot:9b}]
+check S3-A-slot10 unless data block 5122 260 1569 Items[{Slot:10b}]
+check S3-A-slot11 unless data block 5122 260 1569 Items[{Slot:11b}]
+check S3-A-slot12 unless data block 5122 260 1569 Items[{Slot:12b}]
+check S3-A-slot13 unless data block 5122 260 1569 Items[{Slot:13b}]
+check S3-A-slot14 unless data block 5122 260 1569 Items[{Slot:14b}]
+check S3-A-slot15 unless data block 5122 260 1569 Items[{Slot:15b}]
+check S3-A-slot16 unless data block 5122 260 1569 Items[{Slot:16b}]
+check S3-A-slot17 unless data block 5122 260 1569 Items[{Slot:17b}]
+check S3-A-slot18 unless data block 5122 260 1569 Items[{Slot:18b}]
+check S3-A-slot19 unless data block 5122 260 1569 Items[{Slot:19b}]
+check S3-A-slot20 unless data block 5122 260 1569 Items[{Slot:20b}]
+check S3-A-slot21 unless data block 5122 260 1569 Items[{Slot:21b}]
+check S3-A-slot22 unless data block 5122 260 1569 Items[{Slot:22b}]
+check S3-A-slot23 unless data block 5122 260 1569 Items[{Slot:23b}]
+check S3-A-slot24 unless data block 5122 260 1569 Items[{Slot:24b}]
+check S3-A-slot25 unless data block 5122 260 1569 Items[{Slot:25b}]
+check S3-A-slot26 if data block 5122 260 1569 Items[{Slot:26b,id:"minecraft:oak_log",count:9}]
+check S3-A-gold_block if block 5123 260 1569 gold_block
+check S3-A-lapis_block if block 5124 260 1569 lapis_block
+check S3-A-redstone_block if block 5124 261 1569 redstone_block
+loopstate S3-A
+wait 20
+sample 0
+cmd save-all flush
+wait 80
+loopstate final-save
+solar final-save
+wait 20
+shot space-loop2-final
+quit

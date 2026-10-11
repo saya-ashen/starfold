@@ -1,0 +1,2 @@
+thruster.ogg: "spaceEngineLow_000" from Sci-Fi Sounds by Kenney (kenney.nl), CC0; tail crossfaded into the head so it loops.
+music/the_magnificent_cosmos.ogg: "The Magnificent Cosmos" by Adiutorium, CC0, https://opengameart.org/content/the-magnificent-cosmos (re-encoded from MP3).

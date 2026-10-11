@@ -1,0 +1,195 @@
+{
+  "suns": [
+    {
+      "position": [
+        0,
+        0,
+        8192
+      ],
+      "radius": 512,
+      "planets": [
+        {
+          "type": "starfold_pack:home",
+          "size": 2048,
+          "seed": 20261001,
+          "name": "Hearth",
+          "orbit": {
+            "radius": 8192,
+            "period": 24000,
+            "phase": 3.141592653589793
+          },
+          "spin": {
+            "period": 48000,
+            "tilt": 23.5
+          }
+        },
+        {
+          "type": "starfold_pack:lush",
+          "size": 1024,
+          "seed": 20261006,
+          "name": "Viridia",
+          "orbit": {
+            "radius": 8192,
+            "period": 24000,
+            "phase": 0
+          }
+        },
+        {
+          "type": "starfold_pack:warden",
+          "size": 1024,
+          "seed": 20261012,
+          "name": "Hush",
+          "orbit": {
+            "radius": 32000,
+            "period": 185289.70665049096,
+            "phase": 4.2
+          },
+          "spin": {
+            "period": 96000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:rocky",
+          "size": 1024,
+          "seed": 20261002,
+          "name": "Anvil",
+          "orbit": {
+            "radius": 45000,
+            "period": 308990.478515625,
+            "phase": 6.300000000000001
+          },
+          "spin": {
+            "period": 108000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:ice",
+          "size": 768,
+          "seed": 20261003,
+          "name": "Rime",
+          "orbit": {
+            "radius": 58000,
+            "period": 452135.1970933828,
+            "phase": 8.4
+          },
+          "spin": {
+            "period": 120000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:desert",
+          "size": 1024,
+          "seed": 20261004,
+          "name": "Saffron",
+          "orbit": {
+            "radius": 71000,
+            "period": 612369.9194552265,
+            "phase": 10.5
+          },
+          "spin": {
+            "period": 132000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:archipelago",
+          "size": 1536,
+          "seed": 20261005,
+          "name": "Pelagia",
+          "orbit": {
+            "radius": 84000,
+            "period": 788034.5437688656,
+            "phase": 12.600000000000001
+          },
+          "spin": {
+            "period": 144000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:mushroom",
+          "size": 768,
+          "seed": 20261007,
+          "name": "Haven",
+          "orbit": {
+            "radius": 97000,
+            "period": 977876.315880381,
+            "phase": 14.700000000000001
+          },
+          "spin": {
+            "period": 156000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:asteroid",
+          "size": 416,
+          "seed": 20261008,
+          "name": "Fleck",
+          "orbit": {
+            "radius": 110000,
+            "period": 1180906.0674604275,
+            "phase": 16.8
+          },
+          "spin": {
+            "period": 168000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:basalt",
+          "size": 1024,
+          "seed": 20261009,
+          "name": "Cinder",
+          "orbit": {
+            "radius": 123000,
+            "period": 1396316.8967462594,
+            "phase": 18.900000000000002
+          },
+          "spin": {
+            "period": 180000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:crystal",
+          "size": 768,
+          "seed": 20261010,
+          "name": "Prism",
+          "orbit": {
+            "radius": 136000,
+            "period": 1623434.1927018315,
+            "phase": 21.0
+          },
+          "spin": {
+            "period": 192000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_pack:end",
+          "size": 1024,
+          "seed": 20261011,
+          "name": "Ivory",
+          "orbit": {
+            "radius": 144000,
+            "period": 1768764.7087644823,
+            "phase": 23.1
+          },
+          "spin": {
+            "period": 204000,
+            "tilt": 0
+          }
+        }
+      ]
+    }
+  ],
+  "home": {
+    "sun": 0,
+    "planet": 0
+  },
+  "beyond": "starfold_pack:experience"
+}

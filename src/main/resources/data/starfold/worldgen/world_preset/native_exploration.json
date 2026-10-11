@@ -1,0 +1,16 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {"type":"minecraft:overworld","generator":{"type":"minecraft:noise","settings":"minecraft:overworld","biome_source":{"type":"minecraft:multi_noise","preset":"minecraft:overworld"}}},
+    "minecraft:the_nether": {"type":"minecraft:the_nether","generator":{"type":"minecraft:noise","settings":"minecraft:nether","biome_source":{"type":"minecraft:multi_noise","preset":"minecraft:nether"}}},
+    "minecraft:the_end": {"type":"minecraft:the_end","generator":{"type":"minecraft:noise","settings":"minecraft:end","biome_source":{"type":"minecraft:the_end"}}},
+    "starfold:native_planet": {
+      "type":"starfold:native_deep",
+      "generator": {
+        "type":"starfold:native_system",
+        "storage_layout":"six_face_x32768_v1",
+        "a":{"settings":{"biome":"minecraft:plains","features":false,"lakes":false,"layers":[{"height":1,"block":"minecraft:bedrock"}],"structure_overrides":[]},"terrain_seed":20261001,"terrain_version":4,"planet_generation":{"type":"temperate","algorithm":"ecology","algorithm_version":1,"features":true,"structures":true,"relief":1,"ore_bias":0,"cave_width":0.115,"depth":652,"shell":"core_shell"},"planet_biomes":{"terrain_seed":20261001,"forest":"minecraft:forest","plains":"minecraft:plains","desert":"minecraft:desert","ocean":"minecraft:ocean"}},
+        "b":{"settings":{"biome":"minecraft:stony_peaks","features":false,"lakes":false,"layers":[{"height":1,"block":"minecraft:bedrock"}],"structure_overrides":[]},"terrain_seed":20261002,"terrain_version":5,"planet_generation":{"type":"rocky","algorithm":"rocky_craters","algorithm_version":1,"creatures":false,"relief":1.2,"ore_bias":0.04,"cave_width":0.09,"size":1024,"depth":326,"shell":"core_shell"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+waitworld
+log shutdown-d-login
+cmd sable info @e
+wait 100
+cmd gamemode creative
+fly on
+cmd tp @s -15500 8195 -16384
+wait 300
+sample 40
+log shutdown-d-detached
+abilities shutdown-d-detached
+cmd data get entity @s Pos
+cmd sable info @e
+wait 100
+quit

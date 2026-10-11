@@ -1,0 +1,12 @@
+waitworld
+log shutdown-recover-login
+cmd sable info @e
+fly on
+cmd tp @s -16384.5 8195.19 -16384.68
+wait 200
+log shutdown-recover-loaded
+cmd sable info @e
+cmd data get entity @s Pos
+sample 40
+wait 40
+quit

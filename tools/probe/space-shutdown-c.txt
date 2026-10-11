@@ -1,0 +1,23 @@
+waitworld
+log shutdown-c-login
+sample 20
+cmd sable info @e
+wait 200
+find typewriter
+wait 6
+hit helm
+usehit first
+wait 40
+useifidle
+wait 40
+requiretypewriter
+press 32 1
+wait 100
+press 32 0
+wait 100
+log shutdown-c-stop
+abilities shutdown-c-stop
+cmd data get entity @s Pos
+cmd sable info @e
+wait 20
+quit

@@ -1,0 +1,75 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Ordinary seam at x=4096, approached from face 1.
+# A ridden minecart (the server moves it) and a driven boat (the rider's client moves it) are sent west over the seam.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4108.5 181 862.5 90 0
+wait 200
+cmd kill @e[type=minecraft:minecart]
+cmd kill @e[type=minecraft:boat]
+cmd fill 4070 180 860 4116 184 872 air
+cmd fill 4070 179 860 4116 179 866 minecraft:smooth_stone
+cmd fill 4070 179 862 4114 179 862 minecraft:redstone_block
+cmd fill 4070 180 862 4112 180 862 minecraft:powered_rail[shape=east_west]
+cmd fill 4070 179 867 4116 179 872 minecraft:packed_ice
+wait 20
+blockat 4090 180 862
+blockat 4080 179 870
+cmd summon minecraft:minecart 4112.5 180.1 862.5
+wait 5
+cmd ride @s mount @e[type=minecraft:minecart,limit=1,sort=nearest]
+wait 10
+log cart-start
+cmd data merge entity @e[type=minecraft:minecart,limit=1,sort=nearest] {Motion:[-0.4d,0.0d,0.0d]}
+wait 20
+log cart-20
+wait 20
+log cart-40
+wait 20
+log cart-60
+shot vehicle-cart-60
+wait 30
+log cart-90
+wait 40
+log cart-130
+entities cart-130
+cmd data get entity @e[type=minecraft:minecart,limit=1,sort=nearest] Pos
+shot vehicle-cart-130
+cmd ride @s dismount
+wait 10
+log cart-off
+cmd kill @e[type=minecraft:minecart]
+cmd tp @s 4110.5 181 870.5 90 0
+wait 60
+log boat-tp
+cmd summon minecraft:boat 4110.5 180.1 870.5 {Rotation:[90f,0f]}
+wait 5
+cmd ride @s mount @e[type=minecraft:boat,limit=1,sort=nearest]
+wait 10
+look 90 0
+log boat-start
+key forward on
+wait 20
+log boat-20
+wait 20
+log boat-40
+wait 20
+log boat-60
+shot vehicle-boat-60
+wait 30
+log boat-90
+wait 40
+log boat-130
+entities boat-130
+cmd data get entity @e[type=minecraft:boat,limit=1,sort=nearest] Pos
+shot vehicle-boat-130
+key forward off
+cmd ride @s dismount
+wait 10
+log boat-off
+quit

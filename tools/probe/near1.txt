@@ -1,0 +1,30 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd starfold face 0
+wait 60
+cmd tp @s 1024 170 2030 0 15
+wait 3
+fly on
+look 0 15
+wait 200
+log seam
+shot near-seam
+cmd tp @s 150 200 1900 45 25
+wait 3
+fly on
+look 45 25
+wait 200
+log corner
+shot near-corner
+cmd tp @s 1024 250 1024 0 30
+wait 3
+fly on
+look 0 30
+wait 160
+log mid
+shot near-mid
+quit

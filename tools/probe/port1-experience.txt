@@ -1,0 +1,141 @@
+waitworld
+wait 100
+hud off
+cmd gamemode creative
+cmd weather clear
+cmd gamerule doWeatherCycle false
+port sky live
+cmd packprobe visit 1
+wait 180
+cmd packprobe orbit 1
+wait 300
+aim track
+wait 60
+shot port1-exp-rocky
+aim free
+look free
+port sky live
+cmd packprobe visit 2
+wait 180
+cmd packprobe orbit 2
+wait 300
+aim track
+wait 60
+shot port1-exp-ice
+aim free
+look free
+port sky live
+cmd packprobe visit 3
+wait 180
+cmd packprobe orbit 3
+wait 300
+aim track
+wait 60
+shot port1-exp-desert
+aim free
+look free
+port sky live
+cmd packprobe visit 4
+wait 180
+cmd packprobe orbit 4
+wait 300
+aim track
+wait 60
+shot port1-exp-archipelago
+aim free
+look free
+port sky live
+cmd packprobe visit 5
+wait 180
+cmd packprobe orbit 5
+wait 300
+aim track
+wait 60
+shot port1-exp-lush
+aim free
+look free
+port sky live
+cmd packprobe visit 6
+wait 180
+cmd packprobe orbit 6
+wait 300
+aim track
+wait 60
+shot port1-exp-mushroom
+aim free
+look free
+port sky live
+cmd packprobe visit 7
+wait 180
+cmd packprobe orbit 7
+wait 300
+aim track
+wait 60
+shot port1-exp-asteroid
+aim free
+look free
+port sky live
+cmd packprobe visit 8
+wait 180
+cmd packprobe orbit 8
+wait 300
+aim track
+wait 60
+shot port1-exp-basalt
+aim free
+look free
+port sky live
+cmd packprobe visit 9
+wait 180
+look 30 8
+port sky noon
+wait 80
+shot port1-crystal-landing
+log crystal-landing
+look free
+port sky live
+cmd packprobe orbit 9
+wait 300
+aim track
+wait 60
+shot port1-exp-crystal
+aim free
+look free
+port sky live
+cmd packprobe visit 10
+wait 180
+cmd packprobe orbit 10
+wait 300
+aim track
+wait 60
+shot port1-exp-end
+aim free
+look free
+port sky live
+cmd packprobe visit 11
+wait 180
+cmd packprobe orbit 11
+wait 300
+aim track
+wait 60
+shot port1-exp-warden
+aim free
+look free
+cmd packprobe visit 0
+wait 160
+cmd packprobe orbit 0
+wait 350
+aim track
+wait 60
+aim free
+port hold true
+port sky noon
+port audit
+cmd packprobe surfaceaudit
+wait 100
+port audit
+port hold false
+port sky live
+cmd save-all flush
+wait 60
+quit

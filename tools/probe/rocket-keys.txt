@@ -1,0 +1,137 @@
+# DESTRUCTIVE: disposable devworld-create1 only. The starter rocket with its climb dial at nothing, flown by its keys
+# by a pilot who boards it once it has come to rest: assembling it sometimes throws it up some blocks (two runs of
+# three; not understood), and it settles back in half a minute.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+fly off
+nav start
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd tp @s 5283.5 140 853.5 -45 0
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5287 141 859 5297 145 865 minecraft:glass
+cmd fill 5288 142 860 5296 144 864 minecraft:air
+cmd fill 5287 141 859 5297 141 865 minecraft:spruce_planks
+cmd setblock 5292 142 865 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock 5292 143 865 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 860 starfold:thruster[facing=up]
+cmd setblock 5293 143 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 864 starfold:thruster[facing=up]
+cmd setblock 5293 143 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 862 simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock 5293 141 862 starfold:thruster[facing=down]
+cmd setblock 5293 142 861 starfold:thruster[facing=down]
+cmd setblock 5293 142 863 starfold:thruster[facing=down]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 861 starfold:thruster[facing=east]
+cmd setblock 5296 143 861 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 863 starfold:thruster[facing=east]
+cmd setblock 5296 143 863 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 143 862 starfold:thruster[facing=east]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5288 143 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 864 starfold:thruster[facing=south]
+cmd setblock 5295 142 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 860 starfold:thruster[facing=north]
+cmd setblock 5295 142 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5291 142 864 starfold:gyro
+cmd setblock 5291 143 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5291 142 860 starfold:gyro
+cmd setblock 5291 143 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5290 142 862 simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 20
+cmd sable assemble area 5287 141 859 5297 145 865
+wait 40
+log assembled
+abilities assembled
+cmd sable info @n
+wait 2
+wait 900
+log settled
+cmd sable info @n
+wait 2
+cmd tp @s 5291.5 142.3 862.5 90 52
+wait 60
+abilities aboard
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 10
+press 32 1
+wait 100
+log space
+abilities space
+cmd sable info @n
+wait 2
+press 32 0
+wait 60
+press 87 1
+wait 80
+log w
+abilities w
+cmd sable info @n
+wait 2
+press 341 1
+wait 100
+log w-ctrl
+abilities w-ctrl
+cmd sable info @n
+wait 2
+press 341 0
+press 87 0
+wait 80
+press 65 1
+wait 60
+log a
+abilities a
+cmd sable info @n
+wait 2
+press 65 0
+wait 30
+find throttle
+wait 6
+throttle 15
+wait 100
+log dial15
+abilities dial15
+cmd sable info @n
+wait 2
+throttle 0
+wait 60
+press 340 1
+wait 60
+log shift
+abilities shift
+cmd sable info @n
+wait 2
+press 340 0
+wait 60
+log end
+abilities end
+cmd sable info @n
+wait 2
+shot rocket-cabin
+wait 5
+quit

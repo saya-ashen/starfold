@@ -1,0 +1,148 @@
+package dev.starfold;
+
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import dev.starfold.NativeWaypointPackets.Target;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+
+import java.util.Locale;
+
+/** Player commands and a grounded helm launch bookmark; never changes position or drives thrust. */
+public final class NativeWaypointServer {
+    public static void initialize() {
+        LocalNet.playS2C(Target.TYPE, Target.CODEC);
+        if(net.neoforged.fml.ModList.get().isLoaded("sable")) net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event)->{
+            if(event.getEntity() instanceof ServerPlayer player && NativeGroundServer.is(player.level())) launch(player);
+        });
+    }
+
+    private static final java.util.Map<ServerPlayer,Object> helms = new java.util.WeakHashMap<>();
+    private static void launch(ServerPlayer player) {
+        var body = NativeSableFrames.aboard(player);
+        if (body == null || !NativeSpaceServer.atHelm(player, body)) { helms.remove(player); return; }
+        if (helms.put(player, body) == body || NativeSpaceServer.in(player)) return;
+        var level = player.serverLevel();
+        var at = body.logicalPose().position();
+        var access = NativePlanetAccess.of(level);
+        if (!access.inChart(net.minecraft.core.BlockPos.containing(at.x, at.y, at.z))) return;
+        var box = NativeLanding.bounds(body);
+        double clearance = NativeLanding.clearance(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxZ(), (x,z)->NativeLanding.surface(level,x,z));
+        var container = (dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer)dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
+        double speed = NativeSableFrames.motion(container, body, new BentStripGeometry.Point(at.x, at.y, at.z)).velocity().length()*20;
+        if (!NativeWaypointNavigation.grounded(clearance, speed)) return;
+        try {
+            int planet = access == NativePlanetAccess.SHARED ? access.storagePlanet(at.x, at.z) : NativePlanetSystem.planet(level);
+            var pad=NativeStarterShip.launchCentre(level,body);
+            var marker = new NativeWaypoint(NativeWaypoint.LAUNCH, planet, access.body(pad!=null?pad:new BentStripGeometry.Point(at.x, at.y, at.z)));
+            NativeWaypointSave.get(level).launch(player.getUUID(), marker);
+            send(player);
+            org.slf4j.LoggerFactory.getLogger("starfold-probe").info("PROBE LAUNCH {} clearance {} speed {}", marker, clearance, speed);
+        } catch (IllegalArgumentException | IllegalStateException error) { message(player, "message.starfold.mark.launch_failed", failure(error)); }
+    }
+
+    public static void send(ServerPlayer player) {
+        send(player, NativeGroundFlightServer.session(player));
+    }
+
+    static void send(ServerPlayer player, long session) {
+        if (session == 0 || !player.connection.hasChannel(Target.TYPE)) return;
+        try {
+            var marker = NativeWaypointSave.get(player.serverLevel()).active(player.getUUID(), markerPlanet(player));
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new Target(session, marker));
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new Target(session, null));
+            message(player, "message.starfold.mark.read_failed", failure(error));
+        }
+    }
+
+    private static int markerPlanet(ServerPlayer player) {
+        if (NativeSpaceServer.in(player)) return NativeSpaceServer.markerPlanet(player);
+        var access = NativePlanetAccess.of(player.serverLevel());
+        var body = NativeSableFrames.aboard(player);
+        double x = body == null ? player.getX() : body.logicalPose().position().x, z = body == null ? player.getZ() : body.logicalPose().position().z;
+        return access == NativePlanetAccess.SHARED ? access.storagePlanet(x, z) : NativePlanetSystem.planet(player.serverLevel());
+    }
+
+    public static LiteralArgumentBuilder<CommandSourceStack> commands() {
+        var root = Commands.literal("mark")
+                .then(Commands.literal("list").executes(c -> run(c.getSource().getPlayerOrException(), "list", "")))
+                .then(Commands.literal("clear").executes(c -> run(c.getSource().getPlayerOrException(), "clear", "")));
+        for (String verb : new String[]{"add", "target", "remove"}) {
+            root.then(Commands.literal(verb).then(Commands.argument("name", StringArgumentType.string())
+                    .executes(c -> run(c.getSource().getPlayerOrException(), verb,
+                            StringArgumentType.getString(c, "name")))));
+        }
+        return root;
+    }
+
+    private static int run(ServerPlayer player, String verb, String name) {
+        if (NativeSpaceServer.in(player)) return NativeGroundServer.regionMessage(player);
+        if (!NativeGroundServer.is(player.level()) || NativeGroundFlightServer.session(player) == 0) {
+            message(player, "message.starfold.mark.enter");
+            return 0;
+        }
+        try {
+            var save = NativeWaypointSave.get(player.serverLevel());
+            var id = player.getUUID();
+            switch (verb) {
+                case "add" -> add(player, save, name);
+                case "target" -> {
+                    var marker = save.list(id).get(name);
+                    if (marker == null) throw new NativeWaypoint.Failure("message.starfold.mark.missing", name);
+                    if (NativeGroundFlightServer.target(player, marker.planet()) == 0) return 0;
+                    save.select(id, name);
+                    message(player, "message.starfold.mark.target", name);
+                }
+                case "remove" -> {
+                    save.remove(id, name);
+                    message(player, "message.starfold.mark.removed", name);
+                }
+                case "clear" -> {
+                    save.clear(id);
+                    message(player, "message.starfold.mark.cleared");
+                }
+                case "list" -> list(player, save);
+                default -> throw new IllegalArgumentException("Unknown marker command");
+            }
+            send(player);
+            return 1;
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            message(player, "message.starfold.mark.failed", failure(error));
+            return 0;
+        }
+    }
+
+    private static void add(ServerPlayer player, NativeWaypointSave save, String name) {
+        if (NativeGroundFlightServer.controlled(player)) {
+            throw new NativeWaypoint.Failure("message.starfold.mark.ground_required");
+        }
+        var state = NativeGroundFlightServer.capture(player, NativeGroundClock.get(player.serverLevel()));
+        save.add(player.getUUID(), new NativeWaypoint(name, state.planet(), state.local()));
+        message(player, "message.starfold.mark.saved", name, planetName(state.planet()));
+    }
+
+    private static void list(ServerPlayer player, NativeWaypointSave save) {
+        var points = save.list(player.getUUID());
+        message(player, "message.starfold.mark.count", points.size(), NativeWaypointSave.MAX_MARKERS);
+        var active = save.active(player.getUUID(), markerPlanet(player));
+        for (var launch : save.launches(player.getUUID()).values()) entry(player, launch);
+        message(player, "message.starfold.mark.active", active == null ? Component.translatable("message.starfold.mark.none") : Component.translatable("message.starfold.mark.destination", name(active), planetName(active.planet())));
+        for (var marker : points.values()) {
+            entry(player, marker);
+        }
+    }
+
+    private static String planetName(int planet) { return NativePlanetSystem.name(planet); }
+
+    private static Component name(NativeWaypoint marker){return marker.name().equals(NativeWaypoint.LAUNCH)?Component.translatable("hud.starfold.launch_site"):Component.literal(marker.name());}
+    private static void entry(ServerPlayer player,NativeWaypoint marker){var point=marker.pose().point();message(player,"message.starfold.mark.entry",name(marker),planetName(marker.planet()),Component.translatable("message.starfold.face."+marker.pose().face().name().toLowerCase(Locale.ROOT)),String.format(Locale.ROOT,"%.1f, %.1f, %.1f",point.x(),point.y(),point.z()));}
+    static Component failure(RuntimeException error){if(error instanceof NativeWaypoint.Failure failure)return Component.translatable(failure.key,failure.arguments);org.slf4j.LoggerFactory.getLogger("starfold").warn("Navigation data error",error);return Component.translatable("message.starfold.data_error");}
+    private static void message(ServerPlayer player, String key,Object... arguments) {
+        player.sendSystemMessage(Component.translatable(key,arguments));
+    }
+
+    private NativeWaypointServer() {}
+}

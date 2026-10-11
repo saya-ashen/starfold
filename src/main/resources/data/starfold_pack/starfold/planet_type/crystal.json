@@ -1,0 +1,53 @@
+{
+  "biome": "starfold_pack:crystal_fields",
+  "size": {
+    "min": 768,
+    "max": 768
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 0.8,
+  "ore_bias": 0.02,
+  "cave_width": 0.08,
+  "shell": "core_shell",
+  "palette": {
+    "rock": "minecraft:amethyst_block",
+    "dark": "minecraft:purple_terracotta",
+    "light": "minecraft:calcite",
+    "deep": "minecraft:smooth_basalt"
+  },
+  "creatures": false,
+  "features": true,
+  "structures": false,
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:calcite"
+      },
+      {
+        "block": "minecraft:smooth_basalt",
+        "from": 0.2
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.6
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:lapis_ore",
+        "from": 0.15,
+        "to": 1,
+        "rarity": 0.9,
+        "deep": "minecraft:deepslate_lapis_ore"
+      },
+      {
+        "block": "minecraft:diamond_ore",
+        "from": 0.8,
+        "to": 1,
+        "rarity": 0.985,
+        "deep": "minecraft:deepslate_diamond_ore"
+      }
+    ]
+  }
+}

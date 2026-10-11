@@ -1,0 +1,28 @@
+# A copy of Saya's save as it was left: thrown off the rocket in space, "cannot move", ship gone.
+waitworld
+wait 200
+waitworld
+log start
+nav start
+abilities start
+cmd sable info @l
+wait 20
+key forward on
+wait 60
+key forward off
+log walked
+key jump on
+wait 40
+key jump off
+log jumped
+fly on
+wait 10
+abilities flying
+key forward on
+wait 60
+key forward off
+log flew
+nav flew
+shot rocket-stuck
+wait 10
+quit

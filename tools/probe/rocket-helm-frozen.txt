@@ -1,0 +1,164 @@
+# Disposable COPY of the saved pad world; standing pilot, normal keyboard handler.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+abilities aboard
+cmd sable info @n
+wait 4
+cmd gamemode survival
+wait 40
+look 72 25
+wait 240
+wait 20
+cmd tick freeze
+wait 20
+camera frozen-pad-chase
+log frozen-pad-chase
+shot helm-frozen-pad-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera frozen-pad-first
+log frozen-pad-first
+shot helm-frozen-pad-first
+press 294 1
+press 294 0
+wait 2
+cmd tick unfreeze
+press 32 1
+press 341 1
+until y> 400 1200
+wait 20
+cmd tick freeze
+wait 20
+camera frozen-climb-chase
+log frozen-climb-chase
+shot helm-frozen-climb-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera frozen-climb-first
+log frozen-climb-first
+shot helm-frozen-climb-first
+press 294 1
+press 294 0
+wait 2
+cmd tick unfreeze
+press 32 0
+press 341 0
+wait 160
+look 72 -25
+wait 20
+camera air-under
+shot helm-air-under
+look 72 25
+press 65 1
+wait 80
+wait 20
+cmd tick freeze
+wait 20
+camera frozen-turn-chase
+log frozen-turn-chase
+shot helm-frozen-turn-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera frozen-turn-first
+log frozen-turn-first
+shot helm-frozen-turn-first
+press 294 1
+press 294 0
+wait 2
+cmd tick unfreeze
+press 65 0
+wait 160
+press 87 1
+press 341 1
+wait 400
+wait 20
+cmd tick freeze
+wait 20
+camera frozen-seam-chase
+log frozen-seam-chase
+shot helm-frozen-seam-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera frozen-seam-first
+log frozen-seam-first
+shot helm-frozen-seam-first
+press 294 1
+press 294 0
+wait 2
+cmd tick unfreeze
+press 87 0
+press 341 0
+wait 160
+press 32 1
+press 341 1
+until region 6000
+press 32 0
+press 341 0
+wait 80
+look 72 60
+wait 20
+cmd tick freeze
+wait 20
+camera frozen-region-chase
+log frozen-region-chase
+shot helm-frozen-region-chase
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+camera frozen-region-first
+log frozen-region-first
+shot helm-frozen-region-first
+press 294 1
+press 294 0
+wait 2
+cmd tick unfreeze
+press 294 1
+press 294 0
+wait 2
+press 294 1
+press 294 0
+wait 2
+find typewriter
+wait 6
+usehit helm-off
+wait 40
+camera left-helm
+log left-helm
+shot helm-frozen-left-helm
+cmd save-all flush
+wait 100
+quit

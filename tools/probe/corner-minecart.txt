@@ -1,0 +1,37 @@
+waitworld
+wait 60
+cmd ride @s dismount
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd tp @s 300 168 2040 90 0
+wait 140
+fly on
+cmd effect clear @s
+cmd forceload add 0 2032 320 2047
+wait 160
+cmd kill @e[tag=cornercarrier]
+cmd fill 0 164 2037 320 164 2043 minecraft:blue_ice
+cmd fill 16 165 2037 320 170 2043 minecraft:air
+wait 40
+cmd fill 0 164 2040 320 164 2040 minecraft:redstone_block
+cmd fill 0 165 2040 320 165 2040 minecraft:powered_rail[shape=east_west,powered=true]
+cmd summon minecraft:minecart 300.5 165.1 2040.5 {Tags:["cornercarrier"],Rotation:[90f,0f]}
+wait 20
+cmd ride @s mount @e[tag=cornercarrier,limit=1,sort=nearest]
+wait 20
+fly off
+cornerwatch 10
+corner mounted
+look 90 0
+cmd data merge entity @e[tag=cornercarrier,limit=1] {Motion:[-0.4d,0.0d,0.0d]}
+wait 1100
+key forward off
+corner stopped
+cmd data get entity @e[tag=cornercarrier,limit=1]
+shot corner-minecart-stop
+cmd save-all flush
+wait 60
+quit

@@ -1,0 +1,135 @@
+waitworld
+wait 60
+cmd ride @s dismount
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd tp @s 300.5 168 2040.5 90 0
+wait 140
+fly on
+cmd effect clear @s
+cmd forceload add 0 2032 320 2047
+wait 160
+cmd kill @e[tag=cornercarrier]
+cmd fill 0 164 2037 320 164 2043 minecraft:blue_ice
+cmd fill 16 165 2037 320 170 2043 minecraft:air
+wait 40
+cmd summon minecraft:boat 80.5 165.1 2040.5 {Tags:["cornercarrier"],Rotation:[90f,0f]}
+wait 20
+cmd ride @s mount @e[tag=cornercarrier,limit=1,sort=nearest]
+wait 20
+fly off
+cornerwatch 5
+corner boat-start
+look 90 0
+key forward on
+wait 650
+key forward off
+corner boat-stop
+shot closure-boat
+cmd ride @s dismount
+cmd kill @e[tag=cornercarrier]
+wait 40
+cmd fill 0 164 2040 320 164 2040 minecraft:redstone_block
+cmd fill 0 165 2040 320 165 2040 minecraft:powered_rail[shape=east_west,powered=true]
+cmd summon minecraft:minecart 80.5 165.1 2040.5 {Tags:["cornercarrier"],Rotation:[90f,0f]}
+wait 20
+cmd ride @s mount @e[tag=cornercarrier,limit=1,sort=nearest]
+wait 20
+corner cart-start
+cmd data merge entity @e[tag=cornercarrier,limit=1] {Motion:[-0.4d,0.0d,0.0d]}
+wait 300
+corner cart-end
+shot closure-cart
+cmd ride @s dismount
+cmd kill @e[tag=cornercarrier]
+cmd fill 16 165 2037 320 170 2043 minecraft:air
+cmd tp @s 40.5 165 2040.5 90 0
+wait 40
+cmd gamemode survival
+key forward on
+wait 200
+key forward off
+corner walker-stop
+shot closure-walker
+cmd gamemode creative
+cmd fill 16 -1 2038 32 -1 2042 minecraft:stone
+cmd fill 16 0 2038 32 4 2042 minecraft:air
+cmd tp @s 20.5 0 2040.5 90 0
+wait 40
+fly off
+corner tunnel-start
+key forward on
+wait 100
+key forward off
+corner tunnel-stop
+shot closure-tunnel
+blockat 15 0 2040
+cmd setblock 15 0 2040 minecraft:gold_block
+cmd fill 14 0 2039 15 2 2041 minecraft:diamond_block
+wait 20
+blockat 15 0 2040
+cmd execute if block 15 0 2040 starfold:anomaly_core run tellraw @s "CLOSURE_COMMANDS_DENIED"
+break 15 0 2040
+wait 40
+blockat 15 0 2040
+cmd gamemode survival
+cmd attribute @s minecraft:player.block_break_speed base set 1024
+break 15 0 2040
+wait 60
+blockat 15 0 2040
+cmd attribute @s minecraft:player.block_break_speed base set 1
+cmd gamemode creative
+cmd tp @s 23.5 0 2040.5 90 0
+wait 30
+cmd setblock 16 0 2040 minecraft:piston[facing=west]
+cmd setblock 17 0 2040 minecraft:redstone_block
+wait 40
+blockat 16 0 2040
+blockat 15 0 2040
+cmd execute if block 16 0 2040 minecraft:piston[extended=false] run tellraw @s "CLOSURE_PISTON_BLOCKED"
+cmd setblock 17 0 2040 minecraft:air
+cmd setblock 16 0 2040 minecraft:air
+cmd summon minecraft:tnt 17.5 1 2040.5 {fuse:20s}
+wait 130
+blockat 15 0 2040
+cmd execute if block 15 0 2040 starfold:anomaly_core run tellraw @s "CLOSURE_TNT_INTACT"
+shot closure-immutable
+cmd starfold face 0
+wait 100
+cmd tp @s 10.5 168 2008.5 90 0
+wait 100
+cmd fill -24 164 2006 24 164 2010 minecraft:stone
+cmd fill -24 165 2006 24 170 2010 minecraft:air
+cmd tp @s 10.5 165 2008.5 90 0
+wait 40
+cmd gamemode survival
+corner seam-x-start
+key forward on
+wait 120
+key forward off
+corner seam-x-end
+shot closure-seam-x
+cmd gamemode creative
+cmd starfold face 0
+wait 100
+cmd tp @s 40.5 168 2038.5 0 0
+wait 100
+cmd fill 38 164 2024 42 164 2072 minecraft:stone
+cmd fill 38 165 2024 42 170 2072 minecraft:air
+cmd tp @s 40.5 165 2038.5 0 0
+wait 40
+cmd gamemode survival
+corner seam-z-start
+look 0 0
+key forward on
+wait 120
+key forward off
+corner seam-z-end
+shot closure-seam-z
+cmd gamemode creative
+cmd save-all flush
+wait 60
+quit

@@ -1,0 +1,33 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5126.5 170 2040.5 -40 -5
+wait 300
+cmd kill @e[type=create:stationary_contraption]
+cmd fill 5104 170 2030 5136 178 2066 air
+cmd fill 5104 169 2030 5136 169 2066 minecraft:smooth_stone
+cmd setblock 5130 170 2044 simulated:swivel_bearing[facing=up]
+cmd fill 5130 171 2044 5130 172 2044 minecraft:slime_block
+cmd fill 5130 172 2044 5133 172 2044 minecraft:slime_block
+cmd setblock 5131 169 2044 create:creative_motor[facing=up]
+cmd setblock 5131 170 2044 create:cogwheel[axis=y]
+wait 80
+look -40 -5
+cmd data get block 5130 170 2044 SubLevelID
+blockat 5133 172 2044
+log aero-near
+shot aero-r-near
+cmd tp @s 5126.5 170 2052.5 -150 -5
+wait 80
+look -150 -5
+wait 20
+log aero-far
+shot aero-r-far
+cmd tp @s 5132.5 170 2058.5 180 -5
+wait 80
+look 180 -5
+wait 20
+shot aero-r-far2
+quit

@@ -1,0 +1,17 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamerule doDaylightCycle false
+cmd gamemode creative
+cmd tp @s 131584.5 240 512.5 0 60
+wait 160
+fly on
+cmd starfold orbit
+wait 300
+look 0 90
+wait 60
+nav e-orbit
+shot climate-mild-orbit
+quit

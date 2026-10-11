@@ -1,0 +1,14 @@
+# The F3 lines that tell a dark planet from a missing one: on the ground, then held in orbit.
+waitworld
+wait 100
+waitworld
+cmd starfold face 1
+wait 100
+debug
+wait 10
+shot debug-ground
+cmd starfold orbit
+wait 300
+nav orbit
+shot debug-orbit
+quit

@@ -1,0 +1,28 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 200
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+wait 100
+look 0 25
+wait 5
+nav create-start
+cmd setblock ~ ~1 ~4 create:creative_motor[facing=east]
+cmd setblock ~1 ~1 ~4 create:shaft[axis=x]
+cmd setblock ~2 ~1 ~4 create:shaft[axis=x]
+cmd setblock ~3 ~1 ~4 create:cogwheel[axis=x]
+cmd setblock ~-1 ~1 ~4 create:shaft[axis=x]
+cmd setblock ~-2 ~1 ~4 create:mechanical_press
+wait 60
+cmd data get block ~ ~1 ~4
+cmd data get block ~2 ~1 ~4 Speed
+cmd data get block ~3 ~1 ~4 Speed
+cmd data get block ~-1 ~1 ~4 Speed
+wait 20
+shot create-1
+wait 100
+shot create-2
+log create-end
+quit

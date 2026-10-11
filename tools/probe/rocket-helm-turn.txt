@@ -1,0 +1,124 @@
+# Disposable COPY of the saved pad world; standing pilot, normal keyboard handler.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+abilities aboard
+cmd sable info @n
+wait 4
+cmd gamemode survival
+wait 40
+trace on
+cargowatch 1
+press 32 1
+press 341 1
+wait 240
+press 32 0
+press 341 0
+wait 160
+log BEGIN-a
+cargo BEGIN-a
+abilities BEGIN-a
+requiretypewriter
+press 65 1
+wait 200
+log END-a
+cargo END-a
+abilities END-a
+cmd sable info @n
+wait 4
+press 65 0
+wait 10
+log STOP-a-10
+cargo STOP-a
+abilities STOP-a
+cmd sable info @n
+wait 10
+log STOP-a-10
+cargo STOP-a
+abilities STOP-a
+cmd sable info @n
+wait 20
+log STOP-a-20
+cargo STOP-a
+abilities STOP-a
+cmd sable info @n
+wait 100
+log BEGIN-a-ctrl
+cargo BEGIN-a-ctrl
+abilities BEGIN-a-ctrl
+requiretypewriter
+press 65 1
+press 341 1
+wait 200
+log END-a-ctrl
+cargo END-a-ctrl
+abilities END-a-ctrl
+cmd sable info @n
+wait 4
+press 65 0
+press 341 0
+wait 10
+log STOP-a-ctrl-10
+cargo STOP-a-ctrl
+abilities STOP-a-ctrl
+cmd sable info @n
+wait 10
+log STOP-a-ctrl-10
+cargo STOP-a-ctrl
+abilities STOP-a-ctrl
+cmd sable info @n
+wait 20
+log STOP-a-ctrl-20
+cargo STOP-a-ctrl
+abilities STOP-a-ctrl
+cmd sable info @n
+wait 100
+log BEGIN-w-ctrl
+cargo BEGIN-w-ctrl
+abilities BEGIN-w-ctrl
+requiretypewriter
+press 87 1
+press 341 1
+wait 200
+log END-w-ctrl
+cargo END-w-ctrl
+abilities END-w-ctrl
+cmd sable info @n
+wait 4
+press 87 0
+press 341 0
+wait 10
+log STOP-w-ctrl-10
+cargo STOP-w-ctrl
+abilities STOP-w-ctrl
+cmd sable info @n
+wait 10
+log STOP-w-ctrl-10
+cargo STOP-w-ctrl
+abilities STOP-w-ctrl
+cmd sable info @n
+wait 20
+log STOP-w-ctrl-20
+cargo STOP-w-ctrl
+abilities STOP-w-ctrl
+cmd sable info @n
+wait 100
+trace off
+cargowatch 0
+cmd save-all flush
+wait 100
+quit

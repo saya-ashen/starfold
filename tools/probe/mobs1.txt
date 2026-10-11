@@ -1,0 +1,28 @@
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd difficulty normal
+cmd gamerule doMobSpawning true
+cmd starfold status
+wait 100
+log arrival
+entities
+wait 1900
+cmd starfold status
+shot mobs-morning
+log morning
+entities
+cmd starfold face 2
+wait 700
+cmd starfold status
+wait 900
+log far-side
+entities
+cmd tp @s 33280 200 512
+wait 500
+cmd starfold status
+wait 900
+log b
+entities
+quit

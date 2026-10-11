@@ -1,0 +1,42 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd starfold face 0
+wait 60
+cmd tp @s 1024 170 2030 0 15
+wait 3
+fly on
+look 0 15
+wait 200
+log seam
+shot compat-seam
+cmd tp @s 1024 250 1024 0 30
+wait 3
+fly on
+look 0 30
+wait 160
+log mid
+shot compat-mid
+cmd tp @s 1024 300 1024 0 40
+wait 3
+fly on
+look 0 40
+wait 300
+log high
+shot compat-high
+cmd gamerule doDaylightCycle false
+cmd starfold orbit
+wait 300
+nav orbit
+log orbit
+shot compat-orbit
+cmd starfold nav target 1
+wait 10
+aim target
+wait 100
+nav b
+shot compat-sky-b
+quit

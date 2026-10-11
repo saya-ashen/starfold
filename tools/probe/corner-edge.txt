@@ -1,0 +1,42 @@
+waitworld
+wait 60
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd tp @s 200.5 168 2048 90 0
+wait 100
+cmd fill 0 164 2046 220 164 2050 minecraft:stone
+cmd fill 16 165 2046 220 170 2050 minecraft:air
+cmd tp @s 200.5 165 2048 90 0
+wait 40
+cmd gamemode survival
+cornerwatch 20
+corner edge-start
+look 90 0
+key forward on
+wait 1000
+key forward off
+corner edge-stop
+shot corner-edge-stop
+cmd gamemode creative
+cmd tp @s 28.2843 170 2019.7157 45 0
+wait 3
+fly on
+wait 40
+corner exact-40
+shot corner-exact-40
+cmd tp @s 40.5 270 2040.5 90 0
+wait 3
+fly on
+wait 20
+look 90 0
+key forward on
+wait 160
+key forward off
+corner over256
+shot corner-over256
+cmd save-all flush
+wait 60
+quit

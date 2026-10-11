@@ -1,0 +1,13 @@
+{
+  "thruster": {
+    "subtitle": "subtitles.starfold.thruster",
+    "sounds": [
+      { "name": "starfold:thruster", "attenuation_distance": 64 }
+    ]
+  },
+  "music.space": {
+    "sounds": [
+      { "name": "starfold:music/the_magnificent_cosmos", "stream": true }
+    ]
+  }
+}

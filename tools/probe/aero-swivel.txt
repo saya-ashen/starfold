@@ -1,0 +1,31 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5291.5 140 860.5 -40 -5
+wait 200
+cmd fill 5292 140 862 5298 150 868 air
+cmd setblock 5294 140 864 simulated:swivel_bearing[facing=up]
+cmd setblock 5295 140 865 minecraft:smooth_stone
+cmd fill 5294 141 864 5294 142 864 minecraft:slime_block
+cmd fill 5294 142 864 5297 142 864 minecraft:slime_block
+wait 20
+blockat 5294 140 864
+look -40 -5
+shot aero-s0
+cmd setblock 5295 140 864 create:cogwheel[axis=y]
+cmd setblock 5295 139 864 create:creative_motor[facing=up]
+wait 60
+cmd data get block 5295 140 864 Speed
+cmd data get block 5294 140 864
+blockat 5294 141 864
+blockat 5297 142 864
+shot aero-s1
+wait 60
+blockat 5297 142 864
+shot aero-s2
+wait 100
+shot aero-s3
+entities
+quit

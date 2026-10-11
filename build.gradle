@@ -1,0 +1,172 @@
+plugins { id 'net.neoforged.moddev' version '2.0.148' }
+version = '0.1.0'
+group = 'dev.starfold'
+base { archivesName = 'starfold' }
+repositories {
+    mavenCentral()
+    maven { url = 'https://api.modrinth.com/maven' }
+}
+neoForge {
+    version = '21.1.247' // Already cached; Minecraft 1.21.1.
+    mods { starfold { sourceSet sourceSets.main } }
+    runs {
+        client { client(); gameDirectory = file('run')
+            if (providers.gradleProperty('devProbeSave').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlaySingleplayer', providers.gradleProperty('devProbeSave').get(), '--width', '1280', '--height', '720')
+            else if (providers.gradleProperty('devProbe').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlayMultiplayer', 'localhost:25565', '--width', '1280', '--height', '720')
+        }
+        server { server(); gameDirectory = file('run'); programArgument '--nogui' }
+    }
+    unitTest { enable(); testedMod = mods.starfold }
+}
+// JAVA_TOOL_OPTIONS is inherited by JavaExec, including -Dstarfold.probe=... .
+// Do not replace it with a parsed/filtered set of Gradle JVM system properties.
+configurations { sableBundle }
+// javac cannot see classes in nested jars. Flatten only the compile classpath:
+// NeoForge discovers the original bundle's JarJar metadata at runtime itself.
+// Adding those jars again at dev runtime would risk duplicate mod/module discovery.
+def sableEmbeddedJars = {
+    def found = new TreeMap<String, File>()
+    def visit
+    visit = { File bundle ->
+        zipTree(bundle).matching { include 'META-INF/jars/*.jar', 'META-INF/jarjar/*.jar' }.files.sort().each { File nested ->
+            def previous = found[nested.name]
+            if (previous == null) {
+                found[nested.name] = nested
+                visit(nested)
+            } else if (!java.util.Arrays.equals(previous.bytes, nested.bytes)) {
+                throw new GradleException("Conflicting embedded Sable dependency: ${nested.name}")
+            }
+        }
+    }
+    visit(configurations.sableBundle.singleFile)
+    found.values()
+}
+dependencies {
+    implementation 'maven.modrinth:sable:U678xqle'
+    sableBundle 'maven.modrinth:sable:U678xqle'
+    // Compile only; the original Sable bundle supplies these at dev/production runtime.
+    compileOnly files(sableEmbeddedJars)
+    testCompileOnly files(sableEmbeddedJars)
+    // Compile only: a shim for Create's shafts across face seams, applied only where Create is installed.
+    compileOnly 'maven.modrinth:create:UjX6dr61'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) }; withSourcesJar() }
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+test {
+    useJUnitPlatform()
+    // NIO and java.io source/image audits must agree on the checkout working directory.
+    workingDir = project.projectDir
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+}
+tasks.withType(Test).configureEach {
+    doFirst {
+        workingDir = project.projectDir
+        systemProperty 'starfold.testArchives', (sourceSets.main.runtimeClasspath.files + sableEmbeddedJars()).findAll { it.isFile() && it.name.endsWith('.jar') }.join(File.pathSeparator)
+    }
+}
+// Fast Native regression suite with its own reports. Full `test`/`check`
+// also includes shared-helper and packaged compatibility contracts.
+tasks.register('nativeTest', Test) {
+    description = 'Run current Native regressions without overwriting full-suite reports.'
+    group = 'verification'
+    dependsOn tasks.named('testClasses')
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+    dependsOn tasks.named('prepareNeoForgeTestFiles')
+    // ModDevGradle configures its JUnit launcher on test, not arbitrary Test tasks.
+    doFirst {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = fullTest.classpath
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+        workingDir = fullTest.workingDir
+    }
+    filter { includeTestsMatching 'dev.starfold.Native*Test' }
+}
+// Keep FML's unit-test game/config directory in build while source audits run at the checkout.
+tasks.named('prepareNeoForgeTestFiles') {
+    inputs.property 'auditWorkingDirectory', project.projectDir.absolutePath
+    doLast {
+        def args = programArgsFile.get().asFile
+        def text = args.text
+        if (!text.contains('--gameDir\n.\n')) throw new GradleException('Unexpected NeoForge JUnit gameDir template')
+        args.text = text.replace('--gameDir\n.\n', '--gameDir\n' + layout.buildDirectory.dir('minecraft-junit').get().asFile.absolutePath + '\n')
+    }
+}
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/neoforge.mods.toml') { expand(version: project.version) }
+}
+jar { from('LICENSE') }
+
+// Inspect runtime archives recursively as NeoForge's JarJar discovery does, without
+// bootstrapping Minecraft. None of these dependencies may enter our distributable.
+tasks.register('sableRuntimeContract') {
+    dependsOn tasks.named('jar')
+    doLast {
+        def required = [
+            'dev/ryanhcode/sable/Sable.class',
+            'foundry/veil/Veil.class',
+            'gg/moonflower/molangcompiler/api/MolangCompiler.class',
+            'com/electronwill/nightconfig/core/ConfigFormat.class',
+            'com/electronwill/nightconfig/toml/TomlFormat.class'
+        ] as Set
+        def inspect
+        inspect = { File archive ->
+            new java.util.zip.ZipFile(archive).withCloseable { zip ->
+                required.removeAll { zip.getEntry(it) != null }
+            }
+            zipTree(archive).matching { include 'META-INF/jarjar/*.jar', 'META-INF/jars/*.jar' }.files.each { inspect(it) }
+        }
+        sourceSets.main.runtimeClasspath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.each { inspect(it) }
+        if (!required.empty) throw new GradleException("Missing Sable runtime classes: ${required}")
+        new java.util.zip.ZipFile(tasks.named('jar').get().archiveFile.get().asFile).withCloseable { zip ->
+            if (zip.entries().toList().any { it.name.endsWith('.jar') || it.name.startsWith('dev/ryanhcode/') || it.name.startsWith('foundry/veil/') || it.name == 'META-INF/jarjar/metadata.json' })
+                throw new GradleException('Development dependencies leaked into distributable')
+        }
+    }
+}
+tasks.register('packagedContractTest', Test) {
+    description = 'Audit packaged mixins against NeoForge-patched Mojang bytecode.'
+    group = 'verification'
+    dependsOn tasks.named('jar'), tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles')
+    testClassesDirs = sourceSets.test.output.classesDirs
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching 'dev.starfold.PeriodicContractTest.everyPeriodicInjectionSelectsRealMethodsAndEveryInvokeMatchesExactly'
+        includeTestsMatching 'dev.starfold.PeriodicContractTest.shadowFieldsAndPacketAccessorsMatchUpstreamDescriptors'
+    }
+    def modJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def upstream = tasks.named('createMinecraftArtifacts').flatMap { it.gameJarArtifact }
+    inputs.file(modJar)
+    inputs.file(upstream)
+    doFirst {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = fullTest.classpath
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+        workingDir = fullTest.workingDir
+        def veil = sableEmbeddedJars().findAll { it.name.startsWith('veil-neoforge-') }
+        if (veil.size() != 1) throw new GradleException('Expected one bundled NeoForge Veil artifact')
+        systemProperty 'starfold.auditJar', modJar.get().asFile.absolutePath
+        systemProperty 'starfold.auditUpstream', upstream.get().asFile.absolutePath
+        systemProperty 'starfold.auditVeil', veil.first().absolutePath
+    }
+    doLast {
+        def archive = modJar.get().asFile
+        def hash = java.security.MessageDigest.getInstance('SHA-256').digest(archive.bytes).encodeHex()
+        def receipt = layout.buildDirectory.file('pi-logs/task5-packaged-receipt.txt').get().asFile
+        receipt.parentFile.mkdirs()
+        receipt.text = "jar=${archive}\nsha256=${hash}\nupstream=${upstream.get().asFile}\n"
+    }
+}
+tasks.named('check') { dependsOn tasks.named('sableRuntimeContract'), tasks.named('packagedContractTest') }

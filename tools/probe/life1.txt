@@ -1,0 +1,84 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd gamerule doDaylightCycle false
+cmd time set noon
+cmd kill @e[type=marker]
+cmd starfold face 0
+wait 100
+fly off
+cmd spreadplayers 1000 1000 0 1 false @s
+wait 200
+nav a-start
+cmd execute at @s run fill ~2 ~ ~2 ~4 ~2 ~4 oak_planks hollow
+cmd execute at @s run setblock ~-2 ~ ~ chest{Items:[{Slot:0b,id:"minecraft:cobblestone",count:17},{Slot:1b,id:"minecraft:iron_ingot",count:3}]}
+cmd execute at @s run summon marker ~ ~ ~ {Tags:["a_base"]}
+cmd clear @s
+cmd item replace entity @s hotbar.3 with minecraft:cobblestone 11
+cmd starfold mark add a_base_1123
+wait 20
+look 45 20
+wait 10
+shot life-a-base
+cmd execute at @e[tag=a_base,limit=1] run data get block ~-2 ~ ~ Items
+cmd starfold universe
+cmd starfold nav target 4
+key jump on
+wait 4
+fly on
+key sprint on
+until controlled 1500
+nav ab-controlled
+wait 200
+key jump off
+nav ab-high
+aim track
+key forward on
+until alt< 6000 3000
+nav ab-cruise
+shot life-ac-cruise
+until alt< 3000 600
+key forward off
+key sprint off
+nav ab-near
+cmd starfold nav brake on
+wait 100
+nav ab-braked
+shot life-ac-near
+cmd starfold nav land on
+key forward on
+until alt< 1500 3000
+nav ab-assist-zone
+until alt< 600 3000
+key forward off
+aim free
+nav ab-flare
+key sneak on
+until free 6000
+nav ab-handoff
+until ground 2000
+key sneak off
+fly off
+wait 60
+nav ab-landed
+shot life-c-landed
+cmd starfold status
+cmd execute at @s run fill ~2 ~ ~2 ~4 ~3 ~4 copper_block hollow
+cmd execute at @s run setblock ~-2 ~ ~ chest{Items:[{Slot:0b,id:"minecraft:copper_ingot",count:7}]}
+cmd execute at @s run fill ~-1 ~-3 ~3 ~1 ~-1 ~5 air
+cmd execute at @s run summon marker ~ ~ ~ {Tags:["b_base"]}
+cmd starfold mark add b_base_1123
+cmd starfold mark target a_base_1123
+cmd execute at @e[tag=b_base,limit=1] run data get block ~-2 ~ ~ Items
+cmd data get entity @s Inventory
+wait 20
+look 45 30
+wait 10
+shot life-c-base
+nav b-before-quit
+cmd save-all flush
+wait 60
+quit

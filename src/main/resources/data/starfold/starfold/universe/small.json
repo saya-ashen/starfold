@@ -1,0 +1,46 @@
+{
+  "stars": {
+    "min": 2,
+    "max": 4
+  },
+  "planets": {
+    "min": 1,
+    "max": 2
+  },
+  "star_gap": 98304,
+  "ring": 12288,
+  "types": [
+    {
+      "type": "starfold:rocky",
+      "weight": 3
+    },
+    {
+      "type": "starfold:desert",
+      "weight": 2
+    },
+    {
+      "type": "starfold:ice",
+      "weight": 2
+    },
+    {
+      "type": "starfold:temperate",
+      "weight": 2
+    },
+    {
+      "type": "starfold:lush",
+      "weight": 1
+    },
+    {
+      "type": "starfold:arid",
+      "weight": 1
+    },
+    {
+      "type": "starfold:archipelago",
+      "weight": 1
+    },
+    {
+      "type": "starfold:steppe",
+      "weight": 1
+    }
+  ]
+}

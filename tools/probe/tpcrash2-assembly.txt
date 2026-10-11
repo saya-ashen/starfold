@@ -1,0 +1,54 @@
+waitworld
+strict
+wait 40
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd starfold face 0
+wait 80
+cmd tp @s 1003.5 -523 1000.5 90 20
+wait 160
+check A-before if block 1000 -525 1000 starfold:core_shell
+cmd sable assemble area 1000 -525 1000 1000 -525 1000
+wait 60
+hullblocks A-only
+check A-after if block 1000 -525 1000 starfold:core_shell
+cmd setblock 1000 -524 1000 minecraft:stone
+cmd sable assemble area 1000 -525 1000 1000 -524 1000
+wait 60
+hullblocks A-mixed
+check A-mixed-source if block 1000 -525 1000 starfold:core_shell if block 1000 -524 1000 minecraft:air
+cmd sable remove @e
+wait 40
+cmd tp @s 33283.5 -197 512.5 90 20
+wait 160
+check B-before if block 33280 -199 512 starfold:core_shell
+cmd sable assemble area 33280 -199 512 33280 -199 512
+wait 60
+hullblocks B-only
+check B-after if block 33280 -199 512 starfold:core_shell
+cmd setblock 33280 -198 512 minecraft:stone
+cmd sable assemble area 33280 -199 512 33280 -198 512
+wait 60
+hullblocks B-mixed
+check B-mixed-source if block 33280 -199 512 starfold:core_shell if block 33280 -198 512 minecraft:air
+cmd sable remove @e
+wait 40
+cmd tp @s 26.5 0 2040.5 90 0
+wait 160
+check closure-before if block 15 0 2040 starfold:anomaly_core
+cmd sable assemble area 15 0 2040 15 0 2040
+wait 60
+hullblocks closure-only
+check closure-after if block 15 0 2040 starfold:anomaly_core
+cmd setblock 16 0 2040 minecraft:stone
+cmd sable assemble area 15 0 2040 16 0 2040
+wait 60
+hullblocks closure-mixed
+check closure-mixed-source if block 15 0 2040 starfold:anomaly_core if block 16 0 2040 minecraft:air
+cmd sable remove @e
+wait 40
+cmd starfold face 0
+wait 80
+shot tpcrash2-assembly-end
+quit

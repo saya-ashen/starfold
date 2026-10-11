@@ -1,0 +1,75 @@
+waitworld
+log T4c-login
+wait 100
+sample 20
+trace on
+find typewriter
+wait 6
+usehit first-click
+wait 20
+useifidle
+wait 20
+requiretypewriter
+find throttle
+wait 6
+throttle ?
+press 340 1
+wait 600
+press 340 0
+wait 80
+log T4c-land-attempt
+cmd sable info @n
+abilities T4c-land-attempt
+surface 41470 823
+look 90 30
+wait 4
+shot space-trip2-5-B-land
+throttle 15
+until region 4000
+log T4c-region
+throttle 0
+wait 1200
+requiretypewriter
+heading 0 400
+wait 30
+log T4c-aim
+skylook 0
+wait 4
+shot space-trip2-5-mid-A
+skylook 1
+wait 4
+shot space-trip2-5-mid-B
+skylook sun
+wait 4
+shot space-trip2-5-mid-sun
+burn 0
+until chart 2400
+press 87 0
+press 341 0
+press 340 0
+throttle 0
+log T4c-flight-end
+requirechart
+log T4c-arrived
+cmd sable info @n
+look 0 90
+wait 4
+shot space-trip2-5-A-arrival-down
+wait 400
+abilities T4c-plus20s
+log T4c-plus20s
+throttle ?
+aboardelsequit
+requiretypewriter
+press 340 1
+wait 1200
+press 340 0
+wait 80
+log T4c-end
+cmd sable info @n
+shot space-trip2-5-A-end
+press 256 1
+press 256 0
+trace off
+sample 0
+quit

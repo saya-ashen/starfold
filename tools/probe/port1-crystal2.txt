@@ -1,0 +1,34 @@
+waitworld
+wait 100
+strict on
+hud off
+cmd gamemode creative
+cmd weather clear
+cmd packprobe visit 9
+wait 160
+look 30 8
+shot port1-crystal-ground-live
+look free
+cmd packprobe orbit 9
+wait 300
+cmd starfold nav target 9
+cmd starfold nav brake on
+cmd starfold nav land on
+wait 40
+nav crystal2-start
+aim track
+key forward on
+until alt< 300 2400
+key forward off
+aim free
+fly off
+until free 800
+until ground 1000
+wait 80
+look 30 8
+abilities crystal2-ground
+nav crystal2-ground
+shot port1-crystal2-landed
+cmd save-all flush
+wait 60
+quit

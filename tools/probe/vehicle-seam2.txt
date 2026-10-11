@@ -1,0 +1,69 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Needs the ice lane vehicle-seam.txt builds.
+# 1. A boat lying on face 0 is boarded by a player standing on face 1, and driven east back over the ordinary seam.
+# 2. A boat is driven south over the rotated seam z=2048 of face 1.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4100.5 180 870.5 90 0
+wait 200
+cmd kill @e[type=minecraft:boat]
+cmd fill 4070 180 867 4116 184 872 air
+cmd fill 4070 179 867 4116 179 872 minecraft:packed_ice
+wait 20
+cmd summon minecraft:boat 2042.5 180.1 870.5 {Rotation:[-90f,0f]}
+wait 20
+entities boat-placed
+log board-before
+cmd ride @s mount @e[type=minecraft:boat,limit=1,sort=nearest]
+wait 20
+look -90 0
+log board-after
+shot vehicle-board
+key forward on
+wait 20
+log east-20
+wait 20
+log east-40
+wait 20
+log east-60
+shot vehicle-east-60
+key forward off
+cmd data get entity @e[type=minecraft:boat,limit=1,sort=nearest] Pos
+cmd ride @s dismount
+wait 10
+log east-off
+cmd kill @e[type=minecraft:boat]
+cmd tp @s 5122.5 181 2030.5 0 0
+wait 200
+cmd fill 5119 180 2020 5125 184 2090 air
+cmd fill 5119 179 2020 5125 179 2090 minecraft:packed_ice
+wait 20
+blockat 5122 179 2070
+cmd summon minecraft:boat 5122.5 180.1 2030.5 {Rotation:[0f,0f]}
+wait 5
+cmd ride @s mount @e[type=minecraft:boat,limit=1,sort=nearest]
+wait 10
+look 0 0
+log south-start
+key forward on
+wait 20
+log south-20
+wait 20
+log south-40
+wait 20
+log south-60
+shot vehicle-south-60
+wait 20
+log south-80
+key forward off
+cmd data get entity @e[type=minecraft:boat,limit=1,sort=nearest] Pos
+cmd data get entity @e[type=minecraft:boat,limit=1,sort=nearest] Rotation
+cmd ride @s dismount
+wait 10
+log south-off
+quit

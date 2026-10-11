@@ -1,0 +1,41 @@
+{
+  "display": {
+    "icon": {
+      "id": "create:iron_sheet"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.sheet.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.sheet.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "item0": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "create:iron_sheet"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "item0"
+    ]
+  ],
+  "parent": "starfold:ship/press",
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "create"
+    }
+  ]
+}

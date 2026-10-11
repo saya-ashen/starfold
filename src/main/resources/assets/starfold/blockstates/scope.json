@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "starfold:block/scope"
+    },
+    "facing=south": {
+      "model": "starfold:block/scope",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "starfold:block/scope",
+      "y": 270
+    },
+    "facing=east": {
+      "model": "starfold:block/scope",
+      "y": 90
+    },
+    "facing=up": {
+      "model": "starfold:block/scope",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "starfold:block/scope",
+      "x": 90
+    }
+  }
+}

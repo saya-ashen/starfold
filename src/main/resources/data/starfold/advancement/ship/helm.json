@@ -1,0 +1,58 @@
+{
+  "display": {
+    "icon": {
+      "id": "starfold:helm"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.helm.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.helm.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "item0": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "starfold:helm"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "item0"
+    ]
+  ],
+  "parent": "starfold:ship/gyro",
+  "rewards": {
+    "recipes": [
+      "starfold:helm",
+      "starfold:scope",
+      "starfold:scope_nav",
+      "starfold:scope_precise"
+    ]
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:and",
+      "values": [
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "create"
+        },
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "simulated"
+        }
+      ]
+    }
+  ]
+}

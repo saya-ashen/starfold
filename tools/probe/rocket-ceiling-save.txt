@@ -1,0 +1,78 @@
+# A copy of Saya's save where "space no longer climbs": aboard where it stopped, the helm taken, space held.
+waitworld
+wait 200
+waitworld
+log start
+cmd tp @s 14141.5 1330 1901.8
+wait 60
+cmd tp @s 14141.5 1316 1901.8
+wait 60
+log there
+abilities there
+cmd sable info @n
+wait 5
+look -40 28
+wait 3
+hit scan-40/28
+look -40 34
+wait 3
+hit scan-40/34
+look -45 30
+wait 3
+hit scan-45/30
+look -36 30
+wait 3
+hit scan-36/30
+look -48 32
+wait 3
+hit scan-48/32
+look -42 31
+wait 4
+hit helm
+usehit helm
+wait 10
+press 32 1
+wait 2
+hit helm-on
+wait 100
+log space-1
+abilities space-1
+cmd sable info @n
+wait 2
+wait 100
+log space-2
+abilities space-2
+cmd sable info @n
+wait 2
+wait 100
+log space-3
+abilities space-3
+cmd sable info @n
+wait 2
+wait 100
+log space-4
+abilities space-4
+cmd sable info @n
+wait 2
+wait 100
+log space-5
+abilities space-5
+cmd sable info @n
+wait 2
+wait 100
+log space-6
+abilities space-6
+cmd sable info @n
+wait 2
+press 32 0
+wait 20
+press 87 1
+wait 100
+log w
+cmd sable info @n
+wait 2
+press 87 0
+wait 20
+shot rocket-ceiling
+wait 5
+quit

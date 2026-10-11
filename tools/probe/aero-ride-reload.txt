@@ -1,0 +1,14 @@
+# Run after aero-ride.txt in the same disposable devworld-create1, without teleporting the player.
+waitworld
+wait 100
+waitworld
+log reload-100
+abilities reload-100
+cmd sable info @n
+shot ride-reload-100
+wait 200
+log reload-300
+abilities reload-300
+cmd sable info @n
+shot ride-reload-300
+quit

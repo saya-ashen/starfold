@@ -1,0 +1,30 @@
+waitworld
+log shutdown-b-login
+wait 100
+cmd sable info @e
+find typewriter
+wait 6
+usehit first
+wait 40
+useifidle
+wait 40
+requiretypewriter
+find throttle
+wait 6
+throttle 15
+sample 40
+until region 2000
+throttle 0
+wait 100
+log shutdown-e-region
+cmd sable info @e
+cmd forceload add 5780 921
+cmd fill 5778 259 918 5784 259 924 minecraft:smooth_stone
+cmd fill 5779 260 920 5781 260 922 minecraft:stone
+cmd sable assemble area 5779 260 920 5781 260 922
+wait 200
+log shutdown-e-two
+cmd sable info @e
+cmd data get entity @s Pos
+wait 40
+quit

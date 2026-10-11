@@ -1,0 +1,55 @@
+# DESTRUCTIVE: disposable devworld-create1 only. The rotated seam z=2048 of face 1, crossed southwards.
+# The balloon of aero-seam-transit.txt, moved to 5122 181 2036 and pushed towards +z.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5132.5 182.0 2022.5 0 -20
+wait 200
+cmd sable remove @e
+cmd fill 5064 217 2030 5130 231 2046 air
+cmd fill 5118 181 2032 5126 196 2040 air
+cmd fill 5118 180 2032 5126 180 2040 minecraft:smooth_stone
+cmd fill 5121 181 2035 5123 181 2037 minecraft:oak_planks
+cmd fill 5121 182 2035 5121 183 2035 minecraft:oak_planks
+cmd fill 5123 182 2035 5123 183 2035 minecraft:oak_planks
+cmd fill 5121 182 2037 5121 183 2037 minecraft:oak_planks
+cmd fill 5123 182 2037 5123 183 2037 minecraft:oak_planks
+cmd fill 5118 184 2032 5126 190 2040 aeronautics:white_envelope hollow
+cmd fill 5119 184 2033 5125 184 2039 air
+cmd fill 5118 184 2035 5126 184 2035 minecraft:oak_planks
+cmd fill 5118 184 2037 5126 184 2037 minecraft:oak_planks
+cmd setblock 5122 181 2036 minecraft:redstone_block
+cmd setblock 5122 182 2036 aeronautics:adjustable_burner
+cmd tp @s 5121.5 182.0 2036.5 0 0
+wait 40
+fly off
+look 0 0
+cmd sable assemble area 5118 181 2032 5126 190 2040
+wait 160
+log rot-before
+cmd sable info @l
+shot rtransit-before
+cmd sable physics impulse @l linear 0 0 1800 global
+wait 20
+log rot-20
+cmd sable info @l
+shot rtransit-20
+wait 40
+log rot-60
+cmd sable info @l
+shot rtransit-60
+wait 80
+log rot-140
+cmd sable info @l
+shot rtransit-140
+wait 100
+log rot-240
+abilities rot-240
+cmd sable info @l
+shot rtransit-240
+quit

@@ -1,0 +1,21 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 100
+cmd gamemode creative
+cmd tp @s 1024 200 1024
+wait 600
+log a-start
+cmd tp @s 33280 200 512
+wait 600
+log b-first
+cmd tp @s 1024 200 1024
+wait 600
+log a-first
+cmd tp @s 33280 200 512
+wait 600
+log b-second
+cmd tp @s 1024 200 1024
+wait 600
+log a-second
+quit

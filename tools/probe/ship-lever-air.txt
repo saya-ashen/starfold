@@ -1,0 +1,150 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Is a lever on a flying airship still pulled high up? (It is, to y=250.)
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5292.5 143 864.5 180 55
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5287 141 860 5297 141 864 minecraft:spruce_planks
+cmd fill 5290 140 862 5294 140 862 minecraft:iron_block
+cmd fill 5291 142 861 5291 143 861 minecraft:spruce_fence
+cmd fill 5291 142 863 5291 143 863 minecraft:spruce_fence
+cmd fill 5293 142 861 5293 143 861 minecraft:spruce_fence
+cmd fill 5293 142 863 5293 143 863 minecraft:spruce_fence
+cmd fill 5288 144 858 5296 150 866 aeronautics:white_envelope hollow
+cmd fill 5289 144 859 5295 144 865 minecraft:air
+cmd fill 5288 144 861 5296 144 861 minecraft:spruce_planks
+cmd fill 5288 144 863 5296 144 863 minecraft:spruce_planks
+cmd setblock 5292 142 862 aeronautics:adjustable_burner
+cmd setblock 5292 142 863 minecraft:lever[face=floor,facing=south,powered=true]
+cmd setblock 5295 142 862 create:creative_motor[facing=east]{ScrollValue:256}
+cmd setblock 5296 142 862 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 5297 142 862 aeronautics:wooden_propeller[facing=east]
+cmd setblock 5296 142 861 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5296 142 863 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 5288 142 862 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 5288 142 863 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 5288 142 864 aeronautics:wooden_propeller[facing=south]
+cmd setblock 5287 142 863 minecraft:lever[face=floor,facing=west,powered=false]
+cmd setblock 5289 142 863 minecraft:lever[face=floor,facing=east,powered=false]
+cmd tp @s 5292.5 142.2 864.5 180 55
+wait 30
+look 180 55
+wait 6
+hit ground
+cmd sable assemble area 5287 140 858 5297 150 866
+wait 120
+look 180 55
+wait 4
+log climb
+usehit toggle
+wait 20
+look 180 55
+wait 4
+hit after
+usehit back
+wait 10
+wait 120
+look 180 55
+wait 4
+log climb
+usehit toggle
+wait 20
+look 180 55
+wait 4
+hit after
+usehit back
+wait 10
+wait 120
+look 180 55
+wait 4
+log climb
+usehit toggle
+wait 20
+look 180 55
+wait 4
+hit after
+usehit back
+wait 10
+wait 120
+look 180 55
+wait 4
+log climb
+usehit toggle
+wait 20
+look 180 55
+wait 4
+hit after
+usehit back
+wait 10
+wait 120
+look 180 55
+wait 4
+log climb
+usehit toggle
+wait 20
+look 180 55
+wait 4
+hit after
+usehit back
+wait 10
+cmd sable remove @e
+cmd tp @s 4104.5 180 864.5 90 10
+wait 5
+cmd fill 4070 179 856 4116 179 872 minecraft:smooth_stone
+cmd fill 4070 180 856 4116 192 872 minecraft:air
+cmd tp @s 4104.5 180 864.5 90 10
+wait 100
+fly off
+look 90 10
+key forward on
+wait 62
+key forward off
+wait 20
+log walked
+cmd fill 2025 181 862 2035 181 866 minecraft:spruce_planks
+cmd fill 2028 180 864 2032 180 864 minecraft:iron_block
+cmd fill 2029 182 863 2029 183 863 minecraft:spruce_fence
+cmd fill 2029 182 865 2029 183 865 minecraft:spruce_fence
+cmd fill 2031 182 863 2031 183 863 minecraft:spruce_fence
+cmd fill 2031 182 865 2031 183 865 minecraft:spruce_fence
+cmd fill 2026 184 860 2034 190 868 aeronautics:white_envelope hollow
+cmd fill 2027 184 861 2033 184 867 minecraft:air
+cmd fill 2026 184 863 2034 184 863 minecraft:spruce_planks
+cmd fill 2026 184 865 2034 184 865 minecraft:spruce_planks
+cmd setblock 2030 182 864 aeronautics:adjustable_burner
+cmd setblock 2030 182 865 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 2033 182 864 create:creative_motor[facing=east]{ScrollValue:256}
+cmd setblock 2034 182 864 simulated:directional_gearshift[facing=north,axis_along_first=true]
+cmd setblock 2035 182 864 aeronautics:wooden_propeller[facing=east]
+cmd setblock 2034 182 863 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 2034 182 865 minecraft:lever[face=floor,facing=south,powered=false]
+cmd setblock 2026 182 864 create:creative_motor[facing=south]{ScrollValue:128}
+cmd setblock 2026 182 865 simulated:directional_gearshift[facing=west,axis_along_first=false]
+cmd setblock 2026 182 866 aeronautics:wooden_propeller[facing=south]
+cmd setblock 2025 182 865 minecraft:lever[face=floor,facing=west,powered=false]
+cmd setblock 2027 182 865 minecraft:lever[face=floor,facing=east,powered=false]
+cmd tp @s 2030.5 182.2 866.5 180 55
+wait 30
+look 180 55
+wait 6
+log aboard
+hit B-blocks
+cmd sable assemble area 2025 180 860 2035 190 868
+wait 60
+look 180 55
+wait 6
+hit B-before
+usehit B-toggle
+wait 20
+look 180 55
+wait 4
+hit B-after
+quit

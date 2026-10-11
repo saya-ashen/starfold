@@ -1,0 +1,62 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamemode survival
+wait 60
+cmd starfold status
+abilities nopack
+nav nopack
+fly on
+key jump on
+wait 40
+key jump off
+abilities nopack-fly
+nav nopack-fly
+cmd setblock ~ 200 ~ minecraft:stone
+cmd tp @s ~ 201 ~
+wait 100
+abilities tower
+nav tower
+shot surv-tower
+cmd item replace entity @s armor.chest with starfold:thruster_pack
+wait 20
+abilities pack
+look 0 0
+key jump on
+wait 4
+fly on
+until controlled 200
+until alt> 300 900
+key jump off
+wait 20
+abilities flying
+nav flying
+shot surv-flying
+cmd item replace entity @s armor.chest with minecraft:air
+wait 40
+abilities nopack-air
+nav nopack-air-1
+key jump on
+wait 80
+key jump off
+nav nopack-air-2
+cmd item replace entity @s armor.chest with starfold:thruster_pack
+wait 20
+abilities pack-again
+key forward on
+wait 60
+key forward off
+key sneak on
+until free 1200
+until ground 600
+key sneak off
+wait 20
+abilities landed
+nav landed
+shot surv-landed
+cmd recipe give @s starfold:thruster_pack
+cmd save-all flush
+wait 60
+quit

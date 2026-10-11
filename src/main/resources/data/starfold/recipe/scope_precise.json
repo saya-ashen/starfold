@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": [
+    " R ",
+    "ISI",
+    " P "
+  ],
+  "key": {
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "I": {
+      "item": "minecraft:gold_ingot"
+    },
+    "S": {
+      "item": "starfold:scope_nav"
+    },
+    "P": {
+      "item": "minecraft:diamond"
+    }
+  },
+  "result": {
+    "id": "starfold:scope_precise",
+    "count": 1
+  }
+}

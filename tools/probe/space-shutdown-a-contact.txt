@@ -1,0 +1,16 @@
+waitworld
+cmd starfold terrain
+wait 100
+cmd gamemode creative
+fly on
+cmd tp @s 5780.5 262 921.5 0 20
+wait 200
+cmd gamemode survival
+wait 120
+log shutdown-contact-ground
+abilities shutdown-contact-ground
+sample 40
+cmd sable info @e
+cmd data get entity @s Pos
+wait 80
+quit

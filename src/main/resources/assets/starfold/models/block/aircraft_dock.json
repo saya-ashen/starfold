@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "starfold:block/aircraft_dock_top",
+    "bottom": "starfold:block/aircraft_dock_side",
+    "side": "starfold:block/aircraft_dock_side"
+  }
+}

@@ -1,0 +1,8 @@
+# Startup/GLSL smoke only; does not assert visual correctness.
+waitworld
+cmd starfold terrain
+wait 200
+waitworld
+log render-smoke
+shot render-smoke
+quit

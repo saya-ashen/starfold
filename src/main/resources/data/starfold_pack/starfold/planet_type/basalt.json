@@ -1,0 +1,57 @@
+{
+  "biome": "minecraft:basalt_deltas",
+  "size": {
+    "min": 1024,
+    "max": 1024
+  },
+  "depth_ratio": 0.5,
+  "algorithm": "rocky_craters",
+  "relief": 1.4,
+  "ore_bias": 0,
+  "cave_width": 0.08,
+  "shell": "core_shell",
+  "palette": {
+    "rock": "minecraft:basalt",
+    "dark": "minecraft:blackstone",
+    "light": "minecraft:magma_block",
+    "deep": "minecraft:blackstone"
+  },
+  "creatures": false,
+  "features": false,
+  "structures": false,
+  "minerals": {
+    "strata": [
+      {
+        "block": "minecraft:basalt"
+      },
+      {
+        "block": "minecraft:blackstone",
+        "from": 0.35
+      },
+      {
+        "block": "minecraft:netherrack",
+        "from": 0.7
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:nether_quartz_ore",
+        "from": 0,
+        "to": 1,
+        "rarity": 0.9
+      },
+      {
+        "block": "minecraft:nether_gold_ore",
+        "from": 0.25,
+        "to": 1,
+        "rarity": 0.94
+      },
+      {
+        "block": "minecraft:ancient_debris",
+        "from": 0.85,
+        "to": 1,
+        "rarity": 0.999
+      }
+    ]
+  }
+}

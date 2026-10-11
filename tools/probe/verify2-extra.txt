@@ -1,0 +1,281 @@
+waitworld
+strict
+wait 60
+cmd gamemode creative
+cmd starfold terrain
+wait 100
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 1003.5 -523 1000.5 90 25
+wait 200
+log A-restart
+check A-restart-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd fill 996 -524 996 1004 -515 1004 air
+cmd fill 1000 -519 1000 1000 -516 1000 create:piston_extension_pole[facing=down]
+cmd setblock 1000 -520 1000 create:mechanical_piston[facing=down,axis_along_first=true]
+cmd setblock 1000 -521 1000 create:mechanical_drill[facing=down]
+cmd setblock 999 -520 1000 create:creative_motor[facing=east]{ScrollValue:32}
+wait 160
+cmd data get block 1000 -520 1000
+cmd execute as @e[type=create:controlled_contraption,distance=..20] run data get entity @s
+entities
+shot verify2-3-A-moving-drill-positive
+log A-moving-drill-positive
+check A-moving-drill-positive-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd data merge block 999 -520 1000 {ScrollValue:-32}
+wait 160
+cmd data get block 1000 -520 1000
+cmd execute as @e[type=create:controlled_contraption,distance=..20] run data get entity @s
+entities
+shot verify2-3-A-moving-drill-negative
+log A-moving-drill-negative
+check A-moving-drill-negative-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd kill @e[type=create:controlled_contraption,distance=..20]
+cmd fill 999 -524 1000 1000 -516 1000 air
+cmd fill 1000 -523 1000 1000 -520 1000 create:piston_extension_pole[facing=down]
+cmd setblock 1000 -524 1000 create:mechanical_piston[facing=down,axis_along_first=true]
+cmd setblock 999 -524 1000 create:creative_motor[facing=east]{ScrollValue:32}
+wait 100
+cmd data get block 1000 -524 1000
+log A-create-push-positive
+check A-create-push-positive-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd data merge block 999 -524 1000 {ScrollValue:-32}
+wait 100
+cmd data get block 1000 -524 1000
+log A-create-push-negative
+check A-create-push-negative-all9 if block 999 -525 999 starfold:core_shell if block 999 -525 1000 starfold:core_shell if block 999 -525 1001 starfold:core_shell if block 1000 -525 999 starfold:core_shell if block 1000 -525 1000 starfold:core_shell if block 1000 -525 1001 starfold:core_shell if block 1001 -525 999 starfold:core_shell if block 1001 -525 1000 starfold:core_shell if block 1001 -525 1001 starfold:core_shell
+blockat 999 -525 999
+blockat 999 -525 1000
+blockat 999 -525 1001
+blockat 1000 -525 999
+blockat 1000 -525 1000
+blockat 1000 -525 1001
+blockat 1001 -525 999
+blockat 1001 -525 1000
+blockat 1001 -525 1001
+cmd kill @e[type=create:controlled_contraption,distance=..20]
+cmd fill 999 -524 1000 1000 -516 1000 air
+cmd tp @s 33283.5 -197 512.5 90 25
+wait 200
+log B-restart
+check B-restart-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd fill 33276 -198 508 33284 -189 516 air
+cmd fill 33280 -193 512 33280 -190 512 create:piston_extension_pole[facing=down]
+cmd setblock 33280 -194 512 create:mechanical_piston[facing=down,axis_along_first=true]
+cmd setblock 33280 -195 512 create:mechanical_drill[facing=down]
+cmd setblock 33279 -194 512 create:creative_motor[facing=east]{ScrollValue:32}
+wait 160
+cmd data get block 33280 -194 512
+cmd execute as @e[type=create:controlled_contraption,distance=..20] run data get entity @s
+entities
+shot verify2-3-B-moving-drill-positive
+log B-moving-drill-positive
+check B-moving-drill-positive-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd data merge block 33279 -194 512 {ScrollValue:-32}
+wait 160
+cmd data get block 33280 -194 512
+cmd execute as @e[type=create:controlled_contraption,distance=..20] run data get entity @s
+entities
+shot verify2-3-B-moving-drill-negative
+log B-moving-drill-negative
+check B-moving-drill-negative-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd kill @e[type=create:controlled_contraption,distance=..20]
+cmd fill 33279 -198 512 33280 -190 512 air
+cmd fill 33280 -197 512 33280 -194 512 create:piston_extension_pole[facing=down]
+cmd setblock 33280 -198 512 create:mechanical_piston[facing=down,axis_along_first=true]
+cmd setblock 33279 -198 512 create:creative_motor[facing=east]{ScrollValue:32}
+wait 100
+cmd data get block 33280 -198 512
+log B-create-push-positive
+check B-create-push-positive-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd data merge block 33279 -198 512 {ScrollValue:-32}
+wait 100
+cmd data get block 33280 -198 512
+log B-create-push-negative
+check B-create-push-negative-all9 if block 33279 -199 511 starfold:core_shell if block 33279 -199 512 starfold:core_shell if block 33279 -199 513 starfold:core_shell if block 33280 -199 511 starfold:core_shell if block 33280 -199 512 starfold:core_shell if block 33280 -199 513 starfold:core_shell if block 33281 -199 511 starfold:core_shell if block 33281 -199 512 starfold:core_shell if block 33281 -199 513 starfold:core_shell
+blockat 33279 -199 511
+blockat 33279 -199 512
+blockat 33279 -199 513
+blockat 33280 -199 511
+blockat 33280 -199 512
+blockat 33280 -199 513
+blockat 33281 -199 511
+blockat 33281 -199 512
+blockat 33281 -199 513
+cmd kill @e[type=create:controlled_contraption,distance=..20]
+cmd fill 33279 -198 512 33280 -190 512 air
+cmd starfold face 0
+wait 80
+cmd tp @s 26.5 0 2040.5 90 0
+wait 200
+cmd fill 16 0 2038 30 5 2042 air
+cmd tp @s 20.5 0 2040.5 90 0
+wait 40
+scandown 15 2040 5 -2
+check anomaly-source-before if block 15 0 2040 starfold:anomaly_core
+cmd sable assemble area 15 0 2040 15 0 2040
+wait 100
+cmd sable info @e
+hullblocks anomaly
+check anomaly-source-after if block 15 0 2040 starfold:anomaly_core
+blockat 15 0 2040
+cmd sable remove @e
+wait 40
+cmd effect clear @s
+look free
+cmd starfold face 0
+wait 100
+cmd forceload add 0 2000 192 2047
+wait 300
+cmd tp @s 166 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+cmd tp @s 166 175 2040.5 90 -12
+wait 3
+fly on
+cmd starfold spin on
+cmd tick rate 200
+solarplan day
+cmd tick rate 20
+cmd starfold spin off
+wait 60
+cmd tp @s 166 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar day-150
+corner day-150
+shot verify2-3-day-150
+cmd tp @s 96 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar day-80
+corner day-80
+shot verify2-3-day-80
+cmd tp @s 56 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar day-40
+corner day-40
+shot verify2-3-day-40
+cmd tp @s 26 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar day-10
+corner day-10
+shot verify2-3-day-10
+cmd starfold spin on
+cmd tick rate 200
+solarplan night
+cmd tick rate 20
+cmd starfold spin off
+wait 60
+cmd tp @s 166 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-150
+corner night-150
+shot verify2-3-night-150
+cmd tp @s 96 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-80
+corner night-80
+shot verify2-3-night-80
+cmd tp @s 56 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-40
+corner night-40
+shot verify2-3-night-40
+cmd tp @s 26 175 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar night-10
+corner night-10
+shot verify2-3-night-10
+cmd tick rate 20
+cmd starfold spin on
+cmd save-all flush
+wait 60
+shot verify2-3-end
+quit

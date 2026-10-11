@@ -1,0 +1,31 @@
+# The handed-over world as it lies: each control station of the airship from close by, and what the player carries.
+waitworld
+wait 200
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd clear @s minecraft:lever
+cmd clear @s minecraft:stick
+cmd clear @s
+cmd tp @s 4158.5 133.3 1024.5 -90 40
+wait 60
+look -90 40
+wait 10
+shot look-stern
+cmd tp @s 4156.5 133.3 1023.5 0 50
+wait 40
+look 0 50
+wait 10
+shot look-burner
+cmd tp @s 4153.5 133.3 1024.5 100 45
+wait 40
+look 100 45
+wait 10
+shot look-bow
+cmd sable info @l
+cmd tp @s 4168.5 131 1024.5 90 5
+wait 40
+look 90 5
+cmd effect clear @s
+wait 20
+log final
+quit

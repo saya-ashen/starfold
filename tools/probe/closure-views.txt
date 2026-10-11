@@ -1,0 +1,71 @@
+waitworld
+look free
+wait 60
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd sable remove @e
+cmd forceload add 0 2000 192 2047
+wait 400
+cmd tp @s 166.5 175 2040.5 90 -12
+wait 100
+fly on
+cmd gamerule doDaylightCycle false
+cmd time set 6000
+cmd tp @s 166.5 173.77964877511292 2040.5 90 -12
+wait 3
+fly on
+wait 100
+solar labelled-day
+corner day-150
+shot closure-day-150
+cmd tp @s 96 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+corner day-80
+shot closure-day-80
+cmd tp @s 56 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+corner day-40
+shot closure-day-40
+cmd tp @s 26 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+corner day-10
+shot closure-day-10
+cmd time set 18000
+wait 80
+solar labelled-night
+corner night-10
+shot closure-night-10
+cmd tp @s 56 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+shot closure-night-40
+cmd tp @s 96 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+shot closure-night-80
+cmd tp @s 166 175 2040.5 90 -12
+wait 3
+fly on
+wait 80
+shot closure-night-150
+cmd time set 6000
+cmd tp @s 166 400 2040.5 90 40
+wait 3
+fly on
+wait 100
+shot closure-far-400
+cmd gamerule doDaylightCycle true
+cmd save-all flush
+wait 60
+quit

@@ -1,0 +1,17 @@
+# A copy of Saya's save after "I fell straight into the sea": where is the rocket, and how is it set?
+waitworld
+wait 200
+waitworld
+log start
+cmd gamemode spectator
+cmd tp @s 1887.5 135 1014.5 90 30
+wait 200
+log there
+cmd sable info @e
+wait 20
+cmd effect give @s minecraft:night_vision infinite 0 true
+wait 10
+shot rocket-sea
+cmd gamemode creative
+wait 10
+quit

@@ -1,0 +1,43 @@
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 5122.5 170 2040.5 0 20
+wait 300
+look 0 20
+cmd fill 5104 170 2030 5136 178 2066 air
+cmd fill 5104 169 2030 5136 169 2066 minecraft:smooth_stone
+cmd setblock 5120 170 2033 create:creative_motor[facing=south]
+cmd fill 5120 170 2034 5120 170 2062 create:shaft[axis=z]
+cmd setblock 5120 170 2063 create:cogwheel[axis=z]
+wait 100
+cmd data get block 5120 170 2047 Speed
+cmd data get block 5120 170 2048 Speed
+cmd data get block 5120 170 2049 Speed
+cmd data get block 5120 170 2062 Speed
+cmd data get block 5120 170 2063 Speed
+shot rot6-a
+cmd setblock 5120 170 2040 air
+wait 60
+cmd data get block 5120 170 2039 Speed
+cmd data get block 5120 170 2047 Speed
+cmd data get block 5120 170 2050 Speed
+cmd setblock 5120 170 2040 create:shaft[axis=z]
+wait 60
+cmd data get block 5120 170 2050 Speed
+cmd tp @s 5122.5 170 2056.5 180 20
+wait 80
+look 180 20
+wait 20
+shot rot6-b
+wait 20
+shot rot6-c
+cmd tp @s 4110.5 131 865.5 90 15
+wait 300
+cmd data get block 4103 131 864 Speed
+cmd data get block 4095 131 864 Speed
+cmd data get block 4088 131 864 Speed
+wait 40
+log create-rotated-complete
+quit

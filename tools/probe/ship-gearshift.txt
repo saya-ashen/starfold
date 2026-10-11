@@ -1,0 +1,203 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Which state of a directional gearshift carries a shaft along x,
+# and which neighbour powers which way. Read off the propeller behind it.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 100
+cmd sable remove @e
+cmd fill 5282 140 852 5302 152 872 air
+cmd setblock 5295 141 862 create:creative_motor[facing=east]{ScrollValue:128}
+cmd setblock 5297 141 862 aeronautics:wooden_propeller[facing=east]
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=up,axis_along_first=true]
+wait 8
+cmd tellraw @s "CASE up true none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE up true north"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:air
+wait 4
+cmd setblock 5296 141 863 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE up true south"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:air
+wait 4
+cmd setblock 5296 140 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE up true down"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 140 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=up,axis_along_first=false]
+wait 8
+cmd tellraw @s "CASE up false none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE up false north"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:air
+wait 4
+cmd setblock 5296 141 863 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE up false south"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:air
+wait 4
+cmd setblock 5296 140 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE up false down"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 140 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=north,axis_along_first=true]
+wait 8
+cmd tellraw @s "CASE north true none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE north true south"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:air
+wait 4
+cmd setblock 5296 142 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE north true up"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 142 862 minecraft:air
+wait 4
+cmd setblock 5296 140 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE north true down"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 140 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=north,axis_along_first=false]
+wait 8
+cmd tellraw @s "CASE north false none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE north false south"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:air
+wait 4
+cmd setblock 5296 142 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE north false up"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 142 862 minecraft:air
+wait 4
+cmd setblock 5296 140 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE north false down"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 140 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=south,axis_along_first=true]
+wait 8
+cmd tellraw @s "CASE south true none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE south true north"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:air
+wait 4
+cmd setblock 5296 142 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE south true up"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 142 862 minecraft:air
+wait 4
+cmd setblock 5296 140 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE south true down"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 140 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=south,axis_along_first=false]
+wait 8
+cmd tellraw @s "CASE south false none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE south false north"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:air
+wait 4
+cmd setblock 5296 142 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE south false up"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 142 862 minecraft:air
+wait 4
+cmd setblock 5296 140 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE south false down"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 140 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=down,axis_along_first=true]
+wait 8
+cmd tellraw @s "CASE down true none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE down true north"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:air
+wait 4
+cmd setblock 5296 141 863 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE down true south"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:air
+wait 4
+cmd setblock 5296 142 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE down true up"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 142 862 minecraft:air
+wait 4
+cmd setblock 5296 141 862 minecraft:air
+cmd setblock 5296 141 862 simulated:directional_gearshift[facing=down,axis_along_first=false]
+wait 8
+cmd tellraw @s "CASE down false none"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE down false north"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 861 minecraft:air
+wait 4
+cmd setblock 5296 141 863 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE down false south"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 141 863 minecraft:air
+wait 4
+cmd setblock 5296 142 862 minecraft:redstone_block
+wait 8
+cmd tellraw @s "CASE down false up"
+cmd data get block 5297 141 862 Speed
+cmd setblock 5296 142 862 minecraft:air
+wait 4
+quit

@@ -1,0 +1,16 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:villages",
+    "minecraft:pillager_outposts",
+    "minecraft:desert_pyramids",
+    "minecraft:igloos",
+    "minecraft:jungle_temples",
+    "minecraft:swamp_huts",
+    "minecraft:ruined_portals",
+    "minecraft:shipwrecks",
+    "minecraft:ocean_ruins",
+    "minecraft:buried_treasures",
+    "minecraft:mineshafts"
+  ]
+}

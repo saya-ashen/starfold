@@ -1,0 +1,44 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+key sneak on
+until ground 5000
+key sneak off
+wait 40
+cmd starfold face 5
+wait 60
+cmd tp @s 20590 215 110 135 45
+wait 3
+fly on
+look 135 45
+wait 200
+effects outside
+shot dx-overview
+surface 20498 18
+surface 20506 22
+surface 20518 38
+surface 20530 20
+cmd tp @s 20532 172 52 135 20
+wait 3
+fly on
+look 135 20
+wait 25
+effects entered
+shot dx-enter
+cmd effect clear @s minecraft:nausea
+cmd tp @s 20520 166 40 135 30
+wait 3
+fly on
+look 135 30
+wait 8
+shot dx-close
+cmd tp @s 20510 150 12 90 10
+wait 3
+fly on
+look 60 15
+wait 8
+shot dx-side
+quit

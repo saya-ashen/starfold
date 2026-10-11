@@ -1,0 +1,12 @@
+waitworld
+log shutdown-census-login
+cmd data get entity @s Pos
+cmd sable info @e
+sample 40
+wait 200
+log shutdown-census-loaded
+abilities shutdown-census-loaded
+cmd data get entity @s Pos
+cmd sable info @e
+wait 40
+quit

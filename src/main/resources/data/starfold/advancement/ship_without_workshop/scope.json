@@ -1,0 +1,61 @@
+{
+  "display": {
+    "icon": {
+      "id": "starfold:scope"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.scope.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.scope.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "item0": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "starfold:scope"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "item0"
+    ]
+  ],
+  "parent": "starfold:ship_without_workshop/helm",
+  "rewards": {
+    "recipes": [
+      "starfold:scope",
+      "starfold:scope_nav",
+      "starfold:scope_precise",
+      "starfold:airstair"
+    ]
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:and",
+        "values": [
+          {
+            "type": "neoforge:mod_loaded",
+            "modid": "create"
+          },
+          {
+            "type": "neoforge:mod_loaded",
+            "modid": "simulated"
+          }
+        ]
+      }
+    }
+  ]
+}

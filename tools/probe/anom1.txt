@@ -1,0 +1,44 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamerule doDaylightCycle false
+cmd time set noon
+key sneak on
+until ground 4000
+key sneak off
+wait 40
+nav landed
+cmd starfold face 0
+wait 60
+cmd tp @s 1850 190 1850 -45 5
+wait 3
+fly on
+look -45 5
+wait 200
+nav far
+shot an-far
+look -45 -25
+wait 10
+shot an-far-up
+cmd tp @s 1960 175 1960 -45 0
+wait 3
+fly on
+look -45 0
+wait 120
+nav mid
+shot an-mid
+look -45 -50
+wait 10
+shot an-mid-up
+cmd tp @s 1900 240 2010 -100 20
+wait 3
+fly on
+look -100 20
+wait 120
+shot an-side
+cmd time set midnight
+wait 40
+shot an-side-night
+quit

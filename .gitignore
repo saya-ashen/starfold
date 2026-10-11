@@ -1,0 +1,21 @@
+# Local credentials and editor/OS files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
+.idea/
+.vscode/
+
+__pycache__/
+*.pyc
+dist/
+research/
+.gradle/
+build/
+run/
+crash-reports/
+logs/
+*.log
+.claude/

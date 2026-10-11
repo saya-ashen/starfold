@@ -1,0 +1,203 @@
+# DESTRUCTIVE: disposable devworld-create1 only. The starter rocket (tools/ship/rocket.py) with its pilot on deck:
+# what each step of the lift lever does, the climb out of the air and out of weight, and the gyro.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+fly off
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 200
+cmd fill 5250 292 850 5280 300 880 minecraft:air
+cmd fill 5250 194 850 5280 204 880 minecraft:air
+cmd fill 5250 255 850 5280 262 880 minecraft:air
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:analog_lever[face=floor,facing=north]{State:5}
+cmd setblock 5296 142 864 starfold:gyro
+cmd setblock 5295 142 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 860 starfold:gyro
+cmd setblock 5295 142 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5289 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 minecraft:lever[face=floor,facing=north,powered=false]
+cmd tp @s 5291.5 142.2 862.5 90 20
+wait 20
+cmd sable assemble area 5288 141 860 5296 142 864
+wait 10
+cmd tellraw @s "CASE hover5"
+cmd sable info @l
+wait 40
+log hover5-1
+cmd sable info @l
+wait 40
+log hover5-2
+cmd sable info @l
+wait 40
+log hover5-3
+cmd sable info @l
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:analog_lever[face=floor,facing=north]{State:6}
+cmd setblock 5296 142 864 starfold:gyro
+cmd setblock 5295 142 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 860 starfold:gyro
+cmd setblock 5295 142 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5289 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 minecraft:lever[face=floor,facing=north,powered=false]
+cmd tp @s 5291.5 142.2 862.5 90 20
+wait 20
+cmd sable assemble area 5288 141 860 5296 142 864
+wait 10
+cmd tellraw @s "CASE hover6"
+cmd sable info @l
+wait 40
+log hover6-1
+cmd sable info @l
+wait 40
+log hover6-2
+cmd sable info @l
+wait 40
+log hover6-3
+cmd sable info @l
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:analog_lever[face=floor,facing=north]{State:6}
+cmd setblock 5296 142 864 starfold:gyro
+cmd setblock 5295 142 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 860 starfold:gyro
+cmd setblock 5295 142 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5289 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 minecraft:lever[face=floor,facing=north,powered=false]
+cmd tp @s 5291.5 142.2 862.5 90 20
+wait 20
+cmd sable assemble area 5288 141 860 5296 142 864
+wait 10
+cmd tellraw @s "CASE gyro"
+cmd sable info @l
+wait 40
+cmd sable physics impulse @l angular 0 0 900 global
+cmd tellraw @s "thrown"
+wait 5
+cmd sable info @l
+wait 10
+cmd sable info @l
+wait 20
+cmd sable info @l
+wait 40
+cmd sable info @l
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:analog_lever[face=floor,facing=north]{State:8}
+cmd setblock 5296 142 864 starfold:gyro
+cmd setblock 5295 142 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 860 starfold:gyro
+cmd setblock 5295 142 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5289 142 862 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 minecraft:lever[face=floor,facing=north,powered=false]
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 minecraft:lever[face=floor,facing=north,powered=false]
+cmd tp @s 5291.5 142.2 862.5 90 20
+wait 20
+cmd sable assemble area 5288 141 860 5296 142 864
+wait 10
+cmd tellraw @s "CASE climb"
+cmd sable info @l
+wait 100
+log climb-1
+cmd sable info @l
+wait 100
+log climb-2
+cmd sable info @l
+wait 100
+log climb-3
+cmd sable info @l
+wait 100
+log climb-4
+cmd sable info @l
+wait 100
+log climb-5
+cmd sable info @l
+wait 100
+log climb-6
+cmd sable info @l
+wait 100
+log climb-7
+cmd sable info @l
+wait 100
+log climb-8
+cmd sable info @l
+wait 100
+log climb-9
+cmd sable info @l
+wait 100
+log climb-10
+cmd sable info @l
+wait 100
+log climb-11
+cmd sable info @l
+wait 100
+log climb-12
+cmd sable info @l
+look 90 60
+wait 5
+shot rocket-climb-down
+abilities climb
+quit

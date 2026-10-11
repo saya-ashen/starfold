@@ -1,0 +1,14 @@
+{
+  "vertex":"starfold:native_ground_exterior","fragment":"starfold:native_ground_exterior",
+  "attributes":["Position","Color","Normal"],"samplers":[],
+  "uniforms":[
+    {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"SpaceLens","type":"float","count":3,"values":[0,1,1]},
+    {"name":"DrawCenter","type":"float","count":3,"values":[0,0,0]},
+    {"name":"ChartU","type":"float","count":3,"values":[1,0,0]},
+    {"name":"ChartUp","type":"float","count":3,"values":[0,1,0]},
+    {"name":"ChartV","type":"float","count":3,"values":[0,0,1]},
+    {"name":"SunBody","type":"float","count":3,"values":[0,0,8192]}
+  ]
+}

@@ -1,0 +1,71 @@
+waitworld
+wait 60
+cmd gamemode creative
+cmd starfold terrain
+wait 160
+cmd starfold face 0
+wait 100
+cmd tp @s 40.5 175 2020.5 90 60
+wait 3
+fly on
+wait 100
+cmd clear @s
+cmd fill 30 169 2010 50 169 2030 minecraft:stone
+cmd fill 30 170 2010 50 175 2030 minecraft:air
+cmd setblock 40 170 2020 starfold:anomaly_ground
+cmd setblock 42 170 2020 starfold:anomaly_ring
+cmd setblock 44 170 2020 starfold:anomaly_shell
+cmd setblock 46 170 2020 starfold:anomaly_glow
+wait 40
+blockat 40 170 2020
+cmd setblock 40 170 2020 minecraft:gold_block
+cmd fill 42 170 2020 46 170 2020 minecraft:diamond_block
+wait 20
+blockat 40 170 2020
+blockat 42 170 2020
+blockat 44 170 2020
+blockat 46 170 2020
+cmd setblock 40 170 2020 starfold:anomaly_ground
+cmd setblock 42 170 2020 starfold:anomaly_ring
+cmd setblock 44 170 2020 starfold:anomaly_shell
+cmd setblock 46 170 2020 starfold:anomaly_glow
+cmd summon minecraft:tnt 42.5 171 2020.5 {fuse:20s}
+wait 130
+blockat 40 170 2020
+blockat 42 170 2020
+blockat 44 170 2020
+blockat 46 170 2020
+cmd setblock 38 170 2020 minecraft:piston[facing=east]
+cmd setblock 39 170 2020 starfold:anomaly_shell
+cmd setblock 40 170 2020 minecraft:air
+cmd setblock 37 170 2020 minecraft:redstone_block
+wait 40
+blockat 38 170 2020
+blockat 39 170 2020
+blockat 40 170 2020
+cmd tp @s 44.5 171 2018.5 0 40
+wait 20
+break 44 170 2020
+wait 20
+blockat 44 170 2020
+cmd gamemode survival
+cmd attribute @s minecraft:player.block_break_speed base set 1024
+break 46 170 2020
+wait 30
+blockat 46 170 2020
+cmd attribute @s minecraft:player.block_break_speed base set 1
+cmd gamemode creative
+cmd setblock 8 170 2040 minecraft:gold_block
+cmd fill 5 170 2038 10 171 2042 minecraft:diamond_block
+wait 20
+blockat 8 170 2040
+cmd execute if block 8 170 2040 minecraft:bedrock run tellraw @s "MASK_READ_BEDROCK"
+cmd setblock 8 119 2040 minecraft:gold_block
+cmd setblock 8 256 2040 minecraft:gold_block
+cmd execute if block 8 119 2040 minecraft:gold_block run tellraw @s "BELOW_MASK_WRITE_OK"
+cmd execute if block 8 256 2040 minecraft:gold_block run tellraw @s "ABOVE_MASK_WRITE_OK"
+corner blocks-end
+shot corner-blocks
+cmd save-all flush
+wait 60
+quit

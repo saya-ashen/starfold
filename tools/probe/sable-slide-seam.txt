@@ -1,0 +1,52 @@
+# DESTRUCTIVE: disposable devworld-create1 only. Ordinary seam x=4096.
+# A cube resting on a platform is pushed west over the seam while an observer stands still on face 1:
+# the far chart's ground must hold it, and the bystander's view of it is recorded.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4108.5 180 868.5 110 10
+wait 5
+cmd fill 4070 180 858 4116 186 870 air
+cmd fill 4070 179 858 4116 179 870 minecraft:smooth_stone
+cmd tp @s 4108.5 180 868.5 110 10
+wait 200
+cmd sable remove @e
+cmd fill 4100 180 863 4102 182 865 minecraft:red_wool
+wait 20
+cmd sable assemble area 4100 180 863 4102 182 865
+wait 60
+look 110 10
+cmd sable info @l
+log slide-before
+shot slide-before
+cmd sable physics impulse @l linear -200 0 0 global
+wait 10
+cmd sable info @l
+shot slide-10
+wait 20
+cmd sable info @l
+shot slide-30
+wait 60
+cmd sable info @l
+log slide-90
+shot slide-90
+wait 100
+cmd sable info @l
+shot slide-190
+# The frame is made afresh on the far face, then on the near one: each time the body must be where it rests.
+cmd tp @s 2040.5 180 868.5 110 10
+wait 80
+look 110 10
+log reset-far
+shot slide-reset-far
+cmd tp @s 4108.5 180 868.5 100 10
+wait 80
+look 100 10
+log reset-near
+shot slide-reset-near
+quit

@@ -1,0 +1,18 @@
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+wait 500
+census 80
+shot features-home
+cmd starfold face 2
+wait 900
+census 80
+look 0 25
+wait 20
+shot features-face2
+cmd tp @s ~ 80 ~
+wait 60
+census 40
+quit

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "starfold:block/aircraft_dock"
+    }
+  }
+}

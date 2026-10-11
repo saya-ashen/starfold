@@ -1,0 +1,15 @@
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd effect give @s minecraft:night_vision infinite 0 true
+wait 100
+cmd locate structure #minecraft:village
+wait 200
+cmd locate structure minecraft:mineshaft
+wait 200
+cmd locate structure minecraft:ruined_portal
+wait 200
+cmd locate structure minecraft:pillager_outpost
+wait 300
+quit

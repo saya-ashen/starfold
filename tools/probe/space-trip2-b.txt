@@ -1,0 +1,47 @@
+waitworld
+log T4b-login
+wait 100
+sample 20
+trace on
+fly off
+find typewriter
+wait 6
+usehit helm
+wait 10
+find throttle
+wait 6
+throttle ?
+heading 1 400
+wait 30
+log T4b-aimed
+throttle 15
+press 341 1
+until chart 2200
+log T4b-arrival
+press 341 0
+throttle 0
+abilities T4b-arrival
+cmd sable info @n
+look 0 90
+wait 4
+shot space-trip2-3-arrival-down
+wait 396
+log T4b-plus20s
+throttle ?
+abilities T4b-plus20s
+cmd sable info @n
+census 16
+shot space-trip2-3-plus20s-down
+aboardelsequit
+press 340 1
+until y< 400 1600
+press 340 0
+log T4b-low
+wait 200
+log T4b-end
+cmd sable info @n
+abilities T4b-end
+shot space-trip2-3-end
+trace off
+sample 0
+quit

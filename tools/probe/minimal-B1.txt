@@ -1,0 +1,106 @@
+# INVALID TIMING DIAGNOSTIC, excluded from acceptance: Sable physics continued during tick freeze.
+# B1r ordinary-key retry is documented in build/space/blueprint1-A logs.
+# Disposable blueprint1 world only; removes its previous hull.
+strict
+waitworld
+press 82 1
+wait 2
+press 82 0
+cmd gamemode creative
+fly on
+cmd tp @s 5288.5 150 862.5 90 20
+cmd sable remove @e
+wait 60
+cmd fill 5285 140 855 5300 158 870 minecraft:air
+cmd setblock 5290 141 860 minecraft:cobblestone
+cmd setblock 5291 141 860 minecraft:cobblestone
+cmd setblock 5292 141 860 minecraft:cobblestone
+cmd setblock 5293 141 860 minecraft:cobblestone
+cmd setblock 5294 141 860 minecraft:cobblestone
+cmd setblock 5290 141 861 minecraft:cobblestone
+cmd setblock 5291 141 861 minecraft:cobblestone
+cmd setblock 5292 141 861 minecraft:cobblestone
+cmd setblock 5293 141 861 minecraft:cobblestone
+cmd setblock 5294 141 861 minecraft:cobblestone
+cmd setblock 5290 141 862 minecraft:cobblestone
+cmd setblock 5291 141 862 minecraft:cobblestone
+cmd setblock 5292 141 862 minecraft:cobblestone
+cmd setblock 5293 141 862 minecraft:cobblestone
+cmd setblock 5294 141 862 minecraft:cobblestone
+cmd setblock 5290 141 863 minecraft:cobblestone
+cmd setblock 5291 141 863 minecraft:cobblestone
+cmd setblock 5292 141 863 minecraft:cobblestone
+cmd setblock 5293 141 863 minecraft:cobblestone
+cmd setblock 5294 141 863 minecraft:cobblestone
+cmd setblock 5290 141 864 minecraft:cobblestone
+cmd setblock 5291 141 864 minecraft:cobblestone
+cmd setblock 5292 141 864 minecraft:cobblestone
+cmd setblock 5293 141 864 minecraft:cobblestone
+cmd setblock 5294 141 864 minecraft:cobblestone
+cmd setblock 5290 142 860 minecraft:oak_planks
+cmd setblock 5291 142 860 starfold:thruster[facing=north]
+cmd setblock 5292 142 860 starfold:airstair[facing=north]
+cmd setblock 5293 142 860 starfold:thruster[facing=north]
+cmd setblock 5294 142 860 minecraft:oak_planks
+cmd setblock 5290 142 861 starfold:thruster[facing=west]
+cmd setblock 5291 142 861 minecraft:oak_planks
+cmd setblock 5292 142 861 starfold:thruster[facing=down]
+cmd setblock 5293 142 861 minecraft:oak_planks
+cmd setblock 5294 142 861 starfold:thruster[facing=east]
+cmd setblock 5290 142 862 minecraft:oak_planks
+cmd setblock 5291 142 862 starfold:thruster[facing=up]
+cmd setblock 5292 142 862 minecraft:oak_planks
+cmd setblock 5293 142 862 starfold:thruster[facing=up]
+cmd setblock 5294 142 862 minecraft:oak_planks
+cmd setblock 5290 142 863 starfold:thruster[facing=west]
+cmd setblock 5291 142 863 minecraft:oak_planks
+cmd setblock 5292 142 863 starfold:thruster[facing=down]
+cmd setblock 5293 142 863 minecraft:oak_planks
+cmd setblock 5294 142 863 starfold:thruster[facing=east]
+cmd setblock 5290 142 864 minecraft:oak_planks
+cmd setblock 5291 142 864 starfold:thruster[facing=south]
+cmd setblock 5292 142 864 starfold:airstair[facing=south]
+cmd setblock 5293 142 864 starfold:thruster[facing=south]
+cmd setblock 5294 142 864 minecraft:oak_planks
+cmd setblock 5292 143 860 minecraft:oak_door[facing=north,half=lower,open=true]
+cmd setblock 5290 143 862 starfold:gyro
+cmd setblock 5292 143 862 starfold:helm[facing=west]
+cmd setblock 5294 143 862 starfold:gyro
+cmd setblock 5292 143 864 minecraft:oak_door[facing=south,half=lower,open=true]
+cmd setblock 5292 144 860 minecraft:oak_door[facing=north,half=upper,open=true]
+cmd setblock 5290 144 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 144 862 starfold:scope_nav[facing=west]
+cmd setblock 5294 144 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 144 864 minecraft:oak_door[facing=south,half=upper,open=true]
+wait 40
+cmd sable assemble area 5290 141 860 5294 144 864
+wait 200
+helmstate B1-built
+cmd tp @s 5293.5 143.2 863.5 90 30
+fly off
+wait 100
+cmd gamemode survival
+wait 40
+find starfold:helm
+wait 5
+usehit helm
+wait 40
+requirehelm
+look free
+cmd tick freeze
+wait 20
+helmstate B1-rest
+press 32 1
+wait 10
+cmd tick step 20
+wait 80
+helmstate B1-release
+press 32 0
+wait 10
+cmd tick unfreeze
+wait 240
+helmstate B1-coast
+wait 200
+helmstate B1-hover
+shot blueprint1-B1-hover
+quit

@@ -1,0 +1,111 @@
+# DESTRUCTIVE: disposable devworld-create1 only. What threw Saya off: in space, the left-turn lever of the starter
+# rocket with the pilot on deck, pulled all the way. Then what a pilot who has left the deck can do.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+fly off
+nav start
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd tp @s 5283.5 140 853.5 -45 0
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:analog_lever[face=floor,facing=north]{State:8}
+cmd setblock 5296 142 864 starfold:gyro
+cmd setblock 5295 142 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 860 starfold:gyro
+cmd setblock 5295 142 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 create:analog_lever[face=floor,facing=north]{State:0}
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5289 142 862 create:analog_lever[face=floor,facing=north]{State:0}
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 create:analog_lever[face=floor,facing=north]{State:0}
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 create:analog_lever[face=floor,facing=north]{State:0}
+cmd tp @s 5291.5 142.2 862.5 90 20
+wait 20
+cmd sable assemble area 5288 141 860 5296 142 864
+wait 10
+cmd sable info @l
+wait 500
+log climb-500
+wait 400
+log climb-900
+cmd sable info @l
+look 135 28
+wait 4
+hit left-lever
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+usehit left
+wait 3
+hit left-lever
+log turn-0
+cmd sable info @l
+wait 40
+log turn-40
+abilities turn-40
+cmd sable info @l
+wait 100
+log turn-140
+abilities turn-140
+cmd sable info @l
+wait 100
+log turn-240
+abilities turn-240
+cmd sable info @l
+cmd tp @s ~12 ~ ~
+wait 40
+log off-40
+abilities off-40
+wait 100
+log off-140
+fly on
+wait 10
+nav flying
+key forward on
+wait 40
+key forward off
+nav flew
+fly off
+wait 20
+quit

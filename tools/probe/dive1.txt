@@ -1,0 +1,54 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd starfold face 0
+wait 100
+cmd starfold nav target a
+cmd starfold nav land on
+key jump on
+wait 4
+fly on
+key sprint on
+until controlled 1500
+wait 200
+key jump off
+key sprint off
+nav top
+aim track
+key forward on
+until alt< 2000 3000
+nav dive-2000
+until alt< 1536 3000
+nav dive-1536
+shot dive-1536
+until alt< 1200 3000
+nav dive-1200
+until alt< 1024 3000
+nav dive-1024
+until alt< 700 3000
+nav dive-700
+shot dive-700
+until alt< 400 3000
+nav dive-400
+until alt< 300 3000
+nav dive-300
+wait 300
+nav flare+300
+shot dive-flare
+key forward off
+aim free
+key sneak on
+until free 3000
+nav handoff
+until ground 2000
+key sneak off
+fly off
+wait 40
+nav landed
+shot dive-landed
+cmd save-all flush
+wait 60
+quit

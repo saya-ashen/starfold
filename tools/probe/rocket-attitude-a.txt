@@ -1,0 +1,85 @@
+# Copy of boost-world; all turns use the ordinary keyboard handler.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+cmd gamemode survival
+wait 40
+look 90 25
+press 32 1
+press 341 1
+until region 2000
+until height> 4400 2000
+press 32 0
+press 341 0
+wait 120
+trace on
+log cruise-baseline-start
+abilities cruise-baseline-start
+wait 39
+log cruise-baseline-end
+abilities cruise-baseline-end
+camera attitude-before
+shot attitude-a-before
+press 265 1
+wait 19
+log pitch-half
+shot attitude-a-half
+wait 19
+press 265 0
+log pitch-90-release
+wait 9
+log pitch-90-settled
+abilities pitch-90-settled
+camera attitude-after
+shot attitude-a-after
+requiretypewriter
+log burn-start
+press 87 1
+press 341 1
+wait 99
+press 87 0
+press 341 0
+log burn-end
+wait 19
+log burn-settled
+abilities burn-settled
+press 265 1
+wait 39
+press 265 0
+log pitch-180-release
+wait 9
+log pitch-180-settled
+abilities pitch-180-settled
+press 262 1
+wait 19
+log roll-half
+camera attitude-roll
+shot attitude-a-roll
+wait 19
+press 262 0
+log roll-90-release
+wait 9
+log roll-90-settled
+abilities roll-90-settled
+requiretypewriter
+wait 39
+log cruise-final
+abilities cruise-final
+trace off
+cmd save-all flush
+wait 100
+quit

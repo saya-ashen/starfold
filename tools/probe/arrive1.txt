@@ -1,0 +1,29 @@
+waitworld
+wait 200
+waitworld
+nav arrived
+cmd starfold status
+cmd gamemode survival
+wait 40
+cmd tp @s ~40 ~ ~40
+wait 60
+nav moved
+cmd kill @s
+wait 40
+waitworld
+wait 200
+waitworld
+nav reborn
+abilities reborn
+cmd gamemode creative
+cmd starfold leave
+wait 100
+nav left
+log left
+wait 100
+log stays
+cmd starfold terrain
+wait 160
+waitworld
+nav back
+quit

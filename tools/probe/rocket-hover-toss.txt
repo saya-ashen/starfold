@@ -1,0 +1,472 @@
+# Disposable devworld-create1 ONLY; one unchanged fixture, off -> on -> lifted.
+waitworld
+log hover-start
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 60
+fly off
+nav start
+cmd tp @s 5283.5 140 853.5 -45 0
+wait 5
+cmd fill 5282 139 852 5302 139 872 minecraft:smooth_stone
+cmd sable remove @e
+cmd fill 5282 140 852 5302 153 872 minecraft:air
+cmd fill 5287 141 859 5297 145 865 minecraft:glass
+cmd fill 5288 142 860 5296 144 864 minecraft:air
+cmd fill 5287 141 859 5297 141 865 minecraft:spruce_planks
+cmd setblock 5292 142 865 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock 5292 143 865 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill 5288 141 860 5296 141 864 minecraft:spruce_planks
+cmd setblock 5290 141 861 minecraft:iron_block
+cmd setblock 5290 141 863 minecraft:iron_block
+cmd setblock 5292 141 861 minecraft:iron_block
+cmd setblock 5292 141 863 minecraft:iron_block
+cmd setblock 5294 141 861 minecraft:iron_block
+cmd setblock 5294 141 863 minecraft:iron_block
+cmd setblock 5292 141 862 starfold:thruster[facing=down]
+cmd setblock 5292 142 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 860 starfold:thruster[facing=up]
+cmd setblock 5293 143 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 864 starfold:thruster[facing=up]
+cmd setblock 5293 143 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5293 142 862 simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock 5293 141 862 starfold:thruster[facing=down]
+cmd setblock 5293 142 861 starfold:thruster[facing=down]
+cmd setblock 5293 142 863 starfold:thruster[facing=down]
+cmd setblock 5296 142 862 starfold:thruster[facing=east]
+cmd setblock 5295 142 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 861 starfold:thruster[facing=east]
+cmd setblock 5296 143 861 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 863 starfold:thruster[facing=east]
+cmd setblock 5296 143 863 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 143 862 starfold:thruster[facing=east]
+cmd setblock 5288 142 862 starfold:thruster[facing=west]
+cmd setblock 5288 143 862 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5288 142 860 starfold:thruster[facing=north]
+cmd setblock 5289 142 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 864 starfold:thruster[facing=south]
+cmd setblock 5295 142 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5288 142 864 starfold:thruster[facing=south]
+cmd setblock 5289 142 864 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5296 142 860 starfold:thruster[facing=north]
+cmd setblock 5295 142 860 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock 5291 142 864 starfold:gyro
+cmd setblock 5291 143 864 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5291 142 860 starfold:gyro
+cmd setblock 5291 143 860 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5290 142 862 simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+wait 20
+cmd sable assemble area 5287 141 859 5297 145 865
+log startup-0
+cmd tellraw @s "HOVER startup-0"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-1
+cmd tellraw @s "HOVER startup-1"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-2
+cmd tellraw @s "HOVER startup-2"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-3
+cmd tellraw @s "HOVER startup-3"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-4
+cmd tellraw @s "HOVER startup-4"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-5
+cmd tellraw @s "HOVER startup-5"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-6
+cmd tellraw @s "HOVER startup-6"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-7
+cmd tellraw @s "HOVER startup-7"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-8
+cmd tellraw @s "HOVER startup-8"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-9
+cmd tellraw @s "HOVER startup-9"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-10
+cmd tellraw @s "HOVER startup-10"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-11
+cmd tellraw @s "HOVER startup-11"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-12
+cmd tellraw @s "HOVER startup-12"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-13
+cmd tellraw @s "HOVER startup-13"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-14
+cmd tellraw @s "HOVER startup-14"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-15
+cmd tellraw @s "HOVER startup-15"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-16
+cmd tellraw @s "HOVER startup-16"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-17
+cmd tellraw @s "HOVER startup-17"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-18
+cmd tellraw @s "HOVER startup-18"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-19
+cmd tellraw @s "HOVER startup-19"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log startup-20
+cmd tellraw @s "HOVER startup-20"
+cmd time query gametime
+cmd sable info @n
+wait 0
+log toss-0
+cmd tellraw @s "HOVER toss-0"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-1
+cmd tellraw @s "HOVER toss-1"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-2
+cmd tellraw @s "HOVER toss-2"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-3
+cmd tellraw @s "HOVER toss-3"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-4
+cmd tellraw @s "HOVER toss-4"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-5
+cmd tellraw @s "HOVER toss-5"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-6
+cmd tellraw @s "HOVER toss-6"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-7
+cmd tellraw @s "HOVER toss-7"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-8
+cmd tellraw @s "HOVER toss-8"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-9
+cmd tellraw @s "HOVER toss-9"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-10
+cmd tellraw @s "HOVER toss-10"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-11
+cmd tellraw @s "HOVER toss-11"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-12
+cmd tellraw @s "HOVER toss-12"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-13
+cmd tellraw @s "HOVER toss-13"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-14
+cmd tellraw @s "HOVER toss-14"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-15
+cmd tellraw @s "HOVER toss-15"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-16
+cmd tellraw @s "HOVER toss-16"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-17
+cmd tellraw @s "HOVER toss-17"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-18
+cmd tellraw @s "HOVER toss-18"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-19
+cmd tellraw @s "HOVER toss-19"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-20
+cmd tellraw @s "HOVER toss-20"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-21
+cmd tellraw @s "HOVER toss-21"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-22
+cmd tellraw @s "HOVER toss-22"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-23
+cmd tellraw @s "HOVER toss-23"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-24
+cmd tellraw @s "HOVER toss-24"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-25
+cmd tellraw @s "HOVER toss-25"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-26
+cmd tellraw @s "HOVER toss-26"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-27
+cmd tellraw @s "HOVER toss-27"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-28
+cmd tellraw @s "HOVER toss-28"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-29
+cmd tellraw @s "HOVER toss-29"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-30
+cmd tellraw @s "HOVER toss-30"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-31
+cmd tellraw @s "HOVER toss-31"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-32
+cmd tellraw @s "HOVER toss-32"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-33
+cmd tellraw @s "HOVER toss-33"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-34
+cmd tellraw @s "HOVER toss-34"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-35
+cmd tellraw @s "HOVER toss-35"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-36
+cmd tellraw @s "HOVER toss-36"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-37
+cmd tellraw @s "HOVER toss-37"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-38
+cmd tellraw @s "HOVER toss-38"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-39
+cmd tellraw @s "HOVER toss-39"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-40
+cmd tellraw @s "HOVER toss-40"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-41
+cmd tellraw @s "HOVER toss-41"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-42
+cmd tellraw @s "HOVER toss-42"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-43
+cmd tellraw @s "HOVER toss-43"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-44
+cmd tellraw @s "HOVER toss-44"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-45
+cmd tellraw @s "HOVER toss-45"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-46
+cmd tellraw @s "HOVER toss-46"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-47
+cmd tellraw @s "HOVER toss-47"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-48
+cmd tellraw @s "HOVER toss-48"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-49
+cmd tellraw @s "HOVER toss-49"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-50
+cmd tellraw @s "HOVER toss-50"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-51
+cmd tellraw @s "HOVER toss-51"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-52
+cmd tellraw @s "HOVER toss-52"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-53
+cmd tellraw @s "HOVER toss-53"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-54
+cmd tellraw @s "HOVER toss-54"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-55
+cmd tellraw @s "HOVER toss-55"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-56
+cmd tellraw @s "HOVER toss-56"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-57
+cmd tellraw @s "HOVER toss-57"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-58
+cmd tellraw @s "HOVER toss-58"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-59
+cmd tellraw @s "HOVER toss-59"
+cmd time query gametime
+cmd sable info @n
+wait 19
+log toss-60
+cmd tellraw @s "HOVER toss-60"
+cmd time query gametime
+cmd sable info @n
+wait 19
+quit

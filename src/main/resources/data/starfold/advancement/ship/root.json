@@ -1,0 +1,28 @@
+{
+  "display": {
+    "icon": {
+      "id": "starfold:helm"
+    },
+    "title": {
+      "translate": "advancement.starfold.ship.root.title"
+    },
+    "description": {
+      "translate": "advancement.starfold.ship.root.description"
+    },
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false,
+    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png"
+  },
+  "criteria": {
+    "earned": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "earned"
+    ]
+  ]
+}

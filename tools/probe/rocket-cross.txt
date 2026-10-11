@@ -1,0 +1,139 @@
+# On a COPY of the pad world (airship1): the flight that put Saya in the sea. Up from the pad, west over the edge of the
+# platform and over the seam 45 blocks away, stop, and down onto the water.
+waitworld
+wait 200
+waitworld
+cmd gamemode creative
+cmd tp @s 4147.5 133.2 1014.5 90 20
+wait 40
+wait 20
+log aboard
+abilities aboard
+cmd sable info @n
+wait 2
+look -90 58
+wait 4
+hit up+
+usehit up+
+wait 4
+usehit up+
+wait 4
+wait 60
+log up2
+abilities up2
+cmd sable info @n
+wait 2
+key sneak on
+wait 8
+look -90 53
+wait 4
+hit up-
+usehit up-
+wait 4
+usehit up-
+wait 4
+key sneak off
+wait 4
+wait 80
+log up0
+abilities up0
+cmd sable info @n
+wait 2
+look -90 22
+wait 4
+hit forward+
+usehit forward+
+wait 4
+usehit forward+
+wait 4
+usehit forward+
+wait 4
+wait 80
+log west-1
+abilities west-1
+cmd sable info @n
+wait 2
+wait 80
+log west-2
+abilities west-2
+cmd sable info @n
+wait 2
+wait 80
+log west-3
+abilities west-3
+cmd sable info @n
+wait 2
+wait 80
+log west-4
+abilities west-4
+cmd sable info @n
+wait 2
+wait 80
+log west-5
+abilities west-5
+cmd sable info @n
+wait 2
+key sneak on
+wait 8
+look -90 18
+wait 4
+hit forward-
+usehit forward-
+wait 4
+usehit forward-
+wait 4
+usehit forward-
+wait 4
+key sneak off
+wait 4
+wait 60
+log stop-a
+abilities stop-a
+cmd sable info @n
+wait 2
+wait 80
+log stop-b
+abilities stop-b
+cmd sable info @n
+wait 2
+look -117 36
+wait 4
+hit down+
+usehit down+
+wait 4
+usehit down+
+wait 4
+wait 60
+log down-a
+abilities down-a
+cmd sable info @n
+wait 2
+wait 80
+log down-b
+abilities down-b
+cmd sable info @n
+wait 2
+wait 80
+log down-c
+abilities down-c
+cmd sable info @n
+wait 2
+key sneak on
+wait 8
+look -117 31
+wait 4
+hit down-
+usehit down-
+wait 4
+usehit down-
+wait 4
+key sneak off
+wait 4
+wait 60
+log rest
+abilities rest
+cmd sable info @n
+wait 2
+shot rocket-cross
+wait 5
+quit

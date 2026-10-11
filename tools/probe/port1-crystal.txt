@@ -1,0 +1,30 @@
+waitworld
+wait 100
+strict on
+hud off
+cmd gamemode creative
+cmd weather clear
+cmd packprobe visit 9
+wait 200
+cmd packprobe orbit 9
+wait 300
+nav crystal-orbit-start
+aim track
+wait 60
+shot port1-crystal-descent-start
+aim free
+key sprint on
+key sneak on
+until free 3000
+key sprint off
+key sneak off
+fly off
+until ground 1200
+wait 80
+look 30 8
+abilities crystal-ground
+nav crystal-ground
+shot port1-crystal-ground-day
+cmd save-all flush
+wait 60
+quit

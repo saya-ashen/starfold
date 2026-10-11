@@ -1,0 +1,36 @@
+[
+  {
+    "project": "fabric-api",
+    "version": "0.116.6+1.21.1",
+    "version_id": "9xIK4e8l",
+    "file": {
+      "id": "eDCWkOTj",
+      "hashes": {
+        "sha1": "10d5c7cf5fb309513b4f68b85b1e0d9dccbec9ac",
+        "sha512": "f0ecb1e1c8f1471437c83f4f58e549efecc0ed3f275baa2a64bbb9a26fd8c14365431bf92cf68d8f8055f6ef103fcc863cd75adbbe8be80f7b752fe1c0c3a305"
+      },
+      "url": "https://cdn.modrinth.com/data/P7dR8mSH/versions/9xIK4e8l/fabric-api-0.116.6%2B1.21.1.jar",
+      "filename": "fabric-api-0.116.6+1.21.1.jar",
+      "primary": true,
+      "size": 2424827,
+      "file_type": null
+    }
+  },
+  {
+    "project": "sable",
+    "version": "2.0.5+mc1.21.1",
+    "version_id": "e11C0I1A",
+    "file": {
+      "id": "SZ1P2I1T",
+      "hashes": {
+        "sha512": "1755506757125b76f9aea5675a325765042683819469ffd557f0c2519e055c3a6dd916a8c79a95590e489b764f7fc4430896adc6d4da3b43f9e9c013a72656ec",
+        "sha1": "d1c1d599bd0075a5ef718c8dca92dd593f109d50"
+      },
+      "url": "https://cdn.modrinth.com/data/T9PomCSv/versions/e11C0I1A/sable-fabric-1.21.1-2.0.5.jar",
+      "filename": "sable-fabric-1.21.1-2.0.5.jar",
+      "primary": true,
+      "size": 17159919,
+      "file_type": null
+    }
+  }
+]

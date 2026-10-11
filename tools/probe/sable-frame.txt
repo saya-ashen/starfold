@@ -1,0 +1,48 @@
+# DESTRUCTIVE: disposable devworld-create1 only.
+# An observer who has WALKED over the seam (frame no longer identity) looks at a body assembled in front of them,
+# pushes it, and stands on it.
+waitworld
+wait 100
+waitworld
+cmd gamemode creative
+cmd starfold face 1
+wait 100
+until free 200
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd tp @s 4104.5 180 864.5 90 10
+wait 200
+cmd sable remove @e
+cmd fill 4070 180 858 4116 186 870 air
+cmd fill 4070 179 858 4116 179 870 minecraft:smooth_stone
+wait 10
+fly off
+look 90 10
+key forward on
+wait 62
+key forward off
+wait 20
+log walked
+cmd fill 2035 180 863 2037 182 865 minecraft:red_wool
+wait 20
+look 90 10
+shot frame-wool
+cmd sable assemble area 2035 180 863 2037 182 865
+wait 80
+cmd sable info @l
+log assembled
+shot frame-body
+cmd sable physics impulse @l linear 0 0 60 global
+wait 60
+cmd sable info @l
+shot frame-pushed
+cmd tp @s 2036.5 183.2 866.5 90 30
+wait 60
+log stood
+shot frame-stood
+key forward on
+wait 6
+key forward off
+wait 40
+log stepped
+cmd sable info @l
+quit

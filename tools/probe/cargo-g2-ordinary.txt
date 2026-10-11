@@ -1,0 +1,168 @@
+waitworld
+cmd gamemode creative
+fly off
+cmd execute in starfold:native_planet run tp @s -16384 8192 -16384
+wait 80
+cmd tp @s 5125 140 857
+cmd starfold face 1
+wait 40
+cmd tp @s 5125 180 857
+wait 40
+cmd starfold face 1
+wait 40
+fly on
+cmd tp @s -16384 8192 -16384
+wait 120
+cmd sable info @e
+cmd sable remove @e
+cmd kill @e[tag=cargo]
+wait 40
+cmd sable info @e
+cmd tp @s 5125 180 857
+wait 160
+cmd starfold face 1
+wait 40
+fly on
+cmd tp @s 5125 180 857
+wait 100
+cmd sable info @e
+cmd sable remove @e
+cmd kill @e[tag=cargo]
+wait 40
+cmd sable info @e
+cmd tp @s 5264 180 864
+wait 100
+cmd sable info @e
+cmd sable remove @e
+cmd kill @e[tag=cargo]
+wait 40
+cmd sable info @e
+cmd tp @s 4120.5 202 864.5
+wait 160
+cmd sable info @e
+cmd sable remove @e
+cmd kill @e[tag=cargo]
+wait 60
+cmd sable info @e
+cmd effect give @s minecraft:night_vision infinite 0 true
+check native if dimension starfold:native_planet
+cmd fill ~-10 ~-3 ~-10 ~10 ~-3 ~10 minecraft:smooth_stone
+cmd fill ~-10 ~-2 ~-10 ~10 ~9 ~10 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~2 ~3 minecraft:glass
+cmd fill ~-4 ~-1 ~-2 ~4 ~1 ~2 minecraft:air
+cmd fill ~-5 ~-2 ~-3 ~5 ~-2 ~3 minecraft:spruce_planks
+cmd setblock ~ ~-1 ~3 minecraft:oak_door[half=lower,facing=north,hinge=left]
+cmd setblock ~ ~ ~3 minecraft:oak_door[half=upper,facing=north,hinge=left]
+cmd fill ~-4 ~-2 ~-2 ~4 ~-2 ~2 minecraft:spruce_planks
+cmd setblock ~-2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~-2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~-1 minecraft:iron_block
+cmd setblock ~ ~-2 ~1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~-1 minecraft:iron_block
+cmd setblock ~2 ~-2 ~1 minecraft:iron_block
+cmd setblock ~ ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~ ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:light_blue_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~-2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~2 starfold:thruster[facing=up]
+cmd setblock ~1 ~ ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:brown_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~1 ~-1 ~ simulated:throttle_lever[face=floor,facing=west,inverted=false]{State:0}
+cmd setblock ~1 ~-2 ~ starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~-1 starfold:thruster[facing=down]
+cmd setblock ~1 ~-1 ~1 starfold:thruster[facing=down]
+cmd setblock ~4 ~-1 ~ starfold:thruster[facing=east]
+cmd setblock ~3 ~-1 ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:white_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~-1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~1 starfold:thruster[facing=east]
+cmd setblock ~4 ~ ~1 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:orange_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~ ~ starfold:thruster[facing=east]
+cmd setblock ~-4 ~-1 ~ starfold:thruster[facing=west]
+cmd setblock ~-4 ~ ~ create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:black_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~-3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:red_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-4 ~-1 ~2 starfold:thruster[facing=south]
+cmd setblock ~-3 ~-1 ~2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~4 ~-1 ~-2 starfold:thruster[facing=north]
+cmd setblock ~3 ~-1 ~-2 create:redstone_link[facing=up,receiver=true]{FrequencyFirst:{id:"minecraft:green_wool",count:1},FrequencyLast:{id:"minecraft:stick",count:1}}
+cmd setblock ~-1 ~-1 ~2 starfold:gyro
+cmd setblock ~-1 ~ ~2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-1 ~-1 ~-2 starfold:gyro
+cmd setblock ~-1 ~ ~-2 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock ~-2 ~-1 ~ simulated:linked_typewriter[facing=east]{Keys:[{GLFWKey:87,FirstItem:{id:"minecraft:white_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:83,FirstItem:{id:"minecraft:black_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:65,FirstItem:{id:"minecraft:red_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:68,FirstItem:{id:"minecraft:green_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:32,FirstItem:{id:"minecraft:light_blue_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:340,FirstItem:{id:"minecraft:brown_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}},{GLFWKey:341,FirstItem:{id:"minecraft:orange_wool",count:1},SecondItem:{id:"minecraft:stick",count:1}}]}
+cmd setblock ~2 ~-1 ~ minecraft:chest{Items:[{Slot:0b,id:"minecraft:diamond",count:7},{Slot:13b,id:"minecraft:iron_ingot",count:23},{Slot:26b,id:"minecraft:apple",count:11}]}
+cmd setblock ~-1 ~-2 ~ minecraft:glass
+cmd setblock ~-1 ~-2 ~1 minecraft:glass
+wait 10
+cmd tp @s ~ ~14 ~
+wait 20
+cmd sable assemble area ~-5 ~-16 ~-3 ~5 ~-12 ~3
+wait 160
+cmd sable info @n
+cmd tp @s ~-0.5 ~-14.8 ~0.5
+fly off
+wait 40
+log aboard
+nav aboard
+abilities aboard
+cmd sable info @n
+wait 2
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+useifidle
+wait 20
+requiretypewriter
+find throttle
+wait 6
+hit dial
+throttle ?
+throttle 0
+wait 10
+throttle ?
+wait 4
+cmd summon minecraft:cow ~3 ~ ~-1 {Tags:["cargo"],CustomName:'"cargoCow1"',PersistenceRequired:1b}
+cmd summon minecraft:cow ~3 ~ ~1 {Tags:["cargo"],CustomName:'"cargoCow2"',PersistenceRequired:1b}
+cmd summon minecraft:villager ~-2 ~ ~1 {Tags:["cargo"],CustomName:'"cargoVillager"',PersistenceRequired:1b}
+cmd summon minecraft:armor_stand ~-2 ~ ~-1 {Tags:["cargo"],CustomName:'"cargoStand"'}
+cmd summon minecraft:item ~1 ~ ~-1 {Tags:["cargo"],CustomName:'"cargoIron"',Item:{id:"minecraft:iron_ingot",count:17},PickupDelay:32767s}
+cmd summon minecraft:item ~1 ~ ~1 {Tags:["cargo"],CustomName:'"cargoGold"',Item:{id:"minecraft:gold_ingot",count:19},PickupDelay:32767s}
+cmd summon minecraft:item ~-1 ~ ~1 {Tags:["cargo"],CustomName:'"cargoApple"',Item:{id:"minecraft:apple",count:21},PickupDelay:32767s}
+cmd item replace entity @s weapon.mainhand with minecraft:item_frame
+find glass
+wait 6
+usehit frame-place
+wait 20
+cmd tag @e[type=minecraft:item_frame] add cargo
+cmd execute as @e[type=minecraft:item_frame] run data merge entity @s {CustomName:'"cargoFrame"',Item:{id:"minecraft:emerald",count:1}}
+cmd item replace entity @s weapon.mainhand with minecraft:air
+wait 60
+cargo loaded
+cargowatch 20
+sample 100
+trace on
+find typewriter
+wait 6
+useifidle
+wait 20
+requiretypewriter
+log G2-ordinary-before
+cargo ordinary-before
+press 87 1
+wait 220
+press 87 0
+wait 80
+log G2-ordinary-after
+cargo ordinary-after
+hullblocks ordinary-after
+sample 0
+trace off
+cargowatch 0
+cargo end
+shot cargo-g2-ordinary-G2-end
+wait 40
+quit

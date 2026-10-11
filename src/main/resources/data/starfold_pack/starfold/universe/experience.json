@@ -1,0 +1,63 @@
+{
+  "stars": {
+    "min": 0,
+    "max": 0
+  },
+  "planets": {
+    "min": 1,
+    "max": 1
+  },
+  "star_gap": 49152,
+  "ring": 12288,
+  "density": 0.0,
+  "types": [
+    {
+      "type": "starfold_pack:home",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:rocky",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:ice",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:desert",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:archipelago",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:lush",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:mushroom",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:asteroid",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:basalt",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:crystal",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:end",
+      "weight": 1
+    },
+    {
+      "type": "starfold_pack:warden",
+      "weight": 1
+    }
+  ]
+}

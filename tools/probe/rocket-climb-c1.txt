@@ -1,0 +1,66 @@
+# Disposable COPY of the saved pad world; standing pilot, normal keyboard handler.
+strict
+waitworld
+wait 160
+waitworld
+cmd gamemode creative
+cmd starfold terrain
+wait 80
+cmd tp @s 4147.5 132.6 1014.5 90 52
+fly off
+wait 80
+cmd clear @s
+find typewriter
+wait 6
+hit helm
+usehit helm
+wait 20
+requiretypewriter
+abilities aboard
+cmd sable info @n
+wait 4
+cmd gamemode survival
+wait 40
+trace on
+cargowatch 1
+hullblocks before
+log BEGIN-C1
+abilities BEGIN-C1
+cargo BEGIN-C1
+cmd sable info @n
+press 32 1
+press 341 1
+wait 39
+log C1-2s
+abilities C1-2s
+cargo C1-2s
+cmd sable info @n
+wait 59
+log C1-5s
+abilities C1-5s
+cargo C1-5s
+cmd sable info @n
+wait 99
+log C1-10s
+abilities C1-10s
+cargo C1-10s
+cmd sable info @n
+until region 2000
+log C1-region
+abilities C1-region
+cargo C1-region
+cmd sable info @n
+press 32 0
+press 341 0
+wait 39
+requiretypewriter
+log C1-handover-2s
+abilities C1-handover-2s
+cargo C1-handover-2s
+cmd sable info @n
+hullblocks after
+trace off
+cargowatch 0
+cmd save-all flush
+wait 100
+quit

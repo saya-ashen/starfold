@@ -1,0 +1,35 @@
+waitworld
+loopstate S4b-login
+wait 100
+cmd tp @s 41510.5 118 775.5
+wait 240
+log S4b-at-B-base
+cmd data get block 41510 107 775
+cmd data get block 41510 107 775 Items[{Slot:0b}]
+cmd data get block 41510 107 775 Items[{Slot:5b}]
+cmd data get block 41510 107 775 Items[{Slot:26b}]
+cmd execute if block 41511 117 775 copper_block run say CHECK_S4b_copper_block_PASS
+cmd execute unless block 41511 117 775 copper_block run say CHECK_S4b_copper_block_FAIL
+cmd execute if block 41512 117 775 amethyst_block run say CHECK_S4b_amethyst_block_PASS
+cmd execute unless block 41512 117 775 amethyst_block run say CHECK_S4b_amethyst_block_FAIL
+cmd execute if block 41512 118 775 emerald_block run say CHECK_S4b_emerald_block_PASS
+cmd execute unless block 41512 118 775 emerald_block run say CHECK_S4b_emerald_block_FAIL
+cmd execute if block 41509 107 775 air run say CHECK_S4b_SHAFT_107_PASS
+cmd execute if block 41509 108 775 air run say CHECK_S4b_SHAFT_108_PASS
+cmd execute if block 41509 109 775 air run say CHECK_S4b_SHAFT_109_PASS
+cmd execute if block 41509 110 775 air run say CHECK_S4b_SHAFT_110_PASS
+cmd execute if block 41509 111 775 air run say CHECK_S4b_SHAFT_111_PASS
+cmd execute if block 41509 112 775 air run say CHECK_S4b_SHAFT_112_PASS
+cmd execute if block 41509 113 775 air run say CHECK_S4b_SHAFT_113_PASS
+cmd execute if block 41509 114 775 air run say CHECK_S4b_SHAFT_114_PASS
+cmd execute if block 41509 115 775 air run say CHECK_S4b_SHAFT_115_PASS
+cmd execute if block 41509 116 775 air run say CHECK_S4b_SHAFT_116_PASS
+cmd data get block 41513 117 775
+loopstate S4b-B-check
+wait 240
+cmd data get block 41513 117 775
+loopstate S4b-B-plus240
+cmd save-all flush
+wait 80
+shot space-loop-S4b-base
+quit

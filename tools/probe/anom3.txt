@@ -1,0 +1,35 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd effect give @s minecraft:night_vision infinite 0 true
+cmd starfold nav target a
+cmd tp @s 110 190 1938 45 -10
+wait 3
+fly on
+look 45 -10
+wait 240
+nav near
+shot as-near
+key jump on
+wait 4
+fly on
+until controlled 1500
+until alt> 600 3000
+nav up-600
+shot as-0600
+until alt> 1100 3000
+nav up-1100
+shot as-1100
+until alt> 2000 3000
+nav up-2000
+shot as-2000
+aim track
+wait 40
+shot as-2000-track
+until alt> 4500 3000
+nav up-4500
+shot as-4500-track
+key jump off
+quit

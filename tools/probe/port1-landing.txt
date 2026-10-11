@@ -1,0 +1,24 @@
+waitworld
+wait 100
+strict on
+hud off
+cmd gamemode creative
+cmd weather clear
+cmd packprobe visit 9
+wait 160
+cmd packprobe at 115072.5 500 384.5 fly
+wait 100
+nav landing-start
+key sneak on
+until free 1200
+key sneak off
+fly off
+until ground 1000
+wait 60
+look 30 8
+abilities landing-ground
+nav landing-ground
+shot port1-crystal-landed
+cmd save-all flush
+wait 60
+quit

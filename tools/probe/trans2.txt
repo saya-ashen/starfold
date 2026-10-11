@@ -1,0 +1,182 @@
+waitworld
+wait 40
+cmd starfold terrain
+wait 160
+waitworld
+cmd gamerule doDaylightCycle false
+cmd time set noon
+cmd starfold nav brake off
+cmd starfold nav target a
+cmd starfold nav land on
+wait 20
+aim track
+key sprint on
+key forward on
+until alt< 3000 4000
+key sprint off
+until alt< 500 3000
+key forward off
+aim free
+look 30 35
+key sneak on
+until alt< 300 3000
+nav dn-300
+shot lo-d300
+until alt< 260 3000
+nav dn-260
+shot lo-d260
+until alt< 230 3000
+nav dn-230
+shot lo-d230
+until alt< 215 3000
+nav dn-215
+shot lo-d215
+until alt< 205 3000
+nav dn-205
+shot lo-d205
+until alt< 195 3000
+nav dn-195
+shot lo-d195
+until alt< 185 3000
+nav dn-185
+shot lo-d185
+until alt< 178 3000
+nav dn-178
+shot lo-d178
+until alt< 172 3000
+nav dn-172
+shot lo-d172
+until alt< 166 3000
+nav dn-166
+shot lo-d166
+until alt< 160 3000
+nav dn-160
+shot lo-d160
+until alt< 154 3000
+nav dn-154
+shot lo-d154
+until alt< 148 3000
+nav dn-148
+shot lo-d148
+until alt< 142 3000
+nav dn-142
+shot lo-d142
+until alt< 136 3000
+nav dn-136
+shot lo-d136
+until alt< 130 3000
+nav dn-130
+shot lo-d130
+until alt< 120 3000
+nav dn-120
+shot lo-d120
+until alt< 110 3000
+nav dn-110
+shot lo-d110
+until alt< 100 3000
+nav dn-100
+shot lo-d100
+until alt< 90 3000
+nav dn-90
+shot lo-d090
+until alt< 80 3000
+nav dn-80
+shot lo-d080
+until alt< 70 3000
+nav dn-70
+shot lo-d070
+until alt< 60 3000
+nav dn-60
+shot lo-d060
+until alt< 50 3000
+nav dn-50
+shot lo-d050
+until alt< 40 3000
+nav dn-40
+shot lo-d040
+until ground 3000
+key sneak off
+fly off
+wait 60
+nav ground
+shot lo-ground
+key jump on
+wait 4
+fly on
+until alt> 40 3000
+nav up-40
+shot lo-u040
+until alt> 50 3000
+nav up-50
+shot lo-u050
+until alt> 60 3000
+nav up-60
+shot lo-u060
+until alt> 70 3000
+nav up-70
+shot lo-u070
+until alt> 80 3000
+nav up-80
+shot lo-u080
+until alt> 90 3000
+nav up-90
+shot lo-u090
+until alt> 100 3000
+nav up-100
+shot lo-u100
+until alt> 110 3000
+nav up-110
+shot lo-u110
+until alt> 120 3000
+nav up-120
+shot lo-u120
+until alt> 130 3000
+nav up-130
+shot lo-u130
+until alt> 136 3000
+nav up-136
+shot lo-u136
+until alt> 142 3000
+nav up-142
+shot lo-u142
+until alt> 148 3000
+nav up-148
+shot lo-u148
+until alt> 154 3000
+nav up-154
+shot lo-u154
+until alt> 160 3000
+nav up-160
+shot lo-u160
+until alt> 166 3000
+nav up-166
+shot lo-u166
+until alt> 172 3000
+nav up-172
+shot lo-u172
+until alt> 178 3000
+nav up-178
+shot lo-u178
+until alt> 185 3000
+nav up-185
+shot lo-u185
+until alt> 195 3000
+nav up-195
+shot lo-u195
+until alt> 205 3000
+nav up-205
+shot lo-u205
+until alt> 215 3000
+nav up-215
+shot lo-u215
+until alt> 230 3000
+nav up-230
+shot lo-u230
+until alt> 260 3000
+nav up-260
+shot lo-u260
+until alt> 300 3000
+nav up-300
+shot lo-u300
+key jump off
+quit
