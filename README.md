@@ -4,7 +4,7 @@
 
 A Minecraft 1.21.1 NeoForge mod in which planets are closed, six-faced worlds built from real vanilla chunks. You walk
 over a face edge without a teleport or a reload, several planets and suns share one dimension, and you fly between
-them in ships built with [Sable](https://modrinth.com/mod/sable).
+them without a loading screen, in a ship built with Create and Create Aeronautics or on a thruster pack.
 
 **Status: alpha.** Development targets single-player; multiplayer and compatibility with other mods are not a goal
 yet. Saves are not kept compatible between versions, so back up before updating.
@@ -16,9 +16,11 @@ yet. Saves are not kept compatible between versions, so back up before updating.
 - Planets of different sizes, with depth scaled to size, caves, ores, biomes and structures.
 - Star systems with suns, orbits, spin and day and night, defined in datapacks: see
   [docs/DATAPACKS.md](docs/DATAPACKS.md) (Chinese).
-- Space flight on Sable ships: helm, thrusters, navigation scope, airstair and aircraft dock blocks.
-- You build your own ship to leave the ground: that is the main way to play. The experience world preset also
-  places a ready-made starter ship at spawn as a shortcut.
+- Space flight for ships built with Create and Create Aeronautics: Starfold adds the ship controller, thrusters,
+  booster, gyro, navigation scopes, airstair and aircraft dock. Without those mods, the thruster pack still takes
+  you to space on your own.
+- Leaving the ground is up to you: build a ship, or craft a thruster pack. The experience world preset also places
+  a ready-made starter ship at spawn as a shortcut.
 - The eight corners of every planet are fold points that keep players out. The setting behind them is in
   [docs/LORE.md](docs/LORE.md).
 
@@ -29,7 +31,7 @@ yet. Saves are not kept compatible between versions, so back up before updating.
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.247 or newer |
 | Sable | 2.0.5 (required) |
-| Create, Create Aeronautics | optional; the experience preset needs both |
+| Create, Create Aeronautics | needed to build ships and for the experience preset |
 | Immersive Aircraft | optional; adds an aircraft to the starter ship |
 
 Planet rendering needs the vanilla renderer: shader packs are not supported. The mod declares itself incompatible
