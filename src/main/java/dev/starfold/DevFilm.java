@@ -18,7 +18,10 @@ final class DevFilm {
     private static Process encoder;
     private static OutputStream out;
     private static ByteBuffer pixels;
-    private static byte[] frame;
+    private record Frame(byte[] bytes, int times) {}
+    private static java.util.concurrent.ArrayBlockingQueue<Frame> queue;
+    private static java.util.concurrent.ArrayBlockingQueue<byte[]> spare;
+    private static Thread writer;
     private static String name;
     private static int width, height, fps;
     private static long start, written;
@@ -45,7 +48,16 @@ final class DevFilm {
         } catch (java.io.IOException error) { throw new IllegalStateException("film: cannot start the encoder", error); }
         out = new java.io.BufferedOutputStream(encoder.getOutputStream(), 1 << 20);
         pixels = org.lwjgl.BufferUtils.createByteBuffer(width * height * 4);
-        frame = new byte[width * height * 4];
+        // Writing to the encoder happens off the render thread: a full pipe would otherwise stall a frame, and a stalled frame is filmed twice.
+        queue = new java.util.concurrent.ArrayBlockingQueue<>(6); spare = new java.util.concurrent.ArrayBlockingQueue<>(6);
+        for (int i = 0; i < 6; i++) spare.add(new byte[width * height * 4]);
+        var stream = out; var frames = queue; var free = spare;
+        writer = new Thread(() -> {
+            try {
+                for (var next = frames.take(); next.times() > 0; next = frames.take()) { for (int n = 0; n < next.times(); n++) stream.write(next.bytes()); free.offer(next.bytes()); }
+            } catch (java.io.IOException | InterruptedException error) { org.slf4j.LoggerFactory.getLogger("starfold-probe").error("PROBE FILM write failed", error); }
+        }, "starfold-film");
+        writer.setDaemon(true); writer.start();
         written = 0; start = System.nanoTime();
         org.slf4j.LoggerFactory.getLogger("starfold-probe").info("PROBE FILM start {} {}x{} {} fps", name, width, height, fps);
     }
@@ -62,21 +74,22 @@ final class DevFilm {
         pixels.clear();
         GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
         GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, 0);
+        var frame = spare.poll();
+        if (frame == null) return; // the encoder is behind: this moment is covered by repeating the next frame that gets through
         pixels.get(0, frame);
-        try {
-            for (long n = Math.min(due - written, 8); n > 0; n--) out.write(frame);
-            written = due;
-        } catch (java.io.IOException error) { org.slf4j.LoggerFactory.getLogger("starfold-probe").error("PROBE FILM write failed", error); out = null; }
+        int times = (int) Math.min(due - written, 8);
+        if (queue.offer(new Frame(frame, times))) written += times; else spare.offer(frame);
     }
 
     static void stop() {
         if (encoder == null) return;
         try {
+            if (writer != null) { queue.put(new Frame(new byte[0], 0)); writer.join(60_000); }
             if (out != null) out.close(); else encoder.getOutputStream().close();
             if (!encoder.waitFor(60, TimeUnit.SECONDS)) encoder.destroyForcibly();
         } catch (java.io.IOException | InterruptedException error) { encoder.destroyForcibly(); }
         org.slf4j.LoggerFactory.getLogger("starfold-probe").info("PROBE FILM stop {} frames {} seconds {}", name, written, String.format(java.util.Locale.ROOT, "%.1f", written / (double) fps));
-        encoder = null; out = null; pixels = null; frame = null;
+        encoder = null; out = null; pixels = null; queue = null; spare = null; writer = null;
     }
 
     private DevFilm() {}

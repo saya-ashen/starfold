@@ -6,6 +6,8 @@ license="MIT"
 modId="starfold"
 version="${version}"
 displayName="Starfold"
+logoFile="starfold_icon.png"
+logoBlur=false
 description='''Planets you can walk all the way around, built from real Minecraft chunks, and a sea of stars to cross between them. Build a ship with Sable, leave the ground and fly to another planet. Suns, planets and planet types can be defined in datapacks. Planets need the vanilla renderer: shader packs are not supported.'''
 
 [[mixins]]
@@ -28,7 +30,7 @@ side="BOTH"
 [[dependencies.starfold]]
 modId="sable"
 type="required"
-versionRange="[2.0.5]"
+versionRange="[2.0.5,2.0.6]"
 ordering="NONE"
 side="BOTH"
 

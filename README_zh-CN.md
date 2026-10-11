@@ -23,7 +23,7 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 |---|---|
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.247 或更新 |
-| Sable | 2.0.5（必需） |
+| Sable | 2.0.5 或 2.0.6（必需） |
 | 机械动力（Create）、机械动力：航空学（Create Aeronautics） | 造船和体验包预设需要 |
 | Immersive Aircraft | 可选；给起始飞船加一架飞行器 |
 

@@ -31,7 +31,7 @@ final class DevPlanetPackProbe {
                 int id=Integer.parseInt(a[1]);var shape=NativePlanetShape.of(id);var site=NativePlanetSpawn.site(level,id,a.length>2?Integer.parseInt(a[2]):Face.SOUTH.ordinal());
                 if(a[0].equals("visit")){sites.clear();noon(p,BlockPos.containing(site.x(),site.y(),site.z()),id);}
                 var pose=NativePlanetAccess.of(level).body(site);boolean orbit=!a[0].equals("visit");
-                if(orbit)pose=new NativeGroundTopology.Pose(pose.face(),new Point(shape.half(),128+(a[0].equals("descent")?1530:shape.radius()*3.7),shape.half()));
+                if(orbit)pose=new NativeGroundTopology.Pose(pose.face(),new Point(shape.half(),128+(a[0].equals("descent")?1530:shape.radius()*(a.length>3?Double.parseDouble(a[3]):3.7)),shape.half()));
                 var state=NativeGroundDynamics.local(clock.clock.tick(),id,pose,GroundEphemeris.ZERO,NativeGroundCamera.capture(0,15),orbit,new GroundGuidance.Options(id,true,false));
                 p.getAbilities().flying=orbit;p.onUpdateAbilities();NativeGroundFlightServer.enter(p,clock,state);
                 LOG.info("PROBE PACK VISIT id {} size {} seed {} site {} orbit {} elevation {} oceanGridShare {} generated {} nanos {}",id,shape.size(),gen.planet(id).seed(),site,orbit,NativeGroundDaylight.elevation(level,BlockPos.containing(site.x(),site.y(),site.z())),gen.planet(id).terrain().oceanShare(),NativeSystemChunkGenerator.GENERATED.sum(),NativeSystemChunkGenerator.NANOS.sum());

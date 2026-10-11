@@ -30,7 +30,7 @@ yet. Saves are not kept compatible between versions, so back up before updating.
 |---|---|
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.247 or newer |
-| Sable | 2.0.5 (required) |
+| Sable | 2.0.5 or 2.0.6 (required) |
 | Create, Create Aeronautics | needed to build ships and for the experience preset |
 | Immersive Aircraft | optional; adds an aircraft to the starter ship |
 
