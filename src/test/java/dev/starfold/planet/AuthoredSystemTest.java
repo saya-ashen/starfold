@@ -110,6 +110,35 @@ class AuthoredSystemTest {
                 .getOrThrow();
     }
 
+    /** The reference is kept in two languages: both must show the same files, and neither may lose a section. */
+    @Test
+    void bothLanguagesOfTheReferenceShowTheSameExamplesAndSections() throws Exception {
+        var english = java.nio.file.Files.readString(java.nio.file.Path.of("docs/DATAPACKS.md"));
+        var chinese =
+                java.nio.file.Files.readString(java.nio.file.Path.of("docs/DATAPACKS_zh-CN.md"));
+        var block =
+                java.util.regex.Pattern.compile(
+                        "```json\\s*\\n(.*?)\\n```", java.util.regex.Pattern.DOTALL);
+        var heading = java.util.regex.Pattern.compile("(?m)^(#{1,4}) ");
+        assertEquals(
+                block.matcher(english).results().map(m -> m.group(1)).toList(),
+                block.matcher(chinese).results().map(m -> m.group(1)).toList());
+        assertEquals(9, block.matcher(english).results().count());
+        assertEquals(
+                heading.matcher(english).results().map(m -> m.group(1)).toList(),
+                heading.matcher(chinese).results().map(m -> m.group(1)).toList());
+        assertFalse(
+                english.codePoints()
+                        .anyMatch(
+                                c ->
+                                        c >= 0x4E00
+                                                && c <= 0x9FFF
+                                                && c != '简'
+                                                && c != '体'
+                                                && c != '中'
+                                                && c != '文'));
+    }
+
     @Test
     void theExamplePackIsCopiedExactlyAndDecodesWithoutJavaPresetRegistration() throws Exception {
         try (var files =
@@ -123,7 +152,9 @@ class AuthoredSystemTest {
                                                 .relativize(file))));
         }
         var text = java.nio.file.Files.readString(java.nio.file.Path.of("docs/DATAPACKS.md"));
-        text = text.substring(text.indexOf("### 完整示例包：两颗太阳、五颗行星"), text.indexOf("### 让新世界使用它"));
+        text =
+                text.substring(
+                        text.indexOf("## Example 2:"), text.indexOf("### Using it in a new world"));
         var blocks =
                 java.util.regex.Pattern.compile(
                                 "#### `([^`]+)`\\s*```json\\s*\\n(.*?)\\n```",

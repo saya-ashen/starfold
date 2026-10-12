@@ -15,7 +15,7 @@ yet. Saves are not kept compatible between versions, so back up before updating.
   terrain is loaded the vanilla way, including across face edges; a far view covers what lies beyond view distance.
 - Planets of different sizes, with depth scaled to size, caves, ores, biomes and structures.
 - Star systems with suns, orbits, spin and day and night, defined in datapacks: see
-  [docs/DATAPACKS.md](docs/DATAPACKS.md) (Chinese).
+  [docs/DATAPACKS.md](docs/DATAPACKS.md).
 - Space flight for ships built with Create and Create Aeronautics: Starfold adds the ship controller, thrusters,
   booster, gyro, navigation scopes, airstair and aircraft dock. Without those mods, the thruster pack still takes
   you to space on your own.
@@ -81,7 +81,7 @@ those mods skip that check when the directory is absent.
   - `waypoint`: marks and navigation to them.
   - `dev`: development probes, inert in normal play.
   - `mixin`: every mixin.
-- `docs/DATAPACKS.md`: the datapack interface; tests read its examples.
+- `docs/DATAPACKS.md`: the reference for datapack authors, also in Chinese; tests read its examples.
 - `tools/ship`: generators for the starter ship structures and block resources.
 - `tools/probe`: scripted in-game checks for the development client, see [tools/probe/README.md](tools/probe/README.md).
   The launch scripts are written for the maintainer's Linux setup.

@@ -152,7 +152,7 @@ public class PlanetTypeTest {
     @Test
     void theDocumentedPackNamesItsOwnTypeAndLayoutAndMakesANewSystem() throws Exception {
         var text = Files.readString(Path.of("docs/DATAPACKS.md"));
-        text = text.substring(text.indexOf("## 完整最小示例：灰岩类型与新世界"), text.indexOf("## 已有世界：保存了什么"));
+        text = text.substring(text.indexOf("## Example 1:"), text.indexOf("## Star systems"));
         var blocks =
                 java.util.regex.Pattern.compile(
                                 "```json\\s*\\n(.*?)\\n```", java.util.regex.Pattern.DOTALL)
