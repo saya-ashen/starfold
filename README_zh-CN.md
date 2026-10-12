@@ -45,16 +45,31 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 
 ```
 ./gradlew build                  # JAR 在 build/libs，并运行全部测试
-./gradlew nativeTest             # 较快的星球回归测试
 ./gradlew packagedContractTest   # 对照 Minecraft 检查已构建 JAR 的每个 mixin
 ./gradlew runClient              # 开发客户端，游戏目录为 run/
 ```
+
+Java 源码用 google-java-format 1.28.0 的 AOSP 风格格式化
+（`--aosp --skip-reflowing-long-strings --skip-javadoc-formatting`），手动运行，不接入构建。
 
 开发客户端用的可选模组放在 `run/mods`，该目录不纳入版本管理。检查这些模组物品 ID 的测试在目录不存在时跳过这项检查。
 
 ## 仓库结构
 
-- `src/main`、`src/test`：模组及其测试。
+- `src/main`、`src/test`：模组及其测试。代码位于 `dev.starfold`，每个子系统一个包（测试与被测代码同包）：
+  - `geometry`：立方体表面、各面与接缝的纯数学，不含 Minecraft 类型。
+  - `chart`：观察者从地面到轨道看到的星球投影。
+  - `planet`：星球的形状、存储、星系与宇宙，以及星核和折点。
+  - `worldgen`：地形、群系、矿物与区块生成器。
+  - `sky`：太阳、轨道、时钟、昼夜与天气。
+  - `ground`：在一个面上生活的服务端部分：接缝、区块视图、按观察者改写的数据包、光照。
+  - `render`：客户端的星球远景、其他星球与着色器补丁。
+  - `flight`：个人飞行、其 HUD，以及供其他模组授予的飞行许可。
+  - `space`：星球之间的太空区域。
+  - `ship`：与 Sable 船体有关的一切：舵、推进器、着陆、登船梯、停机位、起始飞船。
+  - `waypoint`：标记点及其导航。
+  - `dev`：开发探针，正常游玩时不生效。
+  - `mixin`：全部 mixin。
 - `docs/DATAPACKS.md`：数据包接口；测试会读取其中的示例。
 - `tools/ship`：起始飞船结构和方块资源的生成器。
 - `tools/probe`：开发客户端的脚本化游戏内检查，见 [tools/probe/README.md](tools/probe/README.md)。启动脚本按维护者的

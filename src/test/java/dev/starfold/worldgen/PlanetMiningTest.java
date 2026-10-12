@@ -1,0 +1,442 @@
+package dev.starfold.worldgen;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.mojang.serialization.*;
+
+import dev.starfold.Sources;
+import dev.starfold.geometry.CubeSurfaceTopology;
+import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetPackets;
+import dev.starfold.render.GroundChunkSnapshot;
+
+import net.minecraft.core.*;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.*;
+import net.minecraft.world.level.*;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.dimension.*;
+import net.minecraft.world.level.levelgen.*;
+
+import org.junit.jupiter.api.*;
+
+import java.nio.file.*;
+import java.util.*;
+
+class PlanetMiningTest {
+    final PlanetTerrainTest fixture = new PlanetTerrainTest();
+    final PlanetTerrain mining = new PlanetTerrain(PlanetTerrain.TEST_SEED, 3);
+
+    @BeforeAll
+    static void boot() {
+        PlanetTerrainTest.registry();
+    }
+
+    PlanetChunkGenerator generator(int version) {
+        var old = fixture.generator(PlanetTerrain.TEST_SEED);
+        return new PlanetChunkGenerator(old.settings(), old.seed(), version);
+    }
+
+    @Test
+    void defaultAndExistingWorldsRemainStrictVersionTwo() {
+        assertEquals(2, new PlanetTerrain(1).version());
+        var old = generator(2);
+        assertEquals(2, old.version());
+        for (var f : Face.values())
+            for (int x = 512; x <= 1536; x += 256)
+                for (int z = 512; z <= 1536; z += 256) {
+                    int ground = old.terrain().groundY(f, x, z);
+                    for (int y = -64; y < 320; y++)
+                        assertSame(old.terrain().state(ground, y), old.terrain().state(f, x, y, z));
+                }
+    }
+
+    @Test
+    void surfaceMountainOceanAndRoofAreUnchanged() {
+        var old = new PlanetTerrain(mining.seed());
+        for (var f : Face.values())
+            for (int x = 128; x < 2048; x += 128)
+                for (int z = 128; z < 2048; z += 128) {
+                    int ground = old.groundY(f, x, z);
+                    assertEquals(ground, mining.groundY(f, x, z));
+                    var col = mining.column(f, x, z);
+                    for (int y = ground - 3; y < 320; y++)
+                        assertSame(old.state(ground, y), col.state(y));
+                    assertTrue(col.state(-64).is(Blocks.BEDROCK));
+                    for (int y = -63; y <= -60; y++) assertFalse(col.state(y).isAir());
+                }
+    }
+
+    @Test
+    void sixRealProtoChunksContainCavesAndAllSevenOres() throws Exception {
+        var g = generator(3);
+        var counts = new TreeMap<String, Integer>();
+        int air = 0, solid = 0;
+        long start = System.nanoTime();
+        for (var f : Face.values()) {
+            var chunk = fixture.chunk(g, f.ordinal() * 256 + 64, 64);
+            for (int x = 0; x < 16; x++)
+                for (int z = 0; z < 16; z++) {
+                    int ground = mining.groundY(f, 1024 + x, 1024 + z);
+                    for (int y = -59; y < ground - 5; y++) {
+                        var state =
+                                chunk.getBlockState(
+                                        new BlockPos(f.ordinal() * 4096 + 1024 + x, y, 1024 + z));
+                        if (state.isAir()) air++;
+                        else {
+                            solid++;
+                            var id =
+                                    net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                                            .getKey(state.getBlock())
+                                            .getPath();
+                            if (id.endsWith("_ore"))
+                                counts.merge(id.replace("deepslate_", ""), 1, Integer::sum);
+                        }
+                    }
+                }
+        }
+        assertEquals(
+                Set.of(
+                        "coal_ore",
+                        "iron_ore",
+                        "copper_ore",
+                        "gold_ore",
+                        "redstone_ore",
+                        "lapis_ore",
+                        "diamond_ore"),
+                counts.keySet());
+        assertTrue(air > 500 && air < solid / 2);
+        var out = Path.of("build/native-mining");
+        Files.createDirectories(out);
+        Files.writeString(
+                out.resolve("reproduction.json"),
+                "{\"gpu_verified\":false,\"old_version\":2,\"new_version\":3,\"six_chunk_cave_air\":"
+                        + air
+                        + ",\"six_chunk_solid\":"
+                        + solid
+                        + ",\"ore_types\":"
+                        + counts.size()
+                        + ",\"generation_ms\":"
+                        + (System.nanoTime() - start) / 1000000
+                        + ",\"ore_counts\":"
+                        + new com.google.gson.Gson().toJson(counts)
+                        + "}\n");
+    }
+
+    @Test
+    void tunnelsHaveSomeWalkableSpacesNotOnlySingleCellSpeckles() {
+        var g = generator(3);
+        int cubes = 0;
+        for (var face : Face.values()) {
+            var chunk = fixture.chunk(g, face.ordinal() * 256 + 64, 64);
+            for (int x = 0; x < 14; x++)
+                for (int z = 0; z < 14; z++)
+                    for (int y = -58; y < 100; y++) {
+                        boolean open = true;
+                        for (int dx = 0; dx < 2; dx++)
+                            for (int dz = 0; dz < 2; dz++)
+                                for (int dy = 0; dy < 3; dy++)
+                                    open &=
+                                            chunk.getBlockState(
+                                                            new BlockPos(
+                                                                    face.ordinal() * 4096
+                                                                            + 1024
+                                                                            + x
+                                                                            + dx,
+                                                                    y + dy,
+                                                                    1024 + z + dz))
+                                                    .isAir();
+                        if (open) cubes++;
+                    }
+        }
+        assertTrue(cubes > 0, "Need some 2x2x3 space, not single-cell speckle");
+    }
+
+    @Test
+    void wholeColumnQueriesAndBothHeightmapsAgreeWithActualGeneratedVoxels() {
+        var g = generator(3);
+        for (var f : Face.values()) {
+            var chunk = fixture.chunk(g, f.ordinal() * 256 + 64, 64);
+            for (int x = 0; x < 16; x += 3)
+                for (int z = 0; z < 16; z += 3) {
+                    int wx = chunk.getPos().getMinBlockX() + x, wz = 1024 + z;
+                    var column = g.getBaseColumn(wx, wz, PlanetTerrainTest.HEIGHT, null);
+                    for (int y = -64; y < 320; y++)
+                        assertSame(
+                                column.getBlock(y), chunk.getBlockState(new BlockPos(wx, y, wz)));
+                    for (var type :
+                            List.of(
+                                    Heightmap.Types.WORLD_SURFACE_WG,
+                                    Heightmap.Types.OCEAN_FLOOR_WG))
+                        assertEquals(
+                                chunk.getHeight(type, x, z) + 1,
+                                g.getBaseHeight(wx, wz, type, PlanetTerrainTest.HEIGHT, null));
+                }
+        }
+    }
+
+    @Test
+    void generatedChunkOrderAndRepeatedQueriesCannotChangeMaterial() {
+        var a = generator(3);
+        var b = generator(3);
+        var first = fixture.values(fixture.chunk(a, 64, 64));
+        fixture.chunk(a, 65, 64);
+        fixture.chunk(b, 65, 64);
+        assertArrayEquals(first, fixture.values(fixture.chunk(b, 64, 64)));
+        assertArrayEquals(first, fixture.values(fixture.chunk(a, 64, 64)));
+    }
+
+    @Test
+    void canonicalAliasesReadTheSameVoxelOnAllDirectedSeams() {
+        var topology = new CubeSurfaceTopology(2048);
+        int directed = 0;
+        for (var f : Face.values())
+            for (int[] edge : new int[][] {{-1, 1024}, {2048, 1024}, {1024, -1}, {1024, 2048}}) {
+                var c =
+                        topology.canonical(new CubeSurfaceTopology.Cell(f, edge[0], 0, edge[1]))
+                                .cell();
+                for (int y = -64; y < 320; y += 7)
+                    assertSame(
+                            mining.state(c.face(), c.u(), y, c.v()),
+                            mining.state(f, edge[0], y, edge[1]));
+                directed++;
+            }
+        assertEquals(24, directed);
+    }
+
+    @Test
+    void seamsAndTripleCornersUseOneGlobalDensityNotFaceSeed() {
+        var u = new PlanetUnderground(mining);
+        for (var f : Face.values())
+            for (int[] edge :
+                    new int[][] {
+                        {0, 1024}, {2048, 1024}, {1024, 0}, {1024, 2048}, {0, 0}, {2048, 2048}
+                    }) {
+                var cube =
+                        f.normal
+                                .scale(1024)
+                                .add(f.u.scale(edge[0] - 1024))
+                                .add(f.v.scale(edge[1] - 1024));
+                for (var other : Face.values())
+                    if (other != f && cube.dot(other.normal) == 1024) {
+                        var d = PlanetTerrain.direction(f, edge[0], edge[1]);
+                        var e =
+                                PlanetTerrain.direction(
+                                        other, 1024 + cube.dot(other.u), 1024 + cube.dot(other.v));
+                        for (int y = -59; y < 120; y += 13) {
+                            assertEquals(u.sample(d, y), u.sample(e, y));
+                            assertSame(
+                                    u.state(u.sample(d, y), 140, y),
+                                    u.state(u.sample(e, y), 140, y));
+                        }
+                    }
+            }
+    }
+
+    @Test
+    void oceanBottomAndBedrockCannotBePuncturedByCaves() {
+        for (var f : Face.values())
+            for (int x = 64; x < 2048; x += 256)
+                for (int z = 64; z < 2048; z += 256) {
+                    var col = mining.column(f, x, z);
+                    for (int y = col.ground() - 5; y <= col.ground(); y++)
+                        assertFalse(col.state(y).isAir());
+                    if (col.ground() < 128)
+                        for (int y = col.ground() + 1; y < 128; y++)
+                            assertTrue(col.state(y).getFluidState().isSource());
+                    assertTrue(col.state(-65).isAir());
+                    assertTrue(col.state(-64).is(Blocks.BEDROCK));
+                }
+    }
+
+    @Test
+    void baselineIndexDoesNotMisclassifyGeneratedOresOrCavesAsBuildings() {
+        var g = generator(3);
+        var chunk = fixture.chunk(g, 64, 64);
+        var states = fixture.values(chunk);
+        var image = GroundChunkSnapshot.fromStates(0, 64, 64, 1, states);
+        assertTrue(g.terrain().matches(image));
+        assertFalse(new PlanetTerrain(g.seed(), 2).matches(image));
+        states[16 * 16 * (250 + 64)] =
+                Block.BLOCK_STATE_REGISTRY.getId(Blocks.GOLD_BLOCK.defaultBlockState());
+        assertFalse(g.terrain().matches(GroundChunkSnapshot.fromStates(0, 64, 64, 2, states)));
+    }
+
+    @Test
+    void laterSurfaceStageNeverRepaintsBuildingOrMine() {
+        var g = generator(3);
+        var chunk = fixture.chunk(g, 64, 64);
+        var pos = new BlockPos(1024, 50, 1024);
+        chunk.setBlockState(pos, Blocks.CHEST.defaultBlockState(), false);
+        g.buildSurface(null, null, null, chunk);
+        assertTrue(chunk.getBlockState(pos).is(Blocks.CHEST));
+    }
+
+    @Test
+    void versionThreeProfileRoundTripsAndClientUsesItsActualVersion() throws Exception {
+        var raw = io.netty.buffer.Unpooled.buffer();
+        try {
+            var buf = new net.minecraft.network.RegistryFriendlyByteBuf(raw, RegistryAccess.EMPTY);
+            var profile = new PlanetPackets.Profile(9, Long.MIN_VALUE, 3);
+            PlanetPackets.Profile.CODEC.encode(buf, profile);
+            assertEquals(profile, PlanetPackets.Profile.CODEC.decode(buf));
+        } finally {
+            raw.release();
+        }
+        assertTrue(
+                Sources.text("GroundViewClient")
+                        .contains("packet.seed(),packet.version(),packet.generation()"));
+        assertTrue(
+                Sources.text("GroundViewServer")
+                        .contains("PlanetPackets.Profile.of(v.session,generator)"));
+    }
+
+    @Test
+    void generatorEncodingPinsBothOldAndMiningVersion() {
+        assertEquals(2, generator(2).version());
+        assertEquals(3, generator(3).version());
+        assertThrows(IllegalArgumentException.class, () -> generator(4));
+        var lookup = net.minecraft.data.registries.VanillaRegistries.createLookup();
+        var features =
+                new MappedRegistry<net.minecraft.world.level.levelgen.placement.PlacedFeature>(
+                        Registries.PLACED_FEATURE, Lifecycle.stable());
+        for (var key :
+                List.of(
+                        net.minecraft.data.worldgen.placement.MiscOverworldPlacements
+                                .LAKE_LAVA_SURFACE,
+                        net.minecraft.data.worldgen.placement.MiscOverworldPlacements
+                                .LAKE_LAVA_UNDERGROUND))
+            Registry.register(
+                    features,
+                    key,
+                    lookup.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(key).value());
+        var access =
+                new RegistryAccess.ImmutableRegistryAccess(
+                                List.of(PlanetTerrainTest.biomes, features.freeze()))
+                        .freeze();
+        var ops = RegistryOps.create(JsonOps.INSTANCE, access);
+        for (int version : new int[] {2, 3}) {
+            var g = generator(version);
+            var json = PlanetChunkGenerator.CODEC.codec().encodeStart(ops, g).getOrThrow();
+            assertEquals(version, json.getAsJsonObject().get("terrain_version").getAsInt());
+            var saved = PlanetChunkGenerator.CODEC.codec().parse(ops, json).getOrThrow();
+            assertEquals(version, saved.version());
+            assertEquals(g.seed(), saved.seed());
+            assertSame(
+                    g.terrain().state(Face.TOP, 1024, 20, 1024),
+                    saved.terrain().state(Face.TOP, 1024, 20, 1024));
+        }
+    }
+
+    @Test
+    void explicitPresetChoiceSurvivesMinecraftBakeWithoutUpgradingOldDimensions() {
+        var lookup = net.minecraft.data.registries.VanillaRegistries.createLookup();
+        var type =
+                lookup.lookupOrThrow(Registries.DIMENSION_TYPE)
+                        .getOrThrow(BuiltinDimensionTypes.OVERWORLD);
+        var key = ResourceKey.create(Registries.LEVEL_STEM, GroundServer.PLANET.location());
+        var old = new LevelStem(type, generator(2));
+        var fresh = new LevelStem(type, generator(3));
+        var overworld = new LevelStem(type, generator(2));
+        var registry = new MappedRegistry<LevelStem>(Registries.LEVEL_STEM, Lifecycle.stable());
+        Registry.register(registry, LevelStem.OVERWORLD, overworld);
+        Registry.register(registry, key, old);
+        var frozen = registry.freeze();
+        var oldDimensions = new WorldDimensions(Map.of(LevelStem.OVERWORLD, overworld, key, old));
+        assertSame(frozen, PlanetWorldPreset.registryFor(oldDimensions, frozen));
+        assertSame(old, oldDimensions.bake(frozen).dimensions().get(key));
+        var chosen = new WorldDimensions(Map.of(LevelStem.OVERWORLD, overworld, key, fresh));
+        var adjusted = PlanetWorldPreset.registryFor(chosen, frozen);
+        assertSame(fresh, chosen.bake(adjusted).dimensions().get(key));
+        assertSame(old, frozen.get(key));
+        assertSame(
+                frozen,
+                PlanetWorldPreset.registryFor(
+                        new WorldDimensions(Map.of(LevelStem.OVERWORLD, overworld)), frozen));
+    }
+
+    @Test
+    void onlyOptInNewWorldPresetContainsVersionThree() throws Exception {
+        var root = Path.of("src/main/resources");
+        var parser = new com.google.gson.Gson();
+        var defaults =
+                parser.fromJson(
+                        Files.readString(
+                                root.resolve("data/starfold/dimension/native_planet.json")),
+                        com.google.gson.JsonObject.class);
+        assertEquals(2, defaults.getAsJsonObject("generator").get("terrain_version").getAsInt());
+        var preset =
+                parser.fromJson(
+                        Files.readString(
+                                root.resolve(
+                                        "data/starfold/worldgen/world_preset/native_mining.json")),
+                        com.google.gson.JsonObject.class);
+        assertEquals(
+                3,
+                preset.getAsJsonObject("dimensions")
+                        .getAsJsonObject("starfold:native_planet")
+                        .getAsJsonObject("generator")
+                        .get("terrain_version")
+                        .getAsInt());
+        assertTrue(
+                Files.readString(root.resolve("starfold.mixins.json"))
+                        .contains("PlanetWorldPresetMixin"));
+        var base = net.minecraft.data.registries.VanillaRegistries.createLookup();
+        var types =
+                new MappedRegistry<DimensionType>(Registries.DIMENSION_TYPE, Lifecycle.stable());
+        base.lookupOrThrow(Registries.DIMENSION_TYPE)
+                .listElements()
+                .forEach(h -> Registry.register(types, h.key(), h.value()));
+        var nativeType =
+                DimensionType.DIRECT_CODEC
+                        .parse(
+                                JsonOps.INSTANCE,
+                                com.google.gson.JsonParser.parseString(
+                                        Files.readString(
+                                                root.resolve(
+                                                        "data/starfold/dimension_type/native_ground.json"))))
+                        .getOrThrow();
+        Registry.register(types, ResourceLocation.parse("starfold:native_ground"), nativeType);
+        var provider =
+                HolderLookup.Provider.create(
+                        java.util.stream.Stream.concat(
+                                base.listRegistries()
+                                        .filter(k -> !k.equals(Registries.DIMENSION_TYPE))
+                                        .map(
+                                                k ->
+                                                        (HolderLookup.RegistryLookup<?>)
+                                                                base.lookupOrThrow(k)),
+                                java.util.stream.Stream.of(types.freeze().asLookup())));
+        var ops = RegistryOps.create(JsonOps.INSTANCE, provider);
+        var vanilla = preset.deepCopy();
+        vanilla.getAsJsonObject("dimensions").remove("starfold:native_planet");
+        var decoded =
+                net.minecraft.world.level.levelgen.presets.WorldPreset.DIRECT_CODEC
+                        .parse(ops, vanilla)
+                        .getOrThrow();
+        assertEquals(3, decoded.createWorldDimensions().dimensions().size());
+        var nativeJson =
+                preset.getAsJsonObject("dimensions").getAsJsonObject("starfold:native_planet");
+        assertEquals(
+                "starfold:native_planet",
+                nativeJson.getAsJsonObject("generator").get("type").getAsString());
+        var g =
+                PlanetChunkGenerator.CODEC
+                        .codec()
+                        .parse(ops, nativeJson.get("generator"))
+                        .getOrThrow();
+        var holder = DimensionType.CODEC.parse(ops, nativeJson.get("type")).getOrThrow();
+        assertEquals(3, g.version());
+        assertEquals(nativeType, holder.value());
+    }
+
+    @Test
+    void immutableGenerationMemoIsBoundedAndDoesNotRetainEdits() {
+        for (int x = 0; x < 2050; x++) mining.column(Face.TOP, x % 2048, x / 2048);
+        assertTrue(mining.cachedColumns() <= 2048);
+        var col = mining.column(Face.TOP, 100, 100);
+        assertSame(col, mining.column(Face.TOP, 100, 100));
+        assertTrue(col.state(320).isAir());
+    }
+}

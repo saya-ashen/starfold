@@ -1,0 +1,182 @@
+package dev.starfold.geometry;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import dev.starfold.geometry.BentStripGeometry.Point;
+import dev.starfold.geometry.CubeSurfaceTopology.*;
+import dev.starfold.geometry.PlanetSpace.*;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.*;
+
+class TipGeometryTest {
+    final PlanetSpace s = PlanetSpace.tipped(), base = new PlanetSpace(64, -4, 4);
+
+    @Test
+    void baselineIsDev5SphereAndOldRoundedDefaultIsUntouched() {
+        assertEquals(Shape.BALANCED, base.shape);
+        assertEquals(Shape.ROUNDED, PlanetSpace.STANDARD.shape);
+        assertEquals(.035, PlanetBalancedGeometry.BASE);
+        assertEquals(.0475, PlanetBalancedGeometry.OWN);
+        assertEquals(.07125, PlanetBalancedGeometry.OTHER);
+        assertEquals(.515, PlanetBalancedGeometry.SEAM);
+        assertEquals(.2825, PlanetBalancedGeometry.SPREAD);
+        for (var f : Face.values())
+            for (int u = 0; u <= 64; u += 4)
+                for (int v = 0; v <= 64; v += 4)
+                    assertEquals(128 / Math.PI, base.project(f, u, 0, v).length(), 1e-12);
+    }
+
+    @Test
+    void eightTipsReallyMoveOutwardAndOutsideSupportIsExactlyDev5() {
+        for (var f : Face.values())
+            for (int u : new int[] {0, 64})
+                for (int v : new int[] {0, 64})
+                    assertEquals(base.radius + 3.2, s.project(f, u, 0, v).length(), 1e-11);
+        int fixed = 0;
+        for (int u = 0; u <= 64; u++)
+            for (int v = 0; v <= 64; v++) {
+                var p = base.project(Face.TOP, u, 0, v);
+                var n = PlanetSpace.unit(p);
+                var c =
+                        PlanetSpace.unit(
+                                new Point(Math.copySign(1, n.x()), 1, Math.copySign(1, n.z())));
+                if (Math.acos(Math.clamp(n.dot(c), -1, 1)) * base.radius >= 22) {
+                    assertEquals(p, s.project(Face.TOP, u, 0, v));
+                    fixed++;
+                }
+                assertTrue(s.project(Face.TOP, u, 0, v).length() >= base.radius - 1e-10);
+            }
+        assertTrue(fixed > 1000);
+    }
+
+    @Test
+    void allSharedVerticesAndInverseAgreeAtEveryFaceAndSeveralHeights() {
+        for (var f : Face.values())
+            for (int u = 0; u <= 64; u++)
+                for (int v = 0; v <= 64; v++)
+                    for (int h : new int[] {-4, 0, 4}) {
+                        var p = s.project(f, u, h, v);
+                        assertEquals(p, s.point(s.vertex(f, u, h, v)));
+                        var c = s.coordinates(f, p);
+                        assertEquals(u, c.u(), 2e-8);
+                        assertEquals(v, c.v(), 2e-8);
+                        assertEquals(h, c.h(), 1e-9);
+                        assertEquals(1, s.project(f, u, h + 1, v).sub(p).length(), 1e-11);
+                    }
+    }
+
+    @Test
+    void randomInverseAndUnrepairedJacobianArePositive() {
+        var r = new Random(5001);
+        double e = 1e-5;
+        for (var f : Face.values())
+            for (int i = 0; i < 800; i++) {
+                double u = r.nextDouble() * 64,
+                        v = r.nextDouble() * 64,
+                        h = -4 + r.nextDouble() * 8;
+                var p = s.project(f, u, h, v);
+                var c = s.coordinates(f, p);
+                assertEquals(u, c.u(), 2e-8);
+                assertEquals(v, c.v(), 2e-8);
+                assertEquals(h, c.h(), 1e-9);
+                var du = s.project(f, u + e, h, v).sub(s.project(f, u - e, h, v)).scale(.5 / e);
+                var dv = s.project(f, u, h, v + e).sub(s.project(f, u, h, v - e)).scale(.5 / e);
+                assertTrue(dv.cross(du).dot(PlanetSpace.unit(p)) > .25);
+            }
+    }
+
+    @Test
+    void allOrdinaryVolumesRemainOutwardAndWideEnoughAtEveryLayer() {
+        double min = 10;
+        for (int u = 0; u < 64; u++)
+            for (int v = 0; v < 64; v++)
+                for (int h = -4; h < 4; h++) {
+                    var c = new Cell(Face.TOP, u, h, v);
+                    if (!s.hasVolume(c)) continue;
+                    var center = s.project(c.face(), u + .5, h + .5, v + .5);
+                    for (var side : Side.values())
+                        for (var t : s.face(c, side)) {
+                            assertTrue(t.b().sub(t.a()).cross(t.c().sub(t.a())).length() > .15);
+                            assertTrue(
+                                    t.normal().dot(t.a().sub(center)) > .14,
+                                    "fold " + c + " " + side);
+                        }
+                    var p =
+                            new Point[] {
+                                s.project(c.face(), u, h, v),
+                                s.project(c.face(), u + 1, h, v),
+                                s.project(c.face(), u + 1, h, v + 1),
+                                s.project(c.face(), u, h, v + 1)
+                            };
+                    for (int i = 0; i < 4; i++) {
+                        var a = p[(i + 1) % 4].sub(p[i]);
+                        var b = p[(i + 3) % 4].sub(p[i]);
+                        double cos = a.dot(b) / a.length() / b.length();
+                        min =
+                                Math.min(
+                                        min,
+                                        Math.min(a.length(), b.length())
+                                                * Math.sqrt(1 - cos * cos));
+                        assertTrue(a.cross(b).dot(center) < 0);
+                    }
+                }
+        System.out.println("minimum shell transverse metric=" + min);
+        assertTrue(min > .604, "metric is only a gate, not actual tunnel acceptance");
+    }
+
+    @Test
+    void allDirectedSeamsShareTrianglesAndOwnerKeys() {
+        for (var f : Face.values())
+            for (int edge = 0; edge < 4; edge++)
+                for (int k = 0; k < 64; k++)
+                    for (int h : new int[] {-4, 0, 3}) {
+                        var c =
+                                new Cell(
+                                        f,
+                                        edge < 2 ? (edge == 0 ? 0 : 63) : k,
+                                        h,
+                                        edge >= 2 ? (edge == 2 ? 0 : 63) : k);
+                        var side = List.of(Side.WEST, Side.EAST, Side.NORTH, Side.SOUTH).get(edge);
+                        var n = s.neighbor(c, side);
+                        assertEquals(base.neighbor(c, side), n);
+                        assertEquals(base.index(c), s.index(c));
+                        var a = new HashSet<Set<Point>>();
+                        var b = new HashSet<Set<Point>>();
+                        for (var t : s.face(c, side)) a.add(Set.of(t.a(), t.b(), t.c()));
+                        for (var t : s.face(n.target(), n.incoming()))
+                            b.add(Set.of(t.a(), t.b(), t.c()));
+                        assertEquals(a, b);
+                    }
+    }
+
+    @Test
+    void noExtraHoleOrObserverDependentGeometry() {
+        int omitted = 0;
+        for (int i = 0; i < s.volume(); i++) {
+            var c = s.cell(i);
+            assertEquals(base.hasVolume(c), s.hasVolume(c));
+            if (!s.hasVolume(c)) {
+                omitted++;
+                assertTrue(s.face(c, Side.UP).isEmpty());
+            }
+        }
+        assertEquals(24 * 8, omitted);
+        var a = s.project(Face.TOP, 61.5, 0, 59.5);
+        for (int i = 0; i < 100; i++) assertEquals(a, s.project(Face.TOP, 61.5, 0, 59.5));
+    }
+
+    @Test
+    void radialHeightAndAltitudeAgreeWithoutPretendingTheBodyIsSurfaceNormal() {
+        for (var f : Face.values())
+            for (double u : new double[] {.5, 2.5, 8, 16, 32, 48, 56, 61.5, 63.5})
+                for (double v : new double[] {.5, 3.5, 16, 32, 60.5, 63.5})
+                    for (double h : new double[] {-4, 0, 8, 80}) {
+                        var p = s.project(f, u, h, v);
+                        assertEquals(h, s.altitude(p), 1e-9);
+                        assertEquals(h, s.altitude(s.onRay(p, h)), 1e-9);
+                        assertEquals(1, PlanetSpace.unit(p).dot(s.up(p)), 1e-12);
+                    }
+    }
+}

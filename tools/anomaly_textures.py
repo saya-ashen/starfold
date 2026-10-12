@@ -36,7 +36,7 @@ def shell(x, y):
     return c
 
 def glow(x, y):
-    # Light with faint scan lines; meant to be tinted by NativeAnomaly.GLOW_TINT.
+    # Light with faint scan lines; meant to be tinted by Anomaly.GLOW_TINT.
     t = .78 + .22 * noise(x, y, 2)
     if y % 4 == 3: t *= .82
     return mix((150, 190, 200), WHITE, t)

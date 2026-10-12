@@ -482,7 +482,7 @@ def stats(v):
         mean=tuple(sum(p[i]+.5 for p in points)/len(points) for i in range(3))
         off=tuple(0 if DIR[push][i] else mean[i]-com[i] for i in range(3))
         thrust[push]={'nozzle':OPP[push],'count':len(points),'positions':points,'line_point':mean,'perpendicular_offset':off,'offset_length':math.sqrt(sum(q*q for q in off))}
-    # Same torque-sign selection as NativeHelmCommand; A/D are yaw, not strafing.
+    # Same torque-sign selection as HelmCommand; A/D are yaw, not strafing.
     yaw={}
     for key,sign in (('left',1),('right',-1)):
         points=[]; force=[0,0,0]; torque=0

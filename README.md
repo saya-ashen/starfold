@@ -54,17 +54,33 @@ A JDK 21 is required; Gradle is run through the wrapper.
 
 ```
 ./gradlew build                  # jar in build/libs, runs every test
-./gradlew nativeTest             # the faster planet regression suite
 ./gradlew packagedContractTest   # checks every mixin of the built jar against Minecraft
 ./gradlew runClient              # development client; its game directory is run/
 ```
+
+Java sources are formatted with google-java-format 1.28.0 in its AOSP style
+(`--aosp --skip-reflowing-long-strings --skip-javadoc-formatting`); it is run by hand, not by the build.
 
 Optional mods for the development client go in `run/mods`, which is not versioned. Tests that check item ids of
 those mods skip that check when the directory is absent.
 
 ## Repository layout
 
-- `src/main`, `src/test`: the mod and its tests.
+- `src/main`, `src/test`: the mod and its tests. The code is in `dev.starfold`, one package per subsystem
+  (a test sits in the package of what it tests):
+  - `geometry`: the cube surface, its faces and seams, as plain maths with no Minecraft types.
+  - `chart`: how one observer sees the planet from the ground up to orbit.
+  - `planet`: a planet's shape, storage, system and universe, the core and the fold points.
+  - `worldgen`: terrain, biomes, minerals and the chunk generators.
+  - `sky`: suns, orbits, the clock, daylight and weather.
+  - `ground`: the server side of living on a face: seams, chunk views, per-observer packets, light.
+  - `render`: the client's far view of the planet, other planets and the shader patches.
+  - `flight`: personal flight, its HUD and the permit other mods can grant.
+  - `space`: the region between planets.
+  - `ship`: everything about Sable hulls: helm, thrusters, landing, airstair, dock, the starter ship.
+  - `waypoint`: marks and navigation to them.
+  - `dev`: development probes, inert in normal play.
+  - `mixin`: every mixin.
 - `docs/DATAPACKS.md`: the datapack interface; tests read its examples.
 - `tools/ship`: generators for the starter ship structures and block resources.
 - `tools/probe`: scripted in-game checks for the development client, see [tools/probe/README.md](tools/probe/README.md).

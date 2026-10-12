@@ -69,28 +69,6 @@ tasks.withType(Test).configureEach {
         systemProperty 'starfold.testArchives', (sourceSets.main.runtimeClasspath.files + sableEmbeddedJars()).findAll { it.isFile() && it.name.endsWith('.jar') }.join(File.pathSeparator)
     }
 }
-// Fast Native regression suite with its own reports. Full `test`/`check`
-// also includes shared-helper and packaged compatibility contracts.
-tasks.register('nativeTest', Test) {
-    description = 'Run current Native regressions without overwriting full-suite reports.'
-    group = 'verification'
-    dependsOn tasks.named('testClasses')
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform()
-    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
-    dependsOn tasks.named('prepareNeoForgeTestFiles')
-    // ModDevGradle configures its JUnit launcher on test, not arbitrary Test tasks.
-    doFirst {
-        def fullTest = tasks.named('test', Test).get()
-        classpath = fullTest.classpath
-        systemProperties.putAll(fullTest.systemProperties)
-        jvmArgs = fullTest.jvmArgs
-        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
-        workingDir = fullTest.workingDir
-    }
-    filter { includeTestsMatching 'dev.starfold.Native*Test' }
-}
 // Keep FML's unit-test game/config directory in build while source audits run at the checkout.
 tasks.named('prepareNeoForgeTestFiles') {
     inputs.property 'auditWorkingDirectory', project.projectDir.absolutePath
@@ -141,8 +119,8 @@ tasks.register('packagedContractTest', Test) {
     testClassesDirs = sourceSets.test.output.classesDirs
     useJUnitPlatform()
     filter {
-        includeTestsMatching 'dev.starfold.PeriodicContractTest.everyPeriodicInjectionSelectsRealMethodsAndEveryInvokeMatchesExactly'
-        includeTestsMatching 'dev.starfold.PeriodicContractTest.shadowFieldsAndPacketAccessorsMatchUpstreamDescriptors'
+        includeTestsMatching 'dev.starfold.MixinContractTest.everySelectedInjectionSelectsRealMethodsAndEveryInvokeMatchesExactly'
+        includeTestsMatching 'dev.starfold.MixinContractTest.shadowFieldsAndPacketAccessorsMatchUpstreamDescriptors'
     }
     def modJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
     def upstream = tasks.named('createMinecraftArtifacts').flatMap { it.gameJarArtifact }

@@ -1,0 +1,67 @@
+package dev.starfold.space;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
+
+class SpaceDustTest {
+    @Test
+    void streaksGrowToCapAndRemainThin() {
+        assertEquals(0, SpaceDust.length(0));
+        assertEquals(9, SpaceDust.length(150));
+        assertEquals(18, SpaceDust.length(300));
+        assertEquals(48, SpaceDust.length(800));
+        assertEquals(72, SpaceDust.length(1200), 1e-9);
+        assertEquals(144, SpaceDust.length(10000), 1e-9);
+        assertEquals(.10, SpaceDust.WIDTH);
+        assertTrue(SpaceDust.length(300) / SpaceDust.WIDTH > 100);
+    }
+
+    @Test
+    void visibleRateAndWidthGrowFromSixty() {
+        for (int v = -10; v <= 60; v++) {
+            assertEquals(0, SpaceDust.rate(v));
+            assertEquals(0, SpaceDust.alpha(v, 2, 5));
+            assertEquals(0, SpaceDust.width(v));
+        }
+        assertEquals(.10, SpaceDust.width(150));
+        assertEquals(.10, SpaceDust.width(800));
+        assertEquals(.15, SpaceDust.width(1200), 1e-9);
+        assertEquals(8, SpaceDust.rate(300), 1e-9);
+        assertEquals(28, SpaceDust.rate(800));
+        assertEquals(28, SpaceDust.rate(10000));
+        assertTrue(SpaceDust.rate(150) > 2 && SpaceDust.rate(150) < 4);
+        assertEquals(.45, SpaceDust.alpha(150, 2, 5), 1e-6);
+        assertEquals(.45 + .45 * 150 / 650, SpaceDust.alpha(300, 2, 5), 1e-6);
+        for (double speed :
+                new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
+            assertEquals(0, SpaceDust.rate(speed));
+            assertEquals(0, SpaceDust.width(speed));
+            assertEquals(0, SpaceDust.alpha(speed, 2, 5));
+        }
+    }
+
+    @Test
+    void centreFadeIsConfinedToCentralQuarterOfHalfWidth() {
+        assertEquals(0, SpaceDust.peripheral(0, 0));
+        assertEquals(0, SpaceDust.peripheral(.125, 0));
+        assertEquals(.5, SpaceDust.peripheral(.1875, 0), 1e-9);
+        assertEquals(1, SpaceDust.peripheral(.25, 0));
+        assertEquals(1, SpaceDust.peripheral(0, -.25));
+        assertEquals(1, SpaceDust.peripheral(.5, 0));
+    }
+
+    @Test
+    void alphaFadesInAndOutAndSuppressesRest() {
+        assertEquals(0, SpaceDust.alpha(20, 2, 5));
+        assertEquals(0, SpaceDust.alpha(800, 0, 5));
+        assertEquals(.45, SpaceDust.alpha(800, 1, 5), 1e-6);
+        assertEquals(.9, SpaceDust.alpha(800, 2, 5), 1e-6);
+        assertEquals(.45, SpaceDust.alpha(800, 4, 5), 1e-6);
+        assertEquals(0, SpaceDust.alpha(800, 5, 5));
+        for (double t = -1; t <= 6; t += .1) {
+            float a = SpaceDust.alpha(800, t, 5);
+            assertTrue(a >= 0 && a <= .9f);
+        }
+    }
+}

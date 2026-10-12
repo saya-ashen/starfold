@@ -4,7 +4,7 @@
 
 ## 文件位置与引用关系
 
-`NativePlanetChunkGenerator.initialize` 注册生成器；`NativePlanetType.initialize` 随后注册 planet_type、universe、system 三个 NeoForge 数据包注册表：
+`PlanetChunkGenerator.initialize` 注册生成器；`PlanetType.initialize` 随后注册 planet_type、universe、system 三个 NeoForge 数据包注册表：
 
 | 内容 | 包内路径 | 引用示例 |
 |---|---|---|
@@ -15,45 +15,45 @@
 | 普通世界类型列表 | `data/minecraft/tags/worldgen/world_preset/normal.json` | `{"replace":false,"values":["demo:my_world"]}` |
 | 星球可用结构集标签 | `data/starfold/tags/worldgen/structure_set/planets.json` | 用 `replace:false` 添加自己的结构集 ID |
 
-类型、布局与星系的目录中间都是 **`starfold`**，不是作者命名空间。命名空间只替换 `data/` 后的一段。注册了类型还不够：布局的 `types`、旧生成器的 `planets` 或手写星系的 `suns[].planets[].type` 必须引用它。没有“把目录里的每个类型自动加入宇宙”的规则，也没有单独的可合并 planet 列表注册表。新增布局同样不会自动替换预设选择的布局。依据：`NativePlanetType`、`NativeUniverseLayout`、`NativeSystemChunkGenerator`。
+类型、布局与星系的目录中间都是 **`starfold`**，不是作者命名空间。命名空间只替换 `data/` 后的一段。注册了类型还不够：布局的 `types`、旧生成器的 `planets` 或手写星系的 `suns[].planets[].type` 必须引用它。没有“把目录里的每个类型自动加入宇宙”的规则，也没有单独的可合并 planet 列表注册表。新增布局同样不会自动替换预设选择的布局。依据：`PlanetType`、`UniverseLayout`、`SystemChunkGenerator`。
 
 ## 星球类型字段
 
-以下范围均含端点；“必填”表示没有默认值。整数、浮点数均为 JSON 数字，布尔为 `true/false`。biome 使用注册表 ID；codec 是 `Biome.CODEC`，但生态四角色还有更严格的 ID 校验，见下表。依据：`NativePlanetType.CODEC` 及构造器、`NativePlanetGeneration`。
+以下范围均含端点；“必填”表示没有默认值。整数、浮点数均为 JSON 数字，布尔为 `true/false`。biome 使用注册表 ID；codec 是 `Biome.CODEC`，但生态四角色还有更严格的 ID 校验，见下表。依据：`PlanetType.CODEC` 及构造器、`PlanetGeneration`。
 
 | 字段 | 类型、范围 | 省略时 | 作用与额外限制 |
 |---|---|---|---|
 | `biome` | biome holder（通常为 ID 字符串） | 必填 | 基础 biome；岩石星球使用此 biome，生态星球另用四角色分区 |
 | `size` | 对象 | 必填 | 六个面的边长范围，不是直径或半径 |
-| `size.min` / `size.max` | 整数，16 的倍数，min ≤ max | 均必填 | `NativePlanetShape` 接受 256–2048；类型生成深度校验进一步要求 **416–2048**。256–400 虽能构造 shape，不能满足最少 191 格深度 |
+| `size.min` / `size.max` | 整数，16 的倍数，min ≤ max | 均必填 | `PlanetShape` 接受 256–2048；类型生成深度校验进一步要求 **416–2048**。256–400 虽能构造 shape，不能满足最少 191 格深度 |
 | `depth_ratio` | 有限浮点数，0–0.75 | `0.5` | 半径的深度比例，实际深度还会取整并夹限，见下文 |
 | `algorithm` | 字符串，`rocky` / `rocky_craters` / `ecology` | `rocky_craters` | 两种岩石算法或生态算法；这不是可自由扩展的算法注册表 |
 | `relief` | 有限浮点数，0.25–2 | `1` | 岩石起伏系数；`ecology` 必须等于 1 |
 | `ore_bias` | 有限浮点数，-0.1–0.1 | 岩石 `0.035`；生态 `0` | 岩石矿脉阈值减量，越大越丰富；生态必须为 0 |
 | `cave_width` | 有限浮点数，0.03–0.2 | 岩石 `0.085`；生态 `0.115` | 洞穴噪声交集宽度；生态必须为 0.115 |
 | `shell` | 字符串，`bedrock` / `core_shell` | `core_shell` | 最底一层用基岩或模组星核壳，不是填满整个星核 |
-| `palette` | 对象，见下表 | `NativePlanetPalette.ROCK` | 只有 `rocky_craters` 能使用不同于默认的材料表 |
+| `palette` | 对象，见下表 | `PlanetPalette.ROCK` | 只有 `rocky_craters` 能使用不同于默认的材料表 |
 | `biomes` | 四角色对象 | 不提供 | **仅且必须在 `ecology` 中提供** |
 | `biomes.forest` | biome holder | 必填（提供 biomes 时） | 必须是 `minecraft:forest` |
 | `biomes.plains` | biome holder | 同上 | 必须是 `minecraft:plains` |
 | `biomes.desert` | biome holder | 同上 | 必须是 `minecraft:desert` |
 | `biomes.ocean` | biome holder | 同上 | 必须是 `minecraft:ocean` |
 | `minerals` | 对象，见下表 | 两个空列表 | `rocky_craters` / `ecology` 可定制；`rocky` 只能使用空表 |
-| `climate` | 对象，见下表 | `NativePlanetClimate.MILD` | 非默认气候仅供 `ecology` 使用 |
+| `climate` | 对象，见下表 | `PlanetClimate.MILD` | 非默认气候仅供 `ecology` 使用 |
 | `ocean` | 浮点数，0–0.95 | 不指定比例 | 仅供 `ecology`，且 `climate.land` 必须为 0；按种子采样换算并保存抬升量，不是逐格保证的精确海洋占比 |
 | `creatures` | 布尔 | 生态 true；岩石 false | 控制 biome 生物列表查询及区块初始动物生成，不是自定义生物列表 |
 | `features` | 布尔 | 生态 true；岩石 false | 控制 biome 地物装饰，不关闭本模组自身地形、矿洞或生态树木 |
 | `structures` | 布尔 | 生态 true；岩石 false | 控制星球上的结构起点生成与结构块放置，仍受结构集标签、biome 等约束 |
 
-**生态角色不能换成任意自定义 biome。** `NativePlanetBiomes` 构造器对上述四个原版 ID 逐一执行 `Holder.is`；例如把 forest 换成 desert 或作者自己的 forest ID 会拒绝。`biome` 基础字段没有这条四角色限制。修改这些原版 ID 对应的 biome 内容与换成另一 ID 是两回事。
+**生态角色不能换成任意自定义 biome。** `PlanetBiomes` 构造器对上述四个原版 ID 逐一执行 `Holder.is`；例如把 forest 换成 desert 或作者自己的 forest ID 会拒绝。`biome` 基础字段没有这条四角色限制。修改这些原版 ID 对应的 biome 内容与换成另一 ID 是两回事。
 
-尺寸由 `NativePlanetType.size(seed)` 在 min/max 间按 16 格步长确定性选取。`NativePlanetShape.radius()` 为 `size × 2 / π`。类型深度为 `round(radius × depth_ratio)`，夹到 `[191, floor(radius × 0.75)]`；因此比例 0 也不是零深度，512 格岩石星球默认深度是 191 而非半径一半。底层 Y 为 `127 - depth`，底层以下不生成星球方块（`NativePlanetGeneration.floor`、`NativePlanetTerrain`）。
+尺寸由 `PlanetType.size(seed)` 在 min/max 间按 16 格步长确定性选取。`PlanetShape.radius()` 为 `size × 2 / π`。类型深度为 `round(radius × depth_ratio)`，夹到 `[191, floor(radius × 0.75)]`；因此比例 0 也不是零深度，512 格岩石星球默认深度是 191 而非半径一半。底层 Y 为 `127 - depth`，底层以下不生成星球方块（`PlanetGeneration.floor`、`PlanetTerrain`）。
 
 还要检查维度高度：内置 `dimension_type/native_deep.json` 是 `min_y=-528, height=848`（顶端 320），并非所有 codec 允许的深度都装得下。作者若设置更深的星球，需同时提供覆盖其底层的原版 dimension_type，并在预设引用；不要把通过类型解码当作完整维度验收。此类自定义高度组合**未实测**。
 
 ### 材料、矿层与气候的嵌套字段
 
-`NativePlanetPalette.CODEC`：若提供 `palette`，前四项均必填，没有对象内部的逐项默认。方块字段使用已注册的方块 ID，不是带 properties 的 block-state 对象；使用方块默认状态。校验只拒绝默认状态为空气或含流体的方块，不能据此保证任意所选方块的物理行为。
+`PlanetPalette.CODEC`：若提供 `palette`，前四项均必填，没有对象内部的逐项默认。方块字段使用已注册的方块 ID，不是带 properties 的 block-state 对象；使用方块默认状态。校验只拒绝默认状态为空气或含流体的方块，不能据此保证任意所选方块的物理行为。
 
 | palette 字段 | 类型 | 整个 palette 省略时的值 | 作用 |
 |---|---|---|---|
@@ -63,7 +63,7 @@
 | `deep` | 方块 ID | `minecraft:deepslate` | 深处材料 |
 | `cover` | 可选方块 ID | 无 | 表面覆盖材料 |
 
-`NativePlanetMinerals.CODEC`：`ores` 与 `strata` 各自可省略，默认为 `[]`；**空列表表示沿用算法原有矿物/地层，不表示没有矿物或地层**。`ores` 最多 16 项，`strata` 最多 8 项；方块校验同样拒绝空气和含流体默认状态。
+`PlanetMinerals.CODEC`：`ores` 与 `strata` 各自可省略，默认为 `[]`；**空列表表示沿用算法原有矿物/地层，不表示没有矿物或地层**。`ores` 最多 16 项，`strata` 最多 8 项；方块校验同样拒绝空气和含流体默认状态。
 
 | minerals 字段 | 类型、范围 | 默认 | 作用 |
 |---|---|---|---|
@@ -77,9 +77,9 @@
 | `strata[].block` | 方块 ID | 必填 | 该层材料 |
 | `strata[].from` | 浮点数，0–1 | `0` | 该层起点，延续至下一层；第一层也覆盖名义地表以上 |
 
-比例 0 是名义地表，1 是底层。codec 先换算成 `round(127 - 比例 × 191)` 的标准层，再由 `NativePlanetTerrain.layer` 映射到该星球深度，不是任意精度的连续分层。矿物换算后的 top 必须 ≥ bottom；第一地层换算后必须从 127 开始，后续层起点必须严格递减，两个比例若取整为同一层也会被拒绝。建议按 from ≤ to、地层比例严格递增且留足间隔书写。
+比例 0 是名义地表，1 是底层。codec 先换算成 `round(127 - 比例 × 191)` 的标准层，再由 `PlanetTerrain.layer` 映射到该星球深度，不是任意精度的连续分层。矿物换算后的 top 必须 ≥ bottom；第一地层换算后必须从 127 开始，后续层起点必须严格递减，两个比例若取整为同一层也会被拒绝。建议按 from ≤ to、地层比例严格递增且留足间隔书写。
 
-`NativePlanetClimate.CODEC`：`climate` 内各项均可省略。
+`PlanetClimate.CODEC`：`climate` 内各项均可省略。
 
 | climate 字段 | 类型、范围 | 默认 | 作用 |
 |---|---|---|---|
@@ -88,13 +88,13 @@
 | `latitude` | 浮点数，0–1 | `0.15` | 两极相对赤道的降温影响；0 不按纬度调整 |
 | `land` | 浮点数，-40–40 | `0` | 地形相对固定海面抬升的格数；正值减少海洋 |
 
-`NativePlanetType.planet` 使用 `NativePlanetTerrain.landFor` 在六面各 24×24 网格采样 `ocean`，换算为 land 后保存；`ocean=0` 使用 land=40。请求的比例不作为生成器里的独立海洋比例字段保存。
+`PlanetType.planet` 使用 `PlanetTerrain.landFor` 在六面各 24×24 网格采样 `ocean`，换算为 land 后保存；`ocean=0` 使用 land=40。请求的比例不作为生成器里的独立海洋比例字段保存。
 
 ## 宇宙布局与世界预设字段
 
 ### 布局（universe 注册表）
 
-依据 `NativeUniverseLayout.CODEC`、构造器及 `NativeUniverse`：这里定义的是**预设显式星系之外**的太阳与星球。
+依据 `UniverseLayout.CODEC`、构造器及 `Universe`：这里定义的是**预设显式星系之外**的太阳与星球。
 
 | 字段 | 类型、范围 | 默认 | 作用 |
 |---|---|---|---|
@@ -105,17 +105,17 @@
 | `star_gap` | 有限浮点数，见距离公式，上限 1000000 | `49152` | 宇宙单元网格间距，不是两太阳的精确距离 |
 | `ring` | 有限浮点数，≥8192，另受 gap 约束 | `12288` | 同一太阳相邻行星轨道半径差 |
 | `types` | 非空对象数组 | 必填 | 明确列出的候选类型；codec 没有数组长度上限 |
-| `types[].type` | 类型 ID 字符串或完整内联星球类型对象 | 必填 | `NativeUniverseLayout.savedInPlace` 读取 holder、写出完整定义 |
+| `types[].type` | 类型 ID 字符串或完整内联星球类型对象 | 必填 | `UniverseLayout.savedInPlace` 读取 holder、写出完整定义 |
 | `types[].weight` | 整数，1–1000 | `1` | 相对抽取权重，不是固定数量 |
 | `density` | 浮点数，0–1 | `0` | 大于 0 为按接近发现模式，每单元按该概率有太阳；此时 stars.max 必须为 0 |
 
-距离检查：`star_gap ≥ 4 × (8192 + (planets.max - 1) × ring) + 16384`，由 `NativeUniverseLayout.minimumGap` 和 `GroundSolar.defaults` 决定。例如 max=2、ring=12288 时必须 gap≥98304；**省略 star_gap 的默认值并不适用于所有 planets 范围**。ring 没有独立固定上限，但上式与 gap≤1000000 共同限制它（max=1 时公式不限制 ring 的上端）。权重求和使用 Java int；没有总权重溢出校验，不能把“列表未限长”理解成安全的无限列表。
+距离检查：`star_gap ≥ 4 × (8192 + (planets.max - 1) × ring) + 16384`，由 `UniverseLayout.minimumGap` 和 `GroundSolar.defaults` 决定。例如 max=2、ring=12288 时必须 gap≥98304；**省略 star_gap 的默认值并不适用于所有 planets 范围**。ring 没有独立固定上限，但上式与 gap≤1000000 共同限制它（max=1 时公式不限制 ring 的上端）。权重求和使用 Java int；没有总权重溢出校验，不能把“列表未限长”理解成安全的无限列表。
 
 有限模式在首次生成时决定全部额外天体；density 模式初始检查母星周围八个单元，旅途中检查所在单元及周围一圈（`REACH=1`），母星单元 `(0,0)` 不生成额外太阳。相同世界种子与单元决定相同内容，加入顺序决定附加编号；已存在条目不重排。`density=0` 不是“按需发现但没有太阳”，而是有限模式。
 
 ### 系统生成器与单颗星球
 
-预设是 Minecraft 的 `dimensions` 对象；每个维度写 `type`（dimension_type ID）和 `generator`。星球系统位于 `starfold:native_planet`，生成器 `type` 为 `starfold:native_system`，由 `NativeSystemChunkGenerator.CODEC` 读取：
+预设是 Minecraft 的 `dimensions` 对象；每个维度写 `type`（dimension_type ID）和 `generator`。星球系统位于 `starfold:native_planet`，生成器 `type` 为 `starfold:native_system`，由 `SystemChunkGenerator.CODEC` 读取：
 
 | 字段 | 类型、范围 | 默认 | 作用 |
 |---|---|---|---|
@@ -127,9 +127,9 @@
 | `system` | 星系 ID（也可内联完整定义） | 不提供 | 新手写星系入口，与 planets/a/b/stars/universe/celestial 互斥；见下方专章 |
 | `celestial` | 内部保存快照 | 不提供 | 由生成器写出，不是包作者替代 system 的入口；须配套完整 planets |
 
-所有系统星球最终必须 terrain v4 或 v5，且 `multi_planet=false`。显式分组还受 `NativePlanetSystem.model` 限制：相邻太阳的最外圈半径之和加 8192 不得超过固定 `STAR_GAP=49152`；轨道步长固定 `RING=12288`。因此数组数量上界不是任意分组都可用的保证。
+所有系统星球最终必须 terrain v4 或 v5，且 `multi_planet=false`。显式分组还受 `PlanetSystem.model` 限制：相邻太阳的最外圈半径之和加 8192 不得超过固定 `STAR_GAP=49152`；轨道步长固定 `RING=12288`。因此数组数量上界不是任意分组都可用的保证。
 
-非首颗可写类型条目（`NativePlanetType.PLANET`）：
+非首颗可写类型条目（`PlanetType.PLANET`）：
 
 | 字段 | 类型、范围 | 默认 | 作用 |
 |---|---|---|---|
@@ -137,7 +137,7 @@
 | `terrain_seed` | 有符号 64 位整数 | 必填 | 单星种子，不自动取世界种子 |
 | `size` | 整数，该类型范围内、16 的倍数 | 由种子选择 | 指定这一颗的面宽 |
 
-完整条目用 `NativePlanetChunkGenerator.CODEC`（系统数组内部不需要生成器 `type` 分派字段）：
+完整条目用 `PlanetChunkGenerator.CODEC`（系统数组内部不需要生成器 `type` 分派字段）：
 
 | 字段 | 类型、范围 | 默认 | 作用 |
 |---|---|---|---|
@@ -150,7 +150,7 @@
 
 `settings` 的格式由原版 codec 定义：`biome` 为 biome holder（缺省取 plains）、`layers` 为必填数组（每项 `height` 为 0–4064 整数、`block` 为方块 ID，缺省 air，总厚度不得超过 4064），`features` / `lakes` 默认 false，`structure_overrides` 为可选结构集 holder 集合（ID 列表或标签）。示例显式写出这些基础设置。它们不代替 `planet_generation` 的星球地物/结构开关。
 
-`NativePlanetGeneration.CODEC` 的字段不同于类型定义，尤其不要混用默认值：
+`PlanetGeneration.CODEC` 的字段不同于类型定义，尤其不要混用默认值：
 
 | 字段 | 类型、范围 | 默认 |
 |---|---|---|
@@ -165,7 +165,7 @@
 | `creatures` | 布尔 | **true**，不按算法区分 |
 | `features` / `structures` | 布尔 | **false**，不按算法区分 |
 
-`NativePlanetGeneration.validate` 要求 terrain v2→surface、v3→mining、v4→ecology、v5→rocky 或 rocky_craters。自定义 minerals 在此还允许 temperate/mining；palette 仍只允许 rocky_craters，自定义 climate 仍只允许 ecology。生成策略没有 depth_ratio、ocean 或类型 ID；它保存具体 size/depth/land 等数值。
+`PlanetGeneration.validate` 要求 terrain v2→surface、v3→mining、v4→ecology、v5→rocky 或 rocky_craters。自定义 minerals 在此还允许 temperate/mining；palette 仍只允许 rocky_craters，自定义 climate 仍只允许 ecology。生成策略没有 depth_ratio、ocean 或类型 ID；它保存具体 size/depth/land 等数值。
 
 ## 内置八种类型与预设
 
@@ -186,7 +186,7 @@
 
 `universe/default.json` 按上表顺序使用权重 **3/2/2/2/1/1/1/1**，density=0.7、star_gap=98304、ring=12288、每太阳 1–2 行星。`small.json` 类型与权重相同，但不设 density，改为 2–4 颗额外太阳。
 
-`worldgen/world_preset/native_universe.json` 的 A/B 是完整生成器，不从上述类型表抽取：A seed=20261001、v4、size 默认 2048、depth=652；B seed=20261002、v5 rocky_craters、size=1024、depth=326。之后的宇宙引用 `starfold:default`，其生成使用世界种子（`NativeUniverse.bind/generate`）。
+`worldgen/world_preset/native_universe.json` 的 A/B 是完整生成器，不从上述类型表抽取：A seed=20261001、v4、size 默认 2048、depth=652；B seed=20261002、v5 rocky_craters、size=1024、depth=326。之后的宇宙引用 `starfold:default`，其生成使用世界种子（`Universe.bind/generate`）。
 
 ## 完整最小示例：灰岩类型与新世界
 
@@ -312,29 +312,29 @@
 
 不能把“星球参数随世界保存”说成“整个数据包已快照”。具体边界如下：
 
-1. **显式星球参数固定。** `NativePlanetType.Entry.get` 首次使用时把类型+种子变成生成器；`PLANET.encode` 总是写完整生成器，不保留 `planet_type` 名称作为来源。保存之后不再根据后来改动的类型 JSON 重算这颗星球。
-2. **未发现区域的规则也内联保存。** `NativeSystemChunkGenerator.CODEC` 通过 `NativeUniverseLayout.HOLDER` 保存 universe；`savedInPlace` 将布局和每个加权类型完整写出。重新载入保存的系统时使用内联定义，而不是重新按原 layout/type ID 获取新值。改 default.json 不等于改变这个世界未来单元的抽取规则。
-3. **实际宇宙另存。** `NativeUniverse.save/load` 在 `starfold_native_universe_v1` SavedData 中保存 format=1、太阳坐标/半径、行星的所属太阳/轨道半径/周期/相位/完整生成器、已探索单元（包括无太阳单元）。`bind` 已有数据优先；只在没有数据时用世界种子生成。存在但无法读取的文件拒绝静默重建。追加保留编号和存储地址。
-4. **预设不是已有世界的更新脚本。** `NativePlanetWorldPreset.registryFor` 在维度 baking 时保留明确选择/保存的 Native 系统，不用数据包默认维度替换它。这里只描述正常保存与加载路径，不承诺手改存档的迁移。
-5. **注册表内容不是完整快照。** biome holder、方块 ID 仍是引用；`NativePlanetDecoration` 读取本次加载的 biome feature 列表和结构注册表，`NativeSystemChunkGenerator` 使用本次加载的结构集标签与 biome 生物列表。替换这些定义可能影响后续生成；缺失引用可能导致加载失败。删除类型/布局定义本身不再是这些已内联参数的直接依赖，但整个包能否安全移除还取决于包中其它引用与加载校验，不能保证任意移除均成功。
+1. **显式星球参数固定。** `PlanetType.Entry.get` 首次使用时把类型+种子变成生成器；`PLANET.encode` 总是写完整生成器，不保留 `planet_type` 名称作为来源。保存之后不再根据后来改动的类型 JSON 重算这颗星球。
+2. **未发现区域的规则也内联保存。** `SystemChunkGenerator.CODEC` 通过 `UniverseLayout.HOLDER` 保存 universe；`savedInPlace` 将布局和每个加权类型完整写出。重新载入保存的系统时使用内联定义，而不是重新按原 layout/type ID 获取新值。改 default.json 不等于改变这个世界未来单元的抽取规则。
+3. **实际宇宙另存。** `Universe.save/load` 在 `starfold_native_universe_v1` SavedData 中保存 format=1、太阳坐标/半径、行星的所属太阳/轨道半径/周期/相位/完整生成器、已探索单元（包括无太阳单元）。`bind` 已有数据优先；只在没有数据时用世界种子生成。存在但无法读取的文件拒绝静默重建。追加保留编号和存储地址。
+4. **预设不是已有世界的更新脚本。** `PlanetWorldPreset.registryFor` 在维度 baking 时保留明确选择/保存的 Native 系统，不用数据包默认维度替换它。这里只描述正常保存与加载路径，不承诺手改存档的迁移。
+5. **注册表内容不是完整快照。** biome holder、方块 ID 仍是引用；`PlanetDecoration` 读取本次加载的 biome feature 列表和结构注册表，`SystemChunkGenerator` 使用本次加载的结构集标签与 biome 生物列表。替换这些定义可能影响后续生成；缺失引用可能导致加载失败。删除类型/布局定义本身不再是这些已内联参数的直接依赖，但整个包能否安全移除还取决于包中其它引用与加载校验，不能保证任意移除均成功。
 6. **不因改包重写已有区块。** 上述代码没有按新类型刷新旧区块的操作；已有方块仍由世界区块保存。未来生成并非在任意 biome/features/structures 修改后都保持不变。注册表重载不是逐 tick 重新读 JSON；`/reload` 或重启后的完整第二包生命周期**未实测**，不作为本文保证。
 
 ## 仍在 Java 中的规则与容量限制
 
-- **程序布局 universe 不提供逐天体字段；手写请用 system 注册表。** `NativeUniverseLayout` 不提供 sun XYZ、太阳半径、逐行星轨道倾角/偏心率/周期/相位字段；太阳半径随机整数 384–640，网格内 x/z 抖动幅度为 gap 的 ±0.25、y 为 ±0.35。有限模式从 -4…4 的 x/z 网格（除母星单元）按距离选近处。行星使用母星轨道轴/径向参考、母星 B 自转参数、随机相位，周期为母星周期乘轨道半径比的 1.5 次方。
-- **旧 planets 写法保留原样。** 没有 system/celestial 的生成器仍由 `NativePlanetSystem.model(int[])` 固定太阳沿 x 排列、间距 49152、环间距 12288；前两颗沿用特殊 A/B 模型，后续相位为编号×2.1。`GroundEphemeris.defaults`、`GroundSolar.defaults` 的旧母星中心 `(0,0,8192)`、轨道半径 8192、周期 24000 tick、自转与母太阳半径 512 全部不变。新 system 写法独立保存手写值，但仍受前两颗配对限制（见专章）。
-- **地形算法仍由代码实现。** `NativePlanetTerrain`、`NativePlanetRock`、`NativePlanetUnderground`、`NativePlanetEcology` 决定噪声、矿洞、生态与树木；类型只能选择允许算法并传入已有参数。不能注入新 density function 图、海平面或海水流体选择。海面固定 128、水为原版 water，岩石家族无海。
-- **原版装饰有过滤。** `NativePlanetDecoration` 跳过 LAKES 与 UNDERGROUND_ORES；生态星球还跳过包含 `Feature.TREE` 的 placed feature，保留本模组自己的树。`NativeSystemChunkGenerator` 只在离面边缘至少 8 区块的起点尝试结构，这不是任意大型外部结构包围盒不越界的证明。大型第三方结构、八种类型所有尺寸的生物/地物/结构及生态平衡**未实测**。
-- **地址槽不是发现上限。** `NativePlanetStorage.SIDE=900`，`MAX_PLANETS=900×900=810000`，地址编号 0…809999；不是 900 颗。`column/row` 对 810000 抛异常，`index` 对超出方阵的行列返回 -1。地址可计算也不表示世界已存在该星球，实际访问还校验系统/shape 数量。
-- **程序发现上限是总计 1600 颗，包含显式母星系。** `NativeUniverse.CAPACITY=1600`；`generate` 的 endless 分支与运行时 `grow` 给 `explore` 传 `CAPACITY-home.count()`，再扣除已经发现的 bodies。默认两颗显式星球时最多再发现 1598 颗，最后合法全局编号 1599；下一颗 1600 不会被发现。这是整模型同步包预算的代码上限，不是内存、性能或 810000 颗可玩性的保证。
+- **程序布局 universe 不提供逐天体字段；手写请用 system 注册表。** `UniverseLayout` 不提供 sun XYZ、太阳半径、逐行星轨道倾角/偏心率/周期/相位字段；太阳半径随机整数 384–640，网格内 x/z 抖动幅度为 gap 的 ±0.25、y 为 ±0.35。有限模式从 -4…4 的 x/z 网格（除母星单元）按距离选近处。行星使用母星轨道轴/径向参考、母星 B 自转参数、随机相位，周期为母星周期乘轨道半径比的 1.5 次方。
+- **旧 planets 写法保留原样。** 没有 system/celestial 的生成器仍由 `PlanetSystem.model(int[])` 固定太阳沿 x 排列、间距 49152、环间距 12288；前两颗沿用特殊 A/B 模型，后续相位为编号×2.1。`GroundEphemeris.defaults`、`GroundSolar.defaults` 的旧母星中心 `(0,0,8192)`、轨道半径 8192、周期 24000 tick、自转与母太阳半径 512 全部不变。新 system 写法独立保存手写值，但仍受前两颗配对限制（见专章）。
+- **地形算法仍由代码实现。** `PlanetTerrain`、`PlanetRock`、`PlanetUnderground`、`PlanetEcology` 决定噪声、矿洞、生态与树木；类型只能选择允许算法并传入已有参数。不能注入新 density function 图、海平面或海水流体选择。海面固定 128、水为原版 water，岩石家族无海。
+- **原版装饰有过滤。** `PlanetDecoration` 跳过 LAKES 与 UNDERGROUND_ORES；生态星球还跳过包含 `Feature.TREE` 的 placed feature，保留本模组自己的树。`SystemChunkGenerator` 只在离面边缘至少 8 区块的起点尝试结构，这不是任意大型外部结构包围盒不越界的证明。大型第三方结构、八种类型所有尺寸的生物/地物/结构及生态平衡**未实测**。
+- **地址槽不是发现上限。** `PlanetStorage.SIDE=900`，`MAX_PLANETS=900×900=810000`，地址编号 0…809999；不是 900 颗。`column/row` 对 810000 抛异常，`index` 对超出方阵的行列返回 -1。地址可计算也不表示世界已存在该星球，实际访问还校验系统/shape 数量。
+- **程序发现上限是总计 1600 颗，包含显式母星系。** `Universe.CAPACITY=1600`；`generate` 的 endless 分支与运行时 `grow` 给 `explore` 传 `CAPACITY-home.count()`，再扣除已经发现的 bodies。默认两颗显式星球时最多再发现 1598 颗，最后合法全局编号 1599；下一颗 1600 不会被发现。这是整模型同步包预算的代码上限，不是内存、性能或 810000 颗可玩性的保证。
 - **耗尽时没有玩家提示。** `discover` 若有太阳但整组行星放不下，返回 false，不添加太阳/行星、不标记该单元已探索、不置脏；不会部分加入。无太阳单元仍可标记为已探索。`explore` 返回是否添加过天体；`grow` 没添加则直接 false，没有区分“满了/没太阳/已探索”的聊天、HUD 或状态。剩一格遇到两行星单元也会拒绝，但其它单行星单元仍可填满。
-- **1600 不是所有底层 API 的统一校验。** `discover/explore` 使用调用者提供的 room/capacity；`NativeUniverse` 构造、读取、有限生成及 `NativeSystemChunkGenerator.bind` 不统一强制 1600（bind 检查的是 810000 地址上限）。手写超大显式系统或向这些 API 传更大预算不等于受支持的运行时扩容。容量回归也明确区分两者。
+- **1600 不是所有底层 API 的统一校验。** `discover/explore` 使用调用者提供的 room/capacity；`Universe` 构造、读取、有限生成及 `SystemChunkGenerator.bind` 不统一强制 1600（bind 检查的是 810000 地址上限）。手写超大显式系统或向这些 API 传更大预算不等于受支持的运行时扩容。容量回归也明确区分两者。
 
 ## 离线证据与未实测边界
 
-- `NativePlanetTypeTest`：内置 JSON、参数拒绝、大小与深度、材料/矿层、四原版 biome 限制、海洋/气候、开关、类型条目完整保存。新增 `theDocumentedPackNamesItsOwnTypeAndLayoutAndMakesANewSystem` 直接读取本文四段 JSON，在 demo 命名空间注册类型与布局，检查 B 及额外行星采用新材料。测试手工构造注册表，不是独立第二包的游戏加载。
-- `NativeUniverseTest`：确定性、距离、布局内联、SavedData、追加稳定、探索单元保存与容量。新增 `theLastDiscoverablePlanetFitsAndTheNextCellWaitsDespiteSpareStorage` 验证 1599 接受、1600 拒绝，整组不能部分加入，拒绝不改保存状态且重载后单元仍未探索，并验证更大的地址槽独立存在。
-- `NativePlanetShapeTest`、`NativePlanetDepthTest`：形状/存储与深度边界，不替代所有尺寸的游戏验收。
+- `PlanetTypeTest`：内置 JSON、参数拒绝、大小与深度、材料/矿层、四原版 biome 限制、海洋/气候、开关、类型条目完整保存。新增 `theDocumentedPackNamesItsOwnTypeAndLayoutAndMakesANewSystem` 直接读取本文四段 JSON，在 demo 命名空间注册类型与布局，检查 B 及额外行星采用新材料。测试手工构造注册表，不是独立第二包的游戏加载。
+- `UniverseTest`：确定性、距离、布局内联、SavedData、追加稳定、探索单元保存与容量。新增 `theLastDiscoverablePlanetFitsAndTheNextCellWaitsDespiteSpareStorage` 验证 1599 接受、1600 拒绝，整组不能部分加入，拒绝不改保存状态且重载后单元仍未探索，并验证更大的地址槽独立存在。
+- `PlanetShapeTest`、`PlanetDepthTest`：形状/存储与深度边界，不替代所有尺寸的游戏验收。
 
 此前说明文档的离线基线：全量 test **1887** 项、nativeTest **544** 项、packagedContractTest **2** 项。新增手写星系的本轮运行结果见下方专章；Native 是全量套件的重叠子集，不把三组相加当作独立测试数。
 
@@ -342,7 +342,7 @@
 
 ## 手写星系注册表 system：一个包创建自己的星系
 
-包可以定义太阳位置、大小、每颗行星的圆轨道与自转，而不改 Java、不覆盖内置预设。实现入口是 `NativeSystemDefinition`，路径为 `data/<namespace>/starfold/system/<name>.json`。世界预设中的 Native 生成器写 `"system":"<namespace>:<name>"`，并使用 `"storage_layout":"six_face_square_v2"`。不能同时写 `planets`、`a`、`b`、`stars`、`universe` 或内部 `celestial`。额外程序宇宙放在星系定义的 `beyond`，不是生成器的 `universe`。
+包可以定义太阳位置、大小、每颗行星的圆轨道与自转，而不改 Java、不覆盖内置预设。实现入口是 `SystemDefinition`，路径为 `data/<namespace>/starfold/system/<name>.json`。世界预设中的 Native 生成器写 `"system":"<namespace>:<name>"`，并使用 `"storage_layout":"six_face_square_v2"`。不能同时写 `planets`、`a`、`b`、`stars`、`universe` 或内部 `celestial`。额外程序宇宙放在星系定义的 `beyond`，不是生成器的 `universe`。
 
 ### 字段、单位与默认值
 
@@ -377,7 +377,7 @@
 
 1. **保留基础 A/B 模型的配对限制。** 母星与母太阳行星列表中第一颗非母星必须同轨道半径、同周期、相位差 π（模 2π）；共用半径必须在 **6000–8192**。例如相位 0 与 `3.141592653589793`，不要使用过短近似。其余每颗行星可独立写半径/周期/相位，两颗配对星的自转与大小也独立。母星可不是列表中的第一个；母太阳也可不是第一个。未修改 GroundEphemeris 或冻结的 GroundSolar 来绕过此限制。
 2. **存储顺序固定。** 母太阳先，母星编号 0、配对星编号 1，再放母太阳剩余行星（原顺序），最后其余太阳与行星（原顺序）。`home` 通过这个顺序物化，不是运行时不断重新定位的选项。手写名字随 Shapes v2 元数据发给客户端；旧默认命名不变。
-3. **安全间隔有余量。** 以 `r=size*2/π` 为行星半径；省略 size 时校验使用类型的最大面宽，因此任何世界种子都安全。两行星全时刻中心距离至少为 `r1+r2+2*2048+256`；2048 是 `NativeSpace.OUT`，256 是额外余量。不同周期用轨道半径差作最小距离；相同周期用固定相位差的弦距 `sqrt((R1-R2)^2+4*R1*R2*sin(Δphase/2)^2)`，所以同环但不同周期一定拒绝，同环同周期也不能靠得太近。
+3. **安全间隔有余量。** 以 `r=size*2/π` 为行星半径；省略 size 时校验使用类型的最大面宽，因此任何世界种子都安全。两行星全时刻中心距离至少为 `r1+r2+2*2048+256`；2048 是 `Space.OUT`，256 是额外余量。不同周期用轨道半径差作最小距离；相同周期用固定相位差的弦距 `sqrt((R1-R2)^2+4*R1*R2*sin(Δphase/2)^2)`，所以同环但不同周期一定拒绝，同环同周期也不能靠得太近。
 4. 每颗轨道半径必须大于 `太阳半径 + 行星半径 + 2048 + 128`。每太阳的安全包络是该组最大的 `轨道半径 + 行星半径 + 2048 + 128`；两太阳距离不能小于两包络之和。跨太阳使用保守球形包络，即使作者认为某些相位不会相撞，也不放宽。
 5. 母太阳距绝对原点 ≤100000 格，母太阳半径 ≤1024（旧 Sun/Model 的限制）。所有手写太阳还必须满足 `太阳位置向量长度 + 安全包络 ≤200000`，避免造出超出个人飞行存档坐标上限、无法抵达的星球。字段的底层 1e7/1e9 上限不代表能越过此限制。
 6. 最多 **1600** 颗手写行星；底层存储虽有 810000 槽，整模型同步预算先限制它。beyond 的追加也不能超过总计 1600；已有编号、存储地址与手写轨道不重排。新增程序太阳的完整可能轨道包络会避开所有手写太阳的安全包络；被占据的单元记为已探索但不生成太阳，有限模式跳过冲突位置，必要时少生成。程序宇宙本身仍遵循前文旧布局规则，不承诺其远处内容都在个人飞行范围内。它以母星半径/周期按 Kepler 比例派生周期，因此还要求 `母星周期 × ((母星半径+(beyond.planets.max-1)×beyond.ring)/母星半径)^1.5 ≤1e9 tick`，过大时缩短母星周期或减小 beyond 环距/行星数。
@@ -385,7 +385,7 @@
 
 ### 保存边界与旧世界
 
-`NativeSystemChunkGenerator.createState` 拿到世界种子后一次物化。`level.dat` 的生成器保存完整 `planets`、`celestial`（初始太阳/轨道/自转/名称/分组，母星已映射到编号 0）以及可选的内联 `universe`。`system` 和类型 ID 不再用于重建它。创建界面可能在拿到世界种子之前复制 codec：此时编码的是**内联完整星系与类型定义**，绝不以 0 猜测世界种子，也不会留下必须回读原 system ID 的保存值。
+`SystemChunkGenerator.createState` 拿到世界种子后一次物化。`level.dat` 的生成器保存完整 `planets`、`celestial`（初始太阳/轨道/自转/名称/分组，母星已映射到编号 0）以及可选的内联 `universe`。`system` 和类型 ID 不再用于重建它。创建界面可能在拿到世界种子之前复制 codec：此时编码的是**内联完整星系与类型定义**，绝不以 0 猜测世界种子，也不会留下必须回读原 system ID 的保存值。
 
 时钟的 SavedData 沿用现有格式保存当前模型、tick 与运行中的自转开关；它是运行状态，初始生成配置来自已保存的 celestial，不再来自数据包。完整同步沿用 Sky 中的现有模型 NBT，名称另随 Shapes v2。新旧客户端应使用相同模组构建。
 
@@ -497,9 +497,9 @@
 
 ### 原实现的离线证据与验收清单（历史记录）
 
-`NativeAuthoredSystemTest` 覆盖实际包文件与文档、延迟 holder、世界种子绑定、JSON/NBT codec、移除 system/type 注册表后载入完整保存、Sky/Shapes 同步、tick 0/四分之一周期/一个周期的每颗星球位置、名称/母星重排、自转、几何和字段拒绝、程序宇宙预留空间及旧模型逐字段/逐帧回归。离线结果不是游戏加载验收。
+`AuthoredSystemTest` 覆盖实际包文件与文档、延迟 holder、世界种子绑定、JSON/NBT codec、移除 system/type 注册表后载入完整保存、Sky/Shapes 同步、tick 0/四分之一周期/一个周期的每颗星球位置、名称/母星重排、自转、几何和字段拒绝、程序宇宙预留空间及旧模型逐字段/逐帧回归。离线结果不是游戏加载验收。
 
-本轮 `./gradlew check nativeTest --no-daemon` 通过：全量 **1937** 项、nativeTest **594** 项、packagedContractTest **2** 项，均为 0 失败、0 错误、0 跳过；新增 `NativeAuthoredSystemTest` **43** 项。Native 是全量的重叠子集。日志在 `build/system-check.log`。未启动游戏。
+本轮 `./gradlew check nativeTest --no-daemon` 通过：全量 **1937** 项、nativeTest **594** 项、packagedContractTest **2** 项，均为 0 失败、0 错误、0 跳过；新增 `AuthoredSystemTest` **43** 项。Native 是全量的重叠子集。日志在 `build/system-check.log`。未启动游戏。
 
 **未实测，后续必须逐项验收：**
 1. 单人与专服用独立示例包新建世界，注册表/预设无加载错误，normal 列表新增只来自该包；自动抵达 Aster，非 0 的 home 变体抵达所选母星。
