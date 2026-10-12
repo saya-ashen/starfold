@@ -38,7 +38,6 @@ Planned is one body type built from parts:
 Kinds are combinations: a sun is fixed and gives light; a planet orbits a sun and has a surface; a moon orbits a
 planet; a gas planet has no surface; a ship is driven by physics and carries its blocks in a hull.
 
-- Worlds saved by 0.1.x will not load after this change. *(decided)*
 - A body's identity is its region and its index in it, not one number for the whole universe, so that regions can
   later be separated.
 - The fixed pair of home planets goes away with it.
