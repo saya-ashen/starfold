@@ -5,19 +5,18 @@ import com.mojang.blaze3d.vertex.*;
 
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.chart.GroundTransition;
 import dev.starfold.chart.PlanetChart;
-import dev.starfold.dev.ArrivalClientProbe;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundHandoff;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.GroundTopology;
+import dev.starfold.probe.ArrivalClientState;
+import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.space.RenderFrame;
+import dev.starfold.universe.PlanetPackets;
 import dev.starfold.worldgen.PlanetTerrain;
 import dev.starfold.worldgen.PlanetTint;
 
@@ -243,8 +242,6 @@ public final class GroundRenderer {
         ready = false;
     }
 
-    public static long probeParentNanos;
-
     public static int probeParentTiles() {
         return parentJob == null
                 ? -1
@@ -372,127 +369,145 @@ public final class GroundRenderer {
         ensureState();
         refreshCoverage();
         closureCoverage();
-        if (!translucent) {
-            long start = System.nanoTime();
-            // Near volumes are the only terrain shown on the ground: while any is meshing or
-            // waiting to
-            // commit, spend the larger near budget. Idle frames and background cover keep the base
-            // budget.
-            boolean parentsReady = GroundPipeline.complete(parents);
-            long deadline =
-                    start
-                            + (!parentsReady
-                                            || job != null
-                                            || stitchJob != null
-                                            || !stagedDetails.isEmpty()
-                                    ? GroundViewPolicy.NEAR_BUDGET_NS
-                                    : GroundViewPolicy.FRAME_BUDGET_NS);
-            uploads = 0;
-            lastCells = 0;
-            for (int face = 0; face < 6 && System.nanoTime() < deadline; face++)
-                if (masks[face] == null) {
-                    masks[face] = buildMask(face, false);
-                    masks[face + 6] = buildMask(face, true);
-                    uploads++;
-                }
-            // Build the first complete cover promptly; refinements then return to their background
-            // share.
-            long coverDeadline = start + GroundViewPolicy.coverBudget(parentsReady);
-            if (GroundViewClient.coverageReady()
-                    && !GroundPipeline.complete(parents)
-                    && System.nanoTime() < coverDeadline) {
-                long parentStart = ArrivalProbe.start();
-                if (parentJob == null) parentJob = new ParentJob();
-                parentJob.step(coverDeadline);
-                if (ArrivalProbe.ENABLED) probeParentNanos += System.nanoTime() - parentStart;
-                if (parentJob.done()) {
-                    var meshes = parentJob.finish();
-                    parentJob = null;
-                    System.arraycopy(meshes, 0, parents, 0, 6);
-                    stitchDirty = true;
-                }
+        if (!translucent) updateMeshes();
+        drawLayers(c, translucent);
+    }
+
+    private static void updateMeshes() {
+        long start = System.nanoTime();
+        // Near volumes are the only terrain shown on the ground: while any is meshing or
+        // waiting to
+        // commit, spend the larger near budget. Idle frames and background cover keep the base
+        // budget.
+        boolean parentsReady = GroundPipeline.complete(parents);
+        long deadline =
+                start
+                        + (!parentsReady
+                                        || job != null
+                                        || stitchJob != null
+                                        || !stagedDetails.isEmpty()
+                                ? GroundViewPolicy.NEAR_BUDGET_NS
+                                : GroundViewPolicy.FRAME_BUDGET_NS);
+        uploads = 0;
+        lastCells = 0;
+        for (int face = 0; face < 6 && System.nanoTime() < deadline; face++)
+            if (masks[face] == null) {
+                masks[face] = buildMask(face, false);
+                masks[face + 6] = buildMask(face, true);
+                uploads++;
             }
-            if (GroundViewClient.coverageReady()
-                    && GroundPipeline.complete(parents)
-                    && System.nanoTime() < coverDeadline) {
-                if (coverJob == null) {
-                    int patch = dirty.poll();
-                    if (patch >= 0) coverJob = new CoverJob(patch);
-                }
-                if (coverJob != null) {
-                    coverJob.step(coverDeadline);
-                    if (coverJob.done()) {
-                        int patch = coverJob.patch;
-                        var mesh = coverJob.finish();
-                        coverJob = null;
-                        var old = staging[patch];
-                        staging[patch] = mesh;
-                        stagedEpoch++;
-                        if (old != null) old.close();
-                        uploads++;
-                    }
-                }
+        // Build the first complete cover promptly; refinements then return to their background
+        // share.
+        long coverDeadline = start + GroundViewPolicy.coverBudget(parentsReady);
+        updateCover(coverDeadline);
+        long detailDeadline = stitchJob == null ? deadline : deadline - (deadline - start) / 4;
+        updateDetails(detailDeadline);
+        ready = GroundViewClient.coverageReady() && patchesComplete();
+        updateStitches(deadline);
+        frameWork = System.nanoTime() - start + selectionWork;
+    }
+
+    private static void updateCover(long coverDeadline) {
+        if (GroundViewClient.coverageReady()
+                && !GroundPipeline.complete(parents)
+                && System.nanoTime() < coverDeadline) {
+            long parentStart = ArrivalProbe.start();
+            if (parentJob == null) parentJob = new ParentJob();
+            parentJob.step(coverDeadline);
+            if (ArrivalProbe.ENABLED)
+                ArrivalClientState.parentNanos += System.nanoTime() - parentStart;
+            if (parentJob.done()) {
+                var meshes = parentJob.finish();
+                parentJob = null;
+                System.arraycopy(meshes, 0, parents, 0, 6);
+                stitchDirty = true;
             }
-            long detailDeadline = stitchJob == null ? deadline : deadline - (deadline - start) / 4;
-            if (job == null
-                    && stagedDetails.values().stream().mapToLong(Mesh::bytes).sum()
-                            <= GroundViewPolicy.STAGING_BYTES - GroundStreaming.MAX_MESH_BYTES
-                    && System.nanoTime() < detailDeadline) {
-                var cache = GroundViewClient.cache();
-                // Nearest first, but only once the resident neighbours it is culled/lit against
-                // have arrived.
-                long key =
-                        GroundStreaming.next(
-                                GroundClient.shape(),
-                                wanted,
-                                k ->
-                                        cache.detailed(k)
-                                                && !stagedDetails.containsKey(k)
-                                                && (!detail.containsKey(k)
-                                                        || dirtyDetails.contains(k)),
-                                cache::detailed,
-                                GroundViewClient.residentTiles(),
-                                GroundViewClient.stalled());
-                if (key >= 0) job = new DetailJob(cache.image(key));
-            }
-            if (job != null && System.nanoTime() < detailDeadline) {
-                lastCells = job.step(detailDeadline);
-                if (job.done()) {
-                    var image = job.image;
-                    var mesh = job.finish();
-                    job = null;
-                    measuredDetails.put(
-                            image.key(),
-                            Math.max(
-                                    mesh.bytes,
-                                    detail.containsKey(image.key())
-                                            ? detail.get(image.key()).bytes
-                                            : 0));
-                    if (GroundStreaming.admit(
-                                    GroundViewClient.residentTiles(),
-                                    measuredDetails,
-                                    GroundViewPolicy.DETAIL_BYTES,
-                                    wanted)
-                            .contains(image.key())) {
-                        stagedDetails.put(image.key(), mesh);
-                        dirtyDetails.remove(image.key());
-                        stitchDirty = true;
-                    } else mesh.close();
-                    uploads++;
-                }
-            }
-            ready = GroundViewClient.coverageReady() && patchesComplete();
-            if (stitchJob != null && System.nanoTime() < deadline) {
-                stitchJob.step(deadline);
-                if (stitchJob.done()) {
-                    pendingJob = stitchJob;
-                    pendingStitches = stitchJob.finish();
-                    stitchJob = null;
-                    uploads++;
-                }
-            }
-            frameWork = System.nanoTime() - start + selectionWork;
         }
+        if (GroundViewClient.coverageReady()
+                && GroundPipeline.complete(parents)
+                && System.nanoTime() < coverDeadline) {
+            if (coverJob == null) {
+                int patch = dirty.poll();
+                if (patch >= 0) coverJob = new CoverJob(patch);
+            }
+            if (coverJob != null) {
+                coverJob.step(coverDeadline);
+                if (coverJob.done()) {
+                    int patch = coverJob.patch;
+                    var mesh = coverJob.finish();
+                    coverJob = null;
+                    var old = staging[patch];
+                    staging[patch] = mesh;
+                    stagedEpoch++;
+                    if (old != null) old.close();
+                    uploads++;
+                }
+            }
+        }
+    }
+
+    private static void updateDetails(long detailDeadline) {
+        if (job == null
+                && stagedDetails.values().stream().mapToLong(Mesh::bytes).sum()
+                        <= GroundViewPolicy.STAGING_BYTES - GroundStreaming.MAX_MESH_BYTES
+                && System.nanoTime() < detailDeadline) {
+            var cache = GroundViewClient.cache();
+            // Nearest first, but only once the resident neighbours it is culled/lit against
+            // have arrived.
+            long key =
+                    GroundStreaming.next(
+                            GroundClient.shape(),
+                            wanted,
+                            k ->
+                                    cache.detailed(k)
+                                            && !stagedDetails.containsKey(k)
+                                            && (!detail.containsKey(k) || dirtyDetails.contains(k)),
+                            cache::detailed,
+                            GroundViewClient.residentTiles(),
+                            GroundViewClient.stalled());
+            if (key >= 0) job = new DetailJob(cache.image(key));
+        }
+        if (job != null && System.nanoTime() < detailDeadline) {
+            lastCells = job.step(detailDeadline);
+            if (job.done()) {
+                var image = job.image;
+                var mesh = job.finish();
+                job = null;
+                measuredDetails.put(
+                        image.key(),
+                        Math.max(
+                                mesh.bytes,
+                                detail.containsKey(image.key())
+                                        ? detail.get(image.key()).bytes
+                                        : 0));
+                if (GroundStreaming.admit(
+                                GroundViewClient.residentTiles(),
+                                measuredDetails,
+                                GroundViewPolicy.DETAIL_BYTES,
+                                wanted)
+                        .contains(image.key())) {
+                    stagedDetails.put(image.key(), mesh);
+                    dirtyDetails.remove(image.key());
+                    stitchDirty = true;
+                } else mesh.close();
+                uploads++;
+            }
+        }
+    }
+
+    private static void updateStitches(long deadline) {
+        if (stitchJob != null && System.nanoTime() < deadline) {
+            stitchJob.step(deadline);
+            if (stitchJob.done()) {
+                pendingJob = stitchJob;
+                pendingStitches = stitchJob.finish();
+                stitchJob = null;
+                uploads++;
+            }
+        }
+    }
+
+    private static void drawLayers(RenderFrame c, boolean translucent) {
         if (replacesNative()) {
             if (!translucent) GroundExterior.draw(c);
             return;
@@ -500,7 +515,7 @@ public final class GroundRenderer {
         if (ArrivalProbe.ENABLED
                 && !translucent
                 && selectionReady()
-                && (ready || GroundPipeline.complete(parents))) ArrivalClientProbe.own = true;
+                && (ready || GroundPipeline.complete(parents))) ArrivalClientState.own = true;
         var shader = RenderSystem.getShader();
         var color = RenderSystem.getShaderColor().clone();
         int[] textures = {
@@ -1574,7 +1589,10 @@ public final class GroundRenderer {
                     double
                             a =
                                     cover.height(
-                                            face, x + u + e[0], z + v + e[1], x + u + e[2],
+                                            face,
+                                            x + u + e[0],
+                                            z + v + e[1],
+                                            x + u + e[2],
                                             z + v + e[3]),
                             b =
                                     cover.height(

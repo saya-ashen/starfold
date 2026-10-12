@@ -1,16 +1,18 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.*;
+import static dev.starfold.sky.SpaceTest.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ship.SableFrames;
+import dev.starfold.ship.SpacePackets;
+import dev.starfold.sky.Space;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -163,7 +165,7 @@ class SpaceTurnTest {
                 for (var face : CubeSurfaceTopology.Face.values())
                     for (double tick : new double[] {0, 1234, 9876}) {
                         var pose =
-                                new GroundTopology.Pose(
+                                new PlanetShape.Pose(
                                         face,
                                         new Point(shape.size() * .17, 1500, shape.size() * .81));
                         var universe =
@@ -287,8 +289,19 @@ class SpaceTurnTest {
         try (var in = TestArchiveResources.open("/dev/starfold/space/SpaceServer.class")) {
             new ClassReader(in).accept(node, 0);
         }
-        var method =
+        var entry =
                 node.methods.stream().filter(m -> m.name.equals("step")).findFirst().orElseThrow();
+        assertTrue(
+                java.util.stream.StreamSupport.stream(entry.instructions.spliterator(), false)
+                        .anyMatch(
+                                ins ->
+                                        ins instanceof MethodInsnNode c
+                                                && c.name.equals("advanceLead")));
+        var method =
+                node.methods.stream()
+                        .filter(m -> m.name.equals("advanceLead"))
+                        .findFirst()
+                        .orElseThrow();
         var calls = new java.util.ArrayList<String>();
         for (var ins : method.instructions) if (ins instanceof MethodInsnNode c) calls.add(c.name);
         assertTrue(

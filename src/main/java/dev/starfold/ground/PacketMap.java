@@ -153,6 +153,11 @@ public final class PacketMap {
             }
             return new ClientboundBundlePacket(parts);
         }
+        return mapChartPackets(p, packet, access, f);
+    }
+
+    private static Packet<?> mapChartPackets(
+            ServerPlayer p, Packet<?> packet, PlanetAccess access, ObserverFrame f) {
         // What lies outside every planet's charts is not a planet's: chunks another mod keeps there
         // for itself
         // (a Sable sub-level's plot) reach the client as that mod sends them.
@@ -231,6 +236,11 @@ public final class PacketMap {
             var at = plane(p, f, e.getPos());
             return at == null ? NOTHING : new ClientboundOpenSignEditorPacket(at, e.isFrontText());
         }
+        return mapEffects(p, packet, access, f);
+    }
+
+    private static Packet<?> mapEffects(
+            ServerPlayer p, Packet<?> packet, PlanetAccess access, ObserverFrame f) {
         if (packet instanceof ClientboundSoundPacket s) {
             var at = plane(p, f, s.getX(), s.getY(), s.getZ());
             return at == null
@@ -286,6 +296,11 @@ public final class PacketMap {
                     e.getLargeExplosionParticles(),
                     e.getExplosionSound());
         }
+        return mapEntities(p, packet, access, f);
+    }
+
+    private static Packet<?> mapEntities(
+            ServerPlayer p, Packet<?> packet, PlanetAccess access, ObserverFrame f) {
         if (packet instanceof ClientboundAddEntityPacket a) {
             var at = plane(p, f, a.getX(), a.getY(), a.getZ());
             if (at == null) return NOTHING;

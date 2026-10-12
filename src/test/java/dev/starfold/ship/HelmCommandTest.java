@@ -5,9 +5,9 @@ import static dev.starfold.ship.HelmCommand.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.geometry.BentStripGeometry;
-import dev.starfold.space.Space;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 import dev.starfold.space.SpaceServer;
-import dev.starfold.space.SpaceTest;
 
 import net.minecraft.core.Direction;
 

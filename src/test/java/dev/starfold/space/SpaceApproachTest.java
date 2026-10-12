@@ -4,13 +4,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.ground.GroundTickets;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
 import dev.starfold.planet.PlanetStorage;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 
 import net.minecraft.world.level.ChunkPos;
 
@@ -43,7 +44,7 @@ class SpaceApproachTest {
                 for (var face : Face.values())
                     for (double tick : new double[] {0, 1234, 9876}) {
                         var pose =
-                                new GroundTopology.Pose(
+                                new PlanetShape.Pose(
                                         face,
                                         new Point(shape.size() * .27, 1500, shape.size() * .73));
                         var motion = SpaceTest.chart(pose.point());
@@ -72,7 +73,7 @@ class SpaceApproachTest {
         for (int planet = 0; planet < 2; planet++)
             for (var face : Face.values()) {
                 var pose =
-                        new GroundTopology.Pose(
+                        new PlanetShape.Pose(
                                 face, new Point(shape.size() * .3, 6000, shape.size() * .6));
                 var start =
                         Space.out(model, planet, shape, pose, SpaceTest.chart(pose.point()), tick);
@@ -132,7 +133,7 @@ class SpaceApproachTest {
         var model = SpaceTest.tilted();
         var shape = PlanetShape.STANDARD;
         double tick = 456;
-        var pose = new GroundTopology.Pose(Face.values()[0], new Point(500, 7000, 700));
+        var pose = new PlanetShape.Pose(Face.values()[0], new Point(500, 7000, 700));
         var start = Space.out(model, 0, shape, pose, SpaceTest.chart(pose.point()), tick);
         var up = Space.up(model, 0, start.position(), tick);
         for (double speed : new double[] {0, 10}) {
@@ -228,10 +229,10 @@ class SpaceApproachTest {
                 calls("SpaceApproach", "full").stream().anyMatch(c -> c.endsWith(".getChunkNow")));
         assertFalse(s.contains("getChunk("));
         var arrive = calls("SableFrames", "arrive");
-        int ready = arrive.indexOf("dev/starfold/space/SpaceApproach.ready"),
+        int ready = arrive.indexOf("dev/starfold/ship/ShipHost.landingReady"),
                 move = arrive.indexOf("dev/starfold/ship/SableFrames.move");
         assertTrue(ready >= 0 && ready < move);
-        assertTrue(arrive.indexOf("dev/starfold/space/SpaceApproach.arrived") > move);
+        assertTrue(arrive.indexOf("dev/starfold/ship/ShipHost.hullArrived") > move);
     }
 
     @Test
@@ -246,13 +247,22 @@ class SpaceApproachTest {
         assertTrue(
                 Sources.text("SpaceServer")
                         .contains(
-                                "value.inboundPlanet=-1;value.arrivalState=ArrivalState.empty();value.setDirty();SpaceApproach.update(level,container,null);return;}"));
+                                "value.inboundPlanet=-1;value.arrivalState=ArrivalState.empty();value.setDirty();SpaceApproach.update(level,container,null);}"));
+        assertTrue(
+                Sources.text("SpaceServer")
+                        .contains(
+                                "if(bodies.isEmpty()){clearEmptyRegion(level,container);return;}"));
         assertTrue(Sources.text("SpaceServer").contains("LevelEvent.Unload"));
         assertTrue(
                 Sources.text("SableFrames")
-                        .contains("if(container==null){SpaceApproach.release(level);return;}"));
+                        .contains(
+                                "if(container==null){ShipHost.get().releaseArrival(level);return;}"));
         assertTrue(
-                calls("GroundTickets", "clear").contains("dev/starfold/space/SpaceApproach.clear"));
+                calls("GroundTickets", "clear")
+                        .contains("dev/starfold/ground/GroundHost.clearArrival"));
+        assertTrue(
+                Sources.text("StarfoldServer")
+                        .contains("public void clearArrival(){SpaceApproach.clear();}"));
     }
 
     @Test
@@ -268,16 +278,20 @@ class SpaceApproachTest {
         var client = Sources.text("SpaceClient");
         assertTrue(
                 client.contains(
-                        "if(viewLevel!=null&&viewLevel!=mc.level){PlanetRemoteRenderer.clear();retainedSession=0;}"));
+                        "if(viewLevel!=null&&viewLevel!=mc.level){SpaceClientHost.get().viewLost();retainedSession=0;}"));
         assertFalse(
-                client.contains("view.session()!=packet.session()))PlanetRemoteRenderer.clear()"));
+                client.contains(
+                        "view.session()!=packet.session()))SpaceClientHost.get().viewLost()"));
     }
 
     @Test
     void departureTransfersBuffersAndDoesNotWaitForANewSummary() throws Exception {
         assertTrue(
                 Sources.text("GroundFlightClient")
-                        .contains("PlanetRemoteRenderer.departing();reset();"));
+                        .contains("FlightClientHost.get().departing();reset();"));
+        assertTrue(
+                Sources.text("StarfoldClient")
+                        .contains("void departing(){PlanetRemoteRenderer.departing();}"));
         var s = Sources.text("PlanetRemoteRenderer");
         assertTrue(s.contains("GroundExterior.take(shape)"));
         assertTrue(

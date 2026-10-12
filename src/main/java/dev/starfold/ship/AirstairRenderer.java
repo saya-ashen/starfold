@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
-import dev.starfold.StarfoldNetwork;
+import dev.starfold.network.StarfoldNetwork;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -81,33 +81,12 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
         stack.pushPose();
         stack.translate(local.x - p.getX(), local.y - p.getY(), local.z - p.getZ());
         stack.mulPose(new Quaternionf(pose.orientation()).conjugate());
-        // Lowered, the flight is drawn where the server planted it, so a hull that trembles on its
-        // gear does not shake the treads.
-        if (stair.length > 0
-                && stair.publishedOut.lengthSquared() > .5
-                && top.distance(stair.published) < 1) {
-            stack.translate(
-                    stair.published.x - top.x,
-                    stair.published.y - top.y,
-                    stair.published.z - top.z);
-            out.set(stair.publishedOut);
-            top.set(stair.published);
-        }
+        alignPublishedFlight(stair, stack, top, out);
         stack.mulPose(new Quaternionf().rotationY((float) Math.atan2(out.x, out.z)));
         double ease = fraction * fraction * (3 - 2 * fraction);
         stack.mulPose(new Quaternionf().rotationX((float) ((1 - ease) * Math.PI / 4)));
         stack.scale(1, (float) (.12 + .88 * ease), (float) (.12 + .88 * ease));
-        box(
-                stack,
-                buffers.getBuffer(material("plate")),
-                -half,
-                -.125,
-                0,
-                half,
-                0,
-                .125,
-                light,
-                overlay);
+        drawTopPlate(stack, buffers, half, light, overlay);
         for (int i = 0; i < steps; i++) {
             double y = -Math.min(drop, (i + 1) * .5) + (i == steps - 1 ? .0125 : 0), z = i * .5;
             int sampled =
@@ -189,6 +168,36 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     overlay);
         }
         stack.popPose();
+    }
+
+    // A lowered flight stays planted despite hull tremble.
+    private static void alignPublishedFlight(
+            Airstair.Stair stair, PoseStack stack, Vector3d top, Vector3d out) {
+        if (stair.length > 0
+                && stair.publishedOut.lengthSquared() > .5
+                && top.distance(stair.published) < 1) {
+            stack.translate(
+                    stair.published.x - top.x,
+                    stair.published.y - top.y,
+                    stair.published.z - top.z);
+            out.set(stair.publishedOut);
+            top.set(stair.published);
+        }
+    }
+
+    private static void drawTopPlate(
+            PoseStack stack, MultiBufferSource buffers, double half, int light, int overlay) {
+        box(
+                stack,
+                buffers.getBuffer(material("plate")),
+                -half,
+                -.125,
+                0,
+                half,
+                0,
+                .125,
+                light,
+                overlay);
     }
 
     private static void tube(

@@ -3,9 +3,10 @@ package dev.starfold.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.worldgen.PlanetEcologyTest;
 
 import net.minecraft.world.level.block.Block;
@@ -27,7 +28,7 @@ class CanonicalStreamingTest {
     void everyDirectedSeamRetainsBothWindowsThroughTwoHundredReversals() {
         for (var face : Face.values())
             for (int[] uv : new int[][] {{0, 1024}, {2047, 1024}, {1024, 0}, {1024, 2047}}) {
-                var before = new GroundTopology.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5));
+                var before = new PlanetShape.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5));
                 var move =
                         new Point(
                                 uv[0] == 0 ? -1 : uv[0] == 2047 ? 1 : 0,
@@ -56,7 +57,7 @@ class CanonicalStreamingTest {
     void budgetPressureAlsoKeepsTheSameMeshesAcrossRepeatedSeamCrossings() {
         for (var face : Face.values())
             for (int[] uv : new int[][] {{0, 1024}, {2047, 1024}, {1024, 0}, {1024, 2047}}) {
-                var before = new GroundTopology.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5));
+                var before = new PlanetShape.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5));
                 var move =
                         new Point(
                                 uv[0] == 0 ? -1 : uv[0] == 2047 ? 1 : 0,
@@ -106,20 +107,20 @@ class CanonicalStreamingTest {
     @Test
     void walkingAwayReleasesOnlyTheOuterRetentionBandAndTeleportIsBounded() {
         var stream = new GroundStreaming();
-        stream.update(new GroundTopology.Pose(Face.TOP, new Point(1024, 20, 1024)), 8);
+        stream.update(new PlanetShape.Pose(Face.TOP, new Point(1024, 20, 1024)), 8);
         var old = stream.resident();
-        stream.update(new GroundTopology.Pose(Face.TOP, new Point(1025, 20, 1025)), 8);
+        stream.update(new PlanetShape.Pose(Face.TOP, new Point(1025, 20, 1025)), 8);
         assertSame(old, stream.resident());
         for (int u = 1040; u < 1700; u += 16) {
-            var pose = new GroundTopology.Pose(Face.TOP, new Point(u, 20, 1024));
+            var pose = new PlanetShape.Pose(Face.TOP, new Point(u, 20, 1024));
             stream.update(pose, 8);
             assertTrue(GroundStreaming.footprint(pose, 10).containsAll(stream.resident()));
             assertTrue(stream.resident().size() <= 441);
         }
-        stream.update(new GroundTopology.Pose(Face.BOTTOM, new Point(500, 20, 500)), 8);
+        stream.update(new PlanetShape.Pose(Face.BOTTOM, new Point(500, 20, 500)), 8);
         assertEquals(289, stream.resident().size());
         assertTrue(Collections.disjoint(old, stream.resident()));
-        stream.update(new GroundTopology.Pose(Face.BOTTOM, new Point(500, 257, 500)), 8);
+        stream.update(new PlanetShape.Pose(Face.BOTTOM, new Point(500, 257, 500)), 8);
         assertTrue(stream.resident().isEmpty());
     }
 
@@ -140,7 +141,7 @@ class CanonicalStreamingTest {
     void measuredOverBudgetWorkConvergesInsteadOfEvictingAndRebuildingForever() {
         var order =
                 GroundStreaming.footprint(
-                        new GroundTopology.Pose(Face.TOP, new Point(1024, 20, 1024)), 8);
+                        new PlanetShape.Pose(Face.TOP, new Point(1024, 20, 1024)), 8);
         var measured = new HashMap<Long, Long>();
         var meshes = new HashSet<Long>();
         var builds = new HashMap<Long, Integer>();
@@ -188,7 +189,7 @@ class CanonicalStreamingTest {
     void largerWorkingSetEventuallyFillsAndRefreshesWithoutFarEditPollution() {
         var ordered =
                 GroundStreaming.footprint(
-                        new GroundTopology.Pose(Face.TOP, new Point(.5, 20, 1024)), 8);
+                        new PlanetShape.Pose(Face.TOP, new Point(.5, 20, 1024)), 8);
         var resident = new HashSet<Long>();
         for (int i = 0; i < 60; i++) {
             var keys = GroundStreaming.request(ordered, i, resident::contains);

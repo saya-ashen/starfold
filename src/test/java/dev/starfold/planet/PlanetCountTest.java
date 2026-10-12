@@ -5,23 +5,23 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.mojang.serialization.JsonOps;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
 import dev.starfold.chart.GroundTransit;
-import dev.starfold.flight.GroundDynamics;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundNavigationSave;
 import dev.starfold.ground.GroundPackets;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.render.GroundSurfaceIndex;
-import dev.starfold.sky.GroundEphemeris;
 import dev.starfold.sky.GroundEphemerisSave;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.waypoint.Waypoint;
 import dev.starfold.waypoint.WaypointCodec;
-import dev.starfold.worldgen.PlanetChunkGenerator;
 import dev.starfold.worldgen.PlanetEcologyTest;
 import dev.starfold.worldgen.PlanetGeneration;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.biome.Biomes;
@@ -146,7 +146,7 @@ class PlanetCountTest {
                                     PlanetEcologyTest.HEIGHT,
                                     null));
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
     }
 
@@ -292,7 +292,7 @@ class PlanetCountTest {
             assertEquals(-1, PlanetStorage.find(27000, 10), "between two columns");
             assertFalse(access.inChart(new BlockPos(10, 128, 5000)));
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
         assertEquals(2, PlanetShape.count());
         assertThrows(
@@ -416,7 +416,7 @@ class PlanetCountTest {
                     IllegalArgumentException.class,
                     () -> new GroundPackets.Shapes(new int[] {2048}, new int[0]));
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
     }
 
@@ -557,7 +557,7 @@ class PlanetCountTest {
                     IllegalArgumentException.class,
                     () -> new GroundGuidance.Options(3, false, false));
             var pose =
-                    new GroundTopology.Pose(
+                    new PlanetShape.Pose(
                             CubeSurfaceTopology.Face.values()[0],
                             new dev.starfold.geometry.BentStripGeometry.Point(256, 400, 256));
             var state =
@@ -577,13 +577,13 @@ class PlanetCountTest {
                     new Waypoint(
                             "c_base",
                             2,
-                            new GroundTopology.Pose(
+                            new PlanetShape.Pose(
                                     CubeSurfaceTopology.Face.values()[0],
                                     new dev.starfold.geometry.BentStripGeometry.Point(
                                             100, 130, 100)));
             assertEquals(marker, WaypointCodec.decode(WaypointCodec.encode(marker)));
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
     }
 
@@ -710,7 +710,7 @@ class PlanetCountTest {
         try {
             assertEquals(2, ObserverFrame.identity(2, 0).planet());
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
     }
 

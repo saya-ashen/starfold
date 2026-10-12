@@ -2,7 +2,7 @@ package dev.starfold.flight;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import dev.starfold.dev.DevProbe;
+import dev.starfold.probe.ProbeState;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -25,7 +25,7 @@ public final class OrbitFlightControls {
         var mc = Minecraft.getInstance();
         return direct != null
                 && mc.screen == null
-                && (mc.isWindowActive() || DevProbe.active())
+                && (mc.isWindowActive() || ProbeState.active())
                 && direct.isDown();
     }
 

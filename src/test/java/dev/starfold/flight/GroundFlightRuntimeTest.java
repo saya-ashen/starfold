@@ -3,15 +3,17 @@ package dev.starfold.flight;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.GroundTransit;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetMotion;
 import dev.starfold.geometry.UniverseMotion;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.ground.GroundFlightPackets;
+import dev.starfold.planet.GroundDynamics;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundSolar;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 
@@ -31,7 +33,7 @@ class GroundFlightRuntimeTest {
     GroundDynamics.State local(double h) {
         return GroundDynamics.local(
                 900,
-                new GroundTopology.Pose(Face.TOP, new Point(1024, h, 1024)),
+                new PlanetShape.Pose(Face.TOP, new Point(1024, h, 1024)),
                 new Point(.1, .3, .05),
                 new Quaterniond(),
                 true,
@@ -149,8 +151,8 @@ class GroundFlightRuntimeTest {
 
     @Test
     void serverWorldTickEntryLeaveAndSpinUseTheFlightAdapter() throws Exception {
-        var server = Sources.text("GroundServer");
-        assertTrue(server.contains("GroundFlightServer.tick(level,saved)"));
+        var server = Sources.text("PlanetPlayers");
+        assertTrue(Sources.text("StarfoldServer").contains("GroundFlightServer.tick(level,saved)"));
         assertTrue(server.contains("GroundFlightServer.entry(player,level,clock)"));
         assertTrue(
                 server.indexOf("GroundFlightServer.entry(player,level,clock)")
@@ -159,7 +161,18 @@ class GroundFlightRuntimeTest {
         assertTrue(server.contains("GroundFlightServer.enter(player,clock,saved)"));
         assertTrue(server.contains("GroundFlightServer.detach(player)"));
         assertTrue(server.contains("GroundFlightServer.restart(player,clock)"));
+        assertTrue(
+                Sources.text("StarfoldServer")
+                        .contains(
+                                "public int leave(net.minecraft.server.level.ServerPlayer player){return PlanetPlayers.leave(player);}"));
+        assertEquals(0, new FlightHost() {}.leave(null));
         var flight = Sources.text("GroundFlightServer");
+        assertEquals(
+                2,
+                flight.split(java.util.regex.Pattern.quote("FlightHost.get().leave(player)"), -1)
+                                .length
+                        - 1);
+        assertFalse(flight.contains("GroundServer.leave"));
         assertTrue(flight.contains("GroundNavigationSave.get"));
         assertTrue(flight.contains("new GroundTerrain"));
         assertFalse(flight.contains("GroundWorld"));

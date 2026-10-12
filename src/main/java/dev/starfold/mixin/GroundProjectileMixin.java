@@ -3,8 +3,8 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.*;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
@@ -21,7 +21,7 @@ import java.util.function.Predicate;
 public abstract class GroundProjectileMixin {
     private static AABB image(Entity entity, Operation<AABB> original, Vec3 start) {
         var box = original.call(entity);
-        if (!GroundServer.canonical(entity.level())
+        if (!PlanetLevels.canonical(entity.level())
                 || !PlanetAccess.of(entity.level())
                         .inChart(net.minecraft.core.BlockPos.containing(start))) return box;
         var image = GroundSeams.box(entity.level(), box, start.x, start.z);

@@ -2,18 +2,20 @@ package dev.starfold.flight;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetMotion;
 import dev.starfold.geometry.PlanetSpace;
 import dev.starfold.ground.GroundNavigationSave;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.planet.PlanetSystemTest;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundEphemeris;
 import dev.starfold.sky.GroundEphemerisSave;
 import dev.starfold.waypoint.Waypoint;
 import dev.starfold.waypoint.WaypointSave;
@@ -71,7 +73,7 @@ class VoyageRegressionTest {
                 GroundDynamics.local(
                         state.tick(),
                         1,
-                        new GroundTopology.Pose(Face.BOTTOM, new Point(777, 180, 999)),
+                        new PlanetShape.Pose(Face.BOTTOM, new Point(777, 180, 999)),
                         GroundEphemeris.ZERO,
                         new Quaterniond(),
                         true,
@@ -141,10 +143,10 @@ class VoyageRegressionTest {
         var model = GroundEphemeris.spinning(PlanetSystem.model(), true, 0);
         var aBase =
                 new Waypoint(
-                        "a_base", 0, new GroundTopology.Pose(Face.TOP, new Point(1024, 20, 1024)));
+                        "a_base", 0, new PlanetShape.Pose(Face.TOP, new Point(1024, 20, 1024)));
         var bBase =
                 new Waypoint(
-                        "b_base", 1, new GroundTopology.Pose(Face.TOP, new Point(1024, -5, 1024)));
+                        "b_base", 1, new PlanetShape.Pose(Face.TOP, new Point(1024, -5, 1024)));
         markers.add(player, aBase);
         markers.add(player, bBase);
         markers.select(player, "b_base");
@@ -184,16 +186,16 @@ class VoyageRegressionTest {
             final int expectedPlanet = planet;
             var terrain =
                     new GroundDynamics.Terrain() {
-                        public boolean clear(GroundTopology.Pose p) {
+                        public boolean clear(PlanetShape.Pose p) {
                             fail("Lost planet identity");
                             return false;
                         }
 
-                        public double clearance(GroundTopology.Pose p) {
+                        public double clearance(PlanetShape.Pose p) {
                             throw new AssertionError("Unexpected query");
                         }
 
-                        public boolean clear(int id, GroundTopology.Pose p) {
+                        public boolean clear(int id, PlanetShape.Pose p) {
                             assertEquals(expectedPlanet, id);
                             return true;
                         }
@@ -203,7 +205,7 @@ class VoyageRegressionTest {
                         GroundDynamics.local(
                                 900,
                                 planet,
-                                new GroundTopology.Pose(Face.WEST, new Point(800, height, 1200)),
+                                new PlanetShape.Pose(Face.WEST, new Point(800, height, 1200)),
                                 new Point(.1, 0, .2),
                                 new Quaterniond().rotationY(.3),
                                 false,
@@ -231,7 +233,7 @@ class VoyageRegressionTest {
                 GroundDynamics.local(
                         900,
                         1,
-                        new GroundTopology.Pose(Face.TOP, new Point(1024, -5, 1024)),
+                        new PlanetShape.Pose(Face.TOP, new Point(1024, -5, 1024)),
                         GroundEphemeris.ZERO,
                         new Quaterniond(),
                         false,
@@ -242,11 +244,11 @@ class VoyageRegressionTest {
         var loaded = GroundNavigationSave.load(before, null);
         var blocked =
                 new GroundDynamics.Terrain() {
-                    public boolean clear(GroundTopology.Pose p) {
+                    public boolean clear(PlanetShape.Pose p) {
                         return false;
                     }
 
-                    public double clearance(GroundTopology.Pose p) {
+                    public double clearance(PlanetShape.Pose p) {
                         return 0;
                     }
                 };

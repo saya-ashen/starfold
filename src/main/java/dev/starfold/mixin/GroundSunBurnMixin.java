@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundDaylight;
 
@@ -20,7 +20,7 @@ public abstract class GroundSunBurnMixin {
     private void starfold$planetDay(CallbackInfoReturnable<Boolean> ci) {
         var mob = (Mob) (Object) this;
         if (!(mob.level() instanceof ServerLevel level)
-                || !GroundServer.is(level)
+                || !PlanetLevels.is(level)
                 || !PlanetSystem.shared(level)
                 || !PlanetAccess.of(level).inChart(mob.blockPosition())) return;
         var eyes = BlockPos.containing(mob.getX(), mob.getEyeY(), mob.getZ());

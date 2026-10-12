@@ -2,7 +2,7 @@ package dev.starfold.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.*;
 
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.probe.ArrivalProbe;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;

@@ -1,7 +1,7 @@
 package dev.starfold.worldgen;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.PlanetShape;
 
 import java.util.*;
 

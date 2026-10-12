@@ -179,7 +179,7 @@ class RejoinTest {
         assertTrue(s.contains("apply(packet.carry(),true)"));
         assertTrue(s.contains("if(boarding)return;throw new IllegalStateException"));
         assertTrue(s.contains("boarding?new Vector3d(packet.player().x()"));
-        assertTrue(s.contains("if(!boarding)SpaceClient.carried(packet.region())"));
+        assertTrue(s.contains("if(!boarding)ShipClientHost.get().carriedFrame(packet.region())"));
         assertTrue(
                 calls("SableCarryClient", "apply")
                         .containsAll(

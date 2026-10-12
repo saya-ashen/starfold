@@ -1,5 +1,6 @@
 package dev.starfold.ground;
 
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 
 import net.minecraft.core.BlockPos;

@@ -8,11 +8,9 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.OrbitAttitude;
 import dev.starfold.geometry.PlanetSpace;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.render.GroundExteriorMesh;
 import dev.starfold.render.GroundSelection;
 import dev.starfold.render.GroundShaderSource;
-import dev.starfold.sky.GroundSolar;
 
 import org.joml.Quaterniondc;
 import org.joml.Vector3d;
@@ -74,7 +72,7 @@ class GroundReliefCameraTest {
         for (var face : Face.values())
             for (int u : new int[] {1, 1024, 2047})
                 for (double pitch : new double[] {-60, 0, 60}) {
-                    var pose = new GroundTopology.Pose(face, new Point(u, 159, 777));
+                    var pose = new PlanetShape.Pose(face, new Point(u, 159, 777));
                     var local = GroundCamera.capture(43, pitch);
                     double time = 900;
                     var universe =
@@ -90,7 +88,7 @@ class GroundReliefCameraTest {
     @Test
     void rollRemovalKeepsForwardRayNotAnOldAcknowledgedAim() {
         var model = GroundSolar.defaults();
-        var pose = new GroundTopology.Pose(Face.SOUTH, new Point(700, 159, 800));
+        var pose = new PlanetShape.Pose(Face.SOUTH, new Point(700, 159, 800));
         var live = GroundCamera.capture(30, 65).rotateZ(2.3);
         var world =
                 model.at(0, 100)

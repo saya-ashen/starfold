@@ -3,9 +3,7 @@ package dev.starfold.ship;
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.network.client.SubLevelSnapshotInterpolator;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
-import dev.starfold.StarfoldNetwork;
-import dev.starfold.render.GroundClient;
-import dev.starfold.space.SpaceClient;
+import dev.starfold.network.StarfoldNetwork;
 
 import net.minecraft.client.Minecraft;
 
@@ -91,8 +89,8 @@ public final class SableCarryClient {
             player.setDeltaMovement(0, -.08, 0);
             player.fallDistance = 0;
         }
-        GroundClient.frame(packet.observer());
-        if (!boarding) SpaceClient.carried(packet.region());
+        ShipClientHost.get().carriedObserver(packet.observer());
+        if (!boarding) ShipClientHost.get().carriedFrame(packet.region());
         if (System.getProperty("starfold.probe") != null) {
             var relative = now.transformPositionInverse(at, new Vector3d());
             org.slf4j.LoggerFactory.getLogger("starfold-probe")

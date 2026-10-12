@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
@@ -32,7 +32,7 @@ public abstract class GroundMobNavigationMixin {
             int reach,
             float range,
             Operation<Path> original) {
-        if (!GroundServer.canonical(mob.level()))
+        if (!PlanetLevels.canonical(mob.level()))
             return original.call(targets, region, offset, reach, range);
         var mapped = new HashSet<BlockPos>();
         for (var t : targets) {

@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
 
 import org.junit.jupiter.api.Test;
 
@@ -68,7 +66,7 @@ class PlanetProjectionTest {
                                     gap.point(other, new Point(700.5, 4, 33.5)),
                                     g.point(other, new Point(700.5, 4, 33.5)));
                     var orbit = new GroundOrbit(new GroundSpace.Pose(f, eye), eye, view);
-                    var o = new PlanetOrbit(STANDARD, new GroundTopology.Pose(f, eye), eye, view);
+                    var o = new PlanetOrbit(STANDARD, new PlanetShape.Pose(f, eye), eye, view);
                     assertEquals(orbit.weight, o.weight);
                     assertEquals(orbit.clip, o.clip);
                     assertEquals(orbit.minimumFacing, o.minimumFacing);
@@ -91,7 +89,7 @@ class PlanetProjectionTest {
                 }
                 assertEquals(
                         GroundOrbit.frame(new GroundSpace.Pose(f, eye)),
-                        PlanetOrbit.frame(STANDARD, new GroundTopology.Pose(f, eye)));
+                        PlanetOrbit.frame(STANDARD, new PlanetShape.Pose(f, eye)));
             }
     }
 
@@ -159,7 +157,7 @@ class PlanetProjectionTest {
         // From high orbit a point of the surface is drawn on a sphere of the planet's own radius
         // below the eye.
         var high = new Point(512.5, GroundOrbit.END + 500, 512.5);
-        var orbit = new PlanetOrbit(SMALL, new GroundTopology.Pose(Face.TOP, high), high, 256);
+        var orbit = new PlanetOrbit(SMALL, new PlanetShape.Pose(Face.TOP, high), high, 256);
         assertEquals(1, orbit.weight);
         var under = orbit.raw(Face.TOP, new Point(512.5, 0, 512.5));
         assertEquals(0, under.y(), 1e-6);

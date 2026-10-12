@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
 import dev.starfold.ship.StarterShip;
-import dev.starfold.worldgen.SystemChunkGenerator;
+import dev.starfold.universe.SystemChunkGenerator;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AlertScreen;

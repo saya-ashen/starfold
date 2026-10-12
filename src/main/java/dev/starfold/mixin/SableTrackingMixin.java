@@ -6,7 +6,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 
 import dev.ryanhcode.sable.sublevel.system.SubLevelTrackingSystem;
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.player.Player;
 
@@ -33,7 +33,7 @@ public abstract class SableTrackingMixin {
             double z,
             Operation<Double> original,
             @Local(argsOnly = true) Player player) {
-        return GroundServer.canonical(player.level())
+        return PlanetLevels.canonical(player.level())
                 ? GroundSeams.distance(player, body.x(), body.y(), body.z())
                 : original.call(body, x, y, z);
     }

@@ -6,7 +6,6 @@ import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Cell;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.PlanetShape;
 
 import org.junit.jupiter.api.Test;
 
@@ -99,16 +98,36 @@ class ObserverReadyTest {
     void hudProbeLightFogAndSkyKeepChartQueriesBehindReadiness() throws Exception {
         var flight = Sources.text("GroundFlightClient");
         assertTrue(
-                flight.contains(
-                        "if(!ready()||!GroundClient.ready()||Minecraft.getInstance().options.hideGui)return"));
+                Sources.text("StarfoldClient")
+                        .contains("boolean viewReady(){return GroundClient.ready();}"));
         assertTrue(
-                flight.contains("if(!ready()||!GroundClient.ready())return \"flight not ready\""));
-        assertTrue(flight.contains("probeAltitude(){return ready()&&GroundClient.ready()?"));
+                flight.contains(
+                        "if(!ready()||!FlightClientHost.get().viewReady()||Minecraft.getInstance().options.hideGui)return"));
+        assertTrue(
+                flight.contains(
+                        "if(!ready()||!FlightClientHost.get().viewReady())return \"flight not ready\""));
+        assertTrue(
+                flight.contains(
+                        "probeAltitude(){return ready()&&FlightClientHost.get().viewReady()?"));
         assertTrue(
                 Sources.text("WaypointClient")
-                        .contains("!GroundClient.ready() || !GroundFlightClient.ready()"));
+                        .contains(
+                                "!WaypointClientHost.get().ready() || !GroundFlightClient.ready()"));
+        assertTrue(
+                Sources.text("StarfoldClient")
+                        .contains("boolean ready(){return GroundClient.ready();}"));
         var probe = Sources.text("DevProbe");
-        assertTrue(probe.contains("case \"solarplan\",\"solarjump\"->{if(!GroundClient.ready())"));
+        assertTrue(probe.contains("case \"solarplan\"->commandSolarplan(mc,arg)"));
+        assertTrue(probe.contains("case \"solarjump\"->commandSolarjump(mc,arg)"));
+        assertTrue(
+                probe.contains(
+                        "commandSolarplan(Minecraft mc,String arg){return commandSolarplan(mc,arg,\"solarplan\");}"));
+        assertTrue(
+                probe.contains(
+                        "commandSolarjump(Minecraft mc,String arg){return commandSolarplan(mc,arg,\"solarjump\");}"));
+        assertTrue(
+                probe.contains(
+                        "commandSolarplan(Minecraft mc,String arg,String command){if(!GroundClient.ready()){fail(mc,\"solar observer not ready\");return false;}"));
         assertTrue(probe.contains("GroundClient.ready()?GroundClient.face():-1"));
         assertTrue(
                 probe.contains(

@@ -1,15 +1,16 @@
 package dev.starfold.render;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.flight.GroundFlightServer;
-import dev.starfold.planet.PlanetPackets;
+import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundClock;
+import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceApproach;
 import dev.starfold.space.SpaceServer;
 import dev.starfold.space.SpaceView;
-import dev.starfold.worldgen.PlanetChunkGenerator;
-import dev.starfold.worldgen.SystemChunkGenerator;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.SystemChunkGenerator;
 
 import net.minecraft.server.level.ServerPlayer;
 
@@ -54,7 +55,7 @@ public final class PlanetRemoteServer {
 
     /** Every other planet of the system is kept up to date for this player, each at its own pace. */
     public static void tick(ServerPlayer player, GroundClock clock) {
-        if (SpaceServer.in(player)) {
+        if (Space.in(player)) {
             region(player, clock);
             return;
         }

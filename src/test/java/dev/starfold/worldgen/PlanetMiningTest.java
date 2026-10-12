@@ -7,9 +7,11 @@ import com.mojang.serialization.*;
 import dev.starfold.Sources;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.planet.PlanetPackets;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundChunkSnapshot;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.PlanetWorldPreset;
 
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
@@ -335,7 +337,7 @@ class PlanetMiningTest {
         var type =
                 lookup.lookupOrThrow(Registries.DIMENSION_TYPE)
                         .getOrThrow(BuiltinDimensionTypes.OVERWORLD);
-        var key = ResourceKey.create(Registries.LEVEL_STEM, GroundServer.PLANET.location());
+        var key = ResourceKey.create(Registries.LEVEL_STEM, PlanetLevels.PLANET.location());
         var old = new LevelStem(type, generator(2));
         var fresh = new LevelStem(type, generator(3));
         var overworld = new LevelStem(type, generator(2));

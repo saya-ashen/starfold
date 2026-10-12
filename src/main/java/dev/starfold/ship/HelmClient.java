@@ -5,7 +5,6 @@ import dev.ryanhcode.sable.mixinterface.clip_overwrite.ClipContextExtension;
 import dev.ryanhcode.sable.mixinterface.clip_overwrite.LevelPoseProviderExtension;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.starfold.flight.OrbitFlightControls;
-import dev.starfold.space.SpaceAttitudeClient;
 
 import net.minecraft.client.*;
 import net.minecraft.world.level.ClipContext;
@@ -291,9 +290,9 @@ public final class HelmClient {
                         * (mc.options.getCameraType() == CameraType.THIRD_PERSON_BACK
                                 ? zoom
                                 : 1); // Tilt only the stand-back direction: level sight clears the
-                                      // roof, with the hull below centre.
+        // roof, with the hull below centre.
         var back =
-                (SpaceAttitudeClient.mouseFlight()
+                (ShipClientHost.get().mouseSteering()
                                 ? Vec3.directionFromRotation(CHASE_TILT, camera.getYRot())
                                 : new Vec3(camera.getLookVector()))
                         .scale(-1);

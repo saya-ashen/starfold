@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.starfold.Sources;
 import dev.starfold.flight.HudLayout;
 import dev.starfold.geometry.BentStripGeometry.Point;
+import dev.starfold.sky.Space;
 
 import org.junit.jupiter.api.Test;
 

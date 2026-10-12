@@ -5,13 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.planet.PlanetTypeTest;
 import dev.starfold.sky.GroundDaylight;
-import dev.starfold.sky.GroundSolar;
+import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.StarterShipOption;
+import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.worldgen.PlanetEcologyTest;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -44,7 +45,7 @@ class StarterShipTest {
                 generator.starterShip(),
                 SystemChunkGenerator.CODEC.codec().parse(ops, saved).getOrThrow().starterShip());
         assertTrue(
-                StarterShip.Option.CODEC
+                StarterShipOption.CODEC
                         .parse(
                                 JsonOps.INSTANCE,
                                 JsonParser.parseString("{\"structure\":\"BAD ID\"}"))

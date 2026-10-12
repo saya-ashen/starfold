@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.chart.GroundOrbit;
-import dev.starfold.ground.GroundCoordinates;
+import dev.starfold.planet.GroundCoordinates;
 
 import org.junit.jupiter.api.Test;
 

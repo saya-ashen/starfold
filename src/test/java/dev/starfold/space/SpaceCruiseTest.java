@@ -1,12 +1,13 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.point;
+import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.sky.Space;
 
 import org.junit.jupiter.api.Test;
 
@@ -303,7 +304,8 @@ class SpaceCruiseTest {
     void integrationKeepsHullRelabellingAndLimitsAfterAssist() throws Exception {
         var s = Sources.text("SpaceServer");
         assertTrue(s.contains("anyMatch(player->helm(player,lead))"));
-        assertTrue(s.contains("if(!piloted)value.frame=value.frame.dragged(1/(1+"));
+        assertTrue(s.contains("if(!piloted)dragFrame(value,level,tick)"));
+        assertTrue(s.contains("value.frame=value.frame.dragged(1/(1+"));
         assertTrue(s.contains("new org.joml.Vector3d(-v.x()*20,-v.y()*20,-v.z()*20)"));
         assertTrue(s.indexOf("drift=cruise(prior") > s.indexOf("assist(f.drift()"));
         assertTrue(

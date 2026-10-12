@@ -5,9 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.mojang.serialization.JsonOps;
 
 import dev.starfold.ground.GroundPackets;
-import dev.starfold.worldgen.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetType;
+import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.SystemChunkGenerator;
+import dev.starfold.universe.SystemDefinition;
+import dev.starfold.universe.Universe;
+import dev.starfold.universe.UniverseLayout;
 import dev.starfold.worldgen.PlanetEcologyTest;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -132,7 +137,7 @@ class PlanetIdentityTest {
             assertEquals(0, buffer.readableBytes());
         } finally {
             buffer.release();
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
         assertTrue(PlanetSystem.identities().isEmpty());
         assertThrows(

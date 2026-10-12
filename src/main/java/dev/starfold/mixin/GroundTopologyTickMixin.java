@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.*;
@@ -22,7 +22,7 @@ public interface GroundTopologyTickMixin {
             ordinal = 0)
     private BlockPos starfold$nativeTick(BlockPos pos) {
         return (Object) this instanceof Level level
-                        && GroundServer.canonical(level)
+                        && PlanetLevels.canonical(level)
                         && PlanetAccess.of(level).inChart(pos)
                 ? PlanetAccess.of(level).address(pos).owner()
                 : pos;

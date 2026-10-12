@@ -1,8 +1,8 @@
 package dev.starfold.render;
 
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.chart.PlanetShape;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundTopology;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -19,7 +19,7 @@ public final class GroundViewCache {
 
     public record Surface(long revision, int[] heights, int[] states) {
         /** A column dug open to a deep planet's floor has its surface there: below any floor is the only height refused. */
-        public static final int LOWEST = GroundCoordinates.FLOOR + (int) GroundTopology.LOWEST - 2;
+        public static final int LOWEST = GroundCoordinates.FLOOR + (int) PlanetShape.LOWEST - 2;
 
         public Surface {
             if (revision < 0 || heights.length != 256 || states.length != 256)

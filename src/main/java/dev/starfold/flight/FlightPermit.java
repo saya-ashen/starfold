@@ -1,6 +1,6 @@
 package dev.starfold.flight;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -71,7 +71,7 @@ public final class FlightPermit {
                                 cpEvent) -> {
                     var player = (net.minecraft.server.level.ServerPlayer) cpEvent.getEntity();
                     var destination = player.getServer().getLevel(cpEvent.getTo());
-                    if (!GroundServer.is(destination)) revoke(player);
+                    if (!PlanetLevels.is(destination)) revoke(player);
                 });
     }
 

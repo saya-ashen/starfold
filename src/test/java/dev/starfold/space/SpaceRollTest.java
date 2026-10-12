@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.Thrusters;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;

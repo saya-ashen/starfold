@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.Mob;
 
@@ -21,7 +21,7 @@ public abstract class GroundMobMeleeMixin {
     private boolean starfold$chartMelee(
             net.minecraft.world.entity.LivingEntity target, Operation<Boolean> original) {
         var self = (Mob) (Object) this;
-        if (!GroundServer.canonical(self.level())) return original.call(target);
+        if (!PlanetLevels.canonical(self.level())) return original.call(target);
         var box = GroundSeams.box(self.level(), target.getBoundingBox(), self.getX(), self.getZ());
         return box != null && getAttackBoundingBox().intersects(box);
     }

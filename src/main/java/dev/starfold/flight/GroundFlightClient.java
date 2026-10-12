@@ -1,30 +1,28 @@
 package dev.starfold.flight;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.chart.GroundCamera;
 import dev.starfold.chart.GroundCosmos;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGap;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.GroundView;
 import dev.starfold.chart.PlanetOrbit;
-import dev.starfold.dev.DevProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.OrbitAttitude;
 import dev.starfold.geometry.PlanetMotion;
 import dev.starfold.geometry.PlanetSpace;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.ground.GroundFlightPackets;
 import dev.starfold.ground.GroundTerrain;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.render.GroundClient;
-import dev.starfold.render.GroundViewClient;
-import dev.starfold.render.PlanetRemoteRenderer;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceClient;
+import dev.starfold.probe.ProbeState;
+import dev.starfold.sky.Space;
 
 import net.minecraft.client.*;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -71,13 +69,13 @@ public final class GroundFlightClient {
     private static CameraType oldCamera;
     private static float partial;
     private static double renderTime;
-    private static GroundTopology.Pose renderPose;
+    private static PlanetShape.Pose renderPose;
     private static final LinkedHashMap<Long, GroundFlightPackets.Input> pending =
             new LinkedHashMap<>();
 
     public static boolean ready() {
         var mc = Minecraft.getInstance();
-        return GroundServer.is(mc.level)
+        return PlanetLevels.is(mc.level)
                 && mc.player != null
                 && !Space.holds(mc.player.getX(), mc.player.getZ())
                 && mc.level == level
@@ -121,7 +119,7 @@ public final class GroundFlightClient {
 
     /** Drop prediction without applying a chart handoff or moving the player. */
     public static void region() {
-        PlanetRemoteRenderer.departing();
+        FlightClientHost.get().departing();
         reset();
     }
 
@@ -145,15 +143,15 @@ public final class GroundFlightClient {
     private static GroundDynamics.Terrain terrain() {
         var local = new GroundTerrain(level, Minecraft.getInstance().player, mask, state.planet());
         return new GroundDynamics.Terrain() {
-            public boolean clear(GroundTopology.Pose p) {
+            public boolean clear(PlanetShape.Pose p) {
                 return local.clear(p);
             }
 
-            public double clearance(GroundTopology.Pose p) {
+            public double clearance(PlanetShape.Pose p) {
                 return local.clearance(p);
             }
 
-            public boolean clear(int id, GroundTopology.Pose p) {
+            public boolean clear(int id, PlanetShape.Pose p) {
                 if (shared)
                     return new GroundTerrain(level, Minecraft.getInstance().player, mask, id)
                             .clear(p);
@@ -163,7 +161,7 @@ public final class GroundFlightClient {
                 throw new IllegalStateException("Remote native collision awaits dimension handoff");
             }
 
-            public double clearance(int id, GroundTopology.Pose p) {
+            public double clearance(int id, PlanetShape.Pose p) {
                 return shared
                         ? new GroundTerrain(level, Minecraft.getInstance().player, mask, id)
                                 .clearance(p)
@@ -181,7 +179,15 @@ public final class GroundFlightClient {
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
-        PlanetSystem.clientShared(l -> SpaceClient.shared(l) || l == level && shared);
+        installClientAccess();
+        registerSetup();
+        registerState();
+        registerClientLifecycle();
+        registerHud(modBus);
+    }
+
+    private static void installClientAccess() {
+        PlanetSystem.clientShared(l -> FlightClientHost.get().shared(l) || l == level && shared);
         GroundFlightServer.clientControl(e -> e == Minecraft.getInstance().player && controlled());
         GroundFlightServer.clientMask(() -> ready() ? mask : GroundSpace.DEFAULT_MASK);
         StarfoldNetwork.clientReceiver(
@@ -189,10 +195,13 @@ public final class GroundFlightClient {
                 (packet, c) -> {
                     if (ready() && packet.session() == session && !controlled) seam = packet;
                 });
+    }
+
+    private static void registerSetup() {
         StarfoldNetwork.clientReceiver(
                 GroundFlightPackets.Setup.TYPE,
                 (packet, c) -> {
-                    if (!GroundServer.is(net.minecraft.client.Minecraft.getInstance().level))
+                    if (!PlanetLevels.is(net.minecraft.client.Minecraft.getInstance().level))
                         return;
                     if (level != net.minecraft.client.Minecraft.getInstance().level) reset();
                     level = net.minecraft.client.Minecraft.getInstance().level;
@@ -214,12 +223,15 @@ public final class GroundFlightClient {
                         aim = GroundDynamics.orientation(model, state, state.tick());
                     renderTime = state.tick();
                     renderPose = null;
-                    GroundViewClient.bindSession(level, session);
-                    GroundClient.air(packet.air());
-                    GroundClient.metadata(model, state.tick());
+                    FlightClientHost.get().sessionBound(level, session);
+                    FlightClientHost.get().atmosphere(packet.air());
+                    FlightClientHost.get().metadata(model, state.tick());
                     if (controlled) apply();
                     else if (handoff) handoff();
                 });
+    }
+
+    private static void registerState() {
         StarfoldNetwork.clientReceiver(
                 GroundFlightPackets.State.TYPE,
                 (packet, c) -> {
@@ -275,6 +287,9 @@ public final class GroundFlightClient {
                         else aim = GroundDynamics.orientation(model, state, state.tick());
                     } else apply();
                 });
+    }
+
+    private static void registerClientLifecycle() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
                         reset());
@@ -289,7 +304,7 @@ public final class GroundFlightClient {
                     boolean play =
                             mc.screen == null
                                     && (mc.isWindowActive() && mc.mouseHandler.isMouseGrabbed()
-                                            || DevProbe.active());
+                                            || ProbeState.active());
                     boolean
                             g =
                                     play
@@ -368,6 +383,9 @@ public final class GroundFlightClient {
                         sync();
                     }
                 });
+    }
+
+    private static void registerHud(net.neoforged.bus.api.IEventBus modBus) {
         modBus.addListener(
                 (net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) ->
                         event.registerAboveAll(
@@ -377,10 +395,10 @@ public final class GroundFlightClient {
                                     com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
                                     try {
                                         if (!ready()
-                                                || !GroundClient.ready()
+                                                || !FlightClientHost.get().viewReady()
                                                 || Minecraft.getInstance().options.hideGui) return;
                                         var mc = Minecraft.getInstance();
-                                        if (GroundClient.DEBUG_HUD) {
+                                        if (FlightClientHost.get().diagnosticHud()) {
                                             debugHud(g, mc);
                                             return;
                                         }
@@ -566,7 +584,7 @@ public final class GroundFlightClient {
         }
     }
 
-    private static GroundTopology.Pose proxy(GroundDynamics.State s, double time) {
+    private static PlanetShape.Pose proxy(GroundDynamics.State s, double time) {
         return s.space()
                 ? GroundTopology.locate(
                         PlanetShape.of(s.planet()), model.at(s.planet(), time).local(s.position()))
@@ -578,7 +596,7 @@ public final class GroundFlightClient {
         if (p == null || !controlled) return;
         // Client coordinates are continuous across faces; a place the chart cannot draw yet waits
         // for the server's frame.
-        var at = GroundClient.plane(state.planet(), proxy(state, state.tick()));
+        var at = FlightClientHost.get().chartPosition(state.planet(), proxy(state, state.tick()));
         if (at == null) return;
         boolean jump = new Point(p.getX(), p.getY(), p.getZ()).sub(at).length() > 16;
         p.setPos(at.x(), at.y(), at.z());
@@ -595,9 +613,9 @@ public final class GroundFlightClient {
     private static void handoff() {
         var p = Minecraft.getInstance().player;
         if (p == null || state.space()) return;
-        var feet = GroundClient.plane(state.planet(), state.local());
+        var feet = FlightClientHost.get().chartPosition(state.planet(), state.local());
         if (feet == null) return;
-        int turns = GroundClient.planeTurns(state.local().face());
+        int turns = FlightClientHost.get().chartTurns(state.local().face());
         p.setPos(feet.x(), feet.y(), feet.z());
         p.xo = p.xOld = feet.x();
         p.yo = p.yOld = feet.y();
@@ -644,7 +662,7 @@ public final class GroundFlightClient {
     /** Dev probe only: the navigation HUD readings as one line. */
     /** Where on the observer's planet the guidance target stands overhead, now or so many ticks on: both planets move
      *  and turn, so whoever climbs to it climbs from where it will be. Null when the target is the planet underfoot. */
-    public static GroundTopology.Pose under(long ahead) {
+    public static PlanetShape.Pose under(long ahead) {
         if (!ready() || state.guidance().target() == state.planet()) return null;
         long tick = state.tick() + ahead;
         var shape = PlanetShape.of(state.planet());
@@ -657,7 +675,7 @@ public final class GroundFlightClient {
     }
 
     public static String probeReading() {
-        if (!ready() || !GroundClient.ready()) return "flight not ready";
+        if (!ready() || !FlightClientHost.get().viewReady()) return "flight not ready";
         var read = GroundDynamics.reading(model, terrain(), state, state.tick());
         // Sun-planet-observer angle of the guidance target: 0 looks at its noon, 180 at its
         // midnight.
@@ -695,7 +713,7 @@ public final class GroundFlightClient {
     }
 
     public static double probeAltitude() {
-        return ready() && GroundClient.ready()
+        return ready() && FlightClientHost.get().viewReady()
                 ? GroundDynamics.reading(model, terrain(), state, state.tick()).altitude()
                 : Double.NaN;
     }
@@ -719,7 +737,7 @@ public final class GroundFlightClient {
                         model.at(state.planet(), renderTime).local(world));
     }
 
-    public static GroundTopology.Pose pose() {
+    public static PlanetShape.Pose pose() {
         if (renderPose == null) prepare(partial);
         return renderPose;
     }
@@ -747,12 +765,15 @@ public final class GroundFlightClient {
         camera.rotation()
                 .set(
                         new Quaterniond()
-                                .rotationY(-GroundClient.planeTurns(pose().face()) * Math.PI / 2)
+                                .rotationY(
+                                        -FlightClientHost.get().chartTurns(pose().face())
+                                                * Math.PI
+                                                / 2)
                                 .mul(GroundView.camera(chartAim())));
         camera.getLookVector().set(0, 0, -1).rotate(camera.rotation());
         camera.getUpVector().set(0, 1, 0).rotate(camera.rotation());
         camera.getLeftVector().set(-1, 0, 0).rotate(camera.rotation());
-        var at = GroundClient.planePoint(state.planet(), pose().face(), eye());
+        var at = FlightClientHost.get().chartPoint(state.planet(), pose().face(), eye());
         return at;
     }
 

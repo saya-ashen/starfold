@@ -1,6 +1,5 @@
 package dev.starfold.ground;
 
-import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.ChartOrientation;
 import dev.starfold.mixin.BlockEntityAccess;
 import dev.starfold.mixin.GroundPistonAccess;
@@ -92,7 +91,7 @@ public final class GhostChunk extends LevelChunk {
 
     /** The solid corner closure is virtual everywhere on the server; the view honours it like Level reads do. */
     private boolean masked(int i, int y) {
-        var mask = GroundFlightServer.mask(level);
+        var mask = dev.starfold.sky.GroundClock.get(level).mask;
         var owner = at(i, y);
         var access = PlanetAccess.of(level);
         var shape = access.shape(owner);

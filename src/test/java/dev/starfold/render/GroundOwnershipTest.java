@@ -3,7 +3,6 @@ package dev.starfold.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
-import dev.starfold.chart.GroundTransition;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrain;

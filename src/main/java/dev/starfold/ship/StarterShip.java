@@ -1,19 +1,17 @@
 package dev.starfold.ship;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-
 import dev.ryanhcode.sable.api.SubLevelAssemblyHelper;
 import dev.ryanhcode.sable.companion.math.BoundingBox3i;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.planet.PlanetSpawn;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.GroundDaylight;
-import dev.starfold.worldgen.SystemChunkGenerator;
+import dev.starfold.universe.PlanetSpawn;
+import dev.starfold.universe.StarterShipOption;
+import dev.starfold.universe.SystemChunkGenerator;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -40,17 +38,6 @@ public final class StarterShip {
             "Experience requires Create and Simulated (Create Aeronautics). Install both, or choose native_universe.";
     static final ResourceLocation WEAPON = ResourceLocation.parse("starfold:starter_ship_weapon");
     static final BlockPos WEAPON_OFFSET = new BlockPos(31, 4, 8);
-
-    public record Option(ResourceLocation structure) {
-        public static final Codec<Option> CODEC =
-                RecordCodecBuilder.create(
-                        i ->
-                                i.group(
-                                                ResourceLocation.CODEC
-                                                        .fieldOf("structure")
-                                                        .forGetter(Option::structure))
-                                        .apply(i, Option::new));
-    }
 
     static final class State extends SavedData {
         private boolean reserved, done;
@@ -154,7 +141,7 @@ public final class StarterShip {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.server.ServerStartedEvent event) -> {
                     if (missingDependencies()) return;
-                    var level = event.getServer().getLevel(GroundServer.PLANET);
+                    var level = event.getServer().getLevel(PlanetLevels.PLANET);
                     if (level != null
                             && level.getChunkSource().getGenerator()
                                     instanceof SystemChunkGenerator system)
@@ -194,7 +181,8 @@ public final class StarterShip {
         return new StarterSite.Column(y, water, tree);
     }
 
-    private static void create(ServerLevel level, SystemChunkGenerator system, Option option) {
+    private static void create(
+            ServerLevel level, SystemChunkGenerator system, StarterShipOption option) {
         var saved = state(level);
         if (!saved.fresh()) {
             LOG.info(
@@ -207,6 +195,23 @@ public final class StarterShip {
         requireDependencies(
                 net.neoforged.fml.ModList.get().isLoaded("create"),
                 net.neoforged.fml.ModList.get().isLoaded("simulated"));
+        var loaded = loadTemplate(level, option);
+        var template = loaded.template();
+        var size = loaded.size();
+        var relative = readHullBlocks(template);
+        var chosen = chooseSite(level, system, size);
+        var site = chosen.site();
+        double radius = chosen.radius();
+        placeAndAssemble(level, option, saved, template, size, relative, site, radius);
+    }
+
+    private record LoadedTemplate(
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate template,
+            net.minecraft.core.Vec3i size) {}
+
+    private record ChosenSite(StarterSite.Circle site, double radius) {}
+
+    private static LoadedTemplate loadTemplate(ServerLevel level, StarterShipOption option) {
         var template =
                 level.getStructureManager()
                         .get(option.structure())
@@ -242,6 +247,12 @@ public final class StarterShip {
                 || size.getY() > 48
                 || size.getZ() > 96)
             throw new IllegalStateException("Starter structure size outside 1..96 x 1..48 x 1..96");
+        return new LoadedTemplate(template, size);
+    }
+
+    private static java.util.List<BlockPos> readHullBlocks(
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate
+                    template) {
         var tag = template.save(new CompoundTag());
         var palette = tag.getList("palette", 10);
         var entries = tag.getList("blocks", 10);
@@ -269,6 +280,11 @@ public final class StarterShip {
                 || outward.getAxis() == Direction.Axis.Y)
             throw new IllegalStateException(
                     "Starter resource needs blocks and an outward airstair");
+        return relative;
+    }
+
+    private static ChosenSite chooseSite(
+            ServerLevel level, SystemChunkGenerator system, net.minecraft.core.Vec3i size) {
         int face = GroundDaylight.homeFace(GroundClock.get(level).clock.model, PlanetShape.of(0));
         var home = PlanetSpawn.site(level, 0, face);
         double radius = StarterSite.landingRadius(size.getX(), size.getZ());
@@ -368,6 +384,18 @@ public final class StarterShip {
                 fullChunks,
                 checked,
                 (System.nanoTime() - started) / 1000000);
+        return new ChosenSite(site, radius);
+    }
+
+    private static void placeAndAssemble(
+            ServerLevel level,
+            StarterShipOption option,
+            State saved,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate template,
+            net.minecraft.core.Vec3i size,
+            java.util.List<BlockPos> relative,
+            StarterSite.Circle site,
+            double radius) {
         // Centre the hull's bounding footprint, independent of its mass/physics pivot.
         var origin =
                 new BlockPos(site.x() - size.getX() / 2, site.y() + 1, site.z() - size.getZ() / 2);
@@ -378,6 +406,18 @@ public final class StarterShip {
         saved.reserve(spawn);
         level.getDataStorage()
                 .save(); // fail closed on interrupted placement; never duplicate a surviving hull
+        var padMask = buildPad(level, site, radius, size);
+        placeHull(level, template, origin);
+        var mask = relative.stream().map(origin::offset).toList();
+        stockCabin(level, mask, origin);
+        assembleHull(level, option, saved, size, site, radius, origin, spawn, mask, padMask);
+    }
+
+    private static HashMap<BlockPos, net.minecraft.world.level.block.state.BlockState> buildPad(
+            ServerLevel level,
+            StarterSite.Circle site,
+            double radius,
+            net.minecraft.core.Vec3i size) {
         var padMask = new HashMap<BlockPos, net.minecraft.world.level.block.state.BlockState>();
         int n = (int) Math.ceil(radius + 3), skippedDeep = 0;
         for (int dx = -n; dx <= n; dx++)
@@ -441,6 +481,13 @@ public final class StarterShip {
                 site.trees(),
                 site.relief(),
                 skippedDeep);
+        return padMask;
+    }
+
+    private static void placeHull(
+            ServerLevel level,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate template,
+            BlockPos origin) {
         if (!template.placeInWorld(
                 level,
                 origin,
@@ -448,7 +495,10 @@ public final class StarterShip {
                 new StructurePlaceSettings().setIgnoreEntities(true),
                 level.random,
                 2)) throw new IllegalStateException("Starter structure placement failed");
-        var mask = relative.stream().map(origin::offset).toList();
+    }
+
+    private static void stockCabin(
+            ServerLevel level, java.util.List<BlockPos> mask, BlockPos origin) {
         boolean lectern = false, chest = false;
         for (var p : mask) {
             if (level.getBlockState(p).isAir())
@@ -483,6 +533,19 @@ public final class StarterShip {
         }
         if (!lectern || !chest)
             throw new IllegalStateException("Starter resource needs cabin lectern and chest");
+    }
+
+    private static void assembleHull(
+            ServerLevel level,
+            StarterShipOption option,
+            State saved,
+            net.minecraft.core.Vec3i size,
+            StarterSite.Circle site,
+            double radius,
+            BlockPos origin,
+            BlockPos spawn,
+            java.util.List<BlockPos> mask,
+            HashMap<BlockPos, net.minecraft.world.level.block.state.BlockState> padMask) {
         LOG.info(
                 "STARTER placed structure={} origin={} blocks={} site={} foundation={} spawn={} seed={}",
                 option.structure(),

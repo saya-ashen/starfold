@@ -4,7 +4,7 @@ import java.util.Locale;
 
 /** Pure GUI-pixel layout and instrument policy; no Minecraft/bootstrap dependency. */
 public final class HudLayout {
-    enum Widget {
+    public enum Widget {
         RETICLE,
         MODE,
         SPEED,
@@ -19,7 +19,7 @@ public final class HudLayout {
         LANDING_DETAIL
     }
 
-    static boolean shows(int tier, Widget widget) {
+    public static boolean shows(int tier, Widget widget) {
         return tier
                 >= switch (widget) {
                     case RETICLE, MODE, SPEED, CLEARANCE -> 1;
@@ -29,7 +29,7 @@ public final class HudLayout {
     }
 
     public record Rect(int x, int y, int width, int height) {
-        int right() {
+        public int right() {
             return x + width;
         }
 
@@ -75,7 +75,7 @@ public final class HudLayout {
                 new Rect(width / 3, height / 3, width / 3, height / 3));
     }
 
-    static Rect occlusion(Layout l) {
+    public static Rect occlusion(Layout l) {
         return new Rect(
                 (l.width() - Math.min(240, l.width() - 32)) / 2,
                 65,
@@ -93,7 +93,7 @@ public final class HudLayout {
                 : Math.clamp(value / cap, 0, 1);
     }
 
-    static String eta(double distance, double closing) {
+    public static String eta(double distance, double closing) {
         if (!Double.isFinite(distance)
                 || !Double.isFinite(closing)
                 || distance < 0

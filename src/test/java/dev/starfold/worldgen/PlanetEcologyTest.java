@@ -6,10 +6,12 @@ import com.mojang.serialization.*;
 
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetSpawn;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundChunkSnapshot;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.PlanetSpawn;
+import dev.starfold.universe.PlanetWorldPreset;
 
 import net.minecraft.core.*;
 import net.minecraft.core.registries.*;
@@ -419,7 +421,7 @@ public class PlanetEcologyTest {
         var type =
                 lookup.lookupOrThrow(Registries.DIMENSION_TYPE)
                         .getOrThrow(BuiltinDimensionTypes.OVERWORLD);
-        var key = ResourceKey.create(Registries.LEVEL_STEM, GroundServer.PLANET.location());
+        var key = ResourceKey.create(Registries.LEVEL_STEM, PlanetLevels.PLANET.location());
         var over = new LevelStem(type, generator(2));
         var old = new LevelStem(type, generator(2));
         var fresh = new LevelStem(type, generator(4));

@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.mojang.serialization.JsonOps;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.worldgen.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.worldgen.PlanetEcologyTest;
 import dev.starfold.worldgen.PlanetGeneration;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.RegistryOps;
@@ -92,7 +92,7 @@ public class SingleLevelStorageTest {
                 for (int v : new int[] {0, 1, 1024, 2047}) {
                     var c = new Cell(face, u, -100, v);
                     assertEquals(GroundTopology.block(c), PlanetStorage.block(0, c));
-                    var p = new GroundTopology.Pose(face, new Point(u + .5, 100, v + .5));
+                    var p = new PlanetShape.Pose(face, new Point(u + .5, 100, v + .5));
                     assertEquals(GroundTopology.feet(p), PlanetStorage.feet(0, p));
                     for (int id = 0; id < 2; id++)
                         assertEquals(p, PlanetStorage.body(id, PlanetStorage.feet(id, p)));

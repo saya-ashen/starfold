@@ -1,7 +1,6 @@
 package dev.starfold.render;
 
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.chart.PlanetShape;
 
 import java.util.*;
 
@@ -46,22 +45,21 @@ public final class GroundViewPolicy {
         return x(patch) < shape.size() && z(patch) < shape.size();
     }
 
-    public static Set<Long> details(GroundTopology.Pose pose, boolean controlled) {
+    public static Set<Long> details(PlanetShape.Pose pose, boolean controlled) {
         return details(PlanetShape.STANDARD, pose, controlled);
     }
 
-    public static Set<Long> details(
-            PlanetShape shape, GroundTopology.Pose pose, boolean controlled) {
+    public static Set<Long> details(PlanetShape shape, PlanetShape.Pose pose, boolean controlled) {
         return pose.point().y() > 256
                 ? Set.of()
                 : GroundStreaming.footprint(shape, pose, GroundStreaming.MAX_RADIUS);
     }
 
-    public static boolean nearSeam(GroundTopology.Pose pose) {
+    public static boolean nearSeam(PlanetShape.Pose pose) {
         return nearSeam(PlanetShape.STANDARD, pose);
     }
 
-    public static boolean nearSeam(PlanetShape shape, GroundTopology.Pose pose) {
+    public static boolean nearSeam(PlanetShape shape, PlanetShape.Pose pose) {
         var p = pose.point();
         return Math.min(
                         Math.min(p.x(), shape.size() - p.x()),
@@ -70,7 +68,7 @@ public final class GroundViewPolicy {
     }
 
     public static List<Long> subscription(
-            GroundTopology.Pose pose, boolean controlled, BitSet changed, int cursor) {
+            PlanetShape.Pose pose, boolean controlled, BitSet changed, int cursor) {
         var all = new ArrayList<>(details(pose, controlled));
         var out = new LinkedHashSet<Long>();
         for (int i = 0; i < Math.min(9, all.size()); i++) out.add(all.get(i));
@@ -84,7 +82,7 @@ public final class GroundViewPolicy {
 
     /** Fill missing seam volumes first, but reserve refresh slots so edits/light cannot starve. */
     public static List<Long> subscription(
-            GroundTopology.Pose pose,
+            PlanetShape.Pose pose,
             boolean controlled,
             BitSet changed,
             int cursor,
@@ -94,7 +92,7 @@ public final class GroundViewPolicy {
 
     public static List<Long> subscription(
             PlanetShape shape,
-            GroundTopology.Pose pose,
+            PlanetShape.Pose pose,
             boolean controlled,
             BitSet changed,
             int cursor,

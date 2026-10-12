@@ -5,8 +5,8 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.ground.GroundCollisions;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.*;
@@ -21,7 +21,7 @@ public interface GroundTopologyCollisionMixin {
     @WrapMethod(method = "getBlockCollisions")
     private Iterable<VoxelShape> starfold$nativeCollision(
             Entity entity, AABB box, Operation<Iterable<VoxelShape>> original) {
-        if ((Object) this instanceof Level level && GroundServer.is(level)) {
+        if ((Object) this instanceof Level level && PlanetLevels.is(level)) {
             if (level.isClientSide) return new GroundCollisions(level, entity, box);
             if (PlanetAccess.of(level)
                     .inChart(net.minecraft.core.BlockPos.containing(box.getCenter())))

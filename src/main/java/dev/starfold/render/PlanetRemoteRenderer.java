@@ -3,19 +3,20 @@ package dev.starfold.render;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.dev.ArrivalClientProbe;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetSpace;
+import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.space.Space;
+import dev.starfold.probe.ArrivalClientState;
+import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.sky.Space;
+import dev.starfold.space.RenderFrame;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceView;
 import dev.starfold.worldgen.PlanetHeightCache;
@@ -469,7 +470,7 @@ public final class PlanetRemoteRenderer {
         if (ArrivalProbe.ENABLED
                 && snapshot.planet() == GroundClient.planet()
                 && Arrays.stream(buffers).anyMatch(Objects::nonNull))
-            ArrivalClientProbe.remote = true;
+            ArrivalClientState.remote = true;
         drawBody(c, shader, snapshot, buffers);
     }
 
@@ -619,7 +620,7 @@ public final class PlanetRemoteRenderer {
                     regionDrawn++;
                     if (ArrivalProbe.ENABLED
                             && snapshot.planet() == Space.nearest(model, eye, tick))
-                        ArrivalClientProbe.remote = true;
+                        ArrivalClientState.remote = true;
                 }
             }
         } finally {

@@ -1,16 +1,16 @@
 package dev.starfold.render;
 
-import dev.starfold.StarfoldNetwork;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.geometry.BentStripGeometry;
-import dev.starfold.ground.GroundCoordinates;
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetShape;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
+import dev.starfold.universe.PlanetPackets;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrain;
 
@@ -293,6 +293,15 @@ public final class GroundViewClient {
     }
 
     public static void initialize() {
+        registerProfile();
+        installSeamReaders();
+        registerImages();
+        registerSurfaceUpdates();
+        registerBlockUpdates();
+        registerClientLifecycle();
+    }
+
+    private static void registerProfile() {
         StarfoldNetwork.clientReceiver(
                 PlanetPackets.Profile.TYPE,
                 (packet, c) -> {
@@ -307,6 +316,9 @@ public final class GroundViewClient {
                     heights = new PlanetHeightCache(terrain);
                     coverageRevision = -1;
                 });
+    }
+
+    private static void installSeamReaders() {
         GroundSeams.clientRead(
                 (world, owner) ->
                         world == level && samePlanet(owner)
@@ -339,6 +351,9 @@ public final class GroundViewClient {
                     var image = cache.image(key);
                     return image == null ? null : image.light(query.layer(), pos);
                 });
+    }
+
+    private static void registerImages() {
         StarfoldNetwork.clientReceiver(
                 GroundViewPackets.Image.TYPE,
                 (packet, c) -> {
@@ -385,6 +400,9 @@ public final class GroundViewClient {
                         surfaces.put(
                                 packet.chunk().key(), GroundViewCache.surfaceImage(packet.chunk()));
                 });
+    }
+
+    private static void registerSurfaceUpdates() {
         StarfoldNetwork.clientReceiver(
                 GroundViewPackets.Coverage.TYPE,
                 (packet, c) -> {
@@ -407,6 +425,9 @@ public final class GroundViewClient {
                         invalidate(packet.key());
                     }
                 });
+    }
+
+    private static void registerBlockUpdates() {
         StarfoldNetwork.clientReceiver(
                 GroundViewPackets.Delta.TYPE,
                 (packet, c) -> {
@@ -433,6 +454,9 @@ public final class GroundViewClient {
                         if (be != null) be.triggerEvent(packet.id(), packet.data());
                     }
                 });
+    }
+
+    private static void registerClientLifecycle() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
                         clear());
@@ -505,11 +529,11 @@ public final class GroundViewClient {
     }
 
     /** 3x3 near coverage each refresh, then round-robin the larger ring, transported over seams. */
-    public static List<Long> plan(GroundTopology.Pose pose, int cursor) {
+    public static List<Long> plan(PlanetShape.Pose pose, int cursor) {
         return plan(PlanetShape.STANDARD, pose, cursor);
     }
 
-    static List<Long> plan(PlanetShape shape, GroundTopology.Pose pose, int cursor) {
+    static List<Long> plan(PlanetShape shape, PlanetShape.Pose pose, int cursor) {
         var center = GroundTopology.feet(pose);
         var near = new LinkedHashSet<Long>();
         var ring = new LinkedHashSet<Long>();

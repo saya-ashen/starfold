@@ -1,10 +1,10 @@
 package dev.starfold.ship;
 
-import dev.starfold.flight.FlightSnapshot;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.flight.FlightMode;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.space.Space;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -176,9 +176,9 @@ public final class HullLanding {
         return safeExit(box.minY() - survey.highest(), true, survey.kind());
     }
 
-    public static boolean showSurface(int tier, FlightSnapshot.Mode mode, double clearance) {
+    public static boolean showSurface(int tier, FlightMode mode, double clearance) {
         return tier >= 3
-                && mode == FlightSnapshot.Mode.CHART
+                && mode == FlightMode.CHART
                 && Double.isFinite(clearance)
                 && clearance < 200;
     }
@@ -214,7 +214,7 @@ public final class HullLanding {
             net.minecraft.server.level.ServerLevel level,
             dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
         var at = body.logicalPose().position();
-        if (!GroundServer.is(level) || Space.holds(at.x, at.z)) return false;
+        if (!PlanetLevels.is(level) || Space.holds(at.x, at.z)) return false;
         var box = bounds(body);
         var ground =
                 ground(
@@ -224,7 +224,7 @@ public final class HullLanding {
                         box.maxX(),
                         box.maxZ(),
                         (x, z) -> column(level, x, z));
-        return showSurface(3, FlightSnapshot.Mode.CHART, ground.clearance());
+        return showSurface(3, FlightMode.CHART, ground.clearance());
     }
 
     static Site site(

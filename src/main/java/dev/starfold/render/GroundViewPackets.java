@@ -1,6 +1,6 @@
 package dev.starfold.render;
 
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.planet.GroundTopology;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

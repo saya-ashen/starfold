@@ -1,8 +1,8 @@
 package dev.starfold.waypoint;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -36,7 +36,7 @@ public final class WaypointCodec {
         return new Waypoint(
                 tag.getString("name"),
                 tag.getInt("planet"),
-                new GroundTopology.Pose(Face.values()[face], point));
+                new PlanetShape.Pose(Face.values()[face], point));
     }
 
     static void require(CompoundTag tag, String key, int type) {

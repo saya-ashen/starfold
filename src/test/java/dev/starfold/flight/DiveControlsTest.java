@@ -2,14 +2,15 @@ package dev.starfold.flight;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.OrbitAttitude;
 import dev.starfold.geometry.PlanetMotion;
 import dev.starfold.ground.GroundIntegrationKernelTest;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.sky.GroundSolar;
+import dev.starfold.planet.GroundDynamics;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -30,7 +31,7 @@ class DiveControlsTest {
     GroundDynamics.State hover(double height) {
         return GroundDynamics.local(
                 900,
-                new GroundTopology.Pose(Face.TOP, new Point(1024, height, 1024)),
+                new PlanetShape.Pose(Face.TOP, new Point(1024, height, 1024)),
                 new Point(0, 0, 0),
                 OrbitAttitude.upright(27, 0),
                 true,

@@ -1,11 +1,9 @@
 package dev.starfold.ground;
 
-import dev.starfold.dev.ArrivalProbe;
-import dev.starfold.flight.GroundFlightServer;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.render.GroundStreaming;
-import dev.starfold.space.SpaceApproach;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.*;
@@ -24,7 +22,8 @@ public final class GroundTickets {
     private static final TicketType<Long> SPACE =
             TicketType.create("starfold_space_view", Long::compare);
     private static final Map<ServerLevel, Set<Long>> space = new HashMap<>();
-    private static final Map<ServerLevel, Map<UUID, GroundStreaming>> streams = new HashMap<>();
+    // Retained empty per-level bookkeeping; no stream values are inserted here.
+    private static final Map<ServerLevel, Map<UUID, Object>> streams = new HashMap<>();
 
     public static boolean contains(ServerLevel level, ChunkPos pos) {
         return tickets.getOrDefault(level, Set.of())
@@ -50,19 +49,18 @@ public final class GroundTickets {
         var desired = new HashSet<Long>();
         var loaded = new HashSet<Long>();
         int radius = Math.clamp(level.getServer().getPlayerList().getSimulationDistance(), 2, 32);
-        var worldStreams =
-                streams.computeIfAbsent(level, l -> new HashMap<UUID, GroundStreaming>());
+        var worldStreams = streams.computeIfAbsent(level, l -> new HashMap<UUID, Object>());
         var present = new HashSet<UUID>();
         var region = new HashSet<Long>();
         for (var player : level.players()) {
-            if (SpaceServer.in(player)) {
+            if (Space.in(player)) {
                 region.addAll(
                         ImageStream.regionPositions(
                                 new ChunkPos(player.blockPosition()), ImageStream.radius(player)));
                 continue;
             }
             if (access == PlanetAccess.SHARED
-                    && GroundFlightServer.controlled(player)
+                    && GroundHost.get().controlled(player)
                     && access.inChart(player.blockPosition())
                     && player.getY() < GroundCoordinates.FLOOR + 2048) {
                 // Nine approach owners only. Region tickets let the chunk pipeline stream them
@@ -134,7 +132,7 @@ public final class GroundTickets {
     }
 
     public static void clear() {
-        SpaceApproach.clear();
+        GroundHost.get().clearArrival();
         for (var e : space.entrySet())
             for (long key : e.getValue())
                 e.getKey().getChunkSource().removeRegionTicket(SPACE, new ChunkPos(key), 0, key);

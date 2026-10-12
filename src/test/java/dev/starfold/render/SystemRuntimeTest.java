@@ -7,18 +7,18 @@ import com.mojang.serialization.JsonOps;
 
 import dev.starfold.Sources;
 import dev.starfold.chart.GroundAir;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.flight.GroundDynamics;
-import dev.starfold.flight.GroundFlightPackets;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.ground.GroundFlightPackets;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.worldgen.PlanetEcologyTest;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.core.*;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -89,7 +89,7 @@ class SystemRuntimeTest {
                     GroundDynamics.local(
                             100,
                             id,
-                            new GroundTopology.Pose(Face.TOP, new Point(1024, 1000, 1024)),
+                            new PlanetShape.Pose(Face.TOP, new Point(1024, 1000, 1024)),
                             GroundEphemeris.ZERO,
                             new org.joml.Quaterniond(),
                             true,
@@ -170,7 +170,7 @@ class SystemRuntimeTest {
             for (int id = 0; id < 2; id++) {
                 var access = PlanetAccess.SHARED;
                 var point = new Point(123, 1000, 456);
-                var pose = new GroundTopology.Pose(face, point);
+                var pose = new PlanetShape.Pose(face, point);
                 var world = access.feet(id, pose).add(new Point(0, .9, 0));
                 assertEquals(point, world.sub(access.origin(id, face.ordinal())));
                 var restored = access.body(access.feet(id, pose));
@@ -198,9 +198,15 @@ class SystemRuntimeTest {
         var system = Sources.text("PlanetSystem");
         assertTrue(system.contains("if(shared(current))return current"));
         var client = Sources.text("GroundFlightClient");
+        int shared = client.indexOf("shared=packet.shared()");
+        int bind = client.indexOf("FlightClientHost.get().sessionBound(level,session)");
+        int air = client.indexOf("FlightClientHost.get().atmosphere(packet.air())");
+        int metadata = client.indexOf("FlightClientHost.get().metadata(model,state.tick())");
+        assertTrue(shared >= 0 && bind > shared && air > bind && metadata > air);
         assertTrue(
-                client.indexOf("shared=packet.shared()")
-                        < client.indexOf("GroundViewClient.bindSession(level,session)"));
+                Sources.text("StarfoldClient")
+                        .contains(
+                                "void sessionBound(ClientLevel level,long session){GroundViewClient.bindSession(level,session);}"));
         var views = Sources.text("GroundViewClient");
         assertTrue(views.contains("clear();level=world;session=id;boundPlanet="));
         assertTrue(

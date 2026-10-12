@@ -3,10 +3,10 @@ package dev.starfold.ship;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import dev.starfold.geometry.BentStripGeometry;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.space.Space;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -32,7 +32,7 @@ final class LiftServer {
     static boolean enabled(ServerSubLevel body) {
         var at = body.logicalPose().position();
         var level = body.getLevel();
-        if (!GroundServer.is(level)
+        if (!PlanetLevels.is(level)
                 || Space.holds(at.x, at.z)
                 || !PlanetAccess.of(level)
                         .inChart(
@@ -80,25 +80,10 @@ final class LiftServer {
                         box.maxX(),
                         box.maxZ(),
                         (x, z) -> HullLanding.column(body.getLevel(), x, z));
-        double gravity =
-                Math.max(
-                                0,
-                                -dev.ryanhcode.sable.physics.config.dimension_physics
-                                        .DimensionPhysicsData.getGravity(body.getLevel())
-                                        .y)
-                        * HullWeight.at(
-                                body.getLevel(), new BentStripGeometry.Point(at.x, at.y, at.z))
-                        * LiftControl.HULL_GRAVITY;
+        double gravity = hullGravity(body, at);
         int bits = HelmServer.bits(body);
         boolean command = (bits & (HelmCommand.UP | HelmCommand.DOWN)) != 0;
-        // Chart relabel/arrival never inherits a storage-coordinate altitude target.
-        boolean capture =
-                !Double.isFinite(state.target)
-                        || !Double.isFinite(state.lastY)
-                        || Math.abs(at.y - state.lastY) > LiftControl.TELEPORT_RESET
-                        || state.commanded && !command
-                        || command
-                        || LiftControl.landed(ground.clearance(), velocity.y);
+        boolean capture = captureTarget(state, at.y, command, ground, velocity.y);
         state.commanded = command;
         state.lastY = at.y;
         boolean boost = Thrusters.boosted(body, body.getLevel().getGameTime());
@@ -109,13 +94,7 @@ final class LiftServer {
                 var nozzle = jet.getBlockState().getValue(BlockStateProperties.FACING);
                 if (nozzle.getAxis() != Direction.Axis.Y) continue;
                 jets.add(jet);
-                double projection =
-                        Math.max(
-                                0,
-                                body.logicalPose()
-                                        .orientation()
-                                        .transform(new Vector3d(0, 1, 0))
-                                        .y);
+                double projection = liftProjection(body);
                 if (nozzle == Direction.DOWN) lift += force * projection;
                 else down += force * projection;
             }
@@ -194,6 +173,31 @@ final class LiftServer {
                                         .transform(new Vector3d(0, 1, 0))
                                         .y);
         }
+    }
+
+    private static double hullGravity(ServerSubLevel body, Vector3d at) {
+        return Math.max(
+                        0,
+                        -dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
+                                .getGravity(body.getLevel())
+                                .y)
+                * HullWeight.at(body.getLevel(), new BentStripGeometry.Point(at.x, at.y, at.z))
+                * LiftControl.HULL_GRAVITY;
+    }
+
+    // Chart relabel/arrival never inherits a storage-coordinate altitude target.
+    private static boolean captureTarget(
+            State state, double y, boolean command, HullLanding.Ground ground, double velocityY) {
+        return !Double.isFinite(state.target)
+                || !Double.isFinite(state.lastY)
+                || Math.abs(y - state.lastY) > LiftControl.TELEPORT_RESET
+                || state.commanded && !command
+                || command
+                || LiftControl.landed(ground.clearance(), velocityY);
+    }
+
+    private static double liftProjection(ServerSubLevel body) {
+        return Math.max(0, body.logicalPose().orientation().transform(new Vector3d(0, 1, 0)).y);
     }
 
     static void post(SubLevelPhysicsSystem physics, ServerSubLevel body) {

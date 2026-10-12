@@ -4,19 +4,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.PlanetOrbit;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetSpace;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetShape;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.render.PlanetRemotePackets;
 import dev.starfold.render.PlanetRemoteView;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.sky.GroundSolar;
+import dev.starfold.ship.SpacePackets;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
+import dev.starfold.universe.PlanetPackets;
 
 import io.netty.buffer.Unpooled;
 
@@ -294,10 +297,12 @@ class SpaceViewTest {
         for (String forbidden :
                 List.of("getChunk(", "getChunkNow(", "getChunkFuture", "addRegionTicket"))
             assertFalse(remote.contains(forbidden), forbidden);
+        assertTrue(calls("GroundViewServer", "tick").contains("tickViewer"));
+        before(calls("GroundViewServer", "tickViewer"), "in", "planet");
         assertTrue(
                 Sources.text("GroundViewServer")
                         .contains(
-                                "if(SpaceServer.in(p)){remove(p);PlanetRemoteServer.tick(p,clock);continue;}"));
+                                "if(Space.in(p)){remove(p);PlanetRemoteServer.tick(p,clock);return;}"));
         before(calls("SpaceServer", "sync"), "region", "regionSky");
         assertTrue(Sources.text("SpaceServer").contains("player.level().getGameTime()%20==0"));
         assertTrue(
@@ -315,7 +320,7 @@ class SpaceViewTest {
                         "if(packet.session()!=0)retainedSession=packet.session()",
                         "viewLevel==Minecraft.getInstance().level",
                         "LoggingOut",
-                        "if(frames.current()!=null||view!=null)PlanetRemoteRenderer.clear()"))
+                        "if(frames.current()!=null||view!=null)SpaceClientHost.get().viewLost()"))
             assertTrue(client.contains(text), text);
         var accepted = Sources.text("PlanetRemoteRenderer");
         assertTrue(
@@ -346,7 +351,7 @@ class SpaceViewTest {
         assertTrue(
                 Sources.text("SpaceClient")
                         .contains(
-                                "if(viewLevel!=null&&viewLevel!=mc.level){PlanetRemoteRenderer.clear();retainedSession=0;}"));
+                                "if(viewLevel!=null&&viewLevel!=mc.level){SpaceClientHost.get().viewLost();retainedSession=0;}"));
         assertTrue(
                 Sources.text("PlanetRemoteRenderer")
                         .contains("session==SpaceClient.retainedSession()"));

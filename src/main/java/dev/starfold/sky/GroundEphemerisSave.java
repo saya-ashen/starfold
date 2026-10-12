@@ -1,5 +1,7 @@
 package dev.starfold.sky;
 
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.geometry.BentStripGeometry.Point;
 
 import net.minecraft.core.HolderLookup;
@@ -44,7 +46,7 @@ public final class GroundEphemerisSave extends SavedData {
         setDirty();
     }
 
-    static GroundEphemerisSave fresh(boolean exists) {
+    public static GroundEphemerisSave fresh(boolean exists) {
         if (exists)
             throw new IllegalStateException(
                     "Existing ephemeris failed to load; refusing overwrite");
@@ -234,7 +236,7 @@ public final class GroundEphemerisSave extends SavedData {
                 t.getBoolean("enabled"), point(compound(t, "position")), number(t, "radius"));
     }
 
-    static GroundEphemerisSave load(CompoundTag t, HolderLookup.Provider lookup) {
+    public static GroundEphemerisSave load(CompoundTag t, HolderLookup.Provider lookup) {
         require(t, "format", 3);
         if (t.getInt("format") < 1 || t.getInt("format") > 3)
             throw new IllegalArgumentException("Ephemeris format");

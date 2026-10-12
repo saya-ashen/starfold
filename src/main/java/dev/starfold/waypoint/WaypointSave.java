@@ -2,8 +2,8 @@ package dev.starfold.waypoint;
 
 import static dev.starfold.waypoint.WaypointCodec.require;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.mixin.SavedDataFileAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.HolderLookup;
@@ -130,7 +130,7 @@ public final class WaypointSave extends SavedData {
     }
 
     public static WaypointSave get(ServerLevel level) {
-        if (!GroundServer.is(level)) throw new IllegalArgumentException("Native waypoint world");
+        if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Native waypoint world");
         var storage = PlanetSystem.authority(level).getDataStorage();
         return storage.computeIfAbsent(
                 new Factory<>(

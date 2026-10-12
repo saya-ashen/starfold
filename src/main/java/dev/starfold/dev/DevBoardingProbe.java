@@ -1,6 +1,6 @@
 package dev.starfold.dev;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.ship.SableBoarding;
 
 /** Opt-in missing-hull fault injection, restricted to the disposable development world. */
@@ -13,7 +13,7 @@ public final class DevBoardingProbe {
                 (net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre event) -> {
                     if (!(event.getEntity()
                                     instanceof net.minecraft.server.level.ServerPlayer player)
-                            || !GroundServer.is(player.level())) return;
+                            || !PlanetLevels.is(player.level())) return;
                     if (!player.getServer()
                             .getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                             .normalize()

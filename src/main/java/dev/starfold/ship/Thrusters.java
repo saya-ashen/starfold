@@ -3,8 +3,7 @@ package dev.starfold.ship;
 import dev.ryanhcode.sable.api.block.BlockEntitySubLevelActor;
 import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.chart.GroundEphemeris;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -477,7 +476,7 @@ public final class Thrusters {
                             new Quaterniond(body.logicalPose().orientation()),
                             handle.getAngularVelocity(new Vector3d()),
                             step,
-                            SpaceServer.rollControl(getLevel(), body));
+                            ShipHost.get().externalRoll(getLevel(), body));
             if (LiftServer.enabled(body)) correction.y *= LiftControl.CHART_YAW_DAMPING;
             handle.addLinearAndAngularVelocity(new Vector3d(), correction);
         }

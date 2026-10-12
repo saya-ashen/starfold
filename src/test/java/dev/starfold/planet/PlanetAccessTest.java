@@ -3,12 +3,11 @@ package dev.starfold.planet;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.chart.GroundSpace;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundCoordinates;
 import dev.starfold.ground.GroundSeams;
 import dev.starfold.ground.GroundTerrain;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.worldgen.PlanetEcologyTest;
 
 import net.minecraft.core.BlockPos;
@@ -147,7 +146,7 @@ class PlanetAccessTest {
     void entityImagesAndBoundingBoxesNeverAliasTheOtherPlanet() {
         var access = PlanetAccess.SHARED;
         for (var f : Face.values()) {
-            var pose = new GroundTopology.Pose(f, new Point(1024, 30, 1024));
+            var pose = new PlanetShape.Pose(f, new Point(1024, 30, 1024));
             var a = access.feet(0, pose);
             var b = access.feet(1, pose);
             assertNull(access.image(a.x(), a.z(), b));

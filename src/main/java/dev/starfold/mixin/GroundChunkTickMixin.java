@@ -1,9 +1,9 @@
 package dev.starfold.mixin;
 
-import dev.starfold.dev.ArrivalProbe;
 import dev.starfold.ground.ChunkTickReadiness;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.probe.ArrivalProbe;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -87,7 +87,7 @@ public abstract class GroundChunkTickMixin {
             ci.cancel();
             return;
         }
-        if (GroundServer.is((ServerLevel) (Object) this)
+        if (PlanetLevels.is((ServerLevel) (Object) this)
                 && PlanetAccess.of((ServerLevel) (Object) this)
                                 .key(chunk.getPos().x, chunk.getPos().z)
                         < 0

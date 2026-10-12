@@ -1,10 +1,12 @@
 package dev.starfold.space;
 
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.GroundDaylight;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.sky.Space;
 
 import java.util.*;
 

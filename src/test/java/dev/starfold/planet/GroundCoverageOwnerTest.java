@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 
 import org.junit.jupiter.api.Test;

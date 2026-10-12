@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ImageStream;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ServerLevel;
@@ -23,6 +23,6 @@ public abstract class GroundLightBroadcastMixin {
     private void starfold$nativeLight(LevelChunk chunk, CallbackInfo ci) {
         if ((!skyChangedLightSectionFilter.isEmpty() || !blockChangedLightSectionFilter.isEmpty())
                 && chunk.getLevel() instanceof ServerLevel level
-                && GroundServer.is(level)) ImageStream.lit(level, chunk.getPos());
+                && PlanetLevels.is(level)) ImageStream.lit(level, chunk.getPos());
     }
 }

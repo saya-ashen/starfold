@@ -1,30 +1,30 @@
 package dev.starfold.flight;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.chart.GroundCamera;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.GroundView;
 import dev.starfold.chart.PlanetOrbit;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.PlanetMotion;
+import dev.starfold.ground.GroundFlightPackets;
 import dev.starfold.ground.GroundNavigationSave;
 import dev.starfold.ground.GroundSeams;
 import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.GroundTerrain;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ground.ObserverFrames;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.render.GroundViewServer;
+import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.space.SpaceServer;
-import dev.starfold.waypoint.WaypointSave;
-import dev.starfold.waypoint.WaypointServer;
+import dev.starfold.sky.Space;
+import dev.starfold.universe.PlanetPackets;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.*;
@@ -67,7 +67,7 @@ public final class GroundFlightServer {
 
     /** Where a player is in the universe, or null without a session. */
     public static Point position(ServerPlayer player, GroundClock clock) {
-        if (SpaceServer.in(player)) return null;
+        if (Space.in(player)) return null;
         var s = sessions.get(player.getUUID());
         return s == null || s.state.planet() >= clock.clock.model.count()
                 ? null
@@ -78,7 +78,7 @@ public final class GroundFlightServer {
     public static final double ALOFT = 2048;
 
     public static boolean aloft(ServerPlayer player) {
-        if (SpaceServer.in(player)) return false;
+        if (Space.in(player)) return false;
         var s = sessions.get(player.getUUID());
         return s != null
                 && s.controlled
@@ -86,7 +86,7 @@ public final class GroundFlightServer {
     }
 
     public static long session(ServerPlayer player) {
-        if (SpaceServer.in(player)) return 0;
+        if (Space.in(player)) return 0;
         var s = sessions.get(player.getUUID());
         return s == null ? 0 : s.id;
     }
@@ -96,8 +96,8 @@ public final class GroundFlightServer {
     }
 
     public static boolean controlled(Entity entity) {
-        if (!GroundServer.is(entity.level())) return false;
-        if (SpaceServer.in(entity)) return false;
+        if (!PlanetLevels.is(entity.level())) return false;
+        if (Space.in(entity)) return false;
         if (entity.level().isClientSide) return clientControl.test(entity);
         if (!(entity instanceof ServerPlayer p)) return false;
         var s = sessions.get(p.getUUID());
@@ -123,10 +123,10 @@ public final class GroundFlightServer {
                 (packet, c) -> {
                     var p = ((net.minecraft.server.level.ServerPlayer) c.player());
                     var s = sessions.get(p.getUUID());
-                    if (!SpaceServer.in(p)
+                    if (!Space.in(p)
                             && s != null
                             && s.controlled
-                            && GroundServer.is(p.level())
+                            && PlanetLevels.is(p.level())
                             && packet.session() == s.id)
                         s.queue.offer(packet, p.level().getGameTime());
                 });
@@ -135,9 +135,9 @@ public final class GroundFlightServer {
                 (packet, c) -> {
                     var p = ((net.minecraft.server.level.ServerPlayer) c.player());
                     var s = sessions.get(p.getUUID());
-                    if (!SpaceServer.in(p)
+                    if (!Space.in(p)
                             && s != null
-                            && GroundServer.is(p.level())
+                            && PlanetLevels.is(p.level())
                             && packet.session() == s.id
                             && p.level().getGameTime() - s.lastSync >= 20) {
                         s.lastSync = p.level().getGameTime();
@@ -167,7 +167,7 @@ public final class GroundFlightServer {
 
     /** A chart state only; region residents have no state to capture. */
     public static GroundDynamics.State capture(ServerPlayer player, GroundClock clock) {
-        if (SpaceServer.in(player)) return null;
+        if (Space.in(player)) return null;
         var v = player.getDeltaMovement();
         var pose =
                 PlanetAccess.of(player.level())
@@ -188,7 +188,7 @@ public final class GroundFlightServer {
     /** Prepare before any teleport or return-book mutation; never reset a damaged/occupied entry. */
     public static GroundDynamics.State entry(
             ServerPlayer player, ServerLevel level, GroundClock clock) {
-        if (SpaceServer.in(player)) return null;
+        if (Space.in(player)) return null;
         var saved = GroundNavigationSave.get(level).find(player.getUUID());
         if (saved == null) return null;
         // The body-sized occupancy check needs the real blocks: load the few owners under a saved
@@ -213,13 +213,13 @@ public final class GroundFlightServer {
         }
         return GroundDynamics.resume(
                 clock.clock.model,
-                PlanetSystem.terrain(level, player, clock.mask),
+                GroundTerrain.of(level, player, clock.mask),
                 saved,
                 clock.clock.tick());
     }
 
     public static void enter(ServerPlayer player, GroundClock clock, GroundDynamics.State saved) {
-        if (SpaceServer.in(player)) {
+        if (Space.in(player)) {
             region(player);
             return;
         }
@@ -259,11 +259,11 @@ public final class GroundFlightServer {
                         s.controlled,
                         clock.air,
                         PlanetSystem.shared(player.level())));
-        WaypointServer.send(player);
+        FlightHost.get().targetSync(player);
     }
 
     public static void restart(ServerPlayer player, GroundClock clock) {
-        if (SpaceServer.in(player)) {
+        if (Space.in(player)) {
             region(player);
             return;
         }
@@ -283,12 +283,12 @@ public final class GroundFlightServer {
     public static void tick(ServerLevel level, GroundClock clock) {
         for (var player : List.copyOf(level.players()))
             try {
-                if (SpaceServer.in(player)) {
+                if (Space.in(player)) {
                     region(player);
                     continue;
                 }
                 if (player.isSpectator() || !compatible(player)) {
-                    GroundServer.leave(player);
+                    FlightHost.get().leave(player);
                     continue;
                 }
                 // The dead stay where they fell until they are reborn; they have no journey to go
@@ -334,7 +334,7 @@ public final class GroundFlightServer {
                     s.state =
                             GroundDynamics.step(
                                     clock.clock.model,
-                                    PlanetSystem.terrain(level, player, clock.mask),
+                                    GroundTerrain.of(level, player, clock.mask),
                                     s.state,
                                     motion,
                                     input != null && input.toggle());
@@ -368,12 +368,13 @@ public final class GroundFlightServer {
             } catch (IllegalArgumentException | IllegalStateException error) {
                 player.sendSystemMessage(
                         Component.translatable(
-                                "message.starfold.flight_stopped", WaypointServer.failure(error)));
-                GroundServer.leave(player);
+                                "message.starfold.flight_stopped",
+                                FlightHost.get().failure(error)));
+                FlightHost.get().leave(player);
             }
     }
 
-    private static GroundTopology.Pose view(GroundClock clock, GroundDynamics.State state) {
+    private static PlanetShape.Pose view(GroundClock clock, GroundDynamics.State state) {
         return state.space()
                 ? GroundTopology.locate(
                         PlanetShape.of(state.planet()),
@@ -406,7 +407,7 @@ public final class GroundFlightServer {
                         ? PlanetSystem.level(player.serverLevel(), s.state.planet())
                         : player.serverLevel();
         if (destination != player.serverLevel() || planetChanged) {
-            GroundViewServer.remove(player);
+            FlightHost.get().viewLost(player);
         }
         // Keep the observer's client coordinates continuous when this place is drawn in their
         // chart.
@@ -439,12 +440,12 @@ public final class GroundFlightServer {
     }
 
     public static void checkpoint(ServerPlayer player) {
-        if (SpaceServer.in(player)) {
+        if (Space.in(player)) {
             region(player);
             return;
         }
         var s = sessions.get(player.getUUID());
-        if (s != null && GroundServer.is(player.level())) {
+        if (s != null && PlanetLevels.is(player.level())) {
             if (!s.controlled) s.state = capture(player, GroundClock.get(player.serverLevel()));
             GroundNavigationSave.get(player.serverLevel()).put(player.getUUID(), s.state);
         }
@@ -453,13 +454,13 @@ public final class GroundFlightServer {
     public static void detach(ServerPlayer player) {
         checkpoint(player);
         sessions.remove(player.getUUID());
-        GroundViewServer.remove(player);
+        FlightHost.get().viewLost(player);
         // Vanilla writes the player's own data on disconnect. Write the navigation record with it,
         // so an unclean stop
         // can never pair a fresh player file with a flight record from the last autosave.
-        if (GroundServer.is(player.level())) {
+        if (PlanetLevels.is(player.level())) {
             PlanetSystem.authority(player.serverLevel()).getDataStorage().save();
-            if (SpaceServer.in(player)
+            if (Space.in(player)
                     && PlanetSystem.authority(player.serverLevel()) != player.serverLevel())
                 player.serverLevel().getDataStorage().save();
         }
@@ -468,15 +469,15 @@ public final class GroundFlightServer {
     /** A death ends the journey it happened on: the session and its saved place are given up. */
     public static void forget(ServerPlayer player) {
         sessions.remove(player.getUUID());
-        GroundViewServer.remove(player);
-        if (GroundServer.is(player.level()))
+        FlightHost.get().viewLost(player);
+        if (PlanetLevels.is(player.level()))
             GroundNavigationSave.get(player.serverLevel()).remove(player.getUUID());
     }
 
     /** Give up stale navigation as well as live prediction; vanilla saves the region position. */
     public static void region(ServerPlayer player) {
         var old = sessions.remove(player.getUUID());
-        GroundViewServer.remove(player);
+        FlightHost.get().viewLost(player);
         GroundNavigationSave.get(player.serverLevel()).remove(player.getUUID());
         if (old != null) FlightPermit.revoke(player);
     }
@@ -484,7 +485,7 @@ public final class GroundFlightServer {
     public static void site(ServerPlayer player) {
         long start = ArrivalProbe.start();
         try {
-            if (SpaceServer.in(player)) {
+            if (Space.in(player)) {
                 region(player);
                 return;
             }
@@ -499,13 +500,12 @@ public final class GroundFlightServer {
     }
 
     public static int orbit(ServerPlayer player) {
-        if (SpaceServer.in(player)) return GroundServer.regionMessage(player);
+        if (Space.in(player)) return GroundServer.regionMessage(player);
         var s = sessions.get(player.getUUID());
         if (s == null) return 0;
         var clock = GroundClock.get(player.serverLevel());
         var at = view(clock, s.state);
-        var pose =
-                new GroundTopology.Pose(at.face(), new Point(at.point().x(), 4096, at.point().z()));
+        var pose = new PlanetShape.Pose(at.face(), new Point(at.point().x(), 4096, at.point().z()));
         if (!new GroundTerrain(player.serverLevel(), player, clock.mask).clear(pose)) return 0;
         var aim = s.state.space() ? new org.joml.Quaterniond() : GroundDynamics.chartAim(s.state);
         var state =
@@ -526,7 +526,7 @@ public final class GroundFlightServer {
     }
 
     public static int guidance(ServerPlayer player, int field, boolean on) {
-        if (SpaceServer.in(player)) return GroundServer.regionMessage(player);
+        if (Space.in(player)) return GroundServer.regionMessage(player);
         var s = sessions.get(player.getUUID());
         if (s == null) return 0;
         var g = s.state.guidance();
@@ -549,7 +549,7 @@ public final class GroundFlightServer {
     }
 
     public static int target(ServerPlayer player, int target) {
-        if (SpaceServer.in(player)) return GroundServer.regionMessage(player);
+        if (Space.in(player)) return GroundServer.regionMessage(player);
         var s = sessions.get(player.getUUID());
         if (s == null) return 0;
         var clock = GroundClock.get(player.serverLevel());
@@ -558,11 +558,11 @@ public final class GroundFlightServer {
             return 0;
         }
         try {
-            WaypointSave.get(player.serverLevel()).clear(player.getUUID());
+            FlightHost.get().targetCleared(player);
         } catch (IllegalArgumentException | IllegalStateException error) {
             player.sendSystemMessage(
                     Component.translatable(
-                            "message.starfold.mark.read_failed", WaypointServer.failure(error)));
+                            "message.starfold.mark.read_failed", FlightHost.get().failure(error)));
             return 0;
         }
         var g = s.state.guidance();

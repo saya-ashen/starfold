@@ -3,9 +3,9 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.LightSeams;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LightChunkGetter;
@@ -33,7 +33,7 @@ public abstract class GroundLightSeamMixin implements LightSeams.Engine {
         if (!starfold$resolved) {
             var level = chunkSource.getLevel();
             starfold$access =
-                    level instanceof ServerLevel server && GroundServer.is(server)
+                    level instanceof ServerLevel server && PlanetLevels.is(server)
                             ? PlanetAccess.of(server)
                             : null;
             starfold$resolved = true;

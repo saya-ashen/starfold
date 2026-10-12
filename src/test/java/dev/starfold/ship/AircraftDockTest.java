@@ -185,7 +185,7 @@ class AircraftDockTest {
         assertTrue(renderer.contains("catch(RuntimeException|LinkageError"));
         assertTrue(renderer.contains("getEntityRenderDispatcher().render"));
         assertFalse(renderer.contains("conjugate()"));
-        assertTrue(Sources.text("GroundServer").contains("AircraftDock.initialize(modBus)"));
+        assertTrue(Sources.text("StarfoldServer").contains("AircraftDock.initialize(modBus)"));
         assertTrue(
                 Sources.text("StarfoldClient").contains("AircraftDockRenderer.initialize(modBus)"));
         for (var lang : new String[] {"en_us", "zh_cn"})

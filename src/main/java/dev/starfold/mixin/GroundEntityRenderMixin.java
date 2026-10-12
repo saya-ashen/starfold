@@ -5,8 +5,8 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.blaze3d.vertex.PoseStack;
 
 import dev.starfold.flight.GroundFlightClient;
+import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceClient;
-import dev.starfold.space.SpaceServer;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -40,7 +40,7 @@ public abstract class GroundEntityRenderMixin {
     @Inject(method = "getPackedLightCoords", at = @At("RETURN"), cancellable = true)
     private <E extends Entity> void starfold$regionLight(
             E entity, float partial, CallbackInfoReturnable<Integer> ci) {
-        if (SpaceClient.active() && SpaceServer.in(entity))
+        if (SpaceClient.active() && Space.in(entity))
             ci.setReturnValue(
                     net.minecraft.client.renderer.LightTexture.pack(
                             net.minecraft.client.renderer.LightTexture.block(ci.getReturnValue()),

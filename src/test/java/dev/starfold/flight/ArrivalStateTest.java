@@ -2,9 +2,9 @@ package dev.starfold.flight;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.space.Space;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 import dev.starfold.space.SpaceServer;
-import dev.starfold.space.SpaceTest;
 
 import org.junit.jupiter.api.Test;
 

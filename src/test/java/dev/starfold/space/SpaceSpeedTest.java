@@ -10,6 +10,7 @@ import dev.starfold.ship.HelmPackets;
 import dev.starfold.ship.HullLanding;
 import dev.starfold.ship.StarterShip;
 import dev.starfold.ship.Thrusters;
+import dev.starfold.sky.Space;
 
 import org.junit.jupiter.api.Test;
 

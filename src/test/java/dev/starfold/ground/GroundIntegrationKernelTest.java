@@ -3,16 +3,18 @@ package dev.starfold.ground;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.chart.GroundChart;
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.flight.GroundDynamics;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
 import dev.starfold.geometry.OrbitAttitude;
 import dev.starfold.geometry.PlanetMotion;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.sky.GroundSolar;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -34,11 +36,11 @@ public class GroundIntegrationKernelTest {
     final GroundEphemeris.Model model = GroundSolar.defaults();
     public static final GroundDynamics.Terrain FLAT =
             new GroundDynamics.Terrain() {
-                public boolean clear(GroundTopology.Pose p) {
+                public boolean clear(PlanetShape.Pose p) {
                     return p.point().y() >= .9;
                 }
 
-                public double clearance(GroundTopology.Pose p) {
+                public double clearance(PlanetShape.Pose p) {
                     return p.point().y() - .9;
                 }
             };
@@ -147,14 +149,14 @@ public class GroundIntegrationKernelTest {
                             new net.minecraft.world.phys.AABB(
                                     origin, 128, -16, origin + 16, 144, 0),
                             face));
-            assertTrue(GroundSeams.inChart(new BlockPos((int) origin - 1, 128, 1024)));
+            assertTrue(GroundTopology.inChart(new BlockPos((int) origin - 1, 128, 1024)));
         }
-        assertFalse(GroundSeams.inChart(new BlockPos(1_000_000, 128, 1024)));
+        assertFalse(GroundTopology.inChart(new BlockPos(1_000_000, 128, 1024)));
     }
 
     @Test
     void undergroundNativePoseIsNotRestrictedToTheOldMinus8Ledger() {
-        var p = new GroundTopology.Pose(Face.BOTTOM, new Point(300, -150, 800));
+        var p = new PlanetShape.Pose(Face.BOTTOM, new Point(300, -150, 800));
         var raw = GroundTopology.feet(p);
         assertEquals(p, GroundTopology.body(raw));
         assertEquals(GroundSpace.MIN, p.renderPose().point().y());
@@ -167,12 +169,12 @@ public class GroundIntegrationKernelTest {
                     new Point[] {
                         new Point(1024, 2, 1024), new Point(50, 200, 900), new Point(1700, 4096, 30)
                     }) {
-                var pose = new GroundTopology.Pose(f, p);
+                var pose = new PlanetShape.Pose(f, p);
                 var v = new Point(.3, -.4, .9);
                 var body = GroundTopology.planetVelocity(pose, v);
                 point(v, GroundTopology.chartVelocity(pose, body), 1e-10);
                 double e = 1e-5;
-                var after = GroundTopology.planet(new GroundTopology.Pose(f, p.add(v.scale(e))));
+                var after = GroundTopology.planet(new PlanetShape.Pose(f, p.add(v.scale(e))));
                 point(body, after.sub(GroundTopology.planet(pose)).scale(1 / e), 1e-6);
             }
     }
@@ -180,7 +182,7 @@ public class GroundIntegrationKernelTest {
     GroundDynamics.State local(double height) {
         return GroundDynamics.local(
                 900,
-                new GroundTopology.Pose(Face.TOP, new Point(1024, height, 1024)),
+                new PlanetShape.Pose(Face.TOP, new Point(1024, height, 1024)),
                 new Point(.1, .3, .05),
                 OrbitAttitude.upright(27, 0),
                 true,
@@ -297,7 +299,7 @@ public class GroundIntegrationKernelTest {
     void fullNavigationRoundTripsUndergroundAndUniverseWithoutBuildingTags() {
         var save = GroundNavigationSave.fresh(false);
         var id = UUID.randomUUID();
-        var pose = new GroundTopology.Pose(Face.SOUTH, new Point(300, -100, 900));
+        var pose = new PlanetShape.Pose(Face.SOUTH, new Point(300, -100, 900));
         var s =
                 GroundDynamics.local(
                         900,
@@ -326,11 +328,11 @@ public class GroundIntegrationKernelTest {
         assertThrows(IllegalArgumentException.class, () -> GroundNavigationSave.decode(tag));
         var occupied =
                 new GroundDynamics.Terrain() {
-                    public boolean clear(GroundTopology.Pose p) {
+                    public boolean clear(PlanetShape.Pose p) {
                         return false;
                     }
 
-                    public double clearance(GroundTopology.Pose p) {
+                    public double clearance(PlanetShape.Pose p) {
                         return 0;
                     }
                 };

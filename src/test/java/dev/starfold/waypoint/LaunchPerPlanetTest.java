@@ -2,9 +2,9 @@ package dev.starfold.waypoint;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundTopology;
 
 import net.minecraft.nbt.*;
 
@@ -17,7 +17,7 @@ class LaunchPerPlanetTest {
         return new Waypoint(
                 Waypoint.LAUNCH,
                 planet,
-                new GroundTopology.Pose(
+                new PlanetShape.Pose(
                         CubeSurfaceTopology.Face.TOP, new BentStripGeometry.Point(x, 30, 500)));
     }
 

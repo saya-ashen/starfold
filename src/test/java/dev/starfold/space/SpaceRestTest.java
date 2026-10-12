@@ -1,16 +1,18 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.*;
+import static dev.starfold.sky.SpaceTest.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ship.SableCarry;
-import dev.starfold.sky.GroundSolar;
+import dev.starfold.ship.SpacePackets;
+import dev.starfold.sky.Space;
 
 import io.netty.buffer.Unpooled;
 
@@ -205,7 +207,7 @@ class SpaceRestTest {
             for (var shape : SHAPES)
                 for (var face : CubeSurfaceTopology.Face.values()) {
                     var pose =
-                            new GroundTopology.Pose(
+                            new PlanetShape.Pose(
                                     face, new Point(.27 * shape.size(), 1500, .71 * shape.size()));
                     var body = chart(pose.point());
                     var universe = Space.out(model, planet, shape, pose, body, tick);
@@ -359,20 +361,31 @@ class SpaceRestTest {
                 source.substring(
                         source.indexOf("var before=value.frame"),
                         source.indexOf("var universe=value.frame.universe(point"));
+        assertTrue(fold.contains("absorbLeadImpulse(value,tick,v,towardEntry,blend,piloted)"));
+        assertTrue(fold.contains("subtractEntityImpulse(level,bodies,v)"));
+        var impulseHelpers =
+                source.substring(
+                                source.indexOf("private static void subtractEntityImpulse"),
+                                source.indexOf("private static void shiftRegion"))
+                        .plus(
+                                source.substring(
+                                        source.indexOf("private static void absorbLeadImpulse"),
+                                        source.indexOf(
+                                                "private static dev.ryanhcode.sable.sublevel.ServerSubLevel lead")));
         for (String required :
                 new String[] {
                     "getLinearVelocity(lead,new org.joml.Vector3d()).div(20)",
                     "v.length()>1e-9",
                     "gain(f.drift(),blendPush(f.universeVector(v),towardEntry,blend),piloted,0)",
-                    "if(!piloted)value.frame=value.frame.dragged",
+                    "if(!piloted)dragFrame(value,level,tick)",
                     "for(var body:bodies)pipeline.addLinearAndAngularVelocity",
-                    "if(in(entity))",
+                    "if(Space.in(entity))",
                     "body!=null&&bodies.contains(body)&&SableFrames.tracked(entity,body)",
                     "getDeltaMovement().subtract(v.x(),v.y(),v.z())",
                     "player.hurtMarked=true",
                     "DimensionPhysicsData.getUniversalDrag(level)/20",
                     "value.setDirty()"
-                }) assertTrue(fold.contains(required), required);
+                }) assertTrue(fold.plus(impulseHelpers).contains(required), required);
         var reference =
                 source.substring(
                         source.indexOf("if(nearer(model"),
@@ -387,6 +400,6 @@ class SpaceRestTest {
         var client = Sources.text("SpaceClient");
         assertTrue(
                 client.contains(
-                        "frames.sample(eye(),renderTick(),GroundClient.ephemeris(),time())"));
+                        "frames.sample(eye(),renderTick(),SpaceClientHost.get().ephemeris(),time())"));
     }
 }

@@ -3,15 +3,13 @@ package dev.starfold.chart;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetSpace;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
 
 /** GroundOrbit for a planet of any shape: the same variable-curvature join of the planar chart to the whole sphere,
  *  with the planet's own radius. For the standard shape every value equals GroundOrbit's. */
 public final class PlanetOrbit {
     public final PlanetShape shape;
     private final double RADIUS;
-    public final GroundTopology.Pose pose;
+    public final PlanetShape.Pose pose;
     public final Point eye, normal, basisU, basisV, offset;
     public final GroundOrbit.Frame observerFrame;
     public final double weight, clip, minimumFacing;
@@ -21,14 +19,14 @@ public final class PlanetOrbit {
     }
 
     /** The upright frame of an observer standing at this pose. */
-    public static GroundOrbit.Frame frame(PlanetShape shape, GroundTopology.Pose pose) {
+    public static GroundOrbit.Frame frame(PlanetShape shape, PlanetShape.Pose pose) {
         return frame(
                 pose.face(),
                 new PlanetAir(shape, pose.face(), pose.point(), GroundAir.DEFAULT, true));
     }
 
     public static GroundOrbit.Frame frame(PlanetShape shape, GroundSpace.Pose pose) {
-        return frame(shape, new GroundTopology.Pose(pose.face(), pose.point()));
+        return frame(shape, new PlanetShape.Pose(pose.face(), pose.point()));
     }
 
     private static GroundOrbit.Frame frame(Face face, PlanetAir air) {
@@ -41,10 +39,10 @@ public final class PlanetOrbit {
     }
 
     public PlanetOrbit(PlanetShape shape, GroundSpace.Pose pose, Point eye, int view) {
-        this(shape, new GroundTopology.Pose(pose.face(), pose.point()), eye, view);
+        this(shape, new PlanetShape.Pose(pose.face(), pose.point()), eye, view);
     }
 
-    public PlanetOrbit(PlanetShape shape, GroundTopology.Pose pose, Point eye, int view) {
+    public PlanetOrbit(PlanetShape shape, PlanetShape.Pose pose, Point eye, int view) {
         this.shape = shape;
         RADIUS = shape.radius();
         this.pose = pose;

@@ -1,7 +1,5 @@
 package dev.starfold.chart;
 
-import dev.starfold.planet.PlanetShape;
-
 /** Shared planet identity and flight alignment limits. */
 public final class GroundCosmos {
     public static final int COUNT = 2;

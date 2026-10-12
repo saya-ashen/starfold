@@ -166,9 +166,13 @@ class HullLandingTest {
     void clientDoesNotUseTheAirReadinessGateAndHidesWithF1() throws Exception {
         var source = Sources.text("HullLandingClient");
         assertTrue(source.contains("HelmClient.body()"));
-        assertTrue(source.contains("SpaceClient.present()"));
+        assertTrue(source.contains("ShipClientHost.get().movingSurroundings()"));
         assertTrue(source.contains(".inChart("));
-        assertFalse(source.contains("GroundClient.ready()"));
+        assertFalse(source.contains(".ready()"));
+        assertTrue(source.contains("!ShipClientHost.get().chartActive()"));
+        assertTrue(
+                Sources.text("StarfoldClient")
+                        .contains("boolean chartActive(){return GroundClient.active();}"));
         assertFalse(source.contains("drawString"));
         var client = Sources.text("SpaceNavigationClient");
         assertTrue(client.contains("mc.options.hideGui||mc.screen!=null"));

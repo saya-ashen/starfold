@@ -20,7 +20,10 @@ final class DevLandingProbe {
     private static Vec3 foot;
     private static boolean returning;
 
-    static void follow(int ticks) {
+    private static boolean informational;
+
+    static void follow(int ticks, boolean reportTimeout) {
+        informational = reportTimeout;
         remaining = ticks;
         stable = 0;
         previous = 0;
@@ -30,7 +33,16 @@ final class DevLandingProbe {
 
     static boolean tick(Minecraft mc) {
         if (remaining <= 0 || mc.player == null) return false;
-        if (--remaining == 0) throw new IllegalStateException("landing input driver timeout");
+        if (--remaining == 0) {
+            keys(mc, Set.of());
+            if (!informational) throw new IllegalStateException("landing input driver timeout");
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info(
+                            "PROBE LANDING TIMEOUT informational site {} clearance {}",
+                            HullLandingClient.site(),
+                            HullLandingClient.clearance());
+            return false;
+        }
         if (!route.isEmpty()) {
             var p = route.get(waypoint);
             double dx = p.x - mc.player.getX(), dz = p.z - mc.player.getZ();
@@ -160,6 +172,7 @@ final class DevLandingProbe {
     }
 
     static void walk(Minecraft mc, boolean back) {
+        informational = false;
         returning = back;
         keys(mc, Set.of());
         if (back) {

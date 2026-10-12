@@ -1,11 +1,9 @@
 package dev.starfold.planet;
 
 import dev.starfold.chart.PlanetChart;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Cell;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundTopology;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -22,10 +20,10 @@ public enum PlanetAccess {
     }
 
     public boolean inChart(BlockPos pos) {
-        if (this == LEGACY) return GroundSeams.inChart(pos);
+        if (this == LEGACY) return GroundTopology.inChart(pos);
         int planet = PlanetStorage.find(pos.getX(), pos.getZ());
         return planet >= 0
-                && GroundSeams.inChart(PlanetShape.of(planet), PlanetStorage.local(planet, pos));
+                && GroundTopology.inChart(PlanetShape.of(planet), PlanetStorage.local(planet, pos));
     }
 
     public GroundTopology.Address address(BlockPos pos) {
@@ -43,18 +41,18 @@ public enum PlanetAccess {
                 : GroundTopology.notification(target, source);
     }
 
-    public Point feet(int planet, GroundTopology.Pose pose) {
+    public Point feet(int planet, PlanetShape.Pose pose) {
         PlanetShape.valid(planet);
         return this == SHARED ? PlanetStorage.feet(planet, pose) : GroundTopology.feet(pose);
     }
 
     /** A body anchor is already a chart point, not entity feet: no 0.9 centre offset belongs here. */
-    public Point bodyAnchor(int planet, GroundTopology.Pose pose) {
+    public Point bodyAnchor(int planet, PlanetShape.Pose pose) {
         PlanetShape.valid(planet);
         return origin(planet, pose.face().ordinal()).add(pose.point());
     }
 
-    public GroundTopology.Pose body(Point feet) {
+    public PlanetShape.Pose body(Point feet) {
         return this == SHARED
                 ? PlanetStorage.body(PlanetStorage.planet(feet.x(), feet.z()), feet)
                 : GroundTopology.body(feet);

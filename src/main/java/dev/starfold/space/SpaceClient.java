@@ -1,19 +1,18 @@
 package dev.starfold.space;
 
-import dev.starfold.StarfoldNetwork;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.dev.DevProbe;
 import dev.starfold.flight.ArrivalState;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.render.GroundClient;
-import dev.starfold.render.PlanetRemoteRenderer;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.ship.HelmClient;
 import dev.starfold.ship.HullVehicles;
 import dev.starfold.ship.SableCarryClient;
+import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.ThrusterSoundClient;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.sky.Space;
 import dev.starfold.sky.WeatherClient;
 
 import net.minecraft.client.Minecraft;
@@ -22,6 +21,9 @@ import net.minecraft.world.phys.Vec3;
 
 /** Passive region observer. No chart projection, camera ownership or flight prediction. */
 public final class SpaceClient {
+    /** Told of every frame packet as it arrives; a development probe traces them. */
+    public static java.util.function.Consumer<SpacePackets.Frame> frameListener = frame -> {};
+
     private static boolean arriving;
     private static ArrivalState.Phase phase = ArrivalState.Phase.CRUISE;
     private static float blend;
@@ -49,14 +51,14 @@ public final class SpaceClient {
     static void install(SpacePackets.Frame packet) {
         var mc = Minecraft.getInstance();
         if (level != mc.level) clear();
-        if (!GroundServer.is(mc.level)) return;
+        if (!PlanetLevels.is(mc.level)) return;
         level = mc.level;
         arriving = packet.turning();
         phase = packet.phase();
         blend = packet.blend();
         notice = packet.notice();
-        DevProbe.mouseFrame(packet);
-        frames.install(packet, eye(), renderTick(), GroundClient.ephemeris(), time());
+        frameListener.accept(packet);
+        frames.install(packet, eye(), renderTick(), SpaceClientHost.get().ephemeris(), time());
         if (frames.current() != null) GroundFlightClient.region();
     }
 
@@ -108,9 +110,9 @@ public final class SpaceClient {
                 SpacePackets.View.TYPE,
                 (packet, c) -> {
                     var mc = Minecraft.getInstance();
-                    if (!GroundServer.is(mc.level)) return;
+                    if (!PlanetLevels.is(mc.level)) return;
                     if (viewLevel != null && viewLevel != mc.level) {
-                        PlanetRemoteRenderer.clear();
+                        SpaceClientHost.get().viewLost();
                         retainedSession = 0;
                     }
                     viewLevel = mc.level;
@@ -128,7 +130,7 @@ public final class SpaceClient {
     }
 
     private static void clear() {
-        if (frames.current() != null || view != null) PlanetRemoteRenderer.clear();
+        if (frames.current() != null || view != null) SpaceClientHost.get().viewLost();
         level = null;
         arriving = false;
         phase = ArrivalState.Phase.CRUISE;
@@ -147,7 +149,7 @@ public final class SpaceClient {
 
     public static boolean present() {
         var mc = Minecraft.getInstance();
-        return GroundServer.is(mc.level)
+        return PlanetLevels.is(mc.level)
                 && mc.player != null
                 && Space.holds(mc.player.getX(), mc.player.getZ());
     }
@@ -155,16 +157,16 @@ public final class SpaceClient {
     public static Space.Frame frame() {
         var mc = Minecraft.getInstance();
         if (level != Minecraft.getInstance().level) clear();
-        return GroundServer.is(mc.level)
+        return PlanetLevels.is(mc.level)
                         && mc.player != null
                         && Space.holds(mc.player.getX(), mc.player.getZ())
-                ? frames.sample(eye(), renderTick(), GroundClient.ephemeris(), time())
+                ? frames.sample(eye(), renderTick(), SpaceClientHost.get().ephemeris(), time())
                 : null;
     }
 
     public static boolean active() {
         var frame = frame();
-        var model = GroundClient.ephemeris();
+        var model = SpaceClientHost.get().ephemeris();
         return frame != null && model != null && frame.planet() < model.count();
     }
 
@@ -174,14 +176,14 @@ public final class SpaceClient {
         var frame = frame();
         return frame.universe(
                 new Point(levelCameraPosition.x, levelCameraPosition.y, levelCameraPosition.z),
-                GroundClient.ephemeris(),
+                SpaceClientHost.get().ephemeris(),
                 time());
     }
 
     /** Sky time never borrows stale flight interpolation or the last chart render partial. */
     public static double time() {
-        return GroundClient.skyTime(
-                Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        return SpaceClientHost.get()
+                .skyTime(Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
     }
 
     public static long retainedSession() {
@@ -205,15 +207,15 @@ public final class SpaceClient {
     public static double sunlight() {
         if (!active()) return 1;
         return SpaceView.sunlight(
-                GroundClient.ephemeris(),
+                SpaceClientHost.get().ephemeris(),
                 universeEye(Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()),
                 time());
     }
 
     public static java.util.List<GroundEphemeris.Star> suns(Point eye) {
-        var all = new java.util.ArrayList<>(GroundClient.ephemeris().everyStar());
+        var all = new java.util.ArrayList<>(SpaceClientHost.get().ephemeris().everyStar());
         all.sort(java.util.Comparator.comparingDouble(s -> s.position().sub(eye).length()));
-        return all.subList(0, Math.min(GroundClient.SUNS, all.size()));
+        return all.subList(0, Math.min(SpaceClientHost.get().sunLimit(), all.size()));
     }
 
     public static void lens(net.minecraft.client.renderer.ShaderInstance shader) {

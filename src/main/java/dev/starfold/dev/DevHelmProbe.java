@@ -1,6 +1,6 @@
 package dev.starfold.dev;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.ship.Airstair;
 import dev.starfold.ship.HelmClient;
@@ -84,7 +84,7 @@ final class DevHelmProbe {
                                                                                     c.getSource()
                                                                                             .getPlayerOrException()
                                                                                             .serverLevel();
-                                                                            if (!GroundServer.is(
+                                                                            if (!PlanetLevels.is(
                                                                                     level))
                                                                                 return 0;
                                                                             GroundClock.get(level)
@@ -135,7 +135,7 @@ final class DevHelmProbe {
                             "PROBE RECOVERY {} dimension {} planet {} feet {} health {} ground {} loaded {} bed {} bedDimension {} spawn {} sleeping {}",
                             label,
                             p.level().dimension().location(),
-                            GroundServer.is(p.level())
+                            PlanetLevels.is(p.level())
                                     ? PlanetStorage.find(p.getX(), p.getZ())
                                     : -1,
                             p.position(),

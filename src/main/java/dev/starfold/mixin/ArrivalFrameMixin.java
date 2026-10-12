@@ -3,8 +3,8 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
-import dev.starfold.dev.ArrivalClientProbe;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.probe.ArrivalClientState;
+import dev.starfold.probe.ArrivalProbe;
 
 import net.minecraft.client.Minecraft;
 
@@ -19,11 +19,11 @@ public abstract class ArrivalFrameMixin {
             return;
         }
         long start = ArrivalProbe.start();
-        ArrivalClientProbe.begin();
+        ArrivalClientState.begin();
         try {
             original.call(render);
         } finally {
-            ArrivalClientProbe.end(start);
+            ArrivalClientState.end(start);
         }
     }
 }

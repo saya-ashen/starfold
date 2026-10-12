@@ -2,9 +2,9 @@ package dev.starfold.worldgen;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.PlanetCore;
-import dev.starfold.planet.PlanetShape;
 
 import net.minecraft.world.level.block.Blocks;
 

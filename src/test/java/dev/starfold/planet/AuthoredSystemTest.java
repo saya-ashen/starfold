@@ -3,17 +3,23 @@ package dev.starfold.planet;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundEphemeris;
 import dev.starfold.sky.GroundEphemerisSave;
-import dev.starfold.sky.GroundSolar;
-import dev.starfold.space.Space;
+import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceView;
+import dev.starfold.universe.PlanetType;
+import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.SystemChunkGenerator;
+import dev.starfold.universe.SystemDefinition;
+import dev.starfold.universe.Universe;
+import dev.starfold.universe.UniverseLayout;
 import dev.starfold.worldgen.PlanetEcologyTest;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import org.junit.jupiter.api.Test;
 
@@ -214,9 +220,8 @@ class AuthoredSystemTest {
         assertTrue(saved.getAsJsonObject().has("celestial"));
         assertTrue(
                 saved.toString()
-                        .contains(
-                                "handwritten:ash")); // identity survives; registry is still
-                                                     // unnecessary
+                        .contains("handwritten:ash")); // identity survives; registry is still
+        // unnecessary
         var bare =
                 net.minecraft.resources.RegistryOps.create(
                         com.mojang.serialization.JsonOps.INSTANCE, PlanetEcologyTest.lookup);
@@ -495,7 +500,7 @@ class AuthoredSystemTest {
             assertEquals(0, buffer.readableBytes());
         } finally {
             buffer.release();
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
         assertEquals("A", PlanetSystem.name(0));
     }
@@ -558,7 +563,8 @@ class AuthoredSystemTest {
                         .findFirst()
                         .orElseThrow();
         var d = definition();
-        sun(d, 1).add(
+        sun(d, 1)
+                .add(
                         "position",
                         com.google.gson.JsonParser.parseString(
                                 "["
@@ -635,14 +641,16 @@ class AuthoredSystemTest {
                         new Bad(
                                 "200000",
                                 d ->
-                                        sun(d, 1).add(
+                                        sun(d, 1)
+                                                .add(
                                                         "position",
                                                         com.google.gson.JsonParser.parseString(
                                                                 "[200000,0,0]"))),
                         new Bad(
                                 "sun.position",
                                 d ->
-                                        sun(d, 1).add(
+                                        sun(d, 1)
+                                                .add(
                                                         "position",
                                                         com.google.gson.JsonParser.parseString(
                                                                 "[1000000001,0,0]"))),
@@ -651,7 +659,8 @@ class AuthoredSystemTest {
                         new Bad(
                                 "three finite",
                                 d ->
-                                        sun(d, 1).add(
+                                        sun(d, 1)
+                                                .add(
                                                         "position",
                                                         com.google.gson.JsonParser.parseString(
                                                                 "[0,1]"))),
@@ -728,7 +737,8 @@ class AuthoredSystemTest {
                         new Bad(
                                 "outermost orbits overlap",
                                 d ->
-                                        sun(d, 1).add(
+                                        sun(d, 1)
+                                                .add(
                                                         "position",
                                                         com.google.gson.JsonParser.parseString(
                                                                 "[1000,0,0]"))))

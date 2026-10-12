@@ -6,17 +6,23 @@ import com.google.gson.*;
 import com.mojang.serialization.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.ground.GroundServer;
 import dev.starfold.render.PlanetRemotePackets;
 import dev.starfold.render.PlanetRemoteView;
-import dev.starfold.worldgen.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.PlanetType;
+import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.SystemChunkGenerator;
+import dev.starfold.universe.SystemDefinition;
+import dev.starfold.universe.UniverseLayout;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrainTest;
 import dev.starfold.worldgen.PlanetTint;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
@@ -177,7 +183,7 @@ public class ExperiencePackTest {
                 buf.release();
             }
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
     }
 
@@ -313,7 +319,7 @@ public class ExperiencePackTest {
                 }
             }
         } finally {
-            PlanetShape.reset();
+            PlanetSystem.reset();
         }
     }
 

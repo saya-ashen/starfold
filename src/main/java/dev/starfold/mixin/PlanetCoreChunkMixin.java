@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetCoreBlock;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -34,7 +34,7 @@ public abstract class PlanetCoreChunkMixin {
                 return;
             }
         }
-        if (!GroundServer.is(level)) return;
+        if (!PlanetLevels.is(level)) return;
         var old = chunk.getBlockState(pos);
         if (old.is(PlanetCoreBlock.IMMUTABLE) && old != state) ci.setReturnValue(null);
     }

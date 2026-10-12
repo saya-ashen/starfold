@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
-import dev.starfold.sky.GroundEphemeris;
 
 import org.joml.Quaterniond;
 import org.junit.jupiter.api.Test;

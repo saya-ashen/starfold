@@ -10,9 +10,9 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.ground.GroundSeams;
 import dev.starfold.ground.PayloadMap;
-import dev.starfold.space.Space;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 import dev.starfold.space.SpaceServer;
-import dev.starfold.space.SpaceTest;
 
 import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
@@ -151,7 +151,7 @@ class SableFramesTest {
     @Test
     void cargoTicketsPrecedeRelabellingAndReleaseTheirOwnReservations() throws Exception {
         var frames = type("dev/starfold/ship/SableFrames");
-        ordered(calls(frames, "cross"), "update", "step", "transport", "move");
+        ordered(calls(frames, "cross"), "update", "advanceSurroundings", "transport", "move");
         var tickets = type("dev/starfold/ship/SableTickets");
         var update = calls(tickets, "update");
         ordered(
@@ -442,13 +442,13 @@ class SableFramesTest {
                 "owned",
                 "leaves",
                 "out",
-                "entering",
+                "departureFrame",
                 "level",
                 "move");
         ordered(
                 calls(frames, "arrive"),
                 "holds",
-                "frame",
+                "surroundingsFrame",
                 "universe",
                 "nearest",
                 "height",
@@ -637,7 +637,7 @@ class SableFramesTest {
         assertFalse(cross.contains("weigh"));
         assertFalse(cross.contains("applyLinearImpulse"));
         assertEquals(1, java.util.Collections.frequency(cross, "damp"));
-        ordered(cross, "step", "damp");
+        ordered(cross, "advanceSurroundings", "damp");
         var damp = calls(frames, "damp");
         assertFalse(damp.contains("applyLinearImpulse"));
         assertEquals(1, java.util.Collections.frequency(damp, "addLinearAndAngularVelocity"));
@@ -781,13 +781,13 @@ class SableFramesTest {
         var carry = calls(type("dev/starfold/ground/GroundSeams"), "carryBody");
         ordered(
                 carry,
-                "remove",
+                "viewLost",
                 "relocate",
                 "moveTo",
                 "resetPosition",
                 "setDeltaMovement",
                 "inChart",
-                "site");
+                "resited");
         assertFalse(carry.contains("teleport"));
         var before =
                 new dev.ryanhcode.sable.companion.math.Pose3d(

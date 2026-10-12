@@ -4,9 +4,9 @@ import dev.starfold.chart.GroundGap;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundTransit;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.space.Space;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -24,7 +24,7 @@ public final class HullWeight {
     public static double at(Level level, Point feet) {
         if (Space.holds(feet.x(), feet.z())) return 0;
         var access = PlanetAccess.of(level);
-        if (!GroundServer.is(level)
+        if (!PlanetLevels.is(level)
                 || !access.inChart(BlockPos.containing(feet.x(), feet.y(), feet.z()))) return 1;
         return at(access.chart(feet).y());
     }

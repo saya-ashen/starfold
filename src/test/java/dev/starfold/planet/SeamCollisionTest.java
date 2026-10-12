@@ -6,7 +6,6 @@ import dev.starfold.Sources;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundTerrain;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.render.GroundChunkSnapshot;
 import dev.starfold.render.GroundViewCache;
 import dev.starfold.worldgen.PlanetEcologyTest;

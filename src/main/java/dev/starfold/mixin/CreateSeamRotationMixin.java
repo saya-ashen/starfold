@@ -5,8 +5,8 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -39,7 +39,7 @@ public abstract class CreateSeamRotationMixin {
         BlockEntity a = (BlockEntity) (Object) from, b = (BlockEntity) (Object) to;
         var level = a.getLevel();
         if (level == null
-                || !GroundServer.canonical(level)
+                || !PlanetLevels.canonical(level)
                 || a.getBlockPos().distManhattan(b.getBlockPos()) <= 3)
             return original.call(from, to);
         Direction out = starfold$toward(level, a.getBlockPos(), b.getBlockPos()),

@@ -2,8 +2,8 @@ package dev.starfold.ship;
 
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
-import dev.starfold.StarfoldNetwork;
-import dev.starfold.dev.DevProbe;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.probe.ProbeState;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -185,7 +185,7 @@ public final class HelmInputClient {
         boolean exit = leave.consumeClick();
         while (leave.consumeClick()) {}
         int bits = 0;
-        if (!exit && mc.screen == null && (mc.isWindowActive() || DevProbe.active())) {
+        if (!exit && mc.screen == null && (mc.isWindowActive() || ProbeState.active())) {
             var o = mc.options;
             if (o.keyUp.isDown()) bits |= HelmCommand.FORWARD;
             if (o.keyDown.isDown()) bits |= HelmCommand.BACK;

@@ -1,16 +1,16 @@
 package dev.starfold.ground;
 
-import dev.starfold.dev.ArrivalProbe;
-import dev.starfold.dev.RelightProbe;
-import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartOrientation;
 import dev.starfold.mixin.BlockEntityPacketAccess;
 import dev.starfold.mixin.ChunkPacketAccess;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.probe.RelightProbe;
+import dev.starfold.sky.Space;
 
 import io.netty.buffer.Unpooled;
 
@@ -68,7 +68,7 @@ public final class ImageStream {
     static final long RELIGHT_BUDGET_NS = BUDGET_NS / 2;
 
     public static boolean active(ServerPlayer player) {
-        return GroundServer.is(player.level());
+        return PlanetLevels.is(player.level());
     }
 
     public static void clear() {
@@ -97,7 +97,7 @@ public final class ImageStream {
         var out = new HashSet<Long>();
         for (var e : VIEWS.entrySet()) {
             var view = e.getValue();
-            if (view.level == level && !e.getKey().isRemoved() && !SpaceServer.in(e.getKey()))
+            if (view.level == level && !e.getKey().isRemoved() && !Space.in(e.getKey()))
                 out.addAll(view.owners);
         }
         return out;
@@ -207,7 +207,7 @@ public final class ImageStream {
             // sweeps whole faces as it
             // passes, and every chunk shown is one loaded and, the first time, made. What it sees
             // is the far view.
-            int radius = GroundFlightServer.aloft(player) ? ALOFT : radius(player);
+            int radius = GroundHost.get().aloft(player) ? ALOFT : radius(player);
             boolean reframed = !frame.equals(view.frame);
             if (reframed || !center.equals(view.center) || radius != view.radius) {
                 if (!center.equals(view.center))
@@ -218,7 +218,7 @@ public final class ImageStream {
                 view.radius = radius;
                 view.frame = frame;
                 var wanted =
-                        SpaceServer.in(player)
+                        Space.in(player)
                                 ? regionPositions(center, radius)
                                 : positions(center, radius);
                 var set = new HashSet<>(wanted);

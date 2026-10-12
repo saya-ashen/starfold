@@ -3,16 +3,18 @@ package dev.starfold.waypoint;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.ground.GroundServer;
+import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.ship.HullLanding;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.ship.StarterShip;
 import dev.starfold.sky.GroundClock;
+import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceServer;
 import dev.starfold.waypoint.WaypointPackets.Target;
 
@@ -31,7 +33,7 @@ public final class WaypointServer {
             net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                     (net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) -> {
                         if (event.getEntity() instanceof ServerPlayer player
-                                && GroundServer.is(player.level())) launch(player);
+                                && PlanetLevels.is(player.level())) launch(player);
                     });
     }
 
@@ -43,7 +45,7 @@ public final class WaypointServer {
             helms.remove(player);
             return;
         }
-        if (helms.put(player, body) == body || SpaceServer.in(player)) return;
+        if (helms.put(player, body) == body || Space.in(player)) return;
         var level = player.serverLevel();
         var at = body.logicalPose().position();
         var access = PlanetAccess.of(level);
@@ -109,7 +111,7 @@ public final class WaypointServer {
     }
 
     private static int markerPlanet(ServerPlayer player) {
-        if (SpaceServer.in(player)) return SpaceServer.markerPlanet(player);
+        if (Space.in(player)) return SpaceServer.markerPlanet(player);
         var access = PlanetAccess.of(player.serverLevel());
         var body = SableFrames.aboard(player);
         double x = body == null ? player.getX() : body.logicalPose().position().x,
@@ -158,8 +160,8 @@ public final class WaypointServer {
     }
 
     private static int run(ServerPlayer player, String verb, String name) {
-        if (SpaceServer.in(player)) return GroundServer.regionMessage(player);
-        if (!GroundServer.is(player.level()) || GroundFlightServer.session(player) == 0) {
+        if (Space.in(player)) return GroundServer.regionMessage(player);
+        if (!PlanetLevels.is(player.level()) || GroundFlightServer.session(player) == 0) {
             message(player, "message.starfold.mark.enter");
             return 0;
         }

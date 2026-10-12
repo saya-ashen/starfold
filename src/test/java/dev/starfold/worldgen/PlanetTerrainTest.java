@@ -7,11 +7,12 @@ import com.mojang.serialization.*;
 import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetSpawn;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.render.GroundChunkSnapshot;
 import dev.starfold.render.GroundSurfaceIndex;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.PlanetSpawn;
 
 import net.minecraft.core.*;
 import net.minecraft.core.registries.*;

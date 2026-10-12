@@ -2,12 +2,10 @@ package dev.starfold.ship;
 
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.geometry.BentStripGeometry;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceServer;
-import dev.starfold.space.SpaceSpeedServer;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -110,7 +108,7 @@ public final class HelmServer {
                         player, body, pos, state.getValue(BlockStateProperties.HORIZONTAL_FACING));
         sessions.put(body, session);
         send(session, true);
-        var caps = SpaceSpeedServer.caps(body);
+        var caps = ShipHost.get().speedCaps(body);
         player.displayClientMessage(
                 net.minecraft.network.chat.Component.translatable(
                         "message.starfold.space_caps",
@@ -204,7 +202,7 @@ public final class HelmServer {
                                 state.getValue(BlockStateProperties.FACING),
                                 new Vector3d(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5)
                                         .sub(center),
-                                SpaceServer.rollControl(s.player.level(), body)));
+                                ShipHost.get().externalRoll(s.player.level(), body)));
     }
 
     static boolean boosted(ServerSubLevel body) {
@@ -223,7 +221,7 @@ public final class HelmServer {
                 }
                 if (packet.leave()) {
                     boolean space =
-                            GroundServer.is(player.level())
+                            PlanetLevels.is(player.level())
                                     && Space.holds(player.getX(), player.getZ());
                     if (s.exit.leave(
                             player.gameMode.getGameModeForPlayer(),
@@ -270,7 +268,7 @@ public final class HelmServer {
         sessions.remove(s.body);
         pilots.release(s.body);
         s.bits = 0;
-        SpaceServer.releaseHelm(s.player);
+        ShipHost.get().pilotReleased(s.player);
         send(s, false);
     }
 
@@ -284,7 +282,7 @@ public final class HelmServer {
         if (active)
             landing = s.landingSearch.update(s.player.serverLevel(), s.body, s.facing, landing);
         else s.landingSearch.clear();
-        var caps = SpaceSpeedServer.caps(s.body);
+        var caps = ShipHost.get().speedCaps(s.body);
         for (var player : s.body.getLevel().players())
             if (player == s.player || s.body.getTrackingPlayers().contains(player.getUUID()))
                 if (player.connection.hasChannel(HelmPackets.State.TYPE))
@@ -297,7 +295,7 @@ public final class HelmServer {
                                     active,
                                     active && player == s.player,
                                     active ? bits(s.body) : 0,
-                                    active && SpaceServer.rollControl(player.level(), s.body),
+                                    active && ShipHost.get().externalRoll(player.level(), s.body),
                                     center.x(),
                                     center.y(),
                                     center.z(),

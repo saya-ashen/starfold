@@ -3,7 +3,7 @@ package dev.starfold.worldgen;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.chart.PlanetShape;
 
 /** Saved generator policy, not world contents. Unknown algorithms fail closed. */
 public record PlanetGeneration(
@@ -165,7 +165,7 @@ public record PlanetGeneration(
 
     /** Blocks from the nominal surface down to the floor nobody digs through, as every planet had before depths were
      *  saved: the vanilla range, whatever the planet's size. */
-    public static final int STANDARD_DEPTH = PlanetTerrain.SEA_LEVEL - 1 - PlanetTerrain.MIN_Y;
+    public static final int STANDARD_DEPTH = PlanetShape.STANDARD_DEPTH;
 
     /** What the floor is made of: bedrock, as every planet had before floors were chosen, or the planet's own core shell. */
     public static final String BEDROCK = "bedrock", CORE_SHELL = "core_shell";

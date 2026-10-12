@@ -3,10 +3,10 @@ package dev.starfold.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundHandoff;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.worldgen.PlanetEcologyTest;
 
 import net.minecraft.world.level.block.Blocks;
@@ -127,7 +127,7 @@ class SeamRenderHandoffTest {
     void nearbyBothSidesAreSubscribedBeforeAndAfterEverySeam() {
         for (var face : Face.values())
             for (int[] uv : new int[][] {{0, 1024}, {2047, 1024}, {1024, 0}, {1024, 2047}}) {
-                var before = new GroundTopology.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5));
+                var before = new PlanetShape.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5));
                 var move =
                         new Point(
                                 uv[0] == 0 ? -1 : uv[0] == 2047 ? 1 : 0,
@@ -153,13 +153,13 @@ class SeamRenderHandoffTest {
         assertEquals(
                 289,
                 GroundViewPolicy.details(
-                                new GroundTopology.Pose(Face.TOP, new Point(1024, 20, 1024)), false)
+                                new PlanetShape.Pose(Face.TOP, new Point(1024, 20, 1024)), false)
                         .size());
     }
 
     @Test
     void boundedRequestsFillAllMissingSeamTilesAndStillRefreshKnownOnes() {
-        var pose = new GroundTopology.Pose(Face.TOP, new Point(.5, 20, 1024.5));
+        var pose = new PlanetShape.Pose(Face.TOP, new Point(.5, 20, 1024.5));
         var all = GroundViewPolicy.details(pose, false);
         var resident = new HashSet<Long>();
         for (int i = 0; i < 60; i++) {

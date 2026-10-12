@@ -1,8 +1,8 @@
 package dev.starfold.mixin;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.dev.DevPortProbe;
 import dev.starfold.flight.GroundFlightClient;
-import dev.starfold.ground.GroundTopology;
 
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Opt-in held interpolated pose/time for raster comparisons. */
 @Mixin(value = GroundFlightClient.class, remap = false)
 public abstract class DevPortCameraMixin {
-    @Shadow private static GroundTopology.Pose renderPose;
+    @Shadow private static PlanetShape.Pose renderPose;
     @Shadow private static double renderTime;
-    @Unique private static GroundTopology.Pose held;
+    @Unique private static PlanetShape.Pose held;
     @Unique private static double heldTime;
 
     @Inject(method = "prepare", at = @At("HEAD"), cancellable = true)

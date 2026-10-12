@@ -4,17 +4,16 @@ import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.PlanetChart;
 import dev.starfold.chart.PlanetOrbit;
-import dev.starfold.flight.GroundDynamics;
-import dev.starfold.flight.GroundFlightServer;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.render.GroundViewServer;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -99,24 +98,15 @@ public final class GroundSeams {
     }
 
     /** Client: a canonical pose's feet in client coordinates, or null if not drawn in the observer's chart. */
-    private static BiFunction<Integer, GroundTopology.Pose, Point> clientPlane =
+    private static BiFunction<Integer, PlanetShape.Pose, Point> clientPlane =
             (planet, pose) -> null;
 
-    public static void clientPlane(BiFunction<Integer, GroundTopology.Pose, Point> reader) {
+    public static void clientPlane(BiFunction<Integer, PlanetShape.Pose, Point> reader) {
         clientPlane = reader;
     }
 
-    public static Point clientFeet(int planet, GroundTopology.Pose pose) {
+    public static Point clientFeet(int planet, PlanetShape.Pose pose) {
         return clientPlane.apply(planet, pose);
-    }
-
-    public static boolean inChart(BlockPos pos) {
-        return inChart(PlanetShape.STANDARD, pos);
-    }
-
-    public static boolean inChart(PlanetShape shape, BlockPos pos) {
-        var cell = GroundTopology.cell(pos);
-        return shape.inChart(cell.u(), cell.v());
     }
 
     /** A place in a chart's halo and the same place in the chart that owns it. Everything near it is carried by the
@@ -146,7 +136,7 @@ public final class GroundSeams {
         var chart = access.chart(feet);
         var shape = access.shape(feet.x(), feet.z());
         if (shape.owned(chart.x(), chart.z())) return null;
-        if (chart.y() + .9 < GroundTopology.LOWEST || chart.y() + .9 > GroundTopology.MAX_HEIGHT)
+        if (chart.y() + .9 < PlanetShape.LOWEST || chart.y() + .9 > PlanetShape.MAX_HEIGHT)
             return null;
         var route =
                 GroundTopology.canonical(
@@ -201,7 +191,7 @@ public final class GroundSeams {
 
     public static Passage passage(Level level, Point feet) {
         if (!(level instanceof net.minecraft.server.level.ServerLevel server)
-                || !GroundServer.is(level)) return null;
+                || !PlanetLevels.is(level)) return null;
         var access = PlanetAccess.of(level);
         if (!access.inChart(BlockPos.containing(feet.x(), feet.y(), feet.z()))
                 || access.chart(feet).y() < PASSAGE) return null;
@@ -255,10 +245,10 @@ public final class GroundSeams {
         var v = p.vector(new Point(old.x, old.y, old.z));
         float yaw = p.yaw(entity.getYRot());
         if (entity instanceof ServerPlayer player) {
-            GroundViewServer.remove(player);
+            GroundHost.get().viewLost(player);
             player.connection.teleport(at.x(), at.y(), at.z(), yaw, player.getXRot());
             player.setDeltaMovement(v.x(), v.y(), v.z());
-            GroundFlightServer.site(player);
+            GroundHost.get().resited(player);
         } else {
             entity.moveTo(at.x(), at.y(), at.z(), yaw, entity.getXRot());
             entity.setYHeadRot(yaw);
@@ -272,7 +262,7 @@ public final class GroundSeams {
             Entity entity, Point at, Point velocity, float yaw, boolean tracked, Transport seam) {
         CARRIED_AT.put(entity, entity.level().getGameTime());
         if (entity instanceof ServerPlayer player) {
-            GroundViewServer.remove(player);
+            GroundHost.get().viewLost(player);
             if (seam == null) ObserverFrames.relocate(player, at);
             else ObserverFrames.cross(player, seam.halo(), seam.owner(), seam.turns());
             player.moveTo(at.x(), at.y(), at.z(), yaw, player.getXRot());
@@ -287,12 +277,12 @@ public final class GroundSeams {
             else carryPath(mob, at.x(), at.z());
         }
         if (entity instanceof ServerPlayer player) {
-            SpaceServer.sync(player);
+            GroundHost.get().regionSync(player);
             player.serverLevel().getChunkSource().move(player);
-            if (!SpaceServer.in(player)
+            if (!Space.in(player)
                     && PlanetAccess.of(player.level())
                             .inChart(BlockPos.containing(at.x(), at.y(), at.z())))
-                GroundFlightServer.site(player);
+                GroundHost.get().resited(player);
         }
     }
 
@@ -319,8 +309,8 @@ public final class GroundSeams {
      *  chart, and every rider goes with it by the same transport. True when the entity was moved to another chart. */
     public static boolean moved(Entity entity) {
         if (entity.level().isClientSide
-                || !GroundServer.is(entity.level())
-                || GroundFlightServer.controlled(entity)
+                || !PlanetLevels.is(entity.level())
+                || GroundHost.get().controlled(entity)
                 || carried(entity)) return false;
         var t = transport(entity.level(), new Point(entity.getX(), entity.getY(), entity.getZ()));
         if (t == null) {
@@ -333,13 +323,13 @@ public final class GroundSeams {
             for (var rider : entity.getIndirectPassengers()) {
                 rider.setYRot(passage.yaw(rider.getYRot()));
                 if (rider instanceof ServerPlayer player) {
-                    GroundViewServer.remove(player);
+                    GroundHost.get().viewLost(player);
                     ObserverFrames.relocate(
                             player, new Point(player.getX(), player.getY(), player.getZ()));
                     player.connection.send(
                             new net.minecraft.network.protocol.game.ClientboundMoveVehiclePacket(
                                     entity));
-                    GroundFlightServer.site(player);
+                    GroundHost.get().resited(player);
                 }
             }
             return true;
@@ -457,7 +447,7 @@ public final class GroundSeams {
     }
 
     public static Point image(Entity observer, double x, double y, double z) {
-        if (SpaceServer.in(observer) || Space.holds(x, z)) return new Point(x, y, z);
+        if (Space.in(observer) || Space.holds(x, z)) return new Point(x, y, z);
         var access = PlanetAccess.of(observer.level());
         if (!access.samePlanet(observer.getX(), observer.getZ(), x, z)) return null;
         var canonical =

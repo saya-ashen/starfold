@@ -31,7 +31,7 @@ class HelmClientTest {
         var s = Sources.text("HelmClient");
         assertTrue(
                 s.contains(
-                        "SpaceAttitudeClient.mouseFlight()?Vec3.directionFromRotation(CHASE_TILT,camera.getYRot())"));
+                        "ShipClientHost.get().mouseSteering()?Vec3.directionFromRotation(CHASE_TILT,camera.getYRot())"));
         assertTrue(s.contains("mc.options.getCameraType().isFirstPerson())return null"));
         var hook = Sources.text("HelmCameraMixin");
         assertFalse(hook.contains("setRotation"));

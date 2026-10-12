@@ -1,6 +1,6 @@
 package dev.starfold.render;
 
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.worldgen.PlanetTerrain;

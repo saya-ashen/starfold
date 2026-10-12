@@ -1,7 +1,6 @@
 package dev.starfold.chart;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.sky.GroundEphemeris;
 
 /** Optional velocity assistance only: never owns position, camera or collision geometry. */
 public final class GroundGuidance {

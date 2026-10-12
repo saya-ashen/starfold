@@ -1,10 +1,9 @@
 package dev.starfold.sky;
 
 import dev.starfold.chart.GroundOrbit;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.space.Space;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -16,7 +15,7 @@ public final class Weather {
     }
 
     public static boolean absent(Level level, BlockPos pos) {
-        return GroundServer.is(level)
+        return PlanetLevels.is(level)
                 && (Space.holds(pos.getX(), pos.getZ())
                         || aboveAir(pos.getY()) && PlanetAccess.of(level).inChart(pos));
     }

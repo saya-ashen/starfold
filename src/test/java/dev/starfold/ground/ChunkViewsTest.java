@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.worldgen.PlanetEcologyTest;

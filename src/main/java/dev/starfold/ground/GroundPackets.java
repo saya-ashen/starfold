@@ -1,13 +1,13 @@
 package dev.starfold.ground;
 
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.PlanetIdentity;
-import dev.starfold.planet.PlanetShape;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.planet.SystemDefinition;
-import dev.starfold.planet.Universe;
-import dev.starfold.sky.GroundEphemeris;
 import dev.starfold.sky.GroundEphemerisSave;
+import dev.starfold.universe.SystemDefinition;
+import dev.starfold.universe.Universe;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

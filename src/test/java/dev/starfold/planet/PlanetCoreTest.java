@@ -99,7 +99,7 @@ class PlanetCoreTest {
                         "net/minecraft/world/level/chunk/LevelChunk.getPos",
                         "dev/ryanhcode/sable/api/sublevel/SubLevelContainer.getPlot",
                         "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable.setReturnValue",
-                        "dev/starfold/ground/GroundServer.is",
+                        "dev/starfold/planet/PlanetLevels.is",
                         "net/minecraft/world/level/chunk/LevelChunk.getBlockState",
                         "net/minecraft/world/level/block/state/BlockState.is",
                         "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable.setReturnValue"),
@@ -112,7 +112,7 @@ class PlanetCoreTest {
                 fields);
         var text = Sources.text("PlanetCoreChunkMixin");
         assertTrue(text.contains("if(level.isClientSide)return;"));
-        assertTrue(text.contains("if(!GroundServer.is(level))return;"));
+        assertTrue(text.contains("if(!PlanetLevels.is(level))return;"));
         assertTrue(
                 text.contains(
                         "if(old.is(PlanetCoreBlock.IMMUTABLE)&&old!=state)ci.setReturnValue(null);"));

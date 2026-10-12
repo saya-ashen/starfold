@@ -4,9 +4,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.SourceText;
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.sky.Space;
 
 import org.joml.Quaterniond;
 import org.junit.jupiter.api.Test;

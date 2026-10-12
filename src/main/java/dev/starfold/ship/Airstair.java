@@ -4,12 +4,12 @@ import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.geometry.BentStripGeometry;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.space.Space;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -425,230 +425,188 @@ public final class Airstair {
             if (!body.isRemoved())
                 for (var holder : body.getPlot().getLoadedChunks())
                     for (var entity : holder.getChunk().getBlockEntities().values())
-                        if (entity instanceof Stair stair && !stair.isRemoved()) {
-                            loaded.put(stair, true);
-                            if (level instanceof ServerLevel) stair.width = width(stair);
-                            var at = top(stair, body);
-                            var out = outward(stair, body);
-                            if (level instanceof ServerLevel server
-                                    && body instanceof ServerSubLevel ship) {
-                                boolean chart =
-                                        GroundServer.is(level)
-                                                && !Space.holds(at.x, at.z)
-                                                && PlanetAccess.of(level)
-                                                        .inChart(
-                                                                BlockPos.containing(
-                                                                        at.x,
-                                                                        GroundCoordinates.FLOOR,
-                                                                        at.z));
-                                double poseSpeed =
-                                        stair.previous == null
-                                                ? Double.POSITIVE_INFINITY
-                                                : at.distance(stair.previous) * 20;
-                                stair.previous = new Vector3d(at);
-                                var pipeline =
-                                        SubLevelContainer.getContainer(server)
-                                                .physicsSystem()
-                                                .getPipeline();
-                                var bounds = body.getPlot().getBoundingBox();
-                                double radius =
-                                        .5
-                                                * Math.sqrt(
-                                                        Math.pow(
-                                                                        bounds.maxX()
-                                                                                - bounds.minX()
-                                                                                + 1,
-                                                                        2)
-                                                                + Math.pow(
-                                                                        bounds.maxY()
-                                                                                - bounds.minY()
-                                                                                + 1,
-                                                                        2)
-                                                                + Math.pow(
-                                                                        bounds.maxZ()
-                                                                                - bounds.minZ()
-                                                                                + 1,
-                                                                        2));
-                                double
-                                        linear =
-                                                pipeline.getLinearVelocity(ship, new Vector3d())
-                                                        .length(),
-                                        angular =
-                                                pipeline.getAngularVelocity(ship, new Vector3d())
-                                                                .length()
-                                                        * radius;
-                                double speed = Math.max(poseSpeed, linear + angular);
-                                boolean gravity =
-                                        chart
-                                                && HullWeight.at(
-                                                                level,
-                                                                new BentStripGeometry.Point(
-                                                                        at.x, at.y, at.z))
-                                                        > 0
-                                                && dev.ryanhcode.sable.physics.config
-                                                                .dimension_physics
-                                                                .DimensionPhysicsData.getGravity(
-                                                                        level)
-                                                                .y()
-                                                        < 0;
-                                var flight = chart ? plan(server, stair, body, at, gravity) : null;
-                                boolean planned = flight != null, clear = planned;
-                                double reach = flight == null ? Double.NaN : flight.drop();
-                                int before = stair.settled;
-                                boolean lift = lifting(ship, level);
-                                String why = null;
-                                if (stair.anchor != null) {
-                                    // Lowered: the flight keeps its planned place and length; only
-                                    // leaving it folds it.
-                                    stair.moving =
-                                            held(
-                                                    stair.moving,
-                                                    chart,
-                                                    gravity,
-                                                    lift,
-                                                    speed,
-                                                    at.distance(stair.anchor),
-                                                    out.dot(stair.anchorOut));
-                                    if (stair.moving < 0) {
-                                        why =
-                                                !chart
-                                                        ? "chart"
-                                                        : !gravity
-                                                                ? "gravity"
-                                                                : lift
-                                                                        ? "lift"
-                                                                        : at.distance(stair.anchor)
-                                                                                        > HOLD_DISTANCE
-                                                                                ? "drift"
-                                                                                : !(out.dot(
-                                                                                                        stair.anchorOut)
-                                                                                                >= HOLD_TURN)
-                                                                                        ? "turn"
-                                                                                        : "motion";
-                                        stair.anchor = null;
-                                        stair.anchorOut = null;
-                                        stair.moving = 0;
-                                        stair.settled = 0;
-                                        stair.length = 0;
-                                    }
-                                } else {
-                                    stair.settled =
-                                            settled(
-                                                    stair.settled,
-                                                    chart,
-                                                    gravity,
-                                                    lift,
-                                                    speed,
-                                                    reach);
-                                    if (stair.settled >= SETTLE_TICKS) {
-                                        stair.anchor = new Vector3d(at);
-                                        stair.anchorOut = new Vector3d(out);
-                                        stair.moving = 0;
-                                        stair.length = reach;
-                                        why = "lowered";
-                                    } else stair.length = 0;
-                                }
-                                if (why != null && stair.width > 0)
-                                    org.slf4j.LoggerFactory.getLogger("starfold-airstair")
-                                            .debug(
-                                                    "{} {} speed {} linear {} angular {} reach {} planned {}",
-                                                    why,
-                                                    stair.getBlockPos(),
-                                                    speed,
-                                                    linear,
-                                                    angular,
-                                                    reach,
-                                                    planned);
-                                if (stair.anchor != null) {
-                                    at = stair.anchor;
-                                    out = stair.anchorOut;
-                                }
-                                stair.published.set(at);
-                                stair.publishedOut.set(out);
-                                if (Boolean.getBoolean("starfold.airstairProbe")
-                                        && stair.width > 0
-                                        && (server.getGameTime() % 20 == 0
-                                                || (before >= SETTLE_TICKS)
-                                                        != (stair.settled >= SETTLE_TICKS)))
-                                    org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                                            .info(
-                                                    "PROBE STAIR tick {} pos {} facing {} top {} out {} speed {} poseSpeed {} linear {} angular {} chart {} gravity {} lift {} planned {} clear {} reach {} settled {} length {} foot {} players {}",
-                                                    server.getGameTime(),
-                                                    stair.getBlockPos(),
-                                                    stair.getBlockState()
-                                                            .getValue(
-                                                                    BlockStateProperties
-                                                                            .HORIZONTAL_FACING),
-                                                    java.util.List.of(at.x, at.y, at.z),
-                                                    java.util.List.of(out.x, out.y, out.z),
-                                                    speed,
-                                                    poseSpeed,
-                                                    linear,
-                                                    angular,
-                                                    chart,
-                                                    gravity,
-                                                    lift,
-                                                    planned,
-                                                    clear,
-                                                    reach,
-                                                    stair.settled,
-                                                    stair.length,
-                                                    flight == null
-                                                            ? null
-                                                            : java.util.List.of(
-                                                                    at.x
-                                                                            + out.x
-                                                                                    * flight.steps()
-                                                                                    * .5,
-                                                                    at.y - flight.drop(),
-                                                                    at.z
-                                                                            + out.z
-                                                                                    * flight.steps()
-                                                                                    * .5),
-                                                    server.players().stream()
-                                                            .map(
-                                                                    p ->
-                                                                            p.position()
-                                                                                    + " ground="
-                                                                                    + p.onGround()
-                                                                                    + " survival="
-                                                                                    + !p
-                                                                                            .isCreative())
-                                                            .toList());
-                                var packet =
-                                        new State(
-                                                stair.getBlockPos(),
-                                                at.x,
-                                                at.y,
-                                                at.z,
-                                                out.x,
-                                                out.z,
-                                                stair.length,
-                                                stair.width);
-                                for (var player : server.players())
-                                    if (ship.getTrackingPlayers().contains(player.getUUID())
-                                            && player.connection.hasChannel(State.TYPE))
-                                        PacketDistributor.sendToPlayer(player, packet);
-                            } else if (level.getGameTime() - stair.received > 5) stair.length = 0;
-                            else if (stair.length > 0) {
-                                at = stair.published;
-                                out = stair.publishedOut;
-                            }
-                            stair.oldVisual = stair.visual;
-                            stair.visual =
-                                    Math.max(
-                                            0,
-                                            Math.min(
-                                                    1,
-                                                    stair.visual
-                                                            + (stair.length > 0 ? 1d / 16 : -.5)));
-                            stair.boxes =
-                                    stair.length > 0 && stair.width > 0
-                                            ? new AirstairGeometry.Flight(
-                                                            at, out, stair.width, stair.length)
-                                                    .boxes()
-                                            : java.util.List.of();
-                        }
+                        if (entity instanceof Stair stair && !stair.isRemoved())
+                            tickStair(level, body, stair);
+    }
+
+    private static void tickStair(
+            Level level, dev.ryanhcode.sable.sublevel.SubLevel body, Stair stair) {
+        loaded.put(stair, true);
+        if (level instanceof ServerLevel) stair.width = width(stair);
+        var at = top(stair, body);
+        var out = outward(stair, body);
+        if (level instanceof ServerLevel server && body instanceof ServerSubLevel ship) {
+            tickServerStair(server, ship, stair, at, out);
+            return;
+        } else if (level.getGameTime() - stair.received > 5) stair.length = 0;
+        else if (stair.length > 0) {
+            at = stair.published;
+            out = stair.publishedOut;
+        }
+        updateVisual(stair, at, out);
+    }
+
+    // Keep motion, settling and diagnostic locals inline: splitting them needs more than six
+    // parameters or a per-tick carrier.
+    private static void tickServerStair(
+            ServerLevel server, ServerSubLevel ship, Stair stair, Vector3d at, Vector3d out) {
+        Level level = server;
+        var body = ship;
+        boolean chart =
+                PlanetLevels.is(level)
+                        && !Space.holds(at.x, at.z)
+                        && PlanetAccess.of(level)
+                                .inChart(BlockPos.containing(at.x, GroundCoordinates.FLOOR, at.z));
+        double poseSpeed =
+                stair.previous == null
+                        ? Double.POSITIVE_INFINITY
+                        : at.distance(stair.previous) * 20;
+        stair.previous = new Vector3d(at);
+        var pipeline = SubLevelContainer.getContainer(server).physicsSystem().getPipeline();
+        var bounds = body.getPlot().getBoundingBox();
+        double radius =
+                .5
+                        * Math.sqrt(
+                                Math.pow(bounds.maxX() - bounds.minX() + 1, 2)
+                                        + Math.pow(bounds.maxY() - bounds.minY() + 1, 2)
+                                        + Math.pow(bounds.maxZ() - bounds.minZ() + 1, 2));
+        double linear = pipeline.getLinearVelocity(ship, new Vector3d()).length(),
+                angular = pipeline.getAngularVelocity(ship, new Vector3d()).length() * radius;
+        double speed = Math.max(poseSpeed, linear + angular);
+        boolean gravity =
+                chart
+                        && HullWeight.at(level, new BentStripGeometry.Point(at.x, at.y, at.z)) > 0
+                        && dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
+                                        .getGravity(level)
+                                        .y()
+                                < 0;
+        var flight = chart ? plan(server, stair, body, at, gravity) : null;
+        boolean planned = flight != null, clear = planned;
+        double reach = flight == null ? Double.NaN : flight.drop();
+        int before = stair.settled;
+        boolean lift = lifting(ship, level);
+        String why = null;
+        if (stair.anchor != null) {
+            // Lowered: the flight keeps its planned place and length; only
+            // leaving it folds it.
+            stair.moving =
+                    held(
+                            stair.moving,
+                            chart,
+                            gravity,
+                            lift,
+                            speed,
+                            at.distance(stair.anchor),
+                            out.dot(stair.anchorOut));
+            if (stair.moving < 0) {
+                why =
+                        !chart
+                                ? "chart"
+                                : !gravity
+                                        ? "gravity"
+                                        : lift
+                                                ? "lift"
+                                                : at.distance(stair.anchor) > HOLD_DISTANCE
+                                                        ? "drift"
+                                                        : !(out.dot(stair.anchorOut) >= HOLD_TURN)
+                                                                ? "turn"
+                                                                : "motion";
+                stair.anchor = null;
+                stair.anchorOut = null;
+                stair.moving = 0;
+                stair.settled = 0;
+                stair.length = 0;
+            }
+        } else {
+            stair.settled = settled(stair.settled, chart, gravity, lift, speed, reach);
+            if (stair.settled >= SETTLE_TICKS) {
+                stair.anchor = new Vector3d(at);
+                stair.anchorOut = new Vector3d(out);
+                stair.moving = 0;
+                stair.length = reach;
+                why = "lowered";
+            } else stair.length = 0;
+        }
+        if (why != null && stair.width > 0)
+            org.slf4j.LoggerFactory.getLogger("starfold-airstair")
+                    .debug(
+                            "{} {} speed {} linear {} angular {} reach {} planned {}",
+                            why,
+                            stair.getBlockPos(),
+                            speed,
+                            linear,
+                            angular,
+                            reach,
+                            planned);
+        if (stair.anchor != null) {
+            at = stair.anchor;
+            out = stair.anchorOut;
+        }
+        stair.published.set(at);
+        stair.publishedOut.set(out);
+        if (Boolean.getBoolean("starfold.airstairProbe")
+                && stair.width > 0
+                && (server.getGameTime() % 20 == 0
+                        || (before >= SETTLE_TICKS) != (stair.settled >= SETTLE_TICKS)))
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info(
+                            "PROBE STAIR tick {} pos {} facing {} top {} out {} speed {} poseSpeed {} linear {} angular {} chart {} gravity {} lift {} planned {} clear {} reach {} settled {} length {} foot {} players {}",
+                            server.getGameTime(),
+                            stair.getBlockPos(),
+                            stair.getBlockState().getValue(BlockStateProperties.HORIZONTAL_FACING),
+                            java.util.List.of(at.x, at.y, at.z),
+                            java.util.List.of(out.x, out.y, out.z),
+                            speed,
+                            poseSpeed,
+                            linear,
+                            angular,
+                            chart,
+                            gravity,
+                            lift,
+                            planned,
+                            clear,
+                            reach,
+                            stair.settled,
+                            stair.length,
+                            flight == null
+                                    ? null
+                                    : java.util.List.of(
+                                            at.x + out.x * flight.steps() * .5,
+                                            at.y - flight.drop(),
+                                            at.z + out.z * flight.steps() * .5),
+                            server.players().stream()
+                                    .map(
+                                            p ->
+                                                    p.position()
+                                                            + " ground="
+                                                            + p.onGround()
+                                                            + " survival="
+                                                            + !p.isCreative())
+                                    .toList());
+        var packet =
+                new State(
+                        stair.getBlockPos(),
+                        at.x,
+                        at.y,
+                        at.z,
+                        out.x,
+                        out.z,
+                        stair.length,
+                        stair.width);
+        for (var player : server.players())
+            if (ship.getTrackingPlayers().contains(player.getUUID())
+                    && player.connection.hasChannel(State.TYPE))
+                PacketDistributor.sendToPlayer(player, packet);
+        updateVisual(stair, at, out);
+    }
+
+    private static void updateVisual(Stair stair, Vector3d at, Vector3d out) {
+        stair.oldVisual = stair.visual;
+        stair.visual = Math.max(0, Math.min(1, stair.visual + (stair.length > 0 ? 1d / 16 : -.5)));
+        stair.boxes =
+                stair.length > 0 && stair.width > 0
+                        ? new AirstairGeometry.Flight(at, out, stair.width, stair.length).boxes()
+                        : java.util.List.of();
     }
 
     /** EntityGetter supplies these to vanilla move/step-up, noCollision and sneak-edge checks on both sides.

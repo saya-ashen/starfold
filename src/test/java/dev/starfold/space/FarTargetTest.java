@@ -1,13 +1,14 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.point;
+import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.sky.Space;
 
 import org.junit.jupiter.api.Test;
 

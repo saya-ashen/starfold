@@ -1,7 +1,7 @@
 package dev.starfold.render;
 
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.chart.PlanetShape;
+import dev.starfold.universe.PlanetPackets;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

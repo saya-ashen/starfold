@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.planet.PlanetStorage;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 
 import net.minecraft.nbt.CompoundTag;
 

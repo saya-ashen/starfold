@@ -1,7 +1,5 @@
 package dev.starfold.ship;
 
-import dev.starfold.space.SpaceSpeed;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -70,8 +68,8 @@ public final class HelmPackets {
                     cy,
                     cz,
                     HullLanding.Site.UNKNOWN,
-                    SpaceSpeed.V_MIN,
-                    SpaceSpeed.V_MIN,
+                    ShipHost.get().minimumSpeed(),
+                    ShipHost.get().minimumSpeed(),
                     false);
         }
 
@@ -99,8 +97,8 @@ public final class HelmPackets {
                     cy,
                     cz,
                     landing,
-                    SpaceSpeed.V_MIN,
-                    SpaceSpeed.V_MIN,
+                    ShipHost.get().minimumSpeed(),
+                    ShipHost.get().minimumSpeed(),
                     false);
         }
 

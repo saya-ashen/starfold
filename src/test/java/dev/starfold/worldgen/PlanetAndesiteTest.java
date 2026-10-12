@@ -5,17 +5,19 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.Anomaly;
 import dev.starfold.planet.PlanetCore;
-import dev.starfold.planet.PlanetPackets;
-import dev.starfold.planet.PlanetSpawn;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.planet.PlanetType;
-import dev.starfold.planet.PlanetTypeTest;
 import dev.starfold.sky.GroundDaylight;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.PlanetSpawn;
+import dev.starfold.universe.PlanetType;
+import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.SystemChunkGenerator;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
@@ -135,7 +137,7 @@ class PlanetAndesiteTest {
         for (int i = 0;
                 i < 1024;
                 i++) { // Central area leaves a 32-block search halo, avoiding optimistic
-                       // wraparound.
+            // wraparound.
             int u = x0 + 32 + random.nextInt(64), v = z0 + 32 + random.nextInt(64);
             double best = Double.POSITIVE_INFINITY;
             for (var at : found) best = Math.min(best, Math.hypot(u - at[0], v - at[1]));

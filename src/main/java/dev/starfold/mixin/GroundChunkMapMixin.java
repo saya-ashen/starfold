@@ -1,8 +1,8 @@
 package dev.starfold.mixin;
 
 import dev.starfold.flight.GroundFlightServer;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.GroundTickets;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.server.level.*;
 import net.minecraft.world.level.ChunkPos;
@@ -18,7 +18,7 @@ public abstract class GroundChunkMapMixin {
 
     @Inject(method = "tick()V", at = @At("TAIL"))
     private void starfold$refresh(CallbackInfo ci) {
-        if (GroundServer.is(level) && level.getGameTime() % 5 == 0)
+        if (PlanetLevels.is(level) && level.getGameTime() % 5 == 0)
             for (var tracker : entityMap.values())
                 ((TrackedAccess) tracker).starfold$updateObservers(level.players());
     }
@@ -27,11 +27,11 @@ public abstract class GroundChunkMapMixin {
      *  is seen from there is drawn from the far view. Chunks load again as it comes down to land. */
     @Inject(method = "skipPlayer", at = @At("HEAD"), cancellable = true)
     private void starfold$aloft(ServerPlayer player, CallbackInfoReturnable<Boolean> ci) {
-        if (GroundServer.is(level) && GroundFlightServer.aloft(player)) ci.setReturnValue(true);
+        if (PlanetLevels.is(level) && GroundFlightServer.aloft(player)) ci.setReturnValue(true);
     }
 
     @Inject(method = "anyPlayerCloseEnoughForSpawning", at = @At("HEAD"), cancellable = true)
     private void starfold$aliasTick(ChunkPos pos, CallbackInfoReturnable<Boolean> ci) {
-        if (GroundServer.is(level) && GroundTickets.contains(level, pos)) ci.setReturnValue(true);
+        if (PlanetLevels.is(level) && GroundTickets.contains(level, pos)) ci.setReturnValue(true);
     }
 }

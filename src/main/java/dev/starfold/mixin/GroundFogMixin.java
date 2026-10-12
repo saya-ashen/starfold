@@ -2,9 +2,9 @@ package dev.starfold.mixin;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundClient;
-import dev.starfold.sky.GroundSolar;
 import dev.starfold.space.SpaceClient;
 
 import net.minecraft.client.Camera;
@@ -29,12 +29,12 @@ public abstract class GroundFogMixin {
             int distance,
             float darken,
             CallbackInfo ci) {
-        if (GroundServer.is(world) && SpaceClient.present()) {
+        if (PlanetLevels.is(world) && SpaceClient.present()) {
             fogRed = fogGreen = fogBlue = 0;
             RenderSystem.clearColor(0, 0, 0, 0);
             return;
         }
-        if (!GroundServer.is(world) || !GroundClient.ready()) return;
+        if (!PlanetLevels.is(world) || !GroundClient.ready()) return;
         var sky = GroundSolar.sky(GroundClient.elevation(), GroundClient.darkness());
         fogRed = (float) sky.x();
         fogGreen = (float) sky.y();

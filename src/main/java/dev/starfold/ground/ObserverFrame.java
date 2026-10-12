@@ -1,9 +1,9 @@
 package dev.starfold.ground;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.ChartOrientation;
-import dev.starfold.planet.PlanetShape;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

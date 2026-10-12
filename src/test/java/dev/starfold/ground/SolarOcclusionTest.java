@@ -6,6 +6,8 @@ import dev.starfold.Sources;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.worldgen.PlanetTerrain;
 

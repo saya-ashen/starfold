@@ -1,11 +1,11 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.PlanetShape;
 
 import java.util.ArrayList;
 import java.util.List;

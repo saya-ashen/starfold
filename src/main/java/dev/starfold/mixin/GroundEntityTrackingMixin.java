@@ -4,8 +4,8 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.*;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.server.level.*;
 import net.minecraft.world.entity.Entity;
@@ -26,7 +26,7 @@ public abstract class GroundEntityTrackingMixin {
                             target =
                                     "Lnet/minecraft/world/phys/Vec3;subtract(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 starfold$nativeRange(Vec3 delta) {
-        if (!GroundServer.is(entity.level())
+        if (!PlanetLevels.is(entity.level())
                 || !PlanetAccess.of(entity.level()).inChart(entity.blockPosition())) return delta;
         double x = entity.getX() + delta.x;
         var box =
@@ -48,7 +48,7 @@ public abstract class GroundEntityTrackingMixin {
             ChunkMap chunks, ServerPlayer player, int x, int z, Operation<Boolean> original) {
         var access = PlanetAccess.of(entity.level());
         return entity.level() == player.level()
-                        && GroundServer.is(entity.level())
+                        && PlanetLevels.is(entity.level())
                         && access.inChart(entity.blockPosition())
                         && access.inChart(player.blockPosition())
                         && access.samePlanet(

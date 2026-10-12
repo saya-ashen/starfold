@@ -4,8 +4,8 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.*;
@@ -17,7 +17,7 @@ public interface GroundLightQueryMixin {
     @WrapMethod(method = "getBrightness")
     private int starfold$nativeLight(LightLayer layer, BlockPos pos, Operation<Integer> original) {
         if (!((Object) this instanceof Level level)
-                || !GroundServer.canonical(level)
+                || !PlanetLevels.canonical(level)
                 || !PlanetAccess.of(level).inChart(pos)) return original.call(layer, pos);
         var owner = PlanetAccess.of(level).address(pos).owner();
         if (level.isClientSide

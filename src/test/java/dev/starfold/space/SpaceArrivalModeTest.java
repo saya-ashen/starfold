@@ -1,12 +1,12 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.point;
+import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.sky.GroundEphemeris;
 
 import org.junit.jupiter.api.Test;
 
@@ -120,7 +120,7 @@ class SpaceArrivalModeTest {
         assertTrue(s.indexOf("if(!arriving)") < s.indexOf("assist(f.drift(),nose"));
         assertTrue(s.indexOf("drift=cruise(prior") < s.indexOf("var limited=govern(drift"));
         var hud = Sources.text("SpaceNavigationClient");
-        assertTrue(hud.contains("SpaceClient.arriving()?FlightSnapshot.Mode.ARRIVAL"));
+        assertTrue(hud.contains("SpaceClient.arriving()?FlightMode.ARRIVAL"));
         var widgets = Sources.text("FlightWidgets");
         assertTrue(widgets.contains("if(arrival){if(s.blend()<1)"));
         assertTrue(widgets.contains("g.setColor(1,1,1,(float)s.blend())"));

@@ -2,11 +2,11 @@ package dev.starfold.waypoint;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.GroundTopology;
 
 import net.minecraft.nbt.*;
 
@@ -16,8 +16,8 @@ import java.nio.file.*;
 import java.util.UUID;
 
 class WaypointNavigationTest {
-    private GroundTopology.Pose pose(Face face, double x, double z) {
-        return new GroundTopology.Pose(face, new Point(x, 30, z));
+    private PlanetShape.Pose pose(Face face, double x, double z) {
+        return new PlanetShape.Pose(face, new Point(x, 30, z));
     }
 
     private Waypoint marker(String name) {

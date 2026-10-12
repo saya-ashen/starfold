@@ -1,9 +1,9 @@
 package dev.starfold.planet;
 
 import dev.starfold.chart.GroundSpace;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundCoordinates;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;

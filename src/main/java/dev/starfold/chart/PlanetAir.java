@@ -2,7 +2,6 @@ package dev.starfold.chart;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.PlanetShape;
 
 /** GroundAir for a planet of any shape: the same closed planar chart and stereographic parameterisation, with the
  *  planet's own half-edge and radius. For the standard shape every value equals GroundAir's. */

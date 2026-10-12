@@ -6,9 +6,8 @@ import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.ObserverFrame;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpacePackets;
-import dev.starfold.space.SpaceTest;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 
 import io.netty.buffer.Unpooled;
 
@@ -173,8 +172,8 @@ class SableCarryTest {
                 new String[] {
                     "interpolation.buffer.clear()",
                     "body.forceUpdateBounds()",
-                    "GroundClient.frame(packet.observer())",
-                    "SpaceClient.carried(packet.region())",
+                    "ShipClientHost.get().carriedObserver(packet.observer())",
+                    "ShipClientHost.get().carriedFrame(packet.region())",
                     "player.xo=player.xOld=at.x",
                     "FENCES.put(interpolation,packet.tick())",
                     "tick>=FENCES.getOrDefault"
@@ -187,6 +186,10 @@ class SableCarryTest {
                     "enqueueWork",
                     "teleport"
                 }) assertFalse(client.contains(forbidden), forbidden);
+        assertTrue(
+                Sources.text("StarfoldClient")
+                        .contains(
+                                "void carriedObserver(dev.starfold.ground.ObserverFrame frame){GroundClient.frame(frame);}"));
         var udp = Sources.text("SableUdpMixin");
         assertTrue(udp.contains("SableFrames.reliable(player)"));
         assertTrue(udp.contains("PacketMap.raw"));

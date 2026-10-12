@@ -4,18 +4,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.ArrivalState;
-import dev.starfold.flight.GroundDynamics;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ground.ImageStream;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ground.PacketMap;
+import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.ship.SableFrames;
+import dev.starfold.ship.SpacePackets;
+import dev.starfold.sky.Space;
+import dev.starfold.sky.SpaceTest;
 
 import io.netty.buffer.Unpooled;
 
@@ -47,6 +50,16 @@ class SpacePlayerTest {
         for (var m : type(name).methods)
             if (m.name.equals(method))
                 for (var ins : m.instructions) if (ins instanceof MethodInsnNode c) out.add(c.name);
+        return out;
+    }
+
+    private static List<String> expandedCalls(String name, String method, Set<String> helpers)
+            throws Exception {
+        var out = new ArrayList<String>();
+        for (var call : calls(name, method)) {
+            out.add(call);
+            if (helpers.contains(call)) out.addAll(expandedCalls(name, call, helpers));
+        }
         return out;
     }
 
@@ -199,8 +212,20 @@ class SpacePlayerTest {
 
     @Test
     void regionStepPrecedesArrivalAndKeepsAllBodiesAndRidersTogether() throws Exception {
-        before(calls("SableFrames", "cross"), "step", "arrive");
-        var step = calls("SpaceServer", "step");
+        before(calls("SableFrames", "cross"), "advanceSurroundings", "arrive");
+        var step =
+                expandedCalls(
+                        "SpaceServer",
+                        "step",
+                        Set.of(
+                                "spaceBodies",
+                                "clearEmptyRegion",
+                                "advanceLead",
+                                "lockedPlanet",
+                                "absorbLeadImpulse",
+                                "subtractEntityImpulse",
+                                "dragFrame",
+                                "shiftRegion"));
         for (String name :
                 new String[] {
                     "getAllSubLevels",
@@ -250,7 +275,7 @@ class SpacePlayerTest {
                 var state =
                         GroundDynamics.local(
                                 900,
-                                new GroundTopology.Pose(
+                                new PlanetShape.Pose(
                                         CubeSurfaceTopology.Face.TOP, new Point(1024, h, 1024)),
                                 new Point(.1, .2, .3),
                                 new Quaterniond(),
@@ -338,7 +363,7 @@ class SpacePlayerTest {
                 }) assertFalse(c.contains(forbidden), forbidden);
         before(calls("GroundFlightServer", "detach"), "checkpoint", "save");
         assertTrue(
-                Sources.text("GroundServer").contains("List.copyOf(server.overworld().players())"),
+                Sources.text("PlanetPlayers").contains("List.copyOf(server.overworld().players())"),
                 "automatic home arrival only scans overworld, never region residents");
         before(calls("GroundFlightServer", "checkpoint"), "in", "capture");
     }
@@ -354,9 +379,9 @@ class SpacePlayerTest {
         assertTrue(calls("SpaceServer", "sync").contains("send"));
         before(calls("SpaceServer", "entering"), "keeping", "send");
         var carry = calls("GroundSeams", "carryBody");
-        before(carry, "resetPosition", "sync");
+        before(carry, "resetPosition", "regionSync");
         assertFalse(carry.contains("teleport"));
-        before(carry, "sync", "site");
+        before(carry, "regionSync", "resited");
         assertTrue(carry.contains("move"));
         before(calls("ObserverFrames", "fresh"), "in", "storagePlanet");
         before(calls("ObserverFrames", "get"), "in", "identity");
@@ -369,10 +394,11 @@ class SpacePlayerTest {
     @Test
     void chartViewRemoteCommandsAndDaylightAreExcludedBeforePlanetLookup() throws Exception {
         before(calls("GroundViewServer", "belongs"), "in", "planet");
-        before(calls("GroundViewServer", "tick"), "in", "planet");
+        assertTrue(calls("GroundViewServer", "tick").contains("tickViewer"));
+        before(calls("GroundViewServer", "tickViewer"), "in", "planet");
         before(calls("PlanetRemoteServer", "tick"), "in", "planet");
         for (String method : new String[] {"face", "status", "universe"})
-            before(calls("GroundServer", method), "in", "planet");
+            before(calls("PlanetPlayers", method), "in", "planet");
         before(calls("GroundDaylight", "elevation"), "holds", "get");
         assertTrue(calls("GroundDaylight", "dawn").contains("holds"));
         before(calls("GroundSeams", "image"), "in", "shape");
@@ -402,14 +428,13 @@ class SpacePlayerTest {
     void ticketsLoadRealRegionColumnsAndExistingIdentitySenderDeliversThem() throws Exception {
         var tickets = Sources.text("GroundTickets");
         assertTrue(
-                tickets.contains(
-                        "if(SpaceServer.in(player)){region.addAll(ImageStream.regionPositions"));
+                tickets.contains("if(Space.in(player)){region.addAll(ImageStream.regionPositions"));
         assertTrue(tickets.contains("addRegionTicket(SPACE,new ChunkPos(key),0,key)"));
         assertTrue(tickets.contains("removeRegionTicket(SPACE,new ChunkPos(key),0,key)"));
         var stream = Sources.text("ImageStream");
         assertTrue(
                 stream.contains(
-                        "SpaceServer.in(player)?regionPositions(center,radius):positions(center,radius)"));
+                        "Space.in(player)?regionPositions(center,radius):positions(center,radius)"));
         assertTrue(stream.contains("new ClientboundForgetLevelChunkPacket"));
         assertTrue(stream.contains("getChunkNow"));
         assertTrue(stream.contains("if(identity(columns))"));
@@ -470,8 +495,8 @@ class SpacePlayerTest {
 
     @Test
     void regionLeaveCannotSendAPlayerHome() throws Exception {
-        before(calls("GroundServer", "leave"), "in", "detach");
-        before(calls("GroundServer", "leave"), "regionMessage", "restore");
+        before(calls("PlanetPlayers", "leave"), "in", "detach");
+        before(calls("PlanetPlayers", "leave"), "regionMessage", "restore");
     }
 
     @Test
@@ -482,12 +507,12 @@ class SpacePlayerTest {
                     "LoggingOut",
                     "level!=Minecraft.getInstance().level",
                     "GroundFlightClient.region()",
-                    "frame.universe(new Point(levelCameraPosition.x,levelCameraPosition.y,levelCameraPosition.z),GroundClient.ephemeris(),time())"
+                    "frame.universe(new Point(levelCameraPosition.x,levelCameraPosition.y,levelCameraPosition.z),SpaceClientHost.get().ephemeris(),time())"
                 }) assertTrue(s.contains(text));
         for (String forbidden :
                 new String[] {"setPos", "teleport", "camera.rotation", "GroundClient.ready"})
             assertFalse(s.contains(forbidden));
-        assertEquals(List.of("departing", "reset"), calls("GroundFlightClient", "region"));
+        assertEquals(List.of("get", "departing", "reset"), calls("GroundFlightClient", "region"));
         var probe = Sources.text("DevProbe");
         for (String text :
                 new String[] {

@@ -3,12 +3,12 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
-import dev.starfold.dev.ArrivalProbe;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.Anomaly;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.probe.ArrivalProbe;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -23,7 +23,7 @@ public abstract class GroundTopologyLevelMixin {
     @WrapMethod(method = "getBlockState")
     private BlockState starfold$nativeRead(BlockPos pos, Operation<BlockState> original) {
         var level = (Level) (Object) this;
-        if (!GroundServer.is(level)) return original.call(pos);
+        if (!PlanetLevels.is(level)) return original.call(pos);
         // A client world is laid out in the observer's continuous coordinates: read it where it is;
         // only the corner mask is virtual.
         if (level.isClientSide)
@@ -56,7 +56,7 @@ public abstract class GroundTopologyLevelMixin {
     private net.minecraft.world.level.material.FluidState starfold$nativeFluid(
             BlockPos pos, Operation<net.minecraft.world.level.material.FluidState> original) {
         var level = (Level) (Object) this;
-        return GroundServer.is(level) && (level.isClientSide || PlanetAccess.of(level).inChart(pos))
+        return PlanetLevels.is(level) && (level.isClientSide || PlanetAccess.of(level).inChart(pos))
                 ? level.getBlockState(pos).getFluidState()
                 : original.call(pos);
     }
@@ -66,7 +66,7 @@ public abstract class GroundTopologyLevelMixin {
             BlockPos pos, Operation<net.minecraft.world.level.block.entity.BlockEntity> original) {
         var level = (Level) (Object) this;
         var access = PlanetAccess.of(level);
-        if (!GroundServer.canonical(level) || !access.inChart(pos)) return original.call(pos);
+        if (!PlanetLevels.canonical(level) || !access.inChart(pos)) return original.call(pos);
         var owner = access.address(pos).owner();
         var be = original.call(owner);
         return be != null || !level.isClientSide ? be : GroundSeams.clientBlockEntity(level, owner);
@@ -76,7 +76,7 @@ public abstract class GroundTopologyLevelMixin {
     private BlockPos starfold$nativeEntity(BlockPos pos) {
         var level = (Level) (Object) this;
         var access = PlanetAccess.of(level);
-        return GroundServer.canonical(level) && access.inChart(pos)
+        return PlanetLevels.canonical(level) && access.inChart(pos)
                 ? access.address(pos).owner()
                 : pos;
     }
@@ -89,7 +89,7 @@ public abstract class GroundTopologyLevelMixin {
             Operation<Integer> original) {
         var level = (Level) (Object) this;
         var access = PlanetAccess.of(level);
-        if (!GroundServer.canonical(level) || !access.inChart(new BlockPos(x, 128, z)))
+        if (!PlanetLevels.canonical(level) || !access.inChart(new BlockPos(x, 128, z)))
             return original.call(type, x, z);
         var p = access.address(new BlockPos(x, 128, z)).owner();
         return original.call(type, p.getX(), p.getZ());
@@ -101,10 +101,10 @@ public abstract class GroundTopologyLevelMixin {
     private boolean starfold$nativeWrite(
             BlockPos pos, BlockState state, int flags, int depth, Operation<Boolean> original) {
         var level = (Level) (Object) this;
-        if (GroundServer.is(level) && level.isClientSide)
+        if (PlanetLevels.is(level) && level.isClientSide)
             return !GroundSeams.clientMasked(level, pos) && original.call(pos, state, flags, depth);
         var access = PlanetAccess.of(level);
-        if (!GroundServer.is(level) || !access.inChart(pos))
+        if (!PlanetLevels.is(level) || !access.inChart(pos))
             return original.call(pos, state, flags, depth);
         var address = access.address(pos);
         if (Anomaly.mask(

@@ -30,14 +30,14 @@ public final class WorldSessionSave extends SavedData {
 
     private final Map<UUID, Home> homes = new HashMap<>();
 
-    static WorldSessionSave get(ServerLevel level) {
+    public static WorldSessionSave get(ServerLevel level) {
         return level.getDataStorage()
                 .computeIfAbsent(
                         new Factory<>(WorldSessionSave::new, WorldSessionSave::load, null),
                         "starfold_v1");
     }
 
-    void remember(ServerPlayer player) {
+    public void remember(ServerPlayer player) {
         homes.put(
                 player.getUUID(),
                 new Home(
@@ -51,7 +51,7 @@ public final class WorldSessionSave extends SavedData {
         setDirty();
     }
 
-    boolean restore(ServerPlayer player) {
+    public boolean restore(ServerPlayer player) {
         Home home = homes.get(player.getUUID());
         if (home == null) return false;
         ResourceLocation id = ResourceLocation.tryParse(home.dimension);

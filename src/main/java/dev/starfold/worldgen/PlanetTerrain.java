@@ -1,14 +1,13 @@
 package dev.starfold.worldgen;
 
 import dev.starfold.chart.GroundSpace;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundCoordinates;
 import dev.starfold.planet.Anomaly;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetCore;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.render.GroundChunkSnapshot;
 
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -485,7 +484,18 @@ public final class PlanetTerrain {
         return version == VERSION ? state(groundY(face, u, v), y) : column(face, u, v).state(y);
     }
 
-    public boolean matches(GroundChunkSnapshot image) {
+    /** One chunk of a face as something else holds it, to be compared with what this terrain generates there. */
+    public interface Image {
+        int face();
+
+        int u();
+
+        int v();
+
+        BlockState state(int x, int y, int z);
+    }
+
+    public boolean matches(Image image) {
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++) {
                 var face = Face.values()[image.face()];

@@ -1,8 +1,8 @@
 package dev.starfold.render;
 
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.chart.PlanetShape;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundTopology;
 
 import net.minecraft.core.BlockPos;
 
@@ -29,7 +29,7 @@ public final class GroundStreaming {
 
     public static final long ESTIMATED_MESH_BYTES = 256 * 1024, MAX_MESH_BYTES = 8L * 1024 * 1024;
     private Set<Long> required = Set.of(), resident = Set.of();
-    private GroundTopology.Pose last;
+    private PlanetShape.Pose last;
     private int lastRadius = -1;
 
     public static int radius(int viewDistance) {
@@ -37,11 +37,11 @@ public final class GroundStreaming {
     }
 
     /** Nearest rings first, with canonical key tie-breaking (not source-face iteration order). */
-    public static Set<Long> footprint(GroundTopology.Pose pose, int radius) {
+    public static Set<Long> footprint(PlanetShape.Pose pose, int radius) {
         return footprint(PlanetShape.STANDARD, pose, radius);
     }
 
-    public static Set<Long> footprint(PlanetShape shape, GroundTopology.Pose pose, int radius) {
+    public static Set<Long> footprint(PlanetShape shape, PlanetShape.Pose pose, int radius) {
         var feet = GroundTopology.feet(pose);
         int x = (int) Math.floor(feet.x() / 16), z = (int) Math.floor(feet.z() / 16);
         var result = new LinkedHashSet<Long>();
@@ -64,11 +64,11 @@ public final class GroundStreaming {
         return Collections.unmodifiableSet(result);
     }
 
-    public void update(GroundTopology.Pose pose, int viewDistance) {
+    public void update(PlanetShape.Pose pose, int viewDistance) {
         update(PlanetShape.STANDARD, pose, viewDistance);
     }
 
-    public void update(PlanetShape shape, GroundTopology.Pose pose, int viewDistance) {
+    public void update(PlanetShape shape, PlanetShape.Pose pose, int viewDistance) {
         int r = radius(viewDistance);
         // Sub-block movement and camera turns cannot mutate residency.
         if (last != null
@@ -217,11 +217,11 @@ public final class GroundStreaming {
 
     /** Canonical owners of the chart chunks vanilla draws around the observer: the same rounded
      * view-distance shape as the vanilla section graph, continued across face seams. */
-    public static Set<Long> window(GroundTopology.Pose pose, int viewDistance) {
+    public static Set<Long> window(PlanetShape.Pose pose, int viewDistance) {
         return window(PlanetShape.STANDARD, pose, viewDistance);
     }
 
-    public static Set<Long> window(PlanetShape shape, GroundTopology.Pose pose, int viewDistance) {
+    public static Set<Long> window(PlanetShape shape, PlanetShape.Pose pose, int viewDistance) {
         var feet = GroundTopology.feet(pose);
         int x = (int) Math.floor(feet.x() / 16), z = (int) Math.floor(feet.z() / 16);
         var out = new HashSet<Long>();

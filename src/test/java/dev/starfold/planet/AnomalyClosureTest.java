@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.worldgen.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetTerrain;
 import dev.starfold.worldgen.PlanetTerrainTest;

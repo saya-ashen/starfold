@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.space.Space;
+import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceNavigation;
 import dev.starfold.space.SpaceServer;
 
@@ -156,10 +156,11 @@ class DepartureTest {
         assertTrue(
                 Sources.text("SableFrames")
                         .contains(
-                                "SpaceServer.departed(level,planet,body.getUniqueId().toString())"));
+                                "ShipHost.get().hullDeparted(level,planet,body.getUniqueId().toString())"));
         assertTrue(
                 Sources.text("SableFrames")
-                        .contains("SpaceServer.enteredChart(level,body.getUniqueId().toString())"));
+                        .contains(
+                                "ShipHost.get().hullEnteredChart(level,body.getUniqueId().toString())"));
         var server = Sources.text("SpaceServer");
         assertTrue(
                 server.contains(

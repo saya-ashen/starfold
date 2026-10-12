@@ -2,13 +2,10 @@ package dev.starfold.ship;
 
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
-import dev.starfold.StarfoldNetwork;
-import dev.starfold.dev.DevBoardingProbe;
 import dev.starfold.geometry.BentStripGeometry;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.ground.PacketMap;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,8 +23,6 @@ public final class SableBoarding {
             new java.util.WeakHashMap<>();
 
     public static void initialize() {
-        StarfoldNetwork.playS2C(SableBoardingPacket.TYPE, SableBoardingPacket.CODEC);
-        DevBoardingProbe.initialize();
         var bus = net.neoforged.neoforge.common.NeoForge.EVENT_BUS;
         bus.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent
@@ -58,7 +53,7 @@ public final class SableBoarding {
     public static void save(ServerPlayer player) {
         if (boarding.containsKey(player)) return;
         var data = player.getPersistentData();
-        var body = GroundServer.is(player.level()) ? SableFrames.aboard(player) : null;
+        var body = PlanetLevels.is(player.level()) ? SableFrames.aboard(player) : null;
         if (body == null || body.isRemoved()) {
             data.remove(KEY);
             return;
@@ -88,7 +83,7 @@ public final class SableBoarding {
 
     private static void login(ServerPlayer player) {
         if (!player.getPersistentData().contains(KEY)) return;
-        if (!GroundServer.is(player.level())
+        if (!PlanetLevels.is(player.level())
                 || !valid(player.getPersistentData().getCompound(KEY))
                 || player.isSpectator()
                 || player.getAbilities().flying) {
@@ -123,7 +118,7 @@ public final class SableBoarding {
         if (age == null) return;
         age++;
         boarding.put(player, age);
-        if (!GroundServer.is(player.level())
+        if (!PlanetLevels.is(player.level())
                 || !player.isAlive()
                 || player.isSpectator()
                 || player.getAbilities().flying
@@ -176,7 +171,7 @@ public final class SableBoarding {
                         frame.toClient(new BentStripGeometry.Point(at.x, at.y, at.z)),
                         frame.yawToClient(player.getYRot()),
                         frame,
-                        SpaceServer.packet(player));
+                        ShipHost.get().carriedFrame(player));
         PacketMap.raw(
                 player,
                 new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(

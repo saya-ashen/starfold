@@ -1,15 +1,13 @@
 package dev.starfold.sky;
 
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGap;
-import dev.starfold.flight.GroundFlightServer;
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceServer;
-import dev.starfold.space.SpaceView;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -118,16 +116,9 @@ public final class GroundDaylight {
     /** 0 at night, 1 by day, between them at dusk and dawn; 1 where a place is no planet's. */
     public static double daylight(ServerLevel level, BlockPos pos) {
         try {
-            if (GroundServer.is(level) && Space.holds(pos.getX(), pos.getZ())) {
+            if (PlanetLevels.is(level) && Space.holds(pos.getX(), pos.getZ())) {
                 var clock = GroundClock.get(level).clock;
-                var eye =
-                        SpaceServer.frame(level)
-                                .universe(
-                                        new dev.starfold.geometry.BentStripGeometry.Point(
-                                                pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5),
-                                        clock.model,
-                                        clock.tick());
-                return SpaceView.sunlight(clock.model, eye, clock.tick());
+                return SkyHost.get().sunlight(level, pos, clock);
             }
             return GroundSolar.daylight(elevation(level, pos));
         } catch (IllegalArgumentException | IllegalStateException outside) {
@@ -170,7 +161,7 @@ public final class GroundDaylight {
     /** Whether a place keeps a planet's own day and night. */
     public static boolean kept(net.minecraft.world.level.Level level, BlockPos pos) {
         return level instanceof ServerLevel server
-                && GroundServer.is(server)
+                && PlanetLevels.is(server)
                 && PlanetSystem.shared(server)
                 && PlanetAccess.of(server).inChart(pos);
     }
@@ -179,7 +170,7 @@ public final class GroundDaylight {
      *  that has one.
      *  Not while a vessel is under way, which flies by the clock. */
     public static void sleptThrough(ServerLevel level) {
-        if (!GroundServer.is(level) || !PlanetSystem.shared(level) || GroundFlightServer.underWay())
+        if (!PlanetLevels.is(level) || !PlanetSystem.shared(level) || SkyHost.get().underWay())
             return;
         for (var player : level.players())
             if (player.isSleeping() && kept(level, player.blockPosition())) {

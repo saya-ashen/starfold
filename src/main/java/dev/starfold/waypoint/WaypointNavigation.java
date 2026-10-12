@@ -1,9 +1,8 @@
 package dev.starfold.waypoint;
 
 import dev.starfold.chart.PlanetChart;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +35,7 @@ public final class WaypointNavigation {
                 / Math.PI;
     }
 
-    static Route route(PlanetShape shape, GroundTopology.Pose from, GroundTopology.Pose to) {
+    static Route route(PlanetShape shape, PlanetShape.Pose from, PlanetShape.Pose to) {
         var path = new ArrayList<PlanetChart.Tile>();
         path.add(new PlanetChart.Tile(shape, from.face(), 0, 0, 0));
         return search(shape, from.point(), to, path, 1 << from.face().ordinal(), null);
@@ -45,7 +44,7 @@ public final class WaypointNavigation {
     private static Route search(
             PlanetShape shape,
             Point from,
-            GroundTopology.Pose to,
+            PlanetShape.Pose to,
             List<PlanetChart.Tile> path,
             int visited,
             Route best) {

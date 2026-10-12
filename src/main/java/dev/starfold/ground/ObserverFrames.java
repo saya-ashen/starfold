@@ -1,11 +1,9 @@
 package dev.starfold.ground;
 
-import dev.starfold.flight.GroundFlightPackets;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.ship.SableFrames;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -24,11 +22,11 @@ public final class ObserverFrames {
             java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
     public static boolean active(ServerPlayer player) {
-        return GroundServer.is(player.level());
+        return PlanetLevels.is(player.level());
     }
 
     private static ObserverFrame fresh(ServerPlayer player) {
-        if (SpaceServer.in(player)) return ObserverFrame.identity(0, 0);
+        if (Space.in(player)) return ObserverFrame.identity(0, 0);
         var access = PlanetAccess.of(player.level());
         try {
             return ObserverFrame.identity(
@@ -45,7 +43,7 @@ public final class ObserverFrames {
             set(player, frame);
             return frame;
         }
-        if (SpaceServer.in(player) && !entry.frame.equals(ObserverFrame.identity(0, 0))) {
+        if (Space.in(player) && !entry.frame.equals(ObserverFrame.identity(0, 0))) {
             var frame = ObserverFrame.identity(0, 0);
             set(player, frame);
             for (var told : RESET) told.accept(player);
@@ -61,7 +59,7 @@ public final class ObserverFrames {
         // frame of a connection can leave before the join event that tells it, so the system goes
         // with it.
         if (old == null || old.level != player.serverLevel()) GroundServer.shapes(player);
-        if (!SableFrames.carrying(player)
+        if (!GroundHost.get().carrying(player)
                 && player.connection.hasChannel(GroundFlightPackets.Frame.TYPE))
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                     player, new GroundFlightPackets.Frame(frame));

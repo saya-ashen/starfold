@@ -1,0 +1,56 @@
+# Full-trip: hard gates through descent; terrain-dependent landing is informational.
+# No hull teleport, terrain preparation, or production behaviour changes.
+waitworld
+wait 300
+cmd gamemode creative
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+wait 60
+wait 40
+press 32 1
+until region 6000
+press 32 0
+nav s-space
+wait 40
+shipaim 4 700
+nav s-aimed
+press 70 1
+wait 2
+press 70 0
+wait 40
+lock s-lock
+wait 30
+press 87 1
+press 341 1
+wait 140
+wait 100
+press 341 0
+press 87 0
+wait 20
+shipaim 4 300
+nav s-cruise
+until notice 1600
+nav s-notice
+until chart 1200
+nav s-chart
+wait 100
+press 340 1
+until clearance< 60 2400
+press 340 0
+nav s-low
+followlanding 2400 informational
+nav s-site
+press 340 1
+until clearance< 9 1200
+press 340 0
+nav s-hover
+until stair 1500
+nav s-stair
+wait 240
+nav s-landed
+quit

@@ -1,8 +1,8 @@
 package dev.starfold.mixin;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -30,7 +30,7 @@ public abstract class GroundEntityQueriesMixin {
             Predicate<? super Entity> predicate,
             CallbackInfoReturnable<List<Entity>> ci) {
         var level = (Level) (Object) this;
-        if (!GroundServer.canonical(level)
+        if (!PlanetLevels.canonical(level)
                 || !PlanetAccess.of(level)
                         .inChart(net.minecraft.core.BlockPos.containing(query.getCenter()))) return;
         var result = new ArrayList<Entity>();
@@ -63,7 +63,7 @@ public abstract class GroundEntityQueriesMixin {
             int limit,
             CallbackInfo ci) {
         var level = (Level) (Object) this;
-        if (!GroundServer.canonical(level)
+        if (!PlanetLevels.canonical(level)
                 || !PlanetAccess.of(level)
                         .inChart(net.minecraft.core.BlockPos.containing(query.getCenter()))) return;
         for (var entity : GroundSeams.entities(level)) {

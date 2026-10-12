@@ -3,9 +3,8 @@ package dev.starfold.ship;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceClient;
+import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.Space;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -69,8 +68,10 @@ public final class ThrusterSoundClient {
                                                     (box.minX() + box.maxX() + 1) / 2.0,
                                                     (box.minY() + box.maxY() + 1) / 2.0,
                                                     (box.minZ() + box.maxZ() + 1) / 2.0));
-                    boolean region = GroundServer.is(mc.level) && Space.holds(at.x, at.z),
-                            allowed = (!region && !SpaceClient.present()) || aboard == body;
+                    boolean region = PlanetLevels.is(mc.level) && Space.holds(at.x, at.z),
+                            allowed =
+                                    (!region && !ShipClientHost.get().movingSurroundings())
+                                            || aboard == body;
                     double power = 0;
                     int thrusters = 0;
                     boolean boost = false;

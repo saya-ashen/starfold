@@ -1,5 +1,7 @@
 package dev.starfold.dev;
 
+import dev.starfold.probe.ArrivalClientState;
+import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.render.GroundRenderer;
 import dev.starfold.render.GroundViewClient;
 import dev.starfold.space.SpaceClient;
@@ -8,15 +10,10 @@ import net.minecraft.client.Minecraft;
 
 /** Draw-call census, not a claim about camera occlusion or final pixels. */
 public final class ArrivalClientProbe {
-    public static boolean remote, own;
     private static long previous;
 
-    public static void begin() {
-        if (ArrivalProbe.ENABLED) {
-            remote = false;
-            own = false;
-            GroundRenderer.probeParentNanos = 0;
-        }
+    public static void initialize() {
+        ArrivalClientState.census(ArrivalClientProbe::end);
     }
 
     public static void end(long start) {
@@ -44,14 +41,14 @@ public final class ArrivalClientProbe {
                         now - start,
                         interval,
                         SpaceClient.active(),
-                        remote,
-                        own,
+                        ArrivalClientState.remote,
+                        ArrivalClientState.own,
                         near,
                         !mc.level.getChunkSource().hasChunk(x, z),
                         GroundRenderer.probeParents(),
                         GroundViewClient.coverageReady(),
                         GroundRenderer.probeParentTiles(),
-                        GroundRenderer.probeParentNanos);
+                        ArrivalClientState.parentNanos);
     }
 
     private ArrivalClientProbe() {}

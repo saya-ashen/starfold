@@ -4,15 +4,16 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.dev.ArrivalClientProbe;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.CubicColor;
 import dev.starfold.geometry.PlanetSpace;
 import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.probe.ArrivalClientState;
+import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.space.RenderFrame;
 
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.core.BlockPos;
@@ -331,7 +332,7 @@ public final class GroundExterior {
 
     public static void draw(RenderFrame c) {
         if (!ready()) return;
-        if (ArrivalProbe.ENABLED) ArrivalClientProbe.own = true;
+        if (ArrivalProbe.ENABLED) ArrivalClientState.own = true;
         var previous = RenderSystem.getShader();
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
                 cull = GL11.glIsEnabled(GL11.GL_CULL_FACE),

@@ -3,7 +3,7 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -26,6 +26,6 @@ public abstract class GroundEntityPositionMixin {
                                     "Lnet/minecraft/world/level/Level;getChunk(II)Lnet/minecraft/world/level/chunk/LevelChunk;"))
     private LevelChunk starfold$nativePositionChunk(
             Level level, int x, int z, Operation<LevelChunk> original) {
-        return GroundServer.is(level) ? null : original.call(level, x, z);
+        return PlanetLevels.is(level) ? null : original.call(level, x, z);
     }
 }

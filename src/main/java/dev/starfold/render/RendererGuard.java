@@ -1,6 +1,6 @@
 package dev.starfold.render;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.network.chat.Component;
 import net.neoforged.fml.ModList;
@@ -23,7 +23,7 @@ public final class RendererGuard {
                     var mc = net.minecraft.client.Minecraft.getInstance();
                     if (rendererNotice.enter(
                             mc.level,
-                            GroundServer.is(mc.level),
+                            PlanetLevels.is(mc.level),
                             mc.player != null,
                             pipelineSupported())) {
                         var message = Component.translatable("message.starfold.renderer");

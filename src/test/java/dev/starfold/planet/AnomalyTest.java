@@ -193,7 +193,7 @@ class AnomalyTest {
         assertTrue(zone.contains("MobEffects.CONFUSION"));
         assertTrue(zone.contains("if(inside.add(player.getUUID()))"));
         assertTrue(zone.contains("distance(level,access,player)<Anomaly.ZONE"));
-        assertTrue(Sources.text("GroundServer").contains("AnomalyZone.tick(level);"));
+        assertTrue(Sources.text("StarfoldServer").contains("AnomalyZone.tick(level);"));
         for (String lang : new String[] {"zh_cn", "en_us"}) {
             var text =
                     Files.readString(

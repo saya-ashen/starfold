@@ -1,24 +1,26 @@
 package dev.starfold.space;
 
-import dev.starfold.StarfoldNetwork;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.ArrivalState;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ObserverFrames;
+import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
+import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.HelmServer;
 import dev.starfold.ship.SableFrames;
+import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.waypoint.WaypointServer;
+import dev.starfold.sky.Space;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -79,10 +81,6 @@ public final class SpaceServer extends SavedData {
             new java.util.WeakHashMap<>();
     private static final net.minecraft.resources.ResourceLocation WEIGHTLESS =
             net.minecraft.resources.ResourceLocation.parse("starfold:space_weightless");
-
-    public static boolean in(net.minecraft.world.entity.Entity entity) {
-        return GroundServer.is(entity.level()) && Space.holds(entity.getX(), entity.getZ());
-    }
 
     public static void initialize() {
         if (ArrivalProbe.ENABLED)
@@ -188,7 +186,7 @@ public final class SpaceServer extends SavedData {
     /** Development fixture: relocate only the occupied region's far-away reference, never load a chart. */
     private static void probeArrival(
             net.minecraft.server.level.ServerPlayer player, int planet, int face) {
-        if (!ArrivalProbe.ENABLED || !in(player))
+        if (!ArrivalProbe.ENABLED || !Space.in(player))
             throw new IllegalStateException("Arrival fixture requires region pilot");
         var level = player.serverLevel();
         var body = SableFrames.aboard(player);
@@ -218,7 +216,7 @@ public final class SpaceServer extends SavedData {
         value.epoch = clock.tick();
         value.setDirty();
         SpaceApproach.release(level);
-        for (var p : level.players()) if (in(p)) send(p);
+        for (var p : level.players()) if (Space.in(p)) send(p);
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                 .info(
                         "PROBE ARRIVAL_SETUP planet {} face {} height 7500 game {}",
@@ -228,7 +226,9 @@ public final class SpaceServer extends SavedData {
     }
 
     public static void probeSpeed(net.minecraft.server.level.ServerPlayer player, double speed) {
-        if (!Boolean.getBoolean("starfold.helmProbe") || !in(player) || !HelmServer.active(player))
+        if (!Boolean.getBoolean("starfold.helmProbe")
+                || !Space.in(player)
+                || !HelmServer.active(player))
             throw new IllegalStateException("Speed fixture requires development region pilot");
         var value = get(player.serverLevel());
         var f = value.frame.rebased(GroundClock.get(player.serverLevel()).clock.tick());
@@ -248,22 +248,22 @@ public final class SpaceServer extends SavedData {
     /** End chart ownership without changing position or velocity, then announce passive coordinates. */
     public static void sync(net.minecraft.server.level.ServerPlayer player) {
         targets.remove(player);
-        if (in(player)) {
+        if (Space.in(player)) {
             GroundFlightServer.region(player);
             ObserverFrames.announce(player);
             observers.put(player, player.serverLevel());
         } else observers.remove(player);
         send(player);
         view(player);
-        if (in(player)) GroundServer.regionSky(player);
+        if (Space.in(player)) GroundServer.regionSky(player);
     }
 
     public static SpacePackets.Frame packet(net.minecraft.server.level.ServerPlayer player) {
         return new SpacePackets.Frame(
-                in(player) ? frame(player.serverLevel()) : null,
-                in(player) ? get(player.serverLevel()).epoch : 0,
-                in(player) && get(player.serverLevel()).arriving,
-                in(player) ? get(player.serverLevel()).arrivalState : ArrivalState.empty());
+                Space.in(player) ? frame(player.serverLevel()) : null,
+                Space.in(player) ? get(player.serverLevel()).epoch : 0,
+                Space.in(player) && get(player.serverLevel()).arriving,
+                Space.in(player) ? get(player.serverLevel()).arrivalState : ArrivalState.empty());
     }
 
     private static void send(net.minecraft.server.level.ServerPlayer player) {
@@ -278,7 +278,7 @@ public final class SpaceServer extends SavedData {
 
     /** Repeated metadata tolerates packets arriving while a client is between Levels; never captures a flight. */
     public static long view(net.minecraft.server.level.ServerPlayer player) {
-        if (!in(player)) {
+        if (!Space.in(player)) {
             views.remove(player);
             if (player.connection.hasChannel(SpacePackets.View.TYPE))
                 net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
@@ -302,7 +302,7 @@ public final class SpaceServer extends SavedData {
         if (fresh || player.level().getGameTime() % 20 == 0) {
             if (player.connection.hasChannel(SpacePackets.View.TYPE))
                 net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, v.packet());
-            WaypointServer.send(player, v.packet().session());
+            SpaceHost.get().targetSync(player, v.packet().session());
         }
         return v.packet().session();
     }
@@ -314,14 +314,14 @@ public final class SpaceServer extends SavedData {
                                 e.getValue().level() == level
                                         && !validTarget(e.getKey(), e.getValue()));
         for (var player : level.players())
-            if (in(player) ? observers.get(player) != level : observers.containsKey(player))
+            if (Space.in(player) ? observers.get(player) != level : observers.containsKey(player))
                 sync(player);
         for (var entity : level.getAllEntities())
             if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
                 weight(
                         living.getAttribute(
                                 net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY),
-                        in(entity) && !weighted(entity));
+                        Space.in(entity) && !weighted(entity));
             }
     }
 
@@ -469,7 +469,7 @@ public final class SpaceServer extends SavedData {
         value.frame = Space.Frame.keeping(universeMotion, levelOrientation, model, planet, tick);
         value.epoch = tick;
         value.setDirty();
-        for (var player : level.players()) if (in(player)) send(player);
+        for (var player : level.players()) if (Space.in(player)) send(player);
         return value.frame;
     }
 
@@ -503,25 +503,26 @@ public final class SpaceServer extends SavedData {
      * switch reference, turn, skip arrival assist, cruise, radial/tangential govern, prefetch, anchor. */
     public static void step(
             ServerLevel level, dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
-        var bodies = new java.util.ArrayList<dev.ryanhcode.sable.sublevel.ServerSubLevel>();
-        for (var body : container.getAllSubLevels()) {
-            var at = body.logicalPose().position();
-            if (!body.isRemoved() && Space.holds(at.x, at.z)) bodies.add(body);
-        }
+        var bodies = spaceBodies(container);
         if (bodies.isEmpty()) {
-            var value = get(level);
-            value.inbound = false;
-            value.arriving = false;
-            value.inboundBody = null;
-            value.inboundPlanet = -1;
-            value.arrivalState = ArrivalState.empty();
-            value.setDirty();
-            SpaceApproach.update(level, container, null);
+            clearEmptyRegion(level, container);
             return;
         }
         var lead = lead(level, container);
         var value = get(level);
         var clock = GroundClock.get(level).clock;
+        advanceLead(level, container, bodies, lead, value, clock);
+    }
+
+    // Arrival, attitude, cruise and probes share more than six locals; keep this allocation-free
+    // stretch inline.
+    private static void advanceLead(
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel lead,
+            SpaceServer value,
+            dev.starfold.sky.GroundEphemerisSave clock) {
         var model = clock.model;
         long tick = clock.tick();
         var at = lead.logicalPose().position();
@@ -572,13 +573,7 @@ public final class SpaceServer extends SavedData {
         var radialUp =
                 entry.levelVector(towardEntry.scale(-1 / Math.max(1e-12, towardEntry.length())));
         double remaining = Math.toDegrees(Math.acos(Math.clamp(radialUp.y(), -1, 1)));
-        int lockedPlanet = -1;
-        for (var player : level.players())
-            if (helm(player, lead)) {
-                var target = targets.get(player);
-                if (target != null && validTarget(player, target)) lockedPlanet = target.planet();
-                break;
-            }
+        int lockedPlanet = lockedPlanet(level, lead);
         value.arrivalState =
                 oldArrival.step(
                         destination,
@@ -597,45 +592,15 @@ public final class SpaceServer extends SavedData {
         double blend = value.arrivalState.blend();
         push = blendPush(push, towardEntry, blend);
         if (v.length() > 1e-9) {
-            var f = value.frame.rebased(tick);
-            value.frame =
-                    new Space.Frame(
-                            f.rotation(),
-                            f.shift(),
-                            f.planet(),
-                            f.offset(),
-                            gain(
-                                    f.drift(),
-                                    blendPush(f.universeVector(v), towardEntry, blend),
-                                    piloted,
-                                    0),
-                            tick);
+            absorbLeadImpulse(value, tick, v, towardEntry, blend, piloted);
             for (var body : bodies)
                 pipeline.addLinearAndAngularVelocity(
                         body,
                         new org.joml.Vector3d(-v.x() * 20, -v.y() * 20, -v.z() * 20),
                         new org.joml.Vector3d());
-            for (var entity : level.getAllEntities())
-                if (in(entity)) {
-                    var body = SableFrames.aboard(entity);
-                    if (body != null && bodies.contains(body) && SableFrames.tracked(entity, body))
-                        continue;
-                    entity.setDeltaMovement(
-                            entity.getDeltaMovement().subtract(v.x(), v.y(), v.z()));
-                    if (entity instanceof net.minecraft.server.level.ServerPlayer player)
-                        player.hurtMarked = true;
-                }
+            subtractEntityImpulse(level, bodies, v);
         }
-        if (!piloted)
-            value.frame =
-                    value.frame.dragged(
-                            1
-                                    / (1
-                                            + dev.ryanhcode.sable.physics.config.dimension_physics
-                                                            .DimensionPhysicsData.getUniversalDrag(
-                                                            level)
-                                                    / 20),
-                            tick);
+        if (!piloted) dragFrame(value, level, tick);
         value.setDirty();
         var universe = value.frame.universe(point, model, tick);
         int nearest = Space.nearest(model, universe, tick);
@@ -860,10 +825,59 @@ public final class SpaceServer extends SavedData {
                     || wasArriving != value.arriving
                     || !before.rebased(tick).equals(value.frame)) {
                 value.epoch = tick;
-                for (var player : level.players()) if (in(player)) send(player, true);
+                for (var player : level.players()) if (Space.in(player)) send(player, true);
             }
             return;
         }
+        shiftRegion(level, container, bodies, value, delta, tick);
+    }
+
+    private static int lockedPlanet(
+            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel lead) {
+        int lockedPlanet = -1;
+        for (var player : level.players())
+            if (helm(player, lead)) {
+                var target = targets.get(player);
+                if (target != null && validTarget(player, target)) lockedPlanet = target.planet();
+                break;
+            }
+        return lockedPlanet;
+    }
+
+    private static void subtractEntityImpulse(
+            ServerLevel level,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            Point v) {
+        for (var entity : level.getAllEntities())
+            if (Space.in(entity)) {
+                var body = SableFrames.aboard(entity);
+                if (body != null && bodies.contains(body) && SableFrames.tracked(entity, body))
+                    continue;
+                entity.setDeltaMovement(entity.getDeltaMovement().subtract(v.x(), v.y(), v.z()));
+                if (entity instanceof net.minecraft.server.level.ServerPlayer player)
+                    player.hurtMarked = true;
+            }
+    }
+
+    private static void dragFrame(SpaceServer value, ServerLevel level, long tick) {
+        value.frame =
+                value.frame.dragged(
+                        1
+                                / (1
+                                        + dev.ryanhcode.sable.physics.config.dimension_physics
+                                                        .DimensionPhysicsData.getUniversalDrag(
+                                                        level)
+                                                / 20),
+                        tick);
+    }
+
+    private static void shiftRegion(
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            SpaceServer value,
+            Point delta,
+            long tick) {
         value.frame = value.frame.shifted(delta);
         value.epoch = tick;
         value.setDirty();
@@ -881,7 +895,51 @@ public final class SpaceServer extends SavedData {
                             motion.spin()),
                     true);
         }
-        for (var player : level.players()) if (in(player)) send(player);
+        for (var player : level.players()) if (Space.in(player)) send(player);
+    }
+
+    private static java.util.ArrayList<dev.ryanhcode.sable.sublevel.ServerSubLevel> spaceBodies(
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
+        var bodies = new java.util.ArrayList<dev.ryanhcode.sable.sublevel.ServerSubLevel>();
+        for (var body : container.getAllSubLevels()) {
+            var at = body.logicalPose().position();
+            if (!body.isRemoved() && Space.holds(at.x, at.z)) bodies.add(body);
+        }
+        return bodies;
+    }
+
+    private static void clearEmptyRegion(
+            ServerLevel level, dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
+        var value = get(level);
+        value.inbound = false;
+        value.arriving = false;
+        value.inboundBody = null;
+        value.inboundPlanet = -1;
+        value.arrivalState = ArrivalState.empty();
+        value.setDirty();
+        SpaceApproach.update(level, container, null);
+    }
+
+    private static void absorbLeadImpulse(
+            SpaceServer value,
+            long tick,
+            Point v,
+            Point towardEntry,
+            double blend,
+            boolean piloted) {
+        var f = value.frame.rebased(tick);
+        value.frame =
+                new Space.Frame(
+                        f.rotation(),
+                        f.shift(),
+                        f.planet(),
+                        f.offset(),
+                        gain(
+                                f.drift(),
+                                blendPush(f.universeVector(v), towardEntry, blend),
+                                piloted,
+                                0),
+                        tick);
     }
 
     /** Use the same occupied-body order for accepting a wish and consuming it. */
@@ -905,7 +963,7 @@ public final class SpaceServer extends SavedData {
     private static boolean helm(
             net.minecraft.server.level.ServerPlayer player,
             dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-        return in(player) && atHelm(player, body);
+        return Space.in(player) && atHelm(player, body);
     }
 
     public static boolean atHelm(
@@ -925,7 +983,7 @@ public final class SpaceServer extends SavedData {
                 || !Float.isFinite(packet.roll())
                 || !Float.isFinite(packet.mouseYaw())
                 || !Float.isFinite(packet.mousePitch())
-                || !in(player)) {
+                || !Space.in(player)) {
             wishes.remove(player);
             return;
         }
@@ -964,7 +1022,7 @@ public final class SpaceServer extends SavedData {
     public static boolean rollControl(
             net.minecraft.world.level.Level world,
             dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-        if (!(world instanceof ServerLevel level) || !GroundServer.is(level)) return false;
+        if (!(world instanceof ServerLevel level) || !PlanetLevels.is(level)) return false;
         var at = body.logicalPose().position();
         if (!Space.holds(at.x, at.z) || !Thrusters.steadied(body, level.getGameTime()))
             return false;
@@ -988,7 +1046,7 @@ public final class SpaceServer extends SavedData {
     private static boolean validTarget(
             net.minecraft.server.level.ServerPlayer player, Target target) {
         if (player.serverLevel() != target.level()
-                || !in(player)
+                || !Space.in(player)
                 || !helm(player, target.body())
                 || Thrusters.scopeTier(target.body()) < 2
                 || !knownTarget(
@@ -1013,7 +1071,7 @@ public final class SpaceServer extends SavedData {
 
     private static void target(net.minecraft.server.level.ServerPlayer player, int planet) {
         targets.remove(player);
-        if (!in(player)
+        if (!Space.in(player)
                 || !knownTarget(planet, GroundClock.get(player.serverLevel()).clock.model.count()))
             return;
         var container =

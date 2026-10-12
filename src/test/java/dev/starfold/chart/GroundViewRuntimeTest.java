@@ -6,7 +6,6 @@ import dev.starfold.SourceText;
 import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.render.GroundChunkSnapshot;
 import dev.starfold.render.GroundShaderSource;
 import dev.starfold.render.GroundStreaming;
@@ -140,8 +139,7 @@ class GroundViewRuntimeTest {
         for (var face : CubeSurfaceTopology.Face.values())
             for (double x : new double[] {.01, 1024, 2047.99})
                 for (double z : new double[] {.01, 1024, 2047.99}) {
-                    var pose =
-                            new GroundTopology.Pose(face, new BentStripGeometry.Point(x, 4096, z));
+                    var pose = new PlanetShape.Pose(face, new BentStripGeometry.Point(x, 4096, z));
                     var all = new HashSet<Long>();
                     for (int cursor = 0; cursor < 12; cursor++) {
                         var keys = GroundViewClient.plan(pose, cursor);
@@ -156,7 +154,7 @@ class GroundViewRuntimeTest {
                 }
         var edge =
                 GroundViewClient.plan(
-                        new GroundTopology.Pose(
+                        new PlanetShape.Pose(
                                 CubeSurfaceTopology.Face.TOP,
                                 new BentStripGeometry.Point(.1, 5, 1000)),
                         0);
@@ -179,7 +177,7 @@ class GroundViewRuntimeTest {
         assertTrue(client.contains("cache.accept(packet.chunk())"));
         assertTrue(client.contains("cache.refill(packet.chunk())"));
         assertTrue(client.contains("known") || client.contains("cache.version(key)"));
-        assertTrue(Sources.text("GroundServer").contains("GroundViewServer.tick(level,saved)"));
+        assertTrue(Sources.text("StarfoldServer").contains("GroundViewServer.tick(level,saved)"));
         assertTrue(Sources.text("GroundClient").contains("GroundViewClient.initialize()"));
     }
 

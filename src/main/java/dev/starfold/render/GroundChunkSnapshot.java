@@ -1,6 +1,6 @@
 package dev.starfold.render;
 
-import dev.starfold.ground.GroundCoordinates;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 
 import net.minecraft.core.BlockPos;
@@ -14,7 +14,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import java.util.*;
 
 /** Bounded, display-only native BlockState image. Never a save, placement or inventory ledger. */
-public final class GroundChunkSnapshot {
+public final class GroundChunkSnapshot implements dev.starfold.worldgen.PlanetTerrain.Image {
     public static final int MIN_Y = -64, HEIGHT = 384, VALUES = 16 * 16 * HEIGHT;
     private final int face, u, v;
     private final long revision;
@@ -107,14 +107,17 @@ public final class GroundChunkSnapshot {
         return Math.max(1, 32 - Integer.numberOfLeadingZeros(size - 1));
     }
 
+    @Override
     public int face() {
         return face;
     }
 
+    @Override
     public int u() {
         return u;
     }
 
+    @Override
     public int v() {
         return v;
     }
@@ -184,6 +187,7 @@ public final class GroundChunkSnapshot {
         return x + 16 * (z + 16 * (y - MIN_Y));
     }
 
+    @Override
     public BlockState state(int x, int y, int z) {
         if (x < 0 || x >= 16 || z < 0 || z >= 16 || y < MIN_Y || y >= MIN_Y + HEIGHT)
             return Blocks.AIR.defaultBlockState();

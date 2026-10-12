@@ -5,37 +5,36 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.mojang.serialization.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.chart.GroundTransition;
-import dev.starfold.flight.GroundDynamics;
-import dev.starfold.flight.GroundFlightPackets;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
 import dev.starfold.geometry.PlanetMotion;
 import dev.starfold.geometry.PlanetSpace;
+import dev.starfold.ground.GroundFlightPackets;
 import dev.starfold.ground.GroundNavigationSave;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.render.GroundChunkSnapshot;
 import dev.starfold.render.GroundSurfaceMesh;
+import dev.starfold.render.GroundTransition;
 import dev.starfold.render.GroundViewCache;
 import dev.starfold.render.GroundViewPackets;
 import dev.starfold.render.PlanetRemotePackets;
 import dev.starfold.render.PlanetRemoteView;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundEphemeris;
 import dev.starfold.sky.GroundEphemerisSave;
-import dev.starfold.sky.GroundSolar;
-import dev.starfold.worldgen.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetChunkGenerator;
+import dev.starfold.universe.PlanetPackets;
+import dev.starfold.universe.PlanetWorldPreset;
 import dev.starfold.worldgen.PlanetEcologyTest;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetRock;
 import dev.starfold.worldgen.PlanetTerrain;
-import dev.starfold.worldgen.PlanetWorldPreset;
 
 import net.minecraft.core.*;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -357,11 +356,11 @@ public class PlanetSystemTest {
 
     public static final GroundDynamics.Terrain OPEN =
             new GroundDynamics.Terrain() {
-                public boolean clear(GroundTopology.Pose p) {
+                public boolean clear(PlanetShape.Pose p) {
                     return p.point().y() > 100;
                 }
 
-                public double clearance(GroundTopology.Pose p) {
+                public double clearance(PlanetShape.Pose p) {
                     return p.point().y() - 50;
                 }
             };
@@ -398,7 +397,7 @@ public class PlanetSystemTest {
                     GroundDynamics.local(
                             900,
                             id,
-                            new GroundTopology.Pose(Face.TOP, new Point(800, 6000, 900)),
+                            new PlanetShape.Pose(Face.TOP, new Point(800, 6000, 900)),
                             new Point(.3, .4, .1),
                             new org.joml.Quaterniond().rotationXYZ(.1, .2, .3),
                             true,
@@ -434,7 +433,7 @@ public class PlanetSystemTest {
                 GroundDynamics.local(
                         900,
                         1,
-                        new GroundTopology.Pose(Face.TOP, new Point(1024, 180, 1024)),
+                        new PlanetShape.Pose(Face.TOP, new Point(1024, 180, 1024)),
                         new Point(.1, .2, .3),
                         new org.joml.Quaterniond(),
                         true,
@@ -554,11 +553,11 @@ public class PlanetSystemTest {
         var ak =
                 net.minecraft.resources.ResourceKey.create(
                         net.minecraft.core.registries.Registries.LEVEL_STEM,
-                        GroundServer.PLANET.location());
+                        PlanetLevels.PLANET.location());
         var bk =
                 net.minecraft.resources.ResourceKey.create(
                         net.minecraft.core.registries.Registries.LEVEL_STEM,
-                        GroundServer.ROCK.location());
+                        PlanetLevels.ROCK.location());
         var old = new net.minecraft.world.level.dimension.LevelStem(type, fixture.generator(2));
         var as = new net.minecraft.world.level.dimension.LevelStem(type, a);
         var bs = new net.minecraft.world.level.dimension.LevelStem(type, b);
@@ -595,7 +594,7 @@ public class PlanetSystemTest {
                 GroundDynamics.local(
                         900,
                         1,
-                        new GroundTopology.Pose(Face.TOP, new Point(1024, 200, 1024)),
+                        new PlanetShape.Pose(Face.TOP, new Point(1024, 200, 1024)),
                         GroundEphemeris.ZERO,
                         new org.joml.Quaterniond(),
                         true,
@@ -760,13 +759,13 @@ public class PlanetSystemTest {
 
     @Test
     void liveSystemHooksRouteOneClockAndPreserveStateDuringDimensionHandoff() throws Exception {
-        var server = Sources.text("GroundServer");
         var flight = Sources.text("GroundFlightServer");
         var clock = Sources.text("GroundClock");
+        var wiring = Sources.text("StarfoldServer");
         assertTrue(
-                server.contains(
+                wiring.contains(
                         "NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Pre cpEvent)"));
-        assertTrue(server.contains("if(!PlanetSystem.multiple(level))saved.advance()"));
+        assertTrue(wiring.contains("if(!PlanetSystem.multiple(level))saved.advance()"));
         assertTrue(flight.contains("s.state.tick()==clock.clock.tick()"));
         assertTrue(clock.contains("PlanetSystem.authority(level).getDataStorage()"));
         assertTrue(

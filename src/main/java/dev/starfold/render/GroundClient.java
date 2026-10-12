@@ -1,39 +1,36 @@
 package dev.starfold.render;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.chart.GroundAir;
 import dev.starfold.chart.GroundCamera;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundMotion;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.GroundSpaceOptics;
-import dev.starfold.chart.GroundTransition;
 import dev.starfold.chart.PlanetAir;
 import dev.starfold.chart.PlanetChart;
 import dev.starfold.chart.PlanetGap;
 import dev.starfold.chart.PlanetOrbit;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
-import dev.starfold.flight.GroundFlightPackets;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetSpace;
-import dev.starfold.ground.GroundCoordinates;
+import dev.starfold.ground.GroundFlightPackets;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ground.ObserverFrame;
+import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.Anomaly;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.ship.HelmInputClient;
-import dev.starfold.sky.GroundCelestials;
 import dev.starfold.sky.GroundDaylight;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.space.Space;
+import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceAttitudeClient;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceNavigationClient;
@@ -114,7 +111,7 @@ public final class GroundClient {
     }
 
     public static boolean active() {
-        return GroundServer.is(Minecraft.getInstance().level);
+        return PlanetLevels.is(Minecraft.getInstance().level);
     }
 
     private static ObserverFrame chartFrame;
@@ -155,7 +152,7 @@ public final class GroundClient {
     }
 
     /** A canonical pose's feet in client coordinates, or null when that place is not drawn in this chart. */
-    public static Point plane(int planet, GroundTopology.Pose pose) {
+    public static Point plane(int planet, PlanetShape.Pose pose) {
         return planePoint(planet, pose.face(), pose.point().sub(new Point(0, .9, 0)));
     }
 
@@ -428,6 +425,18 @@ public final class GroundClient {
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
+        initializeNavigation(modBus);
+        registerChartFrame();
+        registerDebugText();
+        initializeGroundView(modBus);
+        registerSky();
+        registerClientTick();
+        GroundCelestials.initialize(modBus);
+        registerDimensionEffects(modBus);
+        registerHud(modBus);
+    }
+
+    private static void initializeNavigation(net.neoforged.bus.api.IEventBus modBus) {
         GroundFlightClient.initialize(modBus);
         SpaceClient.initialize();
         if (net.neoforged.fml.ModList.get().isLoaded("sable")) {
@@ -438,6 +447,9 @@ public final class GroundClient {
         WaypointClient.initialize(modBus);
         GroundSeams.clientMask(GroundClient::masked);
         GroundSeams.clientPlane(GroundClient::plane);
+    }
+
+    private static void registerChartFrame() {
         StarfoldNetwork.clientReceiver(
                 GroundFlightPackets.Frame.TYPE, (packet, context) -> chartFrame = packet.frame());
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -445,6 +457,9 @@ public final class GroundClient {
                     chartFrame = null;
                     PlanetSystem.identities(java.util.List.of());
                 });
+    }
+
+    private static void registerDebugText() {
         // F3 names what each planet is drawn with: a planet seen dark or missing is told apart as
         // light or as mesh.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -462,10 +477,16 @@ public final class GroundClient {
                                                         sunlight()));
                     }
                 });
+    }
+
+    private static void initializeGroundView(net.neoforged.bus.api.IEventBus modBus) {
         GroundViewClient.initialize();
         GroundRenderer.initialize(modBus);
         StarfoldNetwork.clientReceiver(
                 GroundPackets.Shapes.TYPE, (packet, context) -> packet.assign());
+    }
+
+    private static void registerSky() {
         StarfoldNetwork.clientReceiver(
                 GroundPackets.Sky.TYPE,
                 (packet, context) -> {
@@ -481,6 +502,9 @@ public final class GroundClient {
                     tick = packet.tick();
                     received = level.getGameTime();
                 });
+    }
+
+    private static void registerClientTick() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Post cpEvent) -> {
                     var mc = net.minecraft.client.Minecraft.getInstance();
@@ -507,11 +531,13 @@ public final class GroundClient {
                     if (f8 && !heldF8) repair = !repair;
                     heldF8 = f8;
                 });
-        GroundCelestials.initialize(modBus);
+    }
+
+    private static void registerDimensionEffects(net.neoforged.bus.api.IEventBus modBus) {
         modBus.addListener(
                 (net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent event) ->
                         event.register(
-                                GroundServer.DIMENSION.location(),
+                                PlanetLevels.DIMENSION.location(),
                                 new net.minecraft.client.renderer.DimensionSpecialEffects
                                         .OverworldEffects() {
                                     @Override
@@ -530,7 +556,7 @@ public final class GroundClient {
                                             double z,
                                             org.joml.Matrix4f modelView,
                                             org.joml.Matrix4f projection) {
-                                        return GroundServer.is(level);
+                                        return PlanetLevels.is(level);
                                     }
 
                                     @Override
@@ -542,7 +568,7 @@ public final class GroundClient {
                                             double x,
                                             double y,
                                             double z) {
-                                        return GroundServer.is(level);
+                                        return PlanetLevels.is(level);
                                     }
 
                                     @Override
@@ -566,6 +592,9 @@ public final class GroundClient {
                                         return false;
                                     }
                                 }));
+    }
+
+    private static void registerHud(net.neoforged.bus.api.IEventBus modBus) {
         modBus.addListener(
                 (net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) ->
                         event.registerAboveAll(
@@ -751,6 +780,10 @@ public final class GroundClient {
             org.lwjgl.opengl.GL13.glActiveTexture(active);
             ShaderUniforms.setInt(shader, "CPNativeCoverage", 3);
         }
+        applyViewUniforms(shader, e, gap);
+    }
+
+    private static void applyViewUniforms(ShaderInstance shader, Point e, PlanetGap gap) {
         set(shader, "CPNativeEye", e);
         set(shader, "CPNativeViewOffset", viewOffset);
         set(shader, "CPNativeWorldX", X);

@@ -1,7 +1,5 @@
 package dev.starfold.planet;
 
-import dev.starfold.worldgen.PlanetChunkGenerator;
-
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Optional;
@@ -16,12 +14,24 @@ public record PlanetIdentity(
         java.util.Objects.requireNonNull(name);
         if (!family.equals("temperate") && !family.equals("rocky"))
             throw new IllegalArgumentException("Planet family");
-        name.ifPresent(SystemDefinition::validName);
+        name.ifPresent(PlanetIdentity::validName);
     }
 
-    public static PlanetIdentity of(PlanetChunkGenerator planet) {
-        return new PlanetIdentity(
-                planet.typeId(), planet.generation().type(), planet.displayName());
+    public static PlanetIdentity of(PlanetSystem.SavedPlanet planet) {
+        return planet.identity();
+    }
+
+    public static void validName(String name) {
+        if (name.isBlank()
+                || name.length() > 64
+                || name.codePoints().anyMatch(Character::isISOControl))
+            throw new IllegalArgumentException(
+                    "planet name needs 1..64 characters without control characters");
+    }
+
+    /** A, B, … Z, then P26, P27 …: what a planet is called until someone names it. */
+    public static String defaultName(int planet) {
+        return planet < 26 ? String.valueOf((char) ('A' + planet)) : "P" + planet;
     }
 
     public String label(Function<String, String> translate) {
@@ -40,8 +50,7 @@ public record PlanetIdentity(
             int count,
             int width,
             ToIntFunction<String> measure) {
-        String prefix = PlanetSystem.defaultName(planet) + " · ",
-                suffix = " · " + rank + "/" + count;
+        String prefix = defaultName(planet) + " · ", suffix = " · " + rank + "/" + count;
         return prefix
                 + ellipsis(name, Math.max(0, width - measure.applyAsInt(prefix + suffix)), measure)
                 + suffix;

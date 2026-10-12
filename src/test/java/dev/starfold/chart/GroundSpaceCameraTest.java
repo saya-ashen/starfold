@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.PlanetMotion;
-import dev.starfold.sky.GroundEphemeris;
 
 import org.joml.Matrix4f;
 import org.joml.Quaterniond;

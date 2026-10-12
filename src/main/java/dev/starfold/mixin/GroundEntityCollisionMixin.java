@@ -3,7 +3,7 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.*;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.*;
@@ -24,7 +24,7 @@ public interface GroundEntityCollisionMixin {
     private AABB starfold$nativeEntityBox(
             Entity entity, Operation<AABB> original, Entity mover, AABB query) {
         var box = original.call(entity);
-        if ((Object) this instanceof Level level && GroundServer.canonical(level)) {
+        if ((Object) this instanceof Level level && PlanetLevels.canonical(level)) {
             var image = GroundSeams.box(level, box, query.getCenter().x, query.getCenter().z);
             if (image != null) return image;
         }

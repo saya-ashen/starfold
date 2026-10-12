@@ -1,11 +1,9 @@
 package dev.starfold.ship;
 
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ground.GroundCoordinates;
 import dev.starfold.ground.ObserverFrame;
-import dev.starfold.render.GroundClient;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.space.SpaceClient;
+import dev.starfold.planet.GroundCoordinates;
 
 import net.minecraft.client.Minecraft;
 
@@ -20,12 +18,14 @@ public final class HullLandingClient {
     private static Point motion = GroundEphemeris.ZERO;
 
     public static boolean active() {
-        if (!GroundClient.active() || SpaceClient.present()) return false;
+        if (!ShipClientHost.get().chartActive() || ShipClientHost.get().movingSurroundings())
+            return false;
         var hull = HelmClient.body();
         if (hull == null) return false;
         var at = hull.logicalPose().position();
-        var storage = GroundClient.storage(at.x, GroundCoordinates.FLOOR, at.z);
-        return GroundClient.access()
+        var storage = ShipClientHost.get().storage(at.x, GroundCoordinates.FLOOR, at.z);
+        return ShipClientHost.get()
+                .chartAccess()
                 .inChart(
                         net.minecraft.core.BlockPos.containing(
                                 storage.x(), storage.y(), storage.z()));
@@ -44,7 +44,7 @@ public final class HullLandingClient {
         }
         var hull = HelmClient.body();
         var at = hull.logicalPose().position();
-        var now = GroundClient.frame();
+        var now = ShipClientHost.get().chartFrame();
         if (body == hull && level == mc.level && now.equals(frame) && previous != null) {
             vertical = (at.y - previous.y) * 20;
             motion = new Point((at.x - previous.x) * 20, 0, (at.z - previous.z) * 20);

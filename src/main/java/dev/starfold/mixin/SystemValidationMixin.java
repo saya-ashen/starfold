@@ -1,6 +1,6 @@
 package dev.starfold.mixin;
 
-import dev.starfold.planet.SystemDefinition;
+import dev.starfold.universe.SystemDefinition;
 
 import net.minecraft.core.Registry;
 import net.minecraft.world.level.dimension.LevelStem;

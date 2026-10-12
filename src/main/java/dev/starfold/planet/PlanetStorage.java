@@ -1,9 +1,8 @@
 package dev.starfold.planet;
 
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Cell;
-import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.storage.ChunkKeys;
 
 import net.minecraft.core.BlockPos;
@@ -156,11 +155,11 @@ public final class PlanetStorage {
                 .offset(offset(planet), 0, offsetZ(planet));
     }
 
-    public static Point feet(int planet, GroundTopology.Pose pose) {
+    public static Point feet(int planet, PlanetShape.Pose pose) {
         return GroundTopology.feet(pose).add(origin(planet));
     }
 
-    public static GroundTopology.Pose body(int planet, Point feet) {
+    public static PlanetShape.Pose body(int planet, Point feet) {
         return GroundTopology.body(PlanetShape.of(planet), feet.sub(origin(planet)));
     }
 
@@ -168,7 +167,7 @@ public final class PlanetStorage {
         int planet = planet(query);
         var local = local(planet, query);
         var shape = PlanetShape.of(planet);
-        if (!GroundSeams.inChart(shape, local))
+        if (!GroundTopology.inChart(shape, local))
             throw new IllegalArgumentException("Outside planet chart halo");
         var route = GroundTopology.address(shape, local);
         return new Address(new Owner(planet, GroundTopology.cell(route.owner())), route.turns());

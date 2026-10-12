@@ -4,14 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.render.CoreShaderSource;
 import dev.starfold.render.GroundShaderSource;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.GroundEphemeris;
 import dev.starfold.sky.GroundEphemerisSave;
-import dev.starfold.sky.GroundSolar;
 
 import net.minecraft.nbt.CompoundTag;
 
@@ -131,7 +132,7 @@ class GroundTest {
 
     @Test
     void nativeBackendHasNoMaterialPlacementOrProxyMovementLoop() throws Exception {
-        var s = Sources.text("GroundServer");
+        var sources = List.of(Sources.text("GroundServer"), Sources.text("PlanetPlayers"));
         for (String forbidden :
                 List.of(
                         "GroundWorld",
@@ -140,9 +141,10 @@ class GroundTest {
                         "GroundTransit.step",
                         "GroundMotion.step",
                         "setBlock(",
-                        "action(")) assertFalse(s.contains(forbidden), forbidden);
-        assertTrue(s.contains("native_ground"));
-        assertTrue(Sources.text("Starfold").contains("GroundServer.initialize(modBus)"));
+                        "action("))
+            for (var source : sources) assertFalse(source.contains(forbidden), forbidden);
+        assertTrue(Sources.text("PlanetLevels").contains("native_ground"));
+        assertTrue(Sources.text("Starfold").contains("StarfoldServer.initialize(modBus)"));
         assertTrue(
                 Sources.text("GroundClock")
                         .contains(
@@ -298,14 +300,14 @@ class GroundTest {
     void installedSeamsAndSpaceKeepTheirRoutingBorderAndRealModels() throws Exception {
         assertTrue(
                 Sources.text("GroundCoordinates").contains("GroundTopology routes halo queries"));
-        assertTrue(Sources.text("GroundServer").contains("getWorldBorder().setSize(60_000_000)"));
+        assertTrue(Sources.text("PlanetPlayers").contains("getWorldBorder().setSize(60_000_000)"));
         assertTrue(Sources.text("GroundFlightServer").contains("GroundDynamics.step"));
         assertTrue(Sources.text("GroundRenderer").contains("getBlockRenderer()"));
     }
 
     @Test
     void nativeLightingIsDimensionScopedAndUsesTheSavedSun() throws Exception {
-        assertTrue(Sources.text("GroundLightMixin").contains("GroundServer.is"));
+        assertTrue(Sources.text("GroundLightMixin").contains("PlanetLevels.is"));
         assertTrue(Sources.text("GroundLightMixin").contains("GroundSolar.daylight"));
         assertTrue(Sources.text("GroundFogMixin").contains("GroundSolar.sky"));
         assertTrue(Sources.text("GroundClient").contains("SkyType.NONE"));

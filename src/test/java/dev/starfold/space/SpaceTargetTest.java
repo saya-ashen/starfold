@@ -1,12 +1,14 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.point;
+import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.ship.SpacePackets;
+import dev.starfold.sky.SpaceTest;
 
 import org.junit.jupiter.api.Test;
 
@@ -97,7 +99,7 @@ class SpaceTargetTest {
         for (String guard :
                 new String[] {
                     "player.serverLevel()!=target.level()",
-                    "!in(player)",
+                    "!Space.in(player)",
                     "!helm(player,target.body())",
                     "lead(target.level(),server)==target.body()",
                     "targets.entrySet().removeIf",

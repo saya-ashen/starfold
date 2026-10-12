@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.mojang.serialization.JsonOps;
 
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.planet.SingleLevelStorageTest;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.waypoint.Waypoint;
 import dev.starfold.waypoint.WaypointCodec;
 import dev.starfold.waypoint.WaypointPackets;
@@ -36,7 +38,7 @@ class ExplorationTest {
 
     Waypoint marker(String name, int planet) {
         return new Waypoint(
-                name, planet, new GroundTopology.Pose(Face.TOP, new Point(1024, 35, 1024)));
+                name, planet, new PlanetShape.Pose(Face.TOP, new Point(1024, 35, 1024)));
     }
 
     @Test

@@ -2,9 +2,8 @@ package dev.starfold.space;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
-import dev.starfold.dev.DevProbe;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.render.GroundClient;
+import dev.starfold.probe.ProbeState;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -25,7 +24,7 @@ public final class SpaceDustParticle extends TextureSheetParticle {
         lifetime = SpaceDustClient.LIFETIME;
         var frame = SpaceClient.frame();
         planet = frame.planet();
-        var model = GroundClient.ephemeris();
+        var model = SpaceClientHost.get().ephemeris();
         double time = SpaceClient.time();
         origin = frame.universe(new Point(x, y, z), model, time);
         reference = model.at(planet, time).center();
@@ -33,7 +32,7 @@ public final class SpaceDustParticle extends TextureSheetParticle {
 
     private Point position() {
         var frame = SpaceClient.frame();
-        var model = GroundClient.ephemeris();
+        var model = SpaceClientHost.get().ephemeris();
         double time = SpaceClient.time();
         return frame.level(origin.add(model.at(planet, time).center().sub(reference)), model, time);
     }
@@ -73,7 +72,7 @@ public final class SpaceDustParticle extends TextureSheetParticle {
         var centre = new Vector3d(at.x() - eye.x, at.y() - eye.y, at.z() - eye.z);
         if (centre.lengthSquared() < 36 || SpaceDustClient.inside(at.x(), at.y(), at.z())) return;
         var frame = SpaceClient.frame();
-        var model = GroundClient.ephemeris();
+        var model = SpaceClientHost.get().ephemeris();
         double time = SpaceClient.time();
         var drift = frame.levelVelocity(model.at(planet, time).velocity(), model, time);
         var motion = new Vector3d(drift.x(), drift.y(), drift.z());
@@ -94,7 +93,7 @@ public final class SpaceDustParticle extends TextureSheetParticle {
         if (start.z >= 0 || end.z >= 0) return;
         var mc = net.minecraft.client.Minecraft.getInstance();
         var projection = mc.gameRenderer.getProjectionMatrix(mc.options.fov().get());
-        if (DevProbe.active() && probeTick != level.getGameTime()) {
+        if (ProbeState.active() && probeTick != level.getGameTime()) {
             probeTick = level.getGameTime();
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(

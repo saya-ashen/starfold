@@ -1,9 +1,10 @@
 package dev.starfold.ground;
 
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
+import dev.starfold.probe.ArrivalProbe;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -32,7 +33,7 @@ public final class ChunkTickReadiness {
     }
 
     public static boolean ready(ServerLevel level, long chunk) {
-        if (!GroundServer.is(level)) return true;
+        if (!PlanetLevels.is(level)) return true;
         var access = PlanetAccess.of(level);
         int x = ChunkPos.getX(chunk), z = ChunkPos.getZ(chunk);
         long key = access.key(x, z);

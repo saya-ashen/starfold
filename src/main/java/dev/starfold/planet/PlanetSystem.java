@@ -1,21 +1,45 @@
 package dev.starfold.planet;
 
 import dev.starfold.chart.GroundCosmos;
-import dev.starfold.chart.GroundSpace;
-import dev.starfold.flight.GroundDynamics;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.ground.GroundTerrain;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.sky.GroundSolar;
-import dev.starfold.worldgen.PlanetChunkGenerator;
-import dev.starfold.worldgen.SystemChunkGenerator;
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.GroundSolar;
+import dev.starfold.chart.PlanetShape;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
 /** Explicit saved generator opt-in. Merely installing this mod never adds another planet. */
 public final class PlanetSystem {
+    /** What a level's generator tells about the planets it holds: implemented by the generator of a whole system. */
+    public interface Saved {
+        int count();
+
+        /** The home system and, where the level has one, its universe beyond. */
+        GroundEphemeris.Model model(ServerLevel level);
+
+        PlanetShape shape(int planet);
+
+        /** Written by hand in a star system file: its clock starts at tick 0, so the written phases are what is seen. */
+        boolean authored();
+
+        /** A world that begins beside a ship begins in mid-morning. */
+        boolean startsWithShip();
+
+        /** Whether the level has a universe beyond its home system, which grows as it is travelled. */
+        boolean beyond(ServerLevel level);
+    }
+
+    /** The same for the generator of one planet of a world made before all planets shared a level. */
+    public interface SavedPlanet {
+        boolean multiple();
+
+        int version();
+
+        PlanetShape shape();
+
+        PlanetIdentity identity();
+    }
+
     // The client must opt in from matching layout metadata; a multi-planet model alone
     // is insufficient because alpha.67 also has two planets, in separate dimensions.
     private static java.util.function.Predicate<Level> clientShared = l -> false;
@@ -26,7 +50,7 @@ public final class PlanetSystem {
 
     public static boolean shared(Level level) {
         return level instanceof ServerLevel server
-                ? server.getChunkSource().getGenerator() instanceof SystemChunkGenerator
+                ? server.getChunkSource().getGenerator() instanceof Saved
                 : level != null && level.isClientSide && clientShared.test(level);
     }
 
@@ -37,13 +61,13 @@ public final class PlanetSystem {
     }
 
     public static int planet(Level level) {
-        return level.dimension().equals(GroundServer.ROCK) ? 1 : 0;
+        return level.dimension().equals(PlanetLevels.ROCK) ? 1 : 0;
     }
 
     public static boolean terrain(Level level) {
         return level != null
-                && (level.dimension().equals(GroundServer.PLANET)
-                        || level.dimension().equals(GroundServer.ROCK));
+                && (level.dimension().equals(PlanetLevels.PLANET)
+                        || level.dimension().equals(PlanetLevels.ROCK));
     }
 
     public static ServerLevel level(ServerLevel current, int planet) {
@@ -51,7 +75,7 @@ public final class PlanetSystem {
         if (shared(current)) return current;
         GroundCosmos.valid(planet);
         var result =
-                current.getServer().getLevel(planet == 0 ? GroundServer.PLANET : GroundServer.ROCK);
+                current.getServer().getLevel(planet == 0 ? PlanetLevels.PLANET : PlanetLevels.ROCK);
         if (result == null) throw new IllegalStateException("Missing native planet " + planet);
         return result;
     }
@@ -59,11 +83,11 @@ public final class PlanetSystem {
     public static boolean multiple(ServerLevel current) {
         if (!terrain(current)) return false;
         if (shared(current)) return true;
-        if (!(current.getChunkSource().getGenerator() instanceof PlanetChunkGenerator g)
-                || !g.multiple()) return false;
+        if (!(current.getChunkSource().getGenerator() instanceof SavedPlanet g) || !g.multiple())
+            return false;
         for (int id = 0; id < 2; id++) {
             var l = level(current, id);
-            if (!(l.getChunkSource().getGenerator() instanceof PlanetChunkGenerator other)
+            if (!(l.getChunkSource().getGenerator() instanceof SavedPlanet other)
                     || !other.multiple()
                     || other.version() != (id == 0 ? 4 : 5))
                 throw new IllegalStateException("Incomplete saved native system");
@@ -154,22 +178,25 @@ public final class PlanetSystem {
 
     /** How many planets this level's saved system has, and how they are shared out among its suns. */
     public static int count(ServerLevel current) {
-        return current.getChunkSource().getGenerator() instanceof SystemChunkGenerator system
-                ? system.count()
-                : 2;
+        return current.getChunkSource().getGenerator() instanceof Saved system ? system.count() : 2;
     }
 
     /** The model of everything this level holds: its home system and, where it has one, its universe beyond. */
     public static GroundEphemeris.Model model(ServerLevel current) {
-        if (!(current.getChunkSource().getGenerator() instanceof SystemChunkGenerator system))
-            return model();
-        var home = system.homeModel();
-        var universe = Universe.of(current);
-        return universe == null ? home : universe.model(home);
+        return current.getChunkSource().getGenerator() instanceof Saved system
+                ? system.model(current)
+                : model();
     }
 
     /** A, B, C … in storage order. */
     private static volatile java.util.List<PlanetIdentity> identities = java.util.List.of();
+
+    /** Back to the two standard planets nobody has named, as before any world was loaded. */
+    public static void reset() {
+        identities(java.util.List.of());
+        names(java.util.List.of());
+        PlanetShape.reset();
+    }
 
     public static void identities(java.util.List<PlanetIdentity> values) {
         identities = java.util.List.copyOf(values);
@@ -205,34 +232,7 @@ public final class PlanetSystem {
     }
 
     public static String defaultName(int planet) {
-        return planet < 26 ? String.valueOf((char) ('A' + planet)) : "P" + planet;
-    }
-
-    public static GroundDynamics.Terrain terrain(
-            ServerLevel current,
-            net.minecraft.server.level.ServerPlayer player,
-            GroundSpace.Config mask) {
-        return new GroundDynamics.Terrain() {
-            public boolean clear(GroundTopology.Pose p) {
-                return clear(player == null ? planet(current) : planet(player), p);
-            }
-
-            public double clearance(GroundTopology.Pose p) {
-                return clearance(player == null ? planet(current) : planet(player), p);
-            }
-
-            public boolean clear(int id, GroundTopology.Pose p) {
-                return new GroundTerrain(
-                                multiple(current) ? level(current, id) : current, player, mask, id)
-                        .clear(p);
-            }
-
-            public double clearance(int id, GroundTopology.Pose p) {
-                return new GroundTerrain(
-                                multiple(current) ? level(current, id) : current, player, mask, id)
-                        .clearance(p);
-            }
-        };
+        return PlanetIdentity.defaultName(planet);
     }
 
     /** The saved shape of a planet of this level; the standard one where the level's generator does not say. */
@@ -242,11 +242,9 @@ public final class PlanetSystem {
                 (multiple(current) ? level(current, planet) : current)
                         .getChunkSource()
                         .getGenerator();
-        return source instanceof SystemChunkGenerator system
-                ? system.planet(planet).terrain().shape()
-                : source instanceof PlanetChunkGenerator single
-                        ? single.terrain().shape()
-                        : PlanetShape.STANDARD;
+        return source instanceof Saved system
+                ? system.shape(planet)
+                : source instanceof SavedPlanet single ? single.shape() : PlanetShape.STANDARD;
     }
 
     private PlanetSystem() {}

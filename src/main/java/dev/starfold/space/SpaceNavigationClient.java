@@ -2,23 +2,21 @@ package dev.starfold.space;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import dev.starfold.dev.DevProbe;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.flight.ArrivalState;
-import dev.starfold.flight.FlightSnapshot;
-import dev.starfold.flight.FlightWidgets;
+import dev.starfold.flight.FlightMode;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.flight.HudLayout;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.render.GroundClient;
-import dev.starfold.render.RenderFrame;
+import dev.starfold.probe.ProbeState;
 import dev.starfold.ship.HelmClient;
 import dev.starfold.ship.HelmInputClient;
 import dev.starfold.ship.HullLandingClient;
+import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.Thrusters;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.waypoint.WaypointClient;
+import dev.starfold.sky.Space;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -46,7 +44,7 @@ public final class SpaceNavigationClient {
                 || HelmClient.tier() < 2
                 || body != lockBody
                 || mc.level != lockLevel
-                || locked >= GroundClient.ephemeris().count()) lock(-1);
+                || locked >= SpaceClientHost.get().ephemeris().count()) lock(-1);
         lockBody = body;
         lockLevel = mc.level;
     }
@@ -73,7 +71,7 @@ public final class SpaceNavigationClient {
 
     private static List<Integer> cycle() {
         var frame = SpaceClient.frame();
-        var model = GroundClient.ephemeris();
+        var model = SpaceClientHost.get().ephemeris();
         double tick = SpaceClient.time();
         var at = HelmClient.body().logicalPose().position();
         return SpaceNavigation.cycle(
@@ -117,7 +115,7 @@ public final class SpaceNavigationClient {
         if (action == org.lwjgl.glfw.GLFW.GLFW_PRESS && visible() && level == mc.level) {
             if (nextKey.matches(key, scan)) {
                 var frame = SpaceClient.frame();
-                var model = GroundClient.ephemeris();
+                var model = SpaceClientHost.get().ephemeris();
                 double tick = SpaceClient.time();
                 var at = HelmClient.body().logicalPose().position();
                 lock(
@@ -208,6 +206,67 @@ public final class SpaceNavigationClient {
     }
 
     /** Capture the world projection before vanilla replaces it with the GUI orthographic projection. */
+    private static Point hullBearing(
+            Space.Frame frame,
+            GroundEphemeris.Model model,
+            int bearingPlanet,
+            double tick,
+            Point pivot,
+            dev.ryanhcode.sable.sublevel.ClientSubLevel helm) {
+        var direction = frame.levelVector(model.at(bearingPlanet, tick).center().sub(pivot));
+        var hullDirection =
+                helm.logicalPose()
+                        .orientation()
+                        .conjugate(new org.joml.Quaterniond())
+                        .transform(
+                                new org.joml.Vector3d(direction.x(), direction.y(), direction.z()));
+        var facing = HelmInputClient.facing(helm);
+        var forward = new org.joml.Vector3d(facing.getStepX(), 0, facing.getStepZ());
+        var right = new org.joml.Vector3d(forward).cross(0, 1, 0);
+        return new Point(hullDirection.dot(right), hullDirection.y, hullDirection.dot(forward));
+    }
+
+    private static void captureMotionReceipt(
+            GroundEphemeris.Model model,
+            int relativeTo,
+            double tick,
+            Point eye,
+            Point velocity,
+            int width,
+            int height,
+            Space.Frame frame,
+            org.joml.Vector3d cameraVelocity) {
+        motionReceipt = "";
+        if (ProbeState.active()) {
+            var toward = model.at(relativeTo, tick).center().sub(eye);
+            double separation =
+                    Math.toDegrees(
+                            Math.acos(
+                                    Math.clamp(
+                                            velocity.dot(toward)
+                                                    / Math.max(
+                                                            1e-12,
+                                                            velocity.length() * toward.length()),
+                                            -1,
+                                            1)));
+            motionReceipt =
+                    " | viewport "
+                            + width
+                            + "x"
+                            + height
+                            + " | reference "
+                            + frame.planet()
+                            + " drift "
+                            + frame.drift()
+                            + " | relativeVelocity "
+                            + velocity
+                            + " cameraVelocity "
+                            + cameraVelocity
+                            + " separation "
+                            + separation;
+        }
+    }
+
     private static void capture(RenderFrame context) {
         validateLock();
         snapshot = null;
@@ -218,7 +277,7 @@ public final class SpaceNavigationClient {
         var helm = HelmClient.body();
         int tier = HelmClient.tier();
         if (helm == null || tier == 0 || mc.options.hideGui || mc.screen != null) return;
-        WaypointClient.capture(context);
+        SpaceClientHost.get().captureTarget(context);
         boolean chart = HullLandingClient.active();
         if (!chart && !visible()) return;
         var pointer =
@@ -228,62 +287,95 @@ public final class SpaceNavigationClient {
         var flight = HelmInputClient.state(helm.getUniqueId());
         if (flight == null) return;
         boolean boost = flight.boosted();
-        var launch = WaypointClient.active();
-        int launchPlanet = launch == null ? -1 : launch.planet();
+        int launchPlanet = SpaceClientHost.get().launchPlanet();
         if (chart) {
-            int planet = GroundClient.planet();
-            var ground = HullLandingClient.ground();
-            var motion = hullVector(helm, HullLandingClient.motion());
-            var up = hullVector(helm, new Point(0, 1, 0));
-            var nose = HelmClient.forward(helm);
-            var bounds = helm.getPlot().getBoundingBox();
-            var lift = HelmInputClient.lift(helm);
-            var landing =
-                    new FlightSnapshot.Landing(
-                            lift != null ? lift.limit() : Double.NaN,
-                            motion,
-                            Math.atan2(-up.x(), up.y()),
-                            Math.asin(Math.clamp(nose.y, -1, 1)),
-                            bounds.maxX() - bounds.minX() + 1,
-                            bounds.maxZ() - bounds.minZ() + 1,
-                            HullLandingClient.site());
-            snapshot =
-                    new FlightSnapshot(
-                            tier,
-                            FlightSnapshot.Mode.CHART,
-                            planet,
-                            Math.hypot(
-                                    HullLandingClient.horizontal(), HullLandingClient.vertical()),
-                            planet,
-                            flight.cruiseCap(),
-                            flight.boostCap(),
-                            boost,
-                            0,
-                            null,
-                            List.of(),
-                            GroundEphemeris.ZERO,
-                            null,
-                            false,
-                            GroundEphemeris.ZERO,
-                            planet,
-                            thrust,
-                            0,
-                            0,
-                            ground.clearance(),
-                            HullLandingClient.vertical(),
-                            HullLandingClient.horizontal(),
-                            launchPlanet,
-                            null,
-                            landing,
-                            WaypointClient.home(),
-                            ArrivalState.Phase.CRUISE,
-                            0,
-                            0);
-            level = mc.level;
+            captureChart(mc, helm, tier, thrust, flight, boost, launchPlanet);
             return;
         }
+        captureSpace(
+                context,
+                mc,
+                helm,
+                tier,
+                pointer,
+                pointerScale,
+                thrust,
+                flight,
+                boost,
+                launchPlanet);
+    }
+
+    private static void captureChart(
+            Minecraft mc,
+            dev.ryanhcode.sable.sublevel.ClientSubLevel helm,
+            int tier,
+            FlightSnapshot.Thrust thrust,
+            dev.starfold.ship.HelmPackets.State flight,
+            boolean boost,
+            int launchPlanet) {
+        int planet = SpaceClientHost.get().planet();
+        var ground = HullLandingClient.ground();
+        var motion = hullVector(helm, HullLandingClient.motion());
+        var up = hullVector(helm, new Point(0, 1, 0));
+        var nose = HelmClient.forward(helm);
+        var bounds = helm.getPlot().getBoundingBox();
+        var lift = HelmInputClient.lift(helm);
+        var landing =
+                new FlightSnapshot.Landing(
+                        lift != null ? lift.limit() : Double.NaN,
+                        motion,
+                        Math.atan2(-up.x(), up.y()),
+                        Math.asin(Math.clamp(nose.y, -1, 1)),
+                        bounds.maxX() - bounds.minX() + 1,
+                        bounds.maxZ() - bounds.minZ() + 1,
+                        HullLandingClient.site());
+        snapshot =
+                new FlightSnapshot(
+                        tier,
+                        FlightMode.CHART,
+                        planet,
+                        Math.hypot(HullLandingClient.horizontal(), HullLandingClient.vertical()),
+                        planet,
+                        flight.cruiseCap(),
+                        flight.boostCap(),
+                        boost,
+                        0,
+                        null,
+                        List.of(),
+                        GroundEphemeris.ZERO,
+                        null,
+                        false,
+                        GroundEphemeris.ZERO,
+                        planet,
+                        thrust,
+                        0,
+                        0,
+                        ground.clearance(),
+                        HullLandingClient.vertical(),
+                        HullLandingClient.horizontal(),
+                        launchPlanet,
+                        null,
+                        landing,
+                        SpaceClientHost.get().home(),
+                        ArrivalState.Phase.CRUISE,
+                        0,
+                        0);
+        level = mc.level;
+    }
+
+    private static void captureSpace(
+            RenderFrame context,
+            Minecraft mc,
+            dev.ryanhcode.sable.sublevel.ClientSubLevel helm,
+            int tier,
+            dev.starfold.space.SpaceAttitudeClient.Pointer pointer,
+            double pointerScale,
+            FlightSnapshot.Thrust thrust,
+            dev.starfold.ship.HelmPackets.State flight,
+            boolean boost,
+            int launchPlanet) {
         var frame = SpaceClient.frame();
-        var model = GroundClient.ephemeris();
+        var model = SpaceClientHost.get().ephemeris();
         double tick = SpaceClient.time();
         var eye =
                 SpaceClient.universeEye(
@@ -300,29 +392,9 @@ public final class SpaceNavigationClient {
         var nose = HelmClient.forward(helm);
         for (int id = 0; id < model.count(); id++) {
             var relative = SpaceView.relative(frame, viewEye, model.at(id, tick).center());
-            var camera =
-                    new org.joml.Matrix4d(context.positionMatrix())
-                            .transformPosition(
-                                    new org.joml.Vector3d(
-                                            relative.x(), relative.y(), relative.z()));
-            var marker =
-                    SpaceNavigation.project(
-                            new Point(camera.x, camera.y, camera.z),
-                            fov,
-                            aspect,
-                            Math.min(.2, 12.0 / width),
-                            Math.min(.2, 24.0 / height));
+            var marker = projectTarget(context, relative, fov, aspect, width, height);
             var toward = frame.levelVector(model.at(id, tick).center().sub(eye));
-            double angle =
-                    Math.toDegrees(
-                            Math.acos(
-                                    Math.clamp(
-                                            (toward.x() * nose.x
-                                                            + toward.y() * nose.y
-                                                            + toward.z() * nose.z)
-                                                    / Math.max(1e-12, toward.length()),
-                                            -1,
-                                            1)));
+            double angle = targetAngle(toward, nose);
             if (nearest.contains(id) || id == locked) {
                 var read = SpaceNavigation.read(model, frame, eye, id, tick);
                 list.add(
@@ -352,48 +424,10 @@ public final class SpaceNavigationClient {
                                 Math.min(.2, 12.0 / width),
                                 Math.min(.2, 24.0 / height));
         int relativeTo = locked >= 0 ? locked : frame.planet();
-        motionReceipt = "";
-        if (DevProbe.active()) {
-            var toward = model.at(relativeTo, tick).center().sub(eye);
-            double separation =
-                    Math.toDegrees(
-                            Math.acos(
-                                    Math.clamp(
-                                            velocity.dot(toward)
-                                                    / Math.max(
-                                                            1e-12,
-                                                            velocity.length() * toward.length()),
-                                            -1,
-                                            1)));
-            motionReceipt =
-                    " | viewport "
-                            + width
-                            + "x"
-                            + height
-                            + " | reference "
-                            + frame.planet()
-                            + " drift "
-                            + frame.drift()
-                            + " | relativeVelocity "
-                            + velocity
-                            + " cameraVelocity "
-                            + cameraVelocity
-                            + " separation "
-                            + separation;
-        }
+        captureMotionReceipt(
+                model, relativeTo, tick, eye, velocity, width, height, frame, cameraVelocity);
         int bearingPlanet = SpaceClient.arriving() ? planet : frame.planet();
-        var direction = frame.levelVector(model.at(bearingPlanet, tick).center().sub(pivot));
-        var hullDirection =
-                helm.logicalPose()
-                        .orientation()
-                        .conjugate(new org.joml.Quaterniond())
-                        .transform(
-                                new org.joml.Vector3d(direction.x(), direction.y(), direction.z()));
-        var facing = HelmInputClient.facing(helm);
-        var forward = new org.joml.Vector3d(facing.getStepX(), 0, facing.getStepZ());
-        var right = new org.joml.Vector3d(forward).cross(0, 1, 0);
-        var bearing =
-                new Point(hullDirection.dot(right), hullDirection.y, hullDirection.dot(forward));
+        var bearing = hullBearing(frame, model, bearingPlanet, tick, pivot, helm);
         var cycle = SpaceNavigation.cycle(model, pivot, tick, frame.planet());
         list.replaceAll(
                 t ->
@@ -408,12 +442,7 @@ public final class SpaceNavigationClient {
                                 tier >= 2 && t.planet() == locked
                                         ? SpaceNavigation.blocker(model, pivot, locked, tick)
                                         : -1));
-        list.sort(
-                Comparator.comparingInt(
-                        t ->
-                                nearest.contains(t.planet())
-                                        ? nearest.indexOf(t.planet())
-                                        : nearest.size()));
+        sortNearestTargets(list, nearest);
         var target = list.stream().filter(t -> t.planet() == locked).findFirst().orElse(null);
         var arrival =
                 SpaceClient.phase() != ArrivalState.Phase.CRUISE
@@ -422,9 +451,7 @@ public final class SpaceNavigationClient {
         snapshot =
                 new FlightSnapshot(
                         tier,
-                        SpaceClient.arriving()
-                                ? FlightSnapshot.Mode.ARRIVAL
-                                : FlightSnapshot.Mode.FREE,
+                        SpaceClient.arriving() ? FlightMode.ARRIVAL : FlightMode.FREE,
                         planet,
                         velocity.length() * 20,
                         relativeTo,
@@ -454,6 +481,40 @@ public final class SpaceNavigationClient {
                         SpaceClient.notice());
         candidates = List.copyOf(choices);
         level = mc.level;
+    }
+
+    private static void sortNearestTargets(
+            List<FlightSnapshot.Target> list, List<Integer> nearest) {
+        list.sort(
+                Comparator.comparingInt(
+                        t ->
+                                nearest.contains(t.planet())
+                                        ? nearest.indexOf(t.planet())
+                                        : nearest.size()));
+    }
+
+    private static SpaceNavigation.Marker projectTarget(
+            RenderFrame context, Point relative, double fov, double aspect, int width, int height) {
+        var camera =
+                new org.joml.Matrix4d(context.positionMatrix())
+                        .transformPosition(
+                                new org.joml.Vector3d(relative.x(), relative.y(), relative.z()));
+        return SpaceNavigation.project(
+                new Point(camera.x, camera.y, camera.z),
+                fov,
+                aspect,
+                Math.min(.2, 12.0 / width),
+                Math.min(.2, 24.0 / height));
+    }
+
+    private static double targetAngle(Point toward, org.joml.Vector3d nose) {
+        return Math.toDegrees(
+                Math.acos(
+                        Math.clamp(
+                                (toward.x() * nose.x + toward.y() * nose.y + toward.z() * nose.z)
+                                        / Math.max(1e-12, toward.length()),
+                                -1,
+                                1)));
     }
 
     private static Point hullVector(
@@ -586,7 +647,7 @@ public final class SpaceNavigationClient {
                                 + t.angle()
                                 + " eta "
                                 + t.eta();
-            if (DevProbe.active())
+            if (ProbeState.active())
                 receipt +=
                         " | identities "
                                 + PlanetSystem.identities()

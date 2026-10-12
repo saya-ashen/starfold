@@ -1,11 +1,13 @@
 package dev.starfold.space;
 
-import static dev.starfold.space.SpaceTest.*;
+import static dev.starfold.sky.SpaceTest.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
+import dev.starfold.ship.SpacePackets;
+import dev.starfold.sky.Space;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -144,7 +146,7 @@ class SpaceAttitudeTest {
                 new String[] {
                     "!Float.isFinite(packet.pitch())",
                     "!Float.isFinite(packet.roll())",
-                    "!in(player)",
+                    "!Space.in(player)",
                     "lead==null||!helm(player,lead)",
                     "HelmServer.pilot(player,body)",
                     "wish.body()!=lead",

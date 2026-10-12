@@ -1,6 +1,6 @@
 package dev.starfold;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.network.StarfoldNetwork;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -9,6 +9,6 @@ import net.neoforged.fml.common.Mod;
 public final class Starfold {
     public Starfold(IEventBus modBus) {
         StarfoldNetwork.initialize(modBus);
-        GroundServer.initialize(modBus);
+        StarfoldServer.initialize(modBus);
     }
 }

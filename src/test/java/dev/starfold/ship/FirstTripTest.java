@@ -3,8 +3,8 @@ package dev.starfold.ship;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.flight.FlightMode;
 import dev.starfold.flight.FlightPermitTest;
-import dev.starfold.flight.FlightSnapshot;
 import dev.starfold.flight.HudLayout;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.space.SpaceNavigation;
@@ -96,9 +96,9 @@ class FirstTripTest {
     @Test
     void preciseChartOnlyBelowTwoHundred() {
         for (int tier = 0; tier < 4; tier++)
-            for (var mode : FlightSnapshot.Mode.values()) {
+            for (var mode : FlightMode.values()) {
                 assertEquals(
-                        tier == 3 && mode == FlightSnapshot.Mode.CHART,
+                        tier == 3 && mode == FlightMode.CHART,
                         HullLanding.showSurface(tier, mode, 199.99));
                 assertFalse(HullLanding.showSurface(tier, mode, 200));
                 assertFalse(HullLanding.showSurface(tier, mode, Double.NaN));

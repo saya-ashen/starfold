@@ -1,8 +1,8 @@
 package dev.starfold.mixin;
 
 import dev.starfold.ground.ChunkViews;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -26,7 +26,7 @@ public abstract class GroundChunkViewMixin {
     @Shadow @Final Thread mainThread;
 
     private boolean starfold$ghost(int x, int z) {
-        return GroundServer.is(level) && ChunkViews.ghost(PlanetAccess.of(level), x, z);
+        return PlanetLevels.is(level) && ChunkViews.ghost(PlanetAccess.of(level), x, z);
     }
 
     @Inject(

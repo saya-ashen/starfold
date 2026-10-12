@@ -1,8 +1,7 @@
 package dev.starfold.render;
 
-import dev.starfold.chart.GroundTransition;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.planet.PlanetShape;
 import dev.starfold.worldgen.PlanetHeightCache;
 
 import java.util.*;

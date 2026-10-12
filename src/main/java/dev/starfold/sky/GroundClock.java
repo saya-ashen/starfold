@@ -2,10 +2,8 @@ package dev.starfold.sky;
 
 import dev.starfold.chart.GroundAir;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.planet.Universe;
-import dev.starfold.worldgen.SystemChunkGenerator;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -56,7 +54,7 @@ public final class GroundClock extends SavedData {
     }
 
     public static GroundClock get(ServerLevel level) {
-        if (!GroundServer.is(level)) throw new IllegalArgumentException("Dimension");
+        if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Dimension");
         boolean multiple = PlanetSystem.multiple(level);
         var storage = PlanetSystem.authority(level).getDataStorage();
         var value =
@@ -73,26 +71,22 @@ public final class GroundClock extends SavedData {
                                     // Old systems begin at sunrise. An authored sky starts at zero
                                     // so its written phases mean what the author sees.
                                     var model = PlanetSystem.model(level);
+                                    var saved =
+                                            level.getChunkSource().getGenerator()
+                                                            instanceof PlanetSystem.Saved s
+                                                    ? s
+                                                    : null;
                                     var begun =
                                             new GroundClock(
                                                     new GroundEphemerisSave(
                                                             model,
-                                                            level.getChunkSource().getGenerator()
-                                                                                    instanceof
-                                                                                    SystemChunkGenerator
-                                                                                            system
-                                                                            && system.starterShip()
-                                                                                    .isPresent()
+                                                            saved != null && saved.startsWithShip()
                                                                     ? GroundDaylight.midMorning(
                                                                             model,
                                                                             PlanetSystem.shape(
                                                                                     level, 0))
-                                                                    : level.getChunkSource()
-                                                                                                    .getGenerator()
-                                                                                            instanceof
-                                                                                            SystemChunkGenerator
-                                                                                                    authored
-                                                                                    && authored
+                                                                    : saved != null
+                                                                                    && saved
                                                                                             .authored()
                                                                             ? 0
                                                                             : GroundDaylight
@@ -110,7 +104,8 @@ public final class GroundClock extends SavedData {
                         FILE);
         if (multiple
                 && value.clock.model.count() < PlanetSystem.count(level)
-                && Universe.of(level) != null) {
+                && level.getChunkSource().getGenerator() instanceof PlanetSystem.Saved grown
+                && grown.beyond(level)) {
             value.clock.model = PlanetSystem.model(level);
             value.setDirty();
         }

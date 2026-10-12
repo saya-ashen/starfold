@@ -4,7 +4,6 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.CubeSurfaceTopology.Cell;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.PlanetShape;
 
 import java.util.List;
 import java.util.Objects;

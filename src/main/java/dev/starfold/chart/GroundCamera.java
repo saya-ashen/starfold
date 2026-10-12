@@ -1,9 +1,6 @@
 package dev.starfold.chart;
 
 import dev.starfold.geometry.OrbitAttitude;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.sky.GroundEphemeris;
 
 import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
@@ -23,14 +20,14 @@ public final class GroundCamera {
     }
 
     public static Quaterniond landing(
-            GroundEphemeris.Model model, GroundTopology.Pose pose, Quaterniondc live, double time) {
+            GroundEphemeris.Model model, PlanetShape.Pose pose, Quaterniondc live, double time) {
         return landing(model, 0, pose, live, time);
     }
 
     public static Quaterniond landing(
             GroundEphemeris.Model model,
             int planet,
-            GroundTopology.Pose pose,
+            PlanetShape.Pose pose,
             Quaterniondc live,
             double time) {
         return GroundView.upright(

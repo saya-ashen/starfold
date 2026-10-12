@@ -1,6 +1,6 @@
 package dev.starfold.mixin;
 
-import dev.starfold.worldgen.PlanetWorldPreset;
+import dev.starfold.universe.PlanetWorldPreset;
 
 import net.minecraft.core.Registry;
 import net.minecraft.world.level.dimension.LevelStem;

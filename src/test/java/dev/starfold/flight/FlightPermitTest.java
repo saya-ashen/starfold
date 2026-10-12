@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ImageStream;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.worldgen.PlanetEcologyTest;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetTerrain;
@@ -121,21 +121,18 @@ public class FlightPermitTest {
         for (var name :
                 java.util.List.of(
                         "GroundServer",
+                        "PlanetPlayers",
+                        "StarfoldServer",
                         "GroundFlightServer",
                         "GroundViewServer",
                         "GroundFlightClient")) {
             var text = Sources.text(name);
-            if (name.equals("GroundServer")) {
-                var start =
-                        text.indexOf(
-                                "private static void canSleep(net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent event)");
-                var end = text.indexOf("public static void initialize(", start);
-                assertTrue(start >= 0 && end > start);
+            if (name.equals("PlanetPlayers")) {
                 assertEquals(
                         1,
-                        text.substring(start, end).split("isCreative", -1).length - 1,
+                        text.split("isCreative", -1).length - 1,
                         "only vanilla's sleep safety exemption");
-                text = text.substring(0, start).plus(text.substring(end));
+                continue;
             }
             assertFalse(text.contains("isCreative"), name);
         }
@@ -144,7 +141,7 @@ public class FlightPermitTest {
         // On foot above the handoff is still ground; a vessel without the permit has no thrust.
         assertTrue(server.contains("y()>GroundDynamics.HANDOFF&&s.state.flying()"));
         assertTrue(server.contains("if(!permit){motion=PlanetMotion.Input.idle("));
-        assertTrue(Sources.text("GroundServer").contains("FlightPermit.revoke(player)"));
+        assertTrue(Sources.text("PlanetPlayers").contains("FlightPermit.revoke(player)"));
         assertTrue(Sources.text("GroundFlightClient").contains("getAbilities().mayfly"));
     }
 
@@ -169,7 +166,7 @@ public class FlightPermitTest {
         var server = Sources.text("GroundFlightServer");
         assertTrue(
                 server.contains(
-                        "public static boolean controlled(Entity entity){if(!GroundServer.is(entity.level()))return false;"));
+                        "public static boolean controlled(Entity entity){if(!PlanetLevels.is(entity.level()))return false;"));
         assertTrue(
                 server.contains("var s=sessions.get(p.getUUID());return s!=null&&s.controlled;"));
     }
@@ -221,7 +218,7 @@ public class FlightPermitTest {
                 mixin.contains(
                         "@WrapOperation(method=\"setPosRaw\",at=@At(value=\"INVOKE\",target=\"Lnet/minecraft/world/level/Level;getChunk(II)Lnet/minecraft/world/level/chunk/LevelChunk;\"))"));
         assertTrue(mixin.contains("Level level,int x,int z,Operation<LevelChunk> original"));
-        assertTrue(mixin.contains("return GroundServer.is(level)?null:original.call(level,x,z);"));
+        assertTrue(mixin.contains("return PlanetLevels.is(level)?null:original.call(level,x,z);"));
         assertEquals(1, mixin.split("@WrapOperation", -1).length - 1);
         assertFalse(mixin.contains("@Inject"));
         assertFalse(mixin.contains("require=0"));
@@ -231,13 +228,13 @@ public class FlightPermitTest {
                         .filter(e -> e.getAsString().equals("GroundEntityPositionMixin"))
                         .count());
         assertTrue(
-                Sources.text("GroundServer")
+                Sources.text("PlanetLevels")
                         .contains(
                                 "public static boolean is(Level level){return level!=null&&(level.dimension().equals(DIMENSION)||level.dimension().equals(PLANET)||level.dimension().equals(ROCK));}"));
-        assertEquals("starfold:native_ground", GroundServer.DIMENSION.location().toString());
-        assertEquals("starfold:native_planet", GroundServer.PLANET.location().toString());
-        assertEquals("starfold:native_rock", GroundServer.ROCK.location().toString());
-        assertFalse(GroundServer.is(null));
+        assertEquals("starfold:native_ground", PlanetLevels.DIMENSION.location().toString());
+        assertEquals("starfold:native_planet", PlanetLevels.PLANET.location().toString());
+        assertEquals("starfold:native_rock", PlanetLevels.ROCK.location().toString());
+        assertFalse(PlanetLevels.is(null));
     }
 
     @Test
@@ -275,24 +272,36 @@ public class FlightPermitTest {
 
     @Test
     void theHomePlanetIsReachedWithoutACommandAndDeathBeginsAgain() throws Exception {
-        var server = Sources.text("GroundServer");
+        var server = Sources.text("PlanetPlayers");
+        assertTrue(
+                Sources.text("StarfoldServer")
+                        .contains(
+                                "NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post cpEvent)->{var server=cpEvent.getServer();if(server.getTickCount()%20==0)PlanetPlayers.arrive(server);});"));
         assertTrue(
                 server.contains(
-                        "NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post cpEvent)->{var server=cpEvent.getServer();if(server.getTickCount()%20==0)arrive(server);});"));
-        assertTrue(
-                server.contains("player.getTags().contains(STAY)||!arrived.add(player.getUUID())"),
+                        "player.getTags().contains(STAY)||!GroundServer.arrivalAttempted(player.getUUID())"),
                 "once for each time someone appears in the overworld, unless they chose to stay");
         assertTrue(
                 server.contains("player.addTag(STAY)")
                         && server.contains("player.removeTag(STAY)"));
         assertTrue(
                 server.contains(
-                        "public static void afterDeath(ServerPlayer player){arrived.remove(player.getUUID());if(is(player.level()))GroundFlightServer.forget(player);}"),
+                        "public static void afterDeath(ServerPlayer player){GroundServer.arrivalForgotten(player.getUUID());if(PlanetLevels.is(player.level()))GroundFlightServer.forget(player);}"),
                 "a completed death lets them arrive again, and ends its journey");
+        var state = Sources.text("GroundServer");
+        assertTrue(
+                state.contains("arrivalForgotten(java.util.UUID player){arrived.remove(player);}"));
+        assertTrue(
+                state.contains(
+                        "arrivalAttempted(java.util.UUID player){return arrived.add(player);}"));
         var death = Sources.text("GroundDeathMixin");
         assertTrue(death.contains("@Mixin(ServerPlayer.class)"));
         assertTrue(death.contains("@Inject(method=\"die\",at=@At(\"TAIL\"))"));
-        assertTrue(death.contains("GroundServer.afterDeath((ServerPlayer)(Object)this)"));
+        assertTrue(death.contains("GroundHost.get().afterDeath((ServerPlayer)(Object)this)"));
+        assertTrue(
+                Sources.text("StarfoldServer")
+                        .contains(
+                                "public void afterDeath(net.minecraft.server.level.ServerPlayer player){PlanetPlayers.afterDeath(player);}"));
         assertTrue(
                 json("starfold.mixins.json").getAsJsonArray("mixins").asList().stream()
                         .anyMatch(e -> e.getAsString().equals("GroundDeathMixin")));
@@ -302,12 +311,13 @@ public class FlightPermitTest {
                 flight.contains(
                         "GroundNavigationSave.get(player.serverLevel()).remove(player.getUUID())"));
         // Going, steering and marking need no permission; setting up and looking into a world does.
-        assertFalse(server.contains("Commands.literal(\"starfold\").requires("));
+        var commands = Sources.text("StarfoldServer");
+        assertFalse(commands.contains("Commands.literal(\"starfold\").requires("));
         for (var open : java.util.List.of("terrain", "leave", "status", "universe", "nav"))
-            assertFalse(server.contains("Commands.literal(\"" + open + "\").requires("), open);
+            assertFalse(commands.contains("Commands.literal(\"" + open + "\").requires("), open);
         for (var closed : java.util.List.of("enter", "orbit", "face", "spin"))
             assertTrue(
-                    server.contains(
+                    commands.contains(
                             "Commands.literal(\"" + closed + "\").requires(s->s.hasPermission(2))"),
                     closed);
     }
@@ -317,8 +327,7 @@ public class FlightPermitTest {
         assertEquals(2048, GroundFlightServer.ALOFT);
         var stream = Sources.text("ImageStream");
         assertTrue(
-                stream.contains(
-                        "int radius=GroundFlightServer.aloft(player)?ALOFT:radius(player);"));
+                stream.contains("int radius=GroundHost.get().aloft(player)?ALOFT:radius(player);"));
         assertTrue(
                 ImageStream.positions(
                                 new net.minecraft.world.level.ChunkPos(40, -7), ImageStream.ALOFT)
@@ -339,7 +348,12 @@ public class FlightPermitTest {
     @Test
     void theScreenIsTheGamesOwnOnFootAndAVesselShowsFourLines() throws Exception {
         var flight = Sources.text("GroundFlightClient");
-        assertTrue(flight.contains("if(GroundClient.DEBUG_HUD){debugHud(g,mc);return;}"));
+        assertTrue(
+                flight.contains(
+                        "if(FlightClientHost.get().diagnosticHud()){debugHud(g,mc);return;}"));
+        assertTrue(
+                Sources.text("StarfoldClient")
+                        .contains("boolean diagnosticHud(){return GroundClient.DEBUG_HUD;}"));
         assertTrue(flight.contains("if(!controlled)return;"), "nothing is drawn on the ground");
         assertTrue(
                 Sources.text("GroundClient")
@@ -360,6 +374,7 @@ public class FlightPermitTest {
                         "WaypointServer",
                         "WaypointClient",
                         "GroundServer",
+                        "PlanetPlayers",
                         "GroundFlightServer",
                         "GroundClient")) {
             var m =
@@ -401,9 +416,10 @@ public class FlightPermitTest {
         assertTrue(
                 Sources.text("RendererGuard")
                         .contains(
-                                "rendererNotice.enter(mc.level,GroundServer.is(mc.level),mc.player!=null,pipelineSupported())"),
+                                "rendererNotice.enter(mc.level,PlanetLevels.is(mc.level),mc.player!=null,pipelineSupported())"),
                 "only an unsupported renderer in a planet world is spoken of");
         assertFalse(Sources.text("GroundServer").contains("仍需游戏内验收"));
+        assertFalse(Sources.text("PlanetPlayers").contains("仍需游戏内验收"));
         assertFalse(Sources.text("GroundClient").contains("新地形仍需游戏内验收"));
     }
 }

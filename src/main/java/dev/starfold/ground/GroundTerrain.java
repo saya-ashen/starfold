@@ -1,14 +1,17 @@
 package dev.starfold.ground;
 
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.flight.GroundDynamics;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.Anomaly;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.Blocks;
@@ -37,7 +40,7 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
     }
 
     public GroundTerrain(Level level, Entity entity, GroundSpace.Config mask, int planet) {
-        if (!GroundServer.is(level) || mask == null)
+        if (!PlanetLevels.is(level) || mask == null)
             throw new IllegalArgumentException("Native collision world");
         PlanetShape.valid(planet);
         this.level = level;
@@ -147,12 +150,12 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
     }
 
     /** Client: the world is the observer's own coordinates; canonical poses are relabelled into it. */
-    private Point clientFeet(GroundTopology.Pose pose) {
+    private Point clientFeet(PlanetShape.Pose pose) {
         return GroundSeams.clientFeet(planet, pose);
     }
 
     @Override
-    public boolean clear(GroundTopology.Pose pose) {
+    public boolean clear(PlanetShape.Pose pose) {
         if (level.isClientSide) {
             // High above any planet (including the other one) nothing can collide, drawn in this
             // chart or not.
@@ -198,7 +201,7 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
     }
 
     @Override
-    public double clearance(GroundTopology.Pose pose) {
+    public double clearance(PlanetShape.Pose pose) {
         if (level.isClientSide) {
             var chart = access.feet(planet, pose);
             double limit =
@@ -295,5 +298,47 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
 
     private GroundTerrain() {
         throw new AssertionError();
+    }
+
+    /** The terrain of every planet a level holds, as flight asks for it. */
+    public static GroundDynamics.Terrain of(
+            ServerLevel current,
+            net.minecraft.server.level.ServerPlayer player,
+            GroundSpace.Config mask) {
+        return new GroundDynamics.Terrain() {
+            public boolean clear(PlanetShape.Pose p) {
+                return clear(
+                        player == null ? PlanetSystem.planet(current) : PlanetSystem.planet(player),
+                        p);
+            }
+
+            public double clearance(PlanetShape.Pose p) {
+                return clearance(
+                        player == null ? PlanetSystem.planet(current) : PlanetSystem.planet(player),
+                        p);
+            }
+
+            public boolean clear(int id, PlanetShape.Pose p) {
+                return new GroundTerrain(
+                                PlanetSystem.multiple(current)
+                                        ? PlanetSystem.level(current, id)
+                                        : current,
+                                player,
+                                mask,
+                                id)
+                        .clear(p);
+            }
+
+            public double clearance(int id, PlanetShape.Pose p) {
+                return new GroundTerrain(
+                                PlanetSystem.multiple(current)
+                                        ? PlanetSystem.level(current, id)
+                                        : current,
+                                player,
+                                mask,
+                                id)
+                        .clearance(p);
+            }
+        };
     }
 }

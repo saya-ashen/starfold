@@ -3,8 +3,8 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundViewServer;
 
 import net.minecraft.core.BlockPos;
@@ -20,14 +20,14 @@ public abstract class GroundBlockEventMixin {
     private BlockPos starfold$nativeEventOwner(BlockPos pos) {
         var level = (ServerLevel) (Object) this;
         var access = PlanetAccess.of(level);
-        return GroundServer.is(level) && access.inChart(pos) ? access.address(pos).owner() : pos;
+        return PlanetLevels.is(level) && access.inChart(pos) ? access.address(pos).owner() : pos;
     }
 
     @WrapMethod(method = "doBlockEvent")
     private boolean starfold$nativeEvent(BlockEventData event, Operation<Boolean> original) {
         boolean success = original.call(event);
         var level = (ServerLevel) (Object) this;
-        if (success && GroundServer.is(level)) GroundViewServer.event(level, event);
+        if (success && PlanetLevels.is(level)) GroundViewServer.event(level, event);
         return success;
     }
 }

@@ -1,8 +1,6 @@
 package dev.starfold.sky;
 
-import dev.starfold.ground.GroundServer;
-import dev.starfold.render.GroundClient;
-import dev.starfold.space.SpaceClient;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -13,9 +11,9 @@ public final class WeatherClient {
 
     public static boolean absent(Level level) {
         var mc = Minecraft.getInstance();
-        if (level != mc.level || mc.player == null || !GroundServer.is(level)) return false;
-        if (SpaceClient.present()) return true;
-        var p = GroundClient.storage(mc.player.getX(), mc.player.getEyeY(), mc.player.getZ());
+        if (level != mc.level || mc.player == null || !PlanetLevels.is(level)) return false;
+        if (SkyHost.client().present()) return true;
+        var p = SkyHost.client().storage(mc.player.getX(), mc.player.getEyeY(), mc.player.getZ());
         return Weather.absent(level, BlockPos.containing(p.x(), p.y(), p.z()));
     }
 

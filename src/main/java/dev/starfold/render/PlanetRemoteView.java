@@ -1,6 +1,6 @@
 package dev.starfold.render;
 
-import dev.starfold.planet.PlanetPackets;
+import dev.starfold.universe.PlanetPackets;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import java.util.*;

@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.world.entity.*;
 import net.minecraft.world.phys.Vec3;
@@ -27,7 +27,7 @@ public abstract class GroundTopologyEntityMixin {
     private void starfold$nativeDistance(
             double x, double y, double z, CallbackInfoReturnable<Double> ci) {
         var e = (Entity) (Object) this;
-        if (GroundServer.canonical(e.level())) ci.setReturnValue(GroundSeams.distance(e, x, y, z));
+        if (PlanetLevels.canonical(e.level())) ci.setReturnValue(GroundSeams.distance(e, x, y, z));
     }
 
     @Inject(
@@ -36,7 +36,7 @@ public abstract class GroundTopologyEntityMixin {
             cancellable = true)
     private void starfold$nativeVectorDistance(Vec3 p, CallbackInfoReturnable<Double> ci) {
         var e = (Entity) (Object) this;
-        if (GroundServer.canonical(e.level()))
+        if (PlanetLevels.canonical(e.level()))
             ci.setReturnValue(GroundSeams.distance(e, p.x, p.y, p.z));
     }
 
@@ -46,7 +46,7 @@ public abstract class GroundTopologyEntityMixin {
             cancellable = true)
     private void starfold$nativeEntityDistance(Entity other, CallbackInfoReturnable<Double> ci) {
         var e = (Entity) (Object) this;
-        if (GroundServer.canonical(e.level()))
+        if (PlanetLevels.canonical(e.level()))
             ci.setReturnValue(GroundSeams.distance(e, other.getX(), other.getY(), other.getZ()));
     }
 }

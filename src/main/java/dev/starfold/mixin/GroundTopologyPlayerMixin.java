@@ -4,8 +4,8 @@ import dev.starfold.chart.PlanetChart;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -30,7 +30,7 @@ public abstract class GroundTopologyPlayerMixin {
             com.llamalad7.mixinextras.injector.wrapoperation.Operation<AABB> original) {
         var p = (Player) (Object) this;
         var box = original.call(entity);
-        if (!GroundServer.canonical(p.level())) return box;
+        if (!PlanetLevels.canonical(p.level())) return box;
         var image = GroundSeams.box(p.level(), box, p.getX(), p.getZ());
         return image == null ? box : image;
     }
@@ -40,7 +40,7 @@ public abstract class GroundTopologyPlayerMixin {
             BlockPos pos, double extra, CallbackInfoReturnable<Boolean> ci) {
         var p = (Player) (Object) this;
         var access = PlanetAccess.of(p.level());
-        if (!GroundServer.canonical(p.level())
+        if (!PlanetLevels.canonical(p.level())
                 || !access.inChart(pos)
                 || !access.inChart(p.blockPosition())) return;
         if (!access.samePlanet(p.getX(), p.getZ(), pos.getX(), pos.getZ())) {

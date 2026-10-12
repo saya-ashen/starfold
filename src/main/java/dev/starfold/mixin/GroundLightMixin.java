@@ -1,9 +1,9 @@
 package dev.starfold.mixin;
 
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.flight.GroundFlightClient;
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundClient;
-import dev.starfold.sky.GroundSolar;
 import dev.starfold.space.SpaceClient;
 
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -21,7 +21,7 @@ public abstract class GroundLightMixin {
             ci.setReturnValue((float) (.2 + .8 * SpaceClient.sunlight()));
             return;
         }
-        if (GroundServer.is((ClientLevel) (Object) this) && GroundClient.ready())
+        if (PlanetLevels.is((ClientLevel) (Object) this) && GroundClient.ready())
             ci.setReturnValue(
                     (float)
                             (.2

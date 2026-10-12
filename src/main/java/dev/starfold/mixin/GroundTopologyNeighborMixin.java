@@ -4,8 +4,8 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 import dev.starfold.geometry.ChartOrientation;
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.core.*;
 import net.minecraft.world.level.*;
@@ -28,7 +28,7 @@ public interface GroundTopologyNeighborMixin {
             boolean moved,
             Operation<Void> original) {
         var access = PlanetAccess.of(level);
-        if (!GroundServer.is(level) || level.isClientSide || !access.inChart(target)) {
+        if (!PlanetLevels.is(level) || level.isClientSide || !access.inChart(target)) {
             original.call(level, state, target, block, source, moved);
             return;
         }
@@ -47,7 +47,7 @@ public interface GroundTopologyNeighborMixin {
             int limit,
             Operation<Void> original) {
         if (!(accessor instanceof Level level)
-                || !GroundServer.is(level)
+                || !PlanetLevels.is(level)
                 || level.isClientSide
                 || !PlanetAccess.of(level).inChart(target)) {
             original.call(accessor, direction, neighbor, target, source, flags, limit);

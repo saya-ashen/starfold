@@ -2,6 +2,7 @@ package dev.starfold.sky;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundMotion;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;

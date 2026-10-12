@@ -5,26 +5,23 @@ import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.network.packets.ClientboundSableSnapshotDualPacket;
 import dev.ryanhcode.sable.network.packets.tcp.ClientboundRecentlySplitSubLevelPacket;
 import dev.ryanhcode.sable.network.packets.tcp.ClientboundStartTrackingSubLevelPacket;
-import dev.starfold.StarfoldNetwork;
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundCoordinates;
 import dev.starfold.ground.GroundSeams;
-import dev.starfold.ground.GroundServer;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.ground.PacketMap;
 import dev.starfold.ground.PayloadMap;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetShape;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
+import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.space.Space;
-import dev.starfold.space.SpaceApproach;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.sky.Space;
 
 import net.minecraft.server.level.ServerPlayer;
 
@@ -102,7 +99,7 @@ public final class SableFrames {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) -> {
                     if (event.getLevel() instanceof net.minecraft.server.level.ServerLevel level
-                            && GroundServer.is(level)) cross(level);
+                            && PlanetLevels.is(level)) cross(level);
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent event) ->
@@ -247,7 +244,7 @@ public final class SableFrames {
             dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics, double step) {
         WEIGHING.remove(physics);
         var level = physics.getLevel();
-        if (!GroundServer.is(level)) return;
+        if (!PlanetLevels.is(level)) return;
         var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
         if (container == null) return;
         var pending =
@@ -437,10 +434,10 @@ public final class SableFrames {
         var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
         SableTickets.update(level, container);
         if (container == null) {
-            SpaceApproach.release(level);
+            ShipHost.get().releaseArrival(level);
             return;
         }
-        SpaceServer.step(level, container);
+        ShipHost.get().advanceSurroundings(level, container);
         for (var body : java.util.List.copyOf(container.getAllSubLevels())) {
             if (body.isRemoved()) continue;
             var at = body.logicalPose().position();
@@ -514,8 +511,7 @@ public final class SableFrames {
                         ? access.storagePlanet(at.x, at.z)
                         : clock.model.count() == 1 ? 0 : PlanetSystem.planet(level);
         var pose =
-                new GroundTopology.Pose(
-                        CubeSurfaceTopology.Face.values()[access.face(at.x)], point);
+                new PlanetShape.Pose(CubeSurfaceTopology.Face.values()[access.face(at.x)], point);
         var universe =
                 Space.out(
                         clock.model,
@@ -525,15 +521,16 @@ public final class SableFrames {
                         motion(container, body, point),
                         clock.tick());
         var frame =
-                SpaceServer.entering(
-                        level,
-                        universe,
-                        new Quaterniond(body.logicalPose().orientation()),
-                        clock.model,
-                        planet,
-                        clock.tick());
+                ShipHost.get()
+                        .departureFrame(
+                                level,
+                                universe,
+                                new Quaterniond(body.logicalPose().orientation()),
+                                clock.model,
+                                planet,
+                                clock.tick());
         move(level, container, body, frame.level(universe, clock.model, clock.tick()), false);
-        SpaceServer.departed(level, planet, body.getUniqueId().toString());
+        ShipHost.get().hullDeparted(level, planet, body.getUniqueId().toString());
     }
 
     /** Only a region body can arrive; the nearest centre decides which chart receives its universe motion. */
@@ -546,7 +543,8 @@ public final class SableFrames {
         var clock = GroundClock.get(level).clock;
         var access = PlanetAccess.of(level);
         var universe =
-                SpaceServer.frame(level)
+                ShipHost.get()
+                        .surroundingsFrame(level)
                         .universe(
                                 motion(
                                         container,
@@ -564,8 +562,8 @@ public final class SableFrames {
         var arrival = Space.in(clock.model, planet, shape, universe, clock.tick());
         var chart = arrival.motion();
         var anchor = access.bodyAnchor(planet, arrival.pose());
-        boolean full = SpaceApproach.full(level, anchor);
-        if (!SpaceApproach.ready(height, full)) return;
+        boolean full = ShipHost.get().landingLoaded(level, anchor);
+        if (!ShipHost.get().landingReady(height, full)) return;
         if (ArrivalProbe.ENABLED)
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
@@ -577,7 +575,7 @@ public final class SableFrames {
                             height,
                             full,
                             full ? "full" : "emergency",
-                            SpaceApproach.column(anchor));
+                            ShipHost.get().landingColumn(anchor));
         long start = ArrivalProbe.start();
         try {
             move(
@@ -586,8 +584,8 @@ public final class SableFrames {
                     body,
                     new Space.Motion(anchor, chart.orientation(), chart.velocity(), chart.spin()),
                     false);
-            SpaceServer.enteredChart(level, body.getUniqueId().toString());
-            SpaceApproach.arrived(level, body);
+            ShipHost.get().hullEnteredChart(level, body.getUniqueId().toString());
+            ShipHost.get().hullArrived(level, body);
         } finally {
             ArrivalProbe.end("carry", start);
         }
@@ -648,28 +646,7 @@ public final class SableFrames {
         pipeline.teleport(body, body.logicalPose().position(), body.logicalPose().orientation());
         pipeline.addLinearAndAngularVelocity(
                 body, new Vector3d(linear.x(), linear.y(), linear.z()), angular);
-        if (System.getProperty("starfold.probe") != null
-                || Boolean.getBoolean("starfold.carryProbe"))
-            org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                    .info(
-                            "PROBE CARRY orientation before {} {} {} {} after {} {} {} {} angle {}",
-                            before.orientation().x(),
-                            before.orientation().y(),
-                            before.orientation().z(),
-                            before.orientation().w(),
-                            body.logicalPose().orientation().x,
-                            body.logicalPose().orientation().y,
-                            body.logicalPose().orientation().z,
-                            body.logicalPose().orientation().w,
-                            Math.toDegrees(
-                                    new Quaterniond(before.orientation())
-                                            .normalize()
-                                            .difference(
-                                                    new Quaterniond(
-                                                                    body.logicalPose()
-                                                                            .orientation())
-                                                            .normalize())
-                                            .angle()));
+        logCarryOrientation(before, body);
         for (var entry : riders.entrySet()) {
             var rider = entry.getKey();
             var at = riderPoint(before, body.logicalPose(), entry.getValue());
@@ -721,7 +698,7 @@ public final class SableFrames {
                                     f.toClient(new BentStripGeometry.Point(at.x, at.y, at.z)),
                                     f.yawToClient(player.getYRot()),
                                     f,
-                                    SpaceServer.packet(player));
+                                    ShipHost.get().carriedFrame(player));
                     PacketMap.raw(
                             player,
                             new net.minecraft.network.protocol.common
@@ -731,6 +708,32 @@ public final class SableFrames {
                 if (rider instanceof ServerPlayer player) CARRYING.remove(player);
             }
         }
+    }
+
+    private static void logCarryOrientation(
+            Pose3d before, dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+        if (System.getProperty("starfold.probe") != null
+                || Boolean.getBoolean("starfold.carryProbe"))
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info(
+                            "PROBE CARRY orientation before {} {} {} {} after {} {} {} {} angle {}",
+                            before.orientation().x(),
+                            before.orientation().y(),
+                            before.orientation().z(),
+                            before.orientation().w(),
+                            body.logicalPose().orientation().x,
+                            body.logicalPose().orientation().y,
+                            body.logicalPose().orientation().z,
+                            body.logicalPose().orientation().w,
+                            Math.toDegrees(
+                                    new Quaterniond(before.orientation())
+                                            .normalize()
+                                            .difference(
+                                                    new Quaterniond(
+                                                                    body.logicalPose()
+                                                                            .orientation())
+                                                            .normalize())
+                                            .angle()));
     }
 
     public static void move(

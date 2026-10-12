@@ -69,19 +69,24 @@ those mods skip that check when the directory is absent.
 - `src/main`, `src/test`: the mod and its tests. The code is in `dev.starfold`, one package per subsystem
   (a test sits in the package of what it tests):
   - `geometry`: the cube surface, its faces and seams, as plain maths with no Minecraft types.
-  - `chart`: how one observer sees the planet from the ground up to orbit.
-  - `planet`: a planet's shape, storage, system and universe, the core and the fold points.
-  - `worldgen`: terrain, biomes, minerals and the chunk generators.
-  - `sky`: suns, orbits, the clock, daylight and weather.
-  - `ground`: the server side of living on a face: seams, chunk views, per-observer packets, light.
-  - `render`: the client's far view of the planet, other planets and the shader patches.
-  - `flight`: personal flight, its HUD and the permit other mods can grant.
+  - `network`: shared payload registration and dist-safe receivers.
+  - `chart`: planet shapes, celestial orbit and sun computations, and how an observer sees a planet from ground to orbit.
+  - `planet`: planet storage and identity, the core and fold-point geometry, and the pure flight dynamics kernel.
+  - `probe`: passive opt-in measurements and shared probe state.
+  - `worldgen`: the terrain algorithms: height, rock, caves, minerals, biomes and decoration.
+  - `universe`: what a datapack defines (planet types, star systems, universe layouts), the generated universe
+    and the chunk generators that save a system with its world.
+  - `sky`: saved celestial motion, the clock, daylight and weather.
+  - `ground`: the server side of living on a face: seams, chunk views, observer and flight payloads, light and lifecycle hooks.
+  - `render`: the client's far view of the planet, terrain display transitions and the shader patches.
+  - `flight`: personal flight, its HUD, the permit other mods can grant and fold-point player effects.
   - `space`: the region between planets.
   - `ship`: everything about Sable hulls: helm, thrusters, landing, airstair, dock, the starter ship.
   - `waypoint`: marks and navigation to them.
   - `dev`: development probes, inert in normal play.
   - `mixin`: every mixin.
 - `docs/DATAPACKS.md`: the reference for datapack authors, also in Chinese; tests read its examples.
+- `docs/ROADMAP.md`: what is planned and how far it has been thought through, also in Chinese.
 - `tools/ship`: generators for the starter ship structures and block resources.
 - `tools/probe`: scripted in-game checks for the development client, see [tools/probe/README.md](tools/probe/README.md).
   The launch scripts are written for the maintainer's Linux setup.

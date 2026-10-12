@@ -2,11 +2,10 @@ package dev.starfold.ship;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.util.SableBufferUtils;
-import dev.starfold.flight.GroundFlightPackets;
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
+import dev.starfold.ground.GroundFlightPackets;
 import dev.starfold.ground.ObserverFrame;
-import dev.starfold.sky.GroundEphemeris;
-import dev.starfold.space.SpacePackets;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

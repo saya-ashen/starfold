@@ -2,7 +2,6 @@ package dev.starfold.chart;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.PlanetShape;
 
 import java.util.*;
 

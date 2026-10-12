@@ -1,6 +1,6 @@
 package dev.starfold.ship;
 
-import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.PlanetLevels;
 
 import net.minecraft.server.level.ServerPlayer;
 
@@ -9,7 +9,7 @@ import org.joml.Vector3d;
 /** Aboard's seam grace is not a fall-damage grace period: outside the deck footprint use vanilla immediately. */
 public final class RiderFallContext {
     public static double displacement(ServerPlayer player, RiderFall rule, double worldY) {
-        if (!GroundServer.is(player.level())) return rule.step(null, 0, worldY);
+        if (!PlanetLevels.is(player.level())) return rule.step(null, 0, worldY);
         var body = SableFrames.aboard(player);
         if (body == null || body.isRemoved() || body.getLevel() != player.level())
             return rule.step(null, 0, worldY);

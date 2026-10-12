@@ -1,7 +1,7 @@
 package dev.starfold.mixin;
 
-import dev.starfold.ground.GroundServer;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundSurfaceIndex;
 import dev.starfold.render.GroundViewServer;
 import dev.starfold.space.SpaceSpeedServer;
@@ -24,7 +24,7 @@ public abstract class GroundSurfaceChunkMixin {
         var chunk = (LevelChunk) (Object) this;
         if (ci.getReturnValue() != null && chunk.getLevel() instanceof ServerLevel level) {
             SpaceSpeedServer.changed(level, pos);
-            if (!GroundServer.is(level)) return;
+            if (!PlanetLevels.is(level)) return;
             if (PlanetAccess.of(level).key(chunk.getPos().x, chunk.getPos().z) >= 0)
                 GroundSurfaceIndex.at(level, chunk.getPos().x, chunk.getPos().z).changed(chunk);
             GroundViewServer.changed(level, pos, state);

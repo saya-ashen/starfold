@@ -22,7 +22,7 @@ public abstract class WeatherThunderMixin {
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
                             "PROBE WEATHER BOLT region {} pos {} wall {}",
-                            dev.starfold.space.SpaceServer.in(entity),
+                            dev.starfold.sky.Space.in(entity),
                             entity.position(),
                             System.currentTimeMillis());
     }

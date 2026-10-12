@@ -1,13 +1,13 @@
 package dev.starfold.waypoint;
 
-import dev.starfold.flight.GroundDynamics;
+import dev.starfold.chart.GroundEphemeris;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ground.GroundTopology;
-import dev.starfold.planet.PlanetShape;
-import dev.starfold.sky.GroundEphemeris;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 
 /** Immutable planet-local navigation annotation, independent of persistence and commands. */
-public record Waypoint(String name, int planet, GroundTopology.Pose pose) {
+public record Waypoint(String name, int planet, PlanetShape.Pose pose) {
     public static final String LAUNCH = "starfold:launch";
 
     public static final class Failure extends IllegalArgumentException {

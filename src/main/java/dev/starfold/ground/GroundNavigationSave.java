@@ -1,9 +1,11 @@
 package dev.starfold.ground;
 
 import dev.starfold.chart.GroundGuidance;
-import dev.starfold.flight.GroundDynamics;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.HolderLookup;
@@ -28,7 +30,7 @@ public final class GroundNavigationSave extends SavedData {
     }
 
     public static GroundNavigationSave get(ServerLevel level) {
-        if (!GroundServer.is(level)) throw new IllegalArgumentException("Native dimension");
+        if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Native dimension");
         var storage = PlanetSystem.authority(level).getDataStorage();
         return storage.computeIfAbsent(
                 new Factory<>(
@@ -122,7 +124,7 @@ public final class GroundNavigationSave extends SavedData {
     public static GroundDynamics.State decode(CompoundTag t) {
         require(t, "tick", 4);
         boolean space = flag(t, "space");
-        GroundTopology.Pose pose = null;
+        PlanetShape.Pose pose = null;
         if (space) {
             if (t.contains("local"))
                 throw new IllegalArgumentException("Space contains native local body");
@@ -131,7 +133,7 @@ public final class GroundNavigationSave extends SavedData {
             require(p, "face", 3);
             int face = p.getInt("face");
             if (face < 0 || face >= 6) throw new IllegalArgumentException("Native navigation face");
-            pose = new GroundTopology.Pose(Face.values()[face], point(tag(p, "point")));
+            pose = new PlanetShape.Pose(Face.values()[face], point(tag(p, "point")));
         }
         var q = tag(t, "orientation");
         var g = tag(t, "guidance");

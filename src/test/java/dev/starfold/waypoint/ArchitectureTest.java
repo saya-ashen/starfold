@@ -3,9 +3,9 @@ package dev.starfold.waypoint;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
 import dev.starfold.render.GroundSurfaceIndex;
 import dev.starfold.storage.ChunkKeys;
 
@@ -22,7 +22,7 @@ import java.util.UUID;
 
 class ArchitectureTest {
     private static Waypoint marker() {
-        return new Waypoint("基地", 1, new GroundTopology.Pose(Face.TOP, new Point(1024, 35, 1024)));
+        return new Waypoint("基地", 1, new PlanetShape.Pose(Face.TOP, new Point(1024, 35, 1024)));
     }
 
     @Test

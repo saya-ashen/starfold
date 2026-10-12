@@ -1,21 +1,20 @@
 package dev.starfold.waypoint;
 
-import dev.starfold.StarfoldNetwork;
 import dev.starfold.chart.GroundCamera;
 import dev.starfold.chart.PlanetOrbit;
-import dev.starfold.flight.FlightSnapshot;
-import dev.starfold.flight.GroundDynamics;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.ground.GroundCoordinates;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.GroundDynamics;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.render.GroundClient;
-import dev.starfold.render.RenderFrame;
 import dev.starfold.ship.HelmClient;
 import dev.starfold.ship.HullLandingClient;
+import dev.starfold.space.FlightSnapshot;
+import dev.starfold.space.RenderFrame;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceNavigation;
 
@@ -47,18 +46,21 @@ public final class WaypointClient {
 
     private static BentStripGeometry.Point bearing() {
         var hull = HelmClient.body();
-        if (hull == null || active() == null || marker.planet() != GroundClient.planet())
-            return null;
+        if (hull == null
+                || active() == null
+                || marker.planet() != WaypointClientHost.get().planet()) return null;
         var at = hull.logicalPose().position();
-        var frame = GroundClient.frame();
+        var frame = WaypointClientHost.get().frame();
         var storage = frame.toStorage(new BentStripGeometry.Point(at.x, at.y, at.z));
-        var access = GroundClient.access();
+        var access = WaypointClientHost.get().access();
         var from =
                 GroundTopology.canonical(
-                        GroundClient.shape(),
+                        WaypointClientHost.get().shape(),
                         CubeSurfaceTopology.Face.values()[frame.root()],
                         access.chart(storage));
-        var route = WaypointNavigation.route(GroundClient.shape(), from.pose(), marker.pose());
+        var route =
+                WaypointNavigation.route(
+                        WaypointClientHost.get().shape(), from.pose(), marker.pose());
         return route == null
                 ? null
                 : frame.vectorToClient(ChartLabSpace.rotate(route.direction(), -from.turns()));
@@ -144,7 +146,7 @@ public final class WaypointClient {
         var client = Minecraft.getInstance();
         if (HullLandingClient.active() || SpaceClient.present()) return;
         if (client.options.hideGui
-                || !GroundClient.ready()
+                || !WaypointClientHost.get().ready()
                 || !GroundFlightClient.ready()
                 || marker == null
                 || session != GroundFlightClient.session()) return;
@@ -159,11 +161,14 @@ public final class WaypointClient {
                         : model.at(state.planet(), tick)
                                 .rotation()
                                 .mul(
-                                        PlanetOrbit.frame(GroundClient.shape(), GroundClient.pose())
+                                        PlanetOrbit.frame(
+                                                        WaypointClientHost.get().shape(),
+                                                        WaypointClientHost.get().pose())
                                                 .rotation())
                                 .mul(
                                         GroundCamera.capture(
-                                                GroundClient.frame()
+                                                WaypointClientHost.get()
+                                                        .frame()
                                                         .yawToStorage(client.player.getYRot()),
                                                 client.player.getXRot()))
                                 .normalize();
@@ -173,7 +178,10 @@ public final class WaypointClient {
         double pitch =
                 Math.toDegrees(Math.atan2(direction.y, Math.hypot(direction.x, direction.z)));
         // Under a vessel's own lines in flight; at the top of the screen on foot.
-        int top = GroundClient.DEBUG_HUD ? 114 : GroundFlightClient.controlled() ? 56 : 8;
+        int top =
+                WaypointClientHost.get().diagnosticHud()
+                        ? 114
+                        : GroundFlightClient.controlled() ? 56 : 8;
         graphics.drawString(
                 client.font,
                 net.minecraft.client.resources.language.I18n.get(

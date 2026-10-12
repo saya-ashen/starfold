@@ -3,7 +3,7 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
-import dev.starfold.dev.ArrivalProbe;
+import dev.starfold.probe.ArrivalProbe;
 
 import net.minecraft.server.MinecraftServer;
 
@@ -16,11 +16,11 @@ public abstract class ArrivalTickMixin {
     @WrapMethod(method = "tickServer")
     private void starfold$arrivalTick(BooleanSupplier time, Operation<Void> original) {
         if (!ArrivalProbe.ENABLED) {
-            long start = dev.starfold.dev.RelightProbe.ENABLED ? System.nanoTime() : 0;
+            long start = dev.starfold.probe.RelightProbe.ENABLED ? System.nanoTime() : 0;
             try {
                 original.call(time);
             } finally {
-                dev.starfold.dev.RelightProbe.tick(
+                dev.starfold.probe.RelightProbe.tick(
                         ((MinecraftServer) (Object) this).getTickCount(), start);
             }
             return;

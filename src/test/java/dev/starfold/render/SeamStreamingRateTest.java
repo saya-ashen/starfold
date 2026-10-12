@@ -3,9 +3,10 @@ package dev.starfold.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.ground.GroundTopology;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.worldgen.PlanetEcologyTest;
 
 import net.minecraft.world.level.block.Block;
@@ -70,8 +71,7 @@ class SeamStreamingRateTest {
             for (int[] uv : seams()) {
                 var resident =
                         GroundStreaming.footprint(
-                                new GroundTopology.Pose(
-                                        face, new Point(uv[0] + .5, 20, uv[1] + .5)),
+                                new PlanetShape.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5)),
                                 8);
                 assertEquals(289, resident.size());
                 var have = new HashSet<Long>();
@@ -81,8 +81,7 @@ class SeamStreamingRateTest {
                 // The 5x5 under the player must be complete after the very first request.
                 var near =
                         GroundStreaming.footprint(
-                                new GroundTopology.Pose(
-                                        face, new Point(uv[0] + .5, 20, uv[1] + .5)),
+                                new PlanetShape.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5)),
                                 2);
                 for (; !have.containsAll(resident) && tick < 2000; tick++) {
                     exchange(tick, cursor, resident, have, queue, SERVED_PER_TICK);
@@ -183,8 +182,7 @@ class SeamStreamingRateTest {
             for (int[] uv : seams()) {
                 var resident =
                         GroundStreaming.footprint(
-                                new GroundTopology.Pose(
-                                        face, new Point(uv[0] + .5, 20, uv[1] + .5)),
+                                new PlanetShape.Pose(face, new Point(uv[0] + .5, 20, uv[1] + .5)),
                                 8);
                 // Exactly one build per volume whether the mesher is slower or faster than
                 // delivery.
@@ -199,7 +197,7 @@ class SeamStreamingRateTest {
     void aVolumeThatNeverArrivesOnlyDelaysItsNeighboursUntilTheStreamStalls() {
         var resident =
                 GroundStreaming.footprint(
-                        new GroundTopology.Pose(Face.TOP, new Point(2040, 20, 1024)), 4);
+                        new PlanetShape.Pose(Face.TOP, new Point(2040, 20, 1024)), 4);
         long never = new ArrayList<>(resident).get(12);
         // All other tiles still mesh; only the four neighbours need the stalled fallback.
         assertEquals(resident.size() - 1, builds(resident, true, never, 1));
@@ -237,7 +235,7 @@ class SeamStreamingRateTest {
         var ordered =
                 new ArrayList<>(
                         GroundStreaming.footprint(
-                                new GroundTopology.Pose(Face.EAST, new Point(1024, 20, .5)), 8));
+                                new PlanetShape.Pose(Face.EAST, new Point(1024, 20, .5)), 8));
         var have = new HashSet<>(ordered.subList(100, 289));
         long edited = ordered.get(250);
         var first = GroundStreaming.request(ordered, 0, have::contains, k -> k == edited);
