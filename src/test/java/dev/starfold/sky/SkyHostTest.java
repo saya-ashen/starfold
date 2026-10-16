@@ -41,8 +41,7 @@ class SkyHostTest {
                         "if(PlanetLevels.is(level)&&Space.holds(pos.getX(),pos.getZ()))"));
         assertTrue(daylight.contains("returnSkyHost.get().sunlight(level,pos,clock)"));
         assertTrue(
-                daylight.contains(
-                        "if(!PlanetLevels.is(level)||!PlanetSystem.shared(level)||SkyHost.get().underWay())return"));
+                daylight.contains("if(!PlanetLevels.is(level)||SkyHost.get().underWay())return"));
         var server = Sources.text("StarfoldServer");
         assertTrue(server.contains("SkyHost.install(newSkyHost()"));
         assertTrue(server.contains("returnGroundFlightServer.underWay()"));

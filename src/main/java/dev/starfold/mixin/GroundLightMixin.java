@@ -1,6 +1,5 @@
 package dev.starfold.mixin;
 
-import dev.starfold.chart.GroundSolar;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundClient;
@@ -28,7 +27,6 @@ public abstract class GroundLightMixin {
                                     + .8
                                             * (GroundFlightClient.controlled()
                                                     ? GroundClient.sunlight()
-                                                    : GroundSolar.daylight(
-                                                            GroundClient.elevation()))));
+                                                    : GroundClient.daylight())));
     }
 }

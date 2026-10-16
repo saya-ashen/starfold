@@ -7,7 +7,6 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.ChunkViews;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.sky.GroundClock;
@@ -34,8 +33,8 @@ public final class SpaceApproach {
         return new ChunkPos((int) Math.floor(anchor.x()) >> 4, (int) Math.floor(anchor.z()) >> 4);
     }
 
-    public static boolean ready(double height, boolean full) {
-        return Space.enters(height) && (full || height < Space.IN - 512);
+    public static boolean ready(GroundEphemeris.Body body, double height, boolean full) {
+        return Space.enters(body, height) && (full || height < body.hullIn() - 512);
     }
 
     public static boolean full(ServerLevel level, Point anchor) {
@@ -56,14 +55,25 @@ public final class SpaceApproach {
             double tick) {
         var position = motion.position().sub(model.at(planet, tick).center());
         var velocity = motion.velocity().sub(model.at(planet, tick).velocity());
+        boolean movingParent =
+                model.body(planet).motion() instanceof GroundEphemeris.Orbit orbit
+                        && model.bodies().get(orbit.parent()).motion()
+                                instanceof GroundEphemeris.Orbit;
         int steps = 0;
         for (; steps < 600; steps++) {
             double height = position.length() - shape.radius();
-            if (height <= Space.IN || velocity.dot(position) >= 0) break;
+            if (height <= model.body(planet).hullIn() || velocity.dot(position) >= 0) break;
             var toward = position.scale(-1);
-            var radial = SpaceServer.arrival(velocity, toward, velocity, height);
-            velocity = SpaceServer.near(radial, toward, radial, height);
+            var radial =
+                    SpaceServer.arrival(model.body(planet), velocity, toward, velocity, height);
+            velocity = SpaceServer.near(model.body(planet), radial, toward, radial, height);
             position = position.add(velocity);
+            if (movingParent) {
+                var now = model.at(planet, tick + steps);
+                var next = model.at(planet, tick + steps + 1);
+                position = position.add(now.center()).add(now.velocity()).sub(next.center());
+                velocity = velocity.add(now.velocity()).sub(next.velocity());
+            }
         }
         double future = tick + steps;
         var frame = model.at(planet, future);
@@ -112,10 +122,8 @@ public final class SpaceApproach {
                                 clock.model,
                                 clock.tick());
         int planet = Space.nearest(clock.model, universe.position(), clock.tick());
-        var shape = access == PlanetAccess.SHARED ? PlanetShape.of(planet) : PlanetShape.STANDARD;
+        var shape = PlanetShape.of(planet);
         if (!Space.holds(at.x, at.z)
-                || access == PlanetAccess.LEGACY
-                        && planet != (clock.model.count() == 1 ? 0 : PlanetSystem.planet(level))
                 || Space.height(clock.model, planet, shape, universe.position(), clock.tick())
                         >= PREPARE) {
             release(level);

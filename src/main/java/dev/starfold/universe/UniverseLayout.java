@@ -177,7 +177,7 @@ public record UniverseLayout(
     }
 
     public static double minimumGap(int planets, double ring) {
-        return 4 * (GroundSolar.defaults().radius() + (planets - 1) * ring) + 16384;
+        return 4 * (GroundSolar.defaults().orbit(0).radius() + (planets - 1) * ring) + 16384;
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {

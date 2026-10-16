@@ -230,10 +230,8 @@ public class FlightPermitTest {
         assertTrue(
                 Sources.text("PlanetLevels")
                         .contains(
-                                "public static boolean is(Level level){return level!=null&&(level.dimension().equals(DIMENSION)||level.dimension().equals(PLANET)||level.dimension().equals(ROCK));}"));
-        assertEquals("starfold:native_ground", PlanetLevels.DIMENSION.location().toString());
+                                "public static boolean is(Level level){return level!=null&&level.dimension().equals(PLANET);}"));
         assertEquals("starfold:native_planet", PlanetLevels.PLANET.location().toString());
-        assertEquals("starfold:native_rock", PlanetLevels.ROCK.location().toString());
         assertFalse(PlanetLevels.is(null));
     }
 

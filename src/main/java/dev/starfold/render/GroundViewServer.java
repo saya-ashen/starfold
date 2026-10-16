@@ -11,7 +11,6 @@ import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceApproach;
-import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.PlanetPackets;
 import dev.starfold.universe.SystemChunkGenerator;
 
@@ -113,16 +112,12 @@ public final class GroundViewServer {
     }
 
     private static boolean belongs(ServerPlayer p, net.minecraft.core.BlockPos pos) {
-        return !Space.in(p)
-                && (!PlanetSystem.shared(p.level())
-                        || PlanetSystem.planet(p) == PlanetStorage.find(pos.getX(), pos.getZ()));
+        return !Space.in(p) && PlanetSystem.planet(p) == PlanetStorage.find(pos.getX(), pos.getZ());
     }
 
     private static net.minecraft.core.BlockPos local(
             ServerLevel level, net.minecraft.core.BlockPos pos) {
-        return PlanetSystem.shared(level)
-                ? PlanetStorage.local(PlanetStorage.planet(pos), pos)
-                : pos;
+        return PlanetStorage.local(PlanetStorage.planet(pos), pos);
     }
 
     public static void event(ServerLevel level, net.minecraft.world.level.BlockEventData event) {
@@ -201,10 +196,8 @@ public final class GroundViewServer {
         // The index of every planet someone is on is kept up to date; the first two always were.
         var ticked = new java.util.TreeSet<Integer>();
         ticked.add(0);
-        if (PlanetSystem.shared(level)) {
-            ticked.add(1);
-            for (var p : level.players()) if (!Space.in(p)) ticked.add(PlanetSystem.planet(p));
-        }
+        ticked.add(1);
+        for (var p : level.players()) if (!Space.in(p)) ticked.add(PlanetSystem.planet(p));
         // A lead's destination gets the same non-loading index refresh before it owns a chart
         // observer.
         for (var p : level.players())
@@ -222,8 +215,8 @@ public final class GroundViewServer {
             return;
         }
         int planet = PlanetSystem.planet(p),
-                offset = PlanetSystem.shared(level) ? PlanetStorage.offset(planet) / 16 : 0,
-                offsetZ = PlanetSystem.shared(level) ? PlanetStorage.offsetZ(planet) / 16 : 0;
+                offset = PlanetStorage.offset(planet) / 16,
+                offsetZ = PlanetStorage.offsetZ(planet) / 16;
         var index = GroundSurfaceIndex.get(level, planet);
         PlanetRemoteServer.tick(p, clock);
         var v = viewers.get(p.getUUID());
@@ -234,9 +227,7 @@ public final class GroundViewServer {
         }
         var source = level.getChunkSource().getGenerator();
         var generator =
-                source instanceof SystemChunkGenerator system
-                        ? system.planet(planet)
-                        : source instanceof PlanetChunkGenerator single ? single : null;
+                source instanceof SystemChunkGenerator system ? system.planet(planet) : null;
         if (!v.profiled && generator != null) {
             if (!p.connection.hasChannel(PlanetPackets.Profile.TYPE)) return;
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
@@ -277,10 +268,6 @@ public final class GroundViewServer {
                     level.getChunkSource()
                             .getChunkNow(
                                     offset + face * GroundCoordinates.STRIDE / 16 + u, offsetZ + z);
-            if (chunk == null && !PlanetSystem.shared(level) && keys.get((int) tile.key()))
-                chunk =
-                        level.getChunk(
-                                offset + face * GroundCoordinates.STRIDE / 16 + u, offsetZ + z);
             if (chunk == null) continue;
             var prior = v.sent.get(tile.key());
             long
@@ -288,11 +275,8 @@ public final class GroundViewServer {
                             versions.computeIfAbsent(level, l -> new GroundViewVersions())
                                     .get(
                                             tile.key()
-                                                    + (PlanetSystem.shared(level)
-                                                            ? (long) planet
-                                                                    * PlanetStorage
-                                                                            .CHUNKS_PER_PLANET
-                                                            : 0)),
+                                                    + (long) planet
+                                                            * PlanetStorage.CHUNKS_PER_PLANET),
                     now = level.getGameTime();
             boolean refresh =
                     GroundViewPolicy.captureNeeded(

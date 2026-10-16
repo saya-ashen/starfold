@@ -105,7 +105,7 @@ public final class GroundSunRenderer {
                 dr = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
                 sa = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
                 da = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
-        var stack = context.matrixStack();
+        var stack = context.matrixStack() == null ? new PoseStack() : context.matrixStack();
         stack.pushPose();
         GroundClient.place(
                 stack.last().pose(), GroundClient.face(), context.camera().getPosition());
@@ -137,7 +137,7 @@ public final class GroundSunRenderer {
                 shader.getUniform("Background").set((float) (1 - blend));
                 shader.getUniform("SunTime")
                         .set((float) ((GroundClient.simulationTime() % 24000) / 20));
-                var base = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose());
+                var base = new Matrix4f(context.positionMatrix()).mul(stack.last().pose());
                 mesh.bind();
                 try {
                     RenderSystem.depthMask(false);

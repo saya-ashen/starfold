@@ -43,7 +43,7 @@ public final class GroundFlightClient {
     private static GroundDynamics.State state, previous;
     private static Quaterniond aim = new Quaterniond();
     private static long session, sequence, ack, lastTick;
-    private static boolean controlled, waiting, heldG, shared;
+    private static boolean controlled, waiting, heldG;
     private static int lastSync = -100;
     private static GroundFlightPackets.Seam seam;
 
@@ -133,7 +133,7 @@ public final class GroundFlightClient {
         mask = null;
         state = previous = null;
         session = sequence = ack = lastTick = 0;
-        controlled = waiting = heldG = shared = false;
+        controlled = waiting = heldG = false;
         lastSync = -100;
         pending.clear();
         renderPose = null;
@@ -152,28 +152,12 @@ public final class GroundFlightClient {
             }
 
             public boolean clear(int id, PlanetShape.Pose p) {
-                if (shared)
-                    return new GroundTerrain(level, Minecraft.getInstance().player, mask, id)
-                            .clear(p);
-                if (id == PlanetSystem.planet(level)) return local.clear(p);
-                if (p.point().y() > Math.max(mask.height(), level.getMaxBuildHeight() - 128) + 2)
-                    return true;
-                throw new IllegalStateException("Remote native collision awaits dimension handoff");
+                return new GroundTerrain(level, Minecraft.getInstance().player, mask, id).clear(p);
             }
 
             public double clearance(int id, PlanetShape.Pose p) {
-                return shared
-                        ? new GroundTerrain(level, Minecraft.getInstance().player, mask, id)
-                                .clearance(p)
-                        : id == PlanetSystem.planet(level)
-                                ? local.clearance(p)
-                                : Math.max(
-                                        0,
-                                        p.point().y()
-                                                - Math.max(
-                                                        mask.height(),
-                                                        level.getMaxBuildHeight() - 128)
-                                                - 2);
+                return new GroundTerrain(level, Minecraft.getInstance().player, mask, id)
+                        .clearance(p);
             }
         };
     }
@@ -187,7 +171,6 @@ public final class GroundFlightClient {
     }
 
     private static void installClientAccess() {
-        PlanetSystem.clientShared(l -> FlightClientHost.get().shared(l) || l == level && shared);
         GroundFlightServer.clientControl(e -> e == Minecraft.getInstance().player && controlled());
         GroundFlightServer.clientMask(() -> ready() ? mask : GroundSpace.DEFAULT_MASK);
         StarfoldNetwork.clientReceiver(
@@ -207,7 +190,6 @@ public final class GroundFlightClient {
                     level = net.minecraft.client.Minecraft.getInstance().level;
                     model = packet.model();
                     mask = packet.mask();
-                    shared = packet.shared();
                     boolean handoff = controlled && !packet.controlled(),
                             underWay = controlled && packet.controlled();
                     state = previous = packet.state();

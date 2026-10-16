@@ -32,12 +32,6 @@ public final class Space {
     /** Half-width in Level x and z of the terrain-free space region. */
     public static final int REACH = 13_312;
 
-    /** Radial height in blocks above the planet's nominal surface for departure. */
-    public static final double OUT = 2048;
-
-    /** Radial height in blocks above the planet's nominal surface for arrival. */
-    public static final double IN = 1536;
-
     public static final Point ORIGIN = new Point(X, Y, Z);
 
     /** A body's position, orientation, velocity (blocks/tick), and spin (radians/tick) in chart or universe axes.
@@ -346,14 +340,14 @@ public final class Space {
         return Frame.IDENTITY.universe(level, model, tick);
     }
 
-    /** Departure is strict: at OUT the body still belongs to its chart. */
-    public static boolean leaves(double height) {
-        return height > OUT;
+    /** Departure is strict: at its exit height a hull still belongs to the chart. */
+    public static boolean leaves(GroundEphemeris.Body body, double height) {
+        return height > body.hullOut();
     }
 
-    /** Arrival is strict: at IN the body still belongs to space. */
-    public static boolean enters(double height) {
-        return height < IN;
+    /** Arrival is strict: at its entry height a hull still belongs to space. */
+    public static boolean enters(GroundEphemeris.Body body, double height) {
+        return height < body.hullIn();
     }
 
     /** Finds the nearest active planet centre at this tick; lowest index wins exact ties. */

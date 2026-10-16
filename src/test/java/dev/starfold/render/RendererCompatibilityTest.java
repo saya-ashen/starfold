@@ -16,15 +16,19 @@ class RendererCompatibilityTest {
     private static final Set<String> OPTIONAL =
             Set.of(
                     "SentryShipMuzzleMixin",
+                    "HullBottomCacheMixin",
                     "HelmPerspectiveMixin",
                     "HelmCameraMixin",
                     "HelmMouseMixin",
                     "HelmFitMixin",
                     "HelmCollisionPoseMixin",
                     "PilotPoseProbeMixin",
+                    "SableShipWriteMixin",
+                    "SableShipStorageMixin",
+                    "SableShipSerializationMixin",
+                    "SableShipReadinessMixin",
                     "DevPortCameraMixin",
-                    "DevPortClockMixin",
-                    "DevPortTintMixin");
+                    "DevPortClockMixin");
 
     @Test
     void unsupportedRenderersDisableProjectionWithoutDisablingNativeMixins() throws Exception {
@@ -67,8 +71,7 @@ class RendererCompatibilityTest {
     void portObserversRequireExplicitOptIn() {
         String key = "starfold.portProbe", old = System.getProperty(key);
         try {
-            for (String name :
-                    Set.of("DevPortCameraMixin", "DevPortClockMixin", "DevPortTintMixin")) {
+            for (String name : Set.of("DevPortCameraMixin", "DevPortClockMixin")) {
                 System.clearProperty(key);
                 assertFalse(RendererCompatibility.apply("dev.starfold.mixin." + name, id -> true));
                 System.setProperty(key, "true");

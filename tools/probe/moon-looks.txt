@@ -1,0 +1,37 @@
+# Surface sky evidence only. Admin visits and sky skips do not count as travel.
+# Requires server JAVA_TOOL_OPTIONS: -Dstarfold.helmProbe=true -Dstarfold.packProbe=true.
+waitworld
+wait 300
+cmd gamemode creative
+cmd datapack list enabled
+cmd packprobe visit 0 4
+wait 1200
+nav home-remote-ready
+probeui
+solarjump night
+wait 100
+solar home-night
+skylook 2
+wait 40
+shot M1-final-home-night-moon
+cmd airsky 10000
+wait 100
+solar home-shadow
+skylook 2
+wait 40
+shot M1-final-home-shadow-moon
+cmd airsky 4000
+wait 100
+skylook 2
+wait 40
+shot M1-final-home-after-shadow-moon
+cmd packprobe visit 2 3
+wait 2000
+nav moon-remote-ready
+solar moon-surface
+skylook 0
+wait 40
+shot M1-final-moon-surface-home
+census 8
+milestone moon-surface
+quit

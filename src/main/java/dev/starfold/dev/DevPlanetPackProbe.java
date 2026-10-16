@@ -492,7 +492,17 @@ final class DevPlanetPackProbe {
         var clock = GroundClock.get(p.serverLevel());
         long now = clock.clock.tick(), best = 0;
         double elevation = -2;
-        long period = (long) (id < 2 ? 48000 : clock.clock.model.more().get(id - 2).period());
+        long period =
+                (long)
+                        Math.max(
+                                clock.clock.model.spin(id).period(),
+                                clock.clock.model.orbit(id).period());
+        int parent = clock.clock.model.orbit(id).parent();
+        while (clock.clock.model.bodies().get(parent).motion()
+                instanceof dev.starfold.chart.GroundEphemeris.Orbit orbit) {
+            period = Math.max(period, (long) orbit.period());
+            parent = orbit.parent();
+        }
         for (long ahead = 0; ahead <= period; ahead += 100) {
             double e = GroundDaylight.elevation(p.serverLevel(), site, now + ahead);
             if (e > elevation) {

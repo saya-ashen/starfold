@@ -125,7 +125,7 @@ class ChunkTickReadinessTest {
 
     @Test
     void observedTopHaloIncludesSameRowEastOwnerAtEveryDepth() {
-        var access = PlanetAccess.LEGACY;
+        var access = PlanetAccess.SHARED;
         var columns = ChunkViews.columns(access, 128, 58);
         long missing = net.minecraft.world.level.ChunkPos.asLong(256, 58);
         assertTrue(java.util.Arrays.stream(columns.owners()).anyMatch(owner -> owner == missing));

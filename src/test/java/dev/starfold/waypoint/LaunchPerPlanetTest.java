@@ -44,7 +44,7 @@ class LaunchPerPlanetTest {
     }
 
     @Test
-    void legacySingleLaunchMigratesByItsOwnPlanet() {
+    void singleLaunchSaveSpellingIsRefused() {
         var id = UUID.randomUUID();
         var b = marker(1, 200);
         var entry = new CompoundTag();
@@ -56,13 +56,7 @@ class LaunchPerPlanetTest {
         var root = new CompoundTag();
         root.putInt("format", 1);
         root.put("players", players);
-        var loaded = WaypointSave.load(root, null);
-        assertEquals(b, loaded.active(id, 1));
-        loaded.launch(id, marker(0, 100));
-        assertEquals(b, loaded.active(id, 1));
-        assertEquals(
-                2,
-                WaypointSave.load(loaded.save(new CompoundTag(), null), null).launches(id).size());
+        assertThrows(IllegalArgumentException.class, () -> WaypointSave.load(root, null));
     }
 
     @Test

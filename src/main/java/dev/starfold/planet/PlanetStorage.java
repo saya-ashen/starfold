@@ -13,9 +13,8 @@ import net.minecraft.world.level.ChunkPos;
  * No ambient/thread-local/current-player selector: every inverse operation carries a planet.
  */
 public final class PlanetStorage {
-    /** The layout a system of two began with, a row along x; and the square every system is laid out in now. The first
-     *  two planets are in the same place in both, so a system of two may still say the first. */
-    public static final String ROW_LAYOUT = "six_face_x32768_v1", LAYOUT = "six_face_square_v2";
+    /** The square layout of planet storage charts. */
+    public static final String LAYOUT = "six_face_square_v2";
 
     /** Planets stand in a square that grows a shell at a time: columns a stride apart along x, rows a row stride apart
      *  along z. A planet's six charts and their halos take 26624 blocks of x and 6144 of z, so no neighbour is touched,

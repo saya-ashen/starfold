@@ -21,7 +21,8 @@ import java.util.*;
 
 /** Actual moving-world kernel, not the retained fixed-planet GroundCosmos helper. */
 class GroundRevolutionTest {
-    GroundEphemeris.Model model = GroundEphemeris.defaults();
+    GroundEphemeris.Model model =
+            GroundEphemeris.spinning(dev.starfold.planet.PlanetSystem.model(), false, 0);
 
     GroundMotion.State ground(double h) {
         return new GroundMotion.State(
@@ -107,17 +108,24 @@ class GroundRevolutionTest {
                         .75,
                         27000,
                         321);
-        var m =
-                new GroundEphemeris.Model(
-                        model.center(),
-                        model.axis(),
-                        model.radial(),
-                        model.radius(),
-                        model.period(),
-                        .1,
-                        19,
-                        spin,
-                        model.b());
+        var bodies = new ArrayList<>(model.bodies());
+        var orbit = model.orbit(0);
+        bodies.set(
+                model.index(0),
+                new GroundEphemeris.Body(
+                        new GroundEphemeris.Orbit(
+                                orbit.parent(),
+                                orbit.axis(),
+                                orbit.radial(),
+                                orbit.radius(),
+                                orbit.period(),
+                                .1 + Math.PI,
+                                19,
+                                spin),
+                        0,
+                        false,
+                        0));
+        var m = new GroundEphemeris.Model(bodies);
         var clock = new GroundEphemerisSave(m, 1234);
         for (int i = 0; i < 17; i++) clock.advance();
         var tag = clock.save(new CompoundTag(), null);
@@ -126,7 +134,7 @@ class GroundRevolutionTest {
         assertEquals(m, copy.model);
         assertEquals(tag, copy.save(new CompoundTag(), null));
         close(m.at(0, clock.tick()).center(), copy.model.at(0, copy.tick()).center());
-        assertFalse(copy.model.a().enabled());
+        assertFalse(copy.model.spin(0).enabled());
         assertEquals(new Quaterniond(), copy.model.at(0, copy.tick()).rotation());
         copy.advance();
         assertEquals(1252, copy.tick());
@@ -142,15 +150,23 @@ class GroundRevolutionTest {
             bad.remove(k);
             assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(bad, null));
         }
-        for (String k :
-                List.of("axis", "radius", "period_ticks", "reference_tick", "spin_a", "spin_b")) {
+        for (String k : List.of("parent", "axis", "radius", "period", "epoch", "spin")) {
             var bad = tag.copy();
-            bad.getCompound("motion").remove(k);
+            bad.getCompound("motion")
+                    .getList("bodies", 10)
+                    .getCompound(1)
+                    .getCompound("motion")
+                    .remove(k);
             assertThrows(
                     IllegalArgumentException.class, () -> GroundEphemerisSave.load(bad, null), k);
         }
         var bad = tag.copy();
-        bad.getCompound("motion").getCompound("spin_a").putDouble("period_ticks", 20);
+        bad.getCompound("motion")
+                .getList("bodies", 10)
+                .getCompound(1)
+                .getCompound("motion")
+                .getCompound("spin")
+                .putDouble("period", 0);
         assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(bad, null));
     }
 

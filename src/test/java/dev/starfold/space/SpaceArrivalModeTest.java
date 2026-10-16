@@ -101,10 +101,17 @@ class SpaceArrivalModeTest {
 
     @Test
     void tangentialPassAtFiveThousandIsNotArrival() {
-        assertFalse(SpaceServer.align(5000, 0));
+        assertFalse(SpaceServer.align(dev.starfold.chart.GroundSolar.defaults().body(0), 5000, 0));
         var v = new Point(40, 0, 0);
         assertSame(v, SpaceServer.arrivalPush(v, new Point(0, -1, 0), false));
-        assertEquals(v, SpaceServer.near(v, new Point(0, -1, 0), v, 5000));
+        assertEquals(
+                v,
+                SpaceServer.near(
+                        dev.starfold.chart.GroundSolar.defaults().body(0),
+                        v,
+                        new Point(0, -1, 0),
+                        v,
+                        5000));
     }
 
     @Test
@@ -118,7 +125,9 @@ class SpaceArrivalModeTest {
         assertTrue(s.contains("new org.joml.Vector3d(-v.x()*20,-v.y()*20,-v.z()*20)"));
         assertTrue(s.contains("if(!arriving)"));
         assertTrue(s.indexOf("if(!arriving)") < s.indexOf("assist(f.drift(),nose"));
-        assertTrue(s.indexOf("drift=cruise(prior") < s.indexOf("var limited=govern(drift"));
+        assertTrue(
+                s.indexOf("drift=cruise(prior")
+                        < s.indexOf("var limited=govern(model.body(nearest),drift"));
         var hud = Sources.text("SpaceNavigationClient");
         assertTrue(hud.contains("SpaceClient.arriving()?FlightMode.ARRIVAL"));
         var widgets = Sources.text("FlightWidgets");

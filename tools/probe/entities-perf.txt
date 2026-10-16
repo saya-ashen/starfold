@@ -1,0 +1,17 @@
+# Requires -Dstarfold.entityProbe=true on server and client.
+# Same two forced pens for every state; normal AI, invulnerable persistent cows.
+waitworld
+wait 300
+cmd gamemode creative
+cmd gamerule doMobSpawning false
+cmd gamerule maxEntityCramming 0
+cmd entitybench setup 0 0
+wait 600
+entitybench n0
+cmd entitybench setup 200 0
+wait 600
+entitybench n200
+cmd entitybench setup 800 0
+wait 600
+entitybench n800
+quit

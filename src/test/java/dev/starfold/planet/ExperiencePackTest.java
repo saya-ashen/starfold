@@ -209,7 +209,7 @@ public class ExperiencePackTest {
             var lang =
                     json(Path.of("src/main/resources/assets/starfold/lang/" + language + ".json"));
             for (int i = 0; i < 12; i++) {
-                var identity = PlanetIdentity.of(system.planet(i));
+                var identity = system.planet(i).identity();
                 String key = "planet.starfold_pack." + names[i];
                 assertEquals(key, identity.name().orElseThrow());
                 assertTrue(lang.has(key));

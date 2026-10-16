@@ -1,0 +1,40 @@
+# World-side cow retains an unpiloted space hull after observer leaves.
+# No AI/gravity: deterministic cargo retention test, not a walking cow/contact test.
+strict
+waitworld
+wait 300
+cmd gamemode creative
+cmd scoreboard objectives add s5_ok dummy
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+press 32 1
+until region 6000
+press 32 0
+wait 40
+press 82 1
+wait 2
+press 82 0
+wait 20
+requirenohelm
+wait 2400
+cmd save-all flush
+cmd starfold shipprobe "0:0" remove world-items
+boardblock helm
+wait 40
+cmd summon minecraft:cow ~ ~ ~ {NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b,Tags:["s5_world_crew"]}
+wait 40
+cmd starfold shipprobe "0:0" inspect
+cmd starfold shipprobe "0:0" away
+wait 40
+cmd starfold shipprobe "0:0" sleep
+wait 600
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert entity-awake
+check world-entity-retains if score @s s5_ok matches 1
+shot ship-space-entity
+quit

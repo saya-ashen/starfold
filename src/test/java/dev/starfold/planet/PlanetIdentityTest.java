@@ -55,23 +55,22 @@ class PlanetIdentityTest {
         var a = definition.materialize(42);
         var b = copy.materialize(42);
         for (int i = 0; i < a.planets().size(); i++)
-            assertEquals(
-                    PlanetIdentity.of(a.planets().get(i)), PlanetIdentity.of(b.planets().get(i)));
+            assertEquals(a.planets().get(i).identity(), b.planets().get(i).identity());
         assertEquals(Optional.of("Aster"), b.planets().getFirst().displayName());
         assertTrue(b.planets().get(3).displayName().isEmpty());
         var generator = b.planets().getFirst();
         assertEquals(
-                PlanetIdentity.of(generator),
-                PlanetIdentity.of(
-                        PlanetChunkGenerator.CODEC
-                                .codec()
-                                .parse(
-                                        bare,
-                                        PlanetChunkGenerator.CODEC
-                                                .codec()
-                                                .encodeStart(bare, generator)
-                                                .getOrThrow())
-                                .getOrThrow()));
+                generator.identity(),
+                PlanetChunkGenerator.CODEC
+                        .codec()
+                        .parse(
+                                bare,
+                                PlanetChunkGenerator.CODEC
+                                        .codec()
+                                        .encodeStart(bare, generator)
+                                        .getOrThrow())
+                        .getOrThrow()
+                        .identity());
     }
 
     @Test
@@ -106,7 +105,7 @@ class PlanetIdentityTest {
                         .parse(PlanetTypeTest.ops(), PlanetTypeTest.preset("native_universe"))
                         .getOrThrow();
         for (int i = 0; i < 2; i++) {
-            var id = PlanetIdentity.of(system.planet(i));
+            var id = system.planet(i).identity();
             assertTrue(id.type().isEmpty());
             assertEquals(i == 0 ? "temperate" : "rocky", id.label(k -> k));
         }

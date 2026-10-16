@@ -88,7 +88,7 @@ public final class PlanetPlayers {
     }
 
     public static int enter(ServerPlayer player) {
-        return enter(player, PlanetLevels.DIMENSION);
+        return enter(player, PlanetLevels.PLANET);
     }
 
     public static int enter(ServerPlayer player, ResourceKey<Level> destination) {
@@ -108,9 +108,7 @@ public final class PlanetPlayers {
         }
         var level = player.getServer().getLevel(destination);
         if (level == null) return 0;
-        if (!level.players().isEmpty()
-                || PlanetSystem.multiple(level)
-                        && !PlanetSystem.level(level, 1).players().isEmpty()) {
+        if (!level.players().isEmpty()) {
             player.sendSystemMessage(Component.translatable("message.starfold.one_player"));
             return 0;
         }
@@ -120,16 +118,11 @@ public final class PlanetPlayers {
         try {
             clock = GroundClock.get(level);
             saved = GroundFlightServer.entry(player, level, clock);
-            if (saved != null && PlanetSystem.multiple(level))
-                level = PlanetSystem.level(level, saved.planet());
             spawn =
                     saved == null
                             ? StarterShip.home(
                                     level,
-                                    PlanetSystem.shared(level)
-                                            ? GroundDaylight.homeFace(
-                                                    clock.clock.model, PlanetShape.of(0))
-                                            : 0)
+                                    GroundDaylight.homeFace(clock.clock.model, PlanetShape.of(0)))
                             : PlanetAccess.of(level)
                                     .feet(
                                             saved.planet(),
@@ -149,7 +142,7 @@ public final class PlanetPlayers {
                             "message.starfold.restore_failed", WaypointServer.failure(error)));
             return 0;
         }
-        WorldSessionSave.get(PlanetSystem.authority(level)).remember(player);
+        WorldSessionSave.get(level).remember(player);
         border(level, 0);
         player.teleportTo(
                 level,
@@ -195,9 +188,7 @@ public final class PlanetPlayers {
         player.sendSystemMessage(
                 Component.translatable(
                         "message.starfold.status",
-                        PlanetSystem.shared(player.level())
-                                ? PlanetSystem.name(PlanetSystem.planet(player))
-                                : "A",
+                        PlanetSystem.name(PlanetSystem.planet(player)),
                         PlanetAccess.of(player.level()).face(player.getX()) + 1,
                         Math.round(
                                 100
@@ -208,7 +199,7 @@ public final class PlanetPlayers {
 
     public static int universe(ServerPlayer player) {
         if (Space.in(player)) return GroundServer.regionMessage(player);
-        if (!PlanetLevels.is(player.level()) || !PlanetSystem.shared(player.level())) return 0;
+        if (!PlanetLevels.is(player.level())) return 0;
         var level = player.serverLevel();
         var clock = GroundClock.get(level);
         var model = clock.clock.model;
@@ -252,7 +243,7 @@ public final class PlanetPlayers {
         GroundServer.arrivalAttempted(player.getUUID());
         GroundFlightServer.detach(player);
         FlightPermit.revoke(player);
-        if (!WorldSessionSave.get(PlanetSystem.authority(player.serverLevel())).restore(player)) {
+        if (!WorldSessionSave.get(player.serverLevel()).restore(player)) {
             var target = player.getServer().overworld();
             var at = target.getSharedSpawnPos();
             player.teleportTo(target, at.getX() + .5, at.getY() + 1, at.getZ() + .5, 0, 0);

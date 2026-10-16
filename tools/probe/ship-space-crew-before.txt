@@ -1,0 +1,36 @@
+# Actual saved-aboard logout. Reuse this world for crew-after.
+strict
+waitworld
+wait 300
+cmd gamemode creative
+cmd scoreboard objectives add s5_ok dummy
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+press 32 1
+until region 6000
+press 32 0
+wait 40
+press 82 1
+wait 2
+press 82 0
+wait 20
+requirenohelm
+wait 2400
+cmd starfold shipprobe "0:0" remove world-items
+boardblock helm
+wait 60
+fly off
+cmd gamemode survival
+wait 40
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert aboard
+check crew-before-aboard if score @s s5_ok matches 1
+cmd starfold shipprobe "0:0" leases off
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+shot ship-space-crew-before
+quit

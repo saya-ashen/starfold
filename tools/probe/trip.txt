@@ -46,7 +46,8 @@ nav s-low
 followlanding 2400 informational
 nav s-site
 press 340 1
-until clearance< 9 1200
+# Continue the normal descent input to contact; releasing early captures a hover.
+until clearance< 0.15 1200
 press 340 0
 nav s-hover
 until stair 1500

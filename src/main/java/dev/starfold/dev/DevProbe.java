@@ -840,6 +840,7 @@ public final class DevProbe {
             case "console" -> commandConsole(arg);
             case "strict" -> commandStrict();
             case "check" -> commandCheck(mc, arg);
+            case "entitybench" -> commandEntitybench(mc, arg);
             case "landguard" -> commandLandguard(arg);
             case "walk20" -> commandWalk20(mc, arg);
             case "solarplan" -> commandSolarplan(mc, arg);
@@ -1246,6 +1247,15 @@ public final class DevProbe {
     private static boolean commandStrict() {
         strict = true;
         return true;
+    }
+
+    private static boolean commandEntitybench(Minecraft mc, String arg) {
+        checkLabel = "entitybench " + arg;
+        receipt = "PROBE ENTITY_BENCH " + arg + " ticks 600";
+        guardLeft = 12000;
+        mc.player.connection.sendCommand("entitybench measure " + arg);
+        line++;
+        return false;
     }
 
     private static boolean commandCheck(Minecraft mc, String arg) {
@@ -1707,6 +1717,45 @@ public final class DevProbe {
             var d = SpaceClient.frame().levelVector(target.sub(eye));
             yaw = (float) Math.toDegrees(Math.atan2(-d.x(), d.z()));
             pitch = (float) -Math.toDegrees(Math.atan2(d.y(), Math.hypot(d.x(), d.z())));
+        } else if (GroundFlightClient.controlled() && !arg.equals("sun")) {
+            yaw = null;
+            pitch = null;
+            GroundFlightClient.probeAim(
+                    GroundClient.ephemeris()
+                            .at(Integer.parseInt(arg), GroundClient.time())
+                            .center());
+        } else if (GroundClient.ready() && !arg.equals("sun")) {
+            int target = Integer.parseInt(arg);
+            var model = GroundClient.ephemeris();
+            var home = GroundClient.planetFrame(GroundClient.planet());
+            var frame = PlanetOrbit.frame(GroundClient.shape(), GroundClient.state().pose());
+            var toward =
+                    model.at(target, GroundClient.time()).center().sub(GroundClient.universeEye());
+            var d =
+                    ChartLabSpace.rotate(
+                            frame.local(home.inverseVector(toward)), GroundClient.frame().turns());
+            yaw = (float) Math.toDegrees(Math.atan2(-d.x(), d.z()));
+            pitch = (float) -Math.toDegrees(Math.atan2(d.y(), Math.hypot(d.x(), d.z())));
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info(
+                            "PROBE SKYLOOK planet {} from {} tick {} distance {} angularRadius {} yaw {} pitch {} shade {}",
+                            target,
+                            GroundClient.planet(),
+                            GroundClient.time(),
+                            toward.length(),
+                            Math.toDegrees(
+                                    Math.asin(
+                                            Math.min(
+                                                    1,
+                                                    PlanetShape.of(target).radius()
+                                                            / toward.length()))),
+                            yaw,
+                            pitch,
+                            dev.starfold.sky.GroundDaylight.parentShade(
+                                    model,
+                                    target,
+                                    model.at(target, GroundClient.time()).center(),
+                                    GroundClient.time()));
         }
         return true;
     }
@@ -2512,14 +2561,15 @@ public final class DevProbe {
         for (int id : SpaceView.nearest(model, ship, tick, model.count()))
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
-                            "PROBE NAVPLANETS {} rank {} id {} name {} distance {} surface {} sun {}",
+                            "PROBE NAVPLANETS {} rank {} id {} name {} distance {} surface {} closing {} sun {}",
                             arg,
                             ++rank,
                             id,
                             PlanetSystem.name(id),
                             model.at(id, tick).center().sub(ship).length(),
                             SpaceNavigation.read(model, frame, ship, id, tick).distance(),
-                            id < 2 ? model.center() : model.more().get(id - 2).center());
+                            SpaceNavigation.read(model, frame, ship, id, tick).closing(),
+                            model.parent(id, tick).center());
         return true;
     }
 

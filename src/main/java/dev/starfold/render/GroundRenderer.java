@@ -71,6 +71,8 @@ public final class GroundRenderer {
             patches = new Mesh[GroundViewPolicy.PATCH_COUNT],
             staging = new Mesh[GroundViewPolicy.PATCH_COUNT];
 
+    private static final GroundCoverSnapshot[] coverInputs =
+            new GroundCoverSnapshot[GroundViewPolicy.PATCH_COUNT];
     private static ParentJob parentJob;
     private static Mesh[] pendingStitches;
     private static StitchJob pendingJob;
@@ -203,6 +205,7 @@ public final class GroundRenderer {
             staging[i] = null;
         }
         GroundExterior.clear();
+        Arrays.fill(coverInputs, null);
         if (stitchJob != null) {
             stitchJob.close();
             stitchJob = null;
@@ -336,6 +339,7 @@ public final class GroundRenderer {
         var current = GroundFlightServer.mask(level);
         if (!current.equals(mask)) {
             mask = current;
+            Arrays.fill(coverInputs, null);
             clearParents();
             stitchDirty = true;
             dirty.all();
@@ -428,13 +432,19 @@ public final class GroundRenderer {
                 && System.nanoTime() < coverDeadline) {
             if (coverJob == null) {
                 int patch = dirty.poll();
-                if (patch >= 0) coverJob = new CoverJob(patch);
+                if (patch >= 0) {
+                    var inputs = coverInputs(patch);
+                    if (!inputs.sameInputs(coverInputs[patch]))
+                        coverJob = new CoverJob(patch, inputs);
+                }
             }
             if (coverJob != null) {
                 coverJob.step(coverDeadline);
                 if (coverJob.done()) {
                     int patch = coverJob.patch;
+                    var inputs = coverJob.builders.cover;
                     var mesh = coverJob.finish();
+                    coverInputs[patch] = inputs;
                     coverJob = null;
                     var old = staging[patch];
                     staging[patch] = mesh;
@@ -444,6 +454,16 @@ public final class GroundRenderer {
                 }
             }
         }
+    }
+
+    private static GroundCoverSnapshot coverInputs(int patch) {
+        return GroundCoverSnapshot.patch(
+                GroundViewClient.heights(),
+                GroundViewClient.changed(),
+                GroundViewPolicy.face(patch),
+                GroundViewPolicy.x(patch),
+                GroundViewPolicy.z(patch),
+                GroundViewClient::surface);
     }
 
     private static void updateDetails(long detailDeadline) {
@@ -625,7 +645,10 @@ public final class GroundRenderer {
                 job.close();
                 job = null;
             }
-            if (cover && coverJob != null && coverJob.patch == GroundViewPolicy.patch(key)) {
+            if (cover
+                    && coverJob != null
+                    && coverJob.patch == GroundViewPolicy.patch(key)
+                    && !coverJob.builders.cover.sameInputs(coverInputs(coverJob.patch))) {
                 coverJob.close();
                 coverJob = null;
             }
@@ -662,7 +685,8 @@ public final class GroundRenderer {
         for (int key = changed.nextSetBit(0); key >= 0; key = changed.nextSetBit(key + 1))
             if (!priorCoverage.get(key)) dirtyHalo(key);
         if (coverJob != null
-                && GroundViewPolicy.coverageChanged(priorCoverage, changed, coverJob.patch)) {
+                && GroundViewPolicy.coverageChanged(priorCoverage, changed, coverJob.patch)
+                && !coverJob.builders.cover.sameInputs(coverInputs(coverJob.patch))) {
             coverJob.close();
             coverJob = null;
         }
@@ -1723,23 +1747,15 @@ public final class GroundRenderer {
         final int patch, face, x0, z0;
         final Builders builders = new Builders(true);
         final GroundExterior.Job exterior;
-        final BitSet changed = GroundViewClient.changed();
         int tile, pixel;
 
-        CoverJob(int patch) {
+        CoverJob(int patch, GroundCoverSnapshot inputs) {
             this.patch = patch;
             face = GroundViewPolicy.face(patch);
             x0 = GroundViewPolicy.x(patch);
             z0 = GroundViewPolicy.z(patch);
             builders.surfaceFace = face;
-            builders.cover =
-                    GroundCoverSnapshot.patch(
-                            GroundViewClient.heights(),
-                            changed,
-                            face,
-                            x0,
-                            z0,
-                            GroundViewClient::surface);
+            builders.cover = inputs;
             exterior = new GroundExterior.Job(patch, mask);
         }
 

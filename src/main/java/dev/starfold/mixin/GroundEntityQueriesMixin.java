@@ -4,12 +4,16 @@ import dev.starfold.ground.GroundSeams;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.level.entity.LevelEntityGetter;
 import net.minecraft.world.phys.AABB;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.*;
 
@@ -19,6 +23,58 @@ import java.util.function.Predicate;
 /** Query true entities once, using rigid chart bounding boxes instead of proxy entities. */
 @Mixin(Level.class)
 public abstract class GroundEntityQueriesMixin {
+    @Shadow
+    protected abstract LevelEntityGetter<Entity> getEntities();
+
+    /** Use the section index directly so looking up an image does not project it again. */
+    @Unique
+    private List<Entity> starfold$candidates(AABB query) {
+        var level = (Level) (Object) this;
+        var access = PlanetAccess.of(level);
+        if (!PlanetLevels.canonical(level)
+                || !access.inChart(BlockPos.containing(query.getCenter()))) return null;
+        double radius = level.getMaxEntityRadius();
+        var boxes = GroundSeams.queryBoxes(access, query);
+        var storage =
+                (dev.ryanhcode.sable.util.SubLevelInclusiveLevelEntityGetter<Entity>) getEntities();
+        var found = new LinkedHashSet<Entity>();
+        // A halo entity can still appear inside another face; retain it even for an interior query.
+        for (int i = 1; i < boxes.size(); i++)
+            storage.getIgnoringSubLevels(
+                    boxes.get(i).inflate(radius),
+                    entity -> {
+                        var image =
+                                GroundSeams.box(
+                                        access,
+                                        entity.getBoundingBox(),
+                                        query.getCenter().x,
+                                        query.getCenter().z);
+                        if (!entity.isRemoved() && image != null && query.intersects(image))
+                            found.add(entity);
+                    });
+        if (found.isEmpty()
+                && GroundSeams.interior(access, query, radius)
+                && level.getPartEntities().isEmpty()
+                && !dev.ryanhcode.sable.Sable.HELPER
+                        .getAllIntersecting(
+                                level, new dev.ryanhcode.sable.companion.math.BoundingBox3d(query))
+                        .iterator()
+                        .hasNext()) return null;
+        storage.getIgnoringSubLevels(
+                query.inflate(radius),
+                entity -> {
+                    var image =
+                            GroundSeams.box(
+                                    access,
+                                    entity.getBoundingBox(),
+                                    query.getCenter().x,
+                                    query.getCenter().z);
+                    if (!entity.isRemoved() && image != null && query.intersects(image))
+                        found.add(entity);
+                });
+        return new ArrayList<>(found);
+    }
+
     @Inject(
             method =
                     "getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;)Ljava/util/List;",
@@ -29,24 +85,11 @@ public abstract class GroundEntityQueriesMixin {
             AABB query,
             Predicate<? super Entity> predicate,
             CallbackInfoReturnable<List<Entity>> ci) {
-        var level = (Level) (Object) this;
-        if (!PlanetLevels.canonical(level)
-                || !PlanetAccess.of(level)
-                        .inChart(net.minecraft.core.BlockPos.containing(query.getCenter()))) return;
+        var candidates = starfold$candidates(query);
+        if (candidates == null) return;
         var result = new ArrayList<Entity>();
-        for (var entity : GroundSeams.entities(level)) {
-            var box =
-                    GroundSeams.box(
-                            level,
-                            entity.getBoundingBox(),
-                            query.getCenter().x,
-                            query.getCenter().z);
-            if (entity != except
-                    && !entity.isRemoved()
-                    && box != null
-                    && query.intersects(box)
-                    && predicate.test(entity)) result.add(entity);
-        }
+        for (var entity : candidates)
+            if (entity != except && predicate.test(entity)) result.add(entity);
         ci.setReturnValue(result);
     }
 
@@ -62,24 +105,12 @@ public abstract class GroundEntityQueriesMixin {
             List<? super T> result,
             int limit,
             CallbackInfo ci) {
-        var level = (Level) (Object) this;
-        if (!PlanetLevels.canonical(level)
-                || !PlanetAccess.of(level)
-                        .inChart(net.minecraft.core.BlockPos.containing(query.getCenter()))) return;
-        for (var entity : GroundSeams.entities(level)) {
+        var candidates = starfold$candidates(query);
+        if (candidates == null) return;
+        for (var entity : candidates) {
             if (result.size() >= limit) break;
             var cast = type.tryCast(entity);
-            var box =
-                    GroundSeams.box(
-                            level,
-                            entity.getBoundingBox(),
-                            query.getCenter().x,
-                            query.getCenter().z);
-            if (cast != null
-                    && !entity.isRemoved()
-                    && box != null
-                    && query.intersects(box)
-                    && predicate.test(cast)) result.add(cast);
+            if (cast != null && predicate.test(cast)) result.add(cast);
         }
         ci.cancel();
     }

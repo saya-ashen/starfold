@@ -1,1 +1,0 @@
-{"dimension": "starfold:native_ground", "pressure_function": [{"altitude": 64, "value": 1.2917, "slope": -0.005167}, {"altitude": 128, "value": 1.0, "slope": -0.004}, {"altitude": 320, "value": 0.4639, "slope": -0.001856}, {"altitude": 640, "value": 0.129, "slope": -0.000516}, {"altitude": 1024, "value": 0.0, "slope": -0.00015}]}

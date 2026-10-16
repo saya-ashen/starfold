@@ -26,11 +26,10 @@ class ChunkViewsTest {
         PlanetEcologyTest.boot();
     }
 
-    private static final PlanetAccess[] LAYOUTS = PlanetAccess.values();
+    private static final PlanetAccess[] LAYOUTS = new PlanetAccess[] {PlanetAccess.SHARED};
 
     private static int origin(PlanetAccess access, int planet, Face face) {
-        return (access == PlanetAccess.SHARED ? PlanetStorage.offset(planet) : 0)
-                + face.ordinal() * GroundCoordinates.STRIDE;
+        return PlanetStorage.offset(planet) + face.ordinal() * GroundCoordinates.STRIDE;
     }
 
     @Test
@@ -49,7 +48,7 @@ class ChunkViewsTest {
     @Test
     void ownedChunksAreNeverGhostsAndHaloChunksAlways() {
         for (var access : LAYOUTS)
-            for (int planet = 0; planet < (access == PlanetAccess.SHARED ? 2 : 1); planet++)
+            for (int planet = 0; planet < 2; planet++)
                 for (var face : Face.values()) {
                     int x0 = origin(access, planet, face) >> 4;
                     assertFalse(ChunkViews.ghost(access, x0, 0));
@@ -66,7 +65,7 @@ class ChunkViewsTest {
     void ghostColumnsAreTheLevelAddressOfEveryHaloBlock() {
         for (var access : LAYOUTS)
             for (var face : Face.values()) {
-                int x0 = origin(access, access == PlanetAccess.SHARED ? 1 : 0, face);
+                int x0 = origin(access, 1, face);
                 for (int[] c :
                         new int[][] {
                             {-16, 1024},
@@ -106,7 +105,7 @@ class ChunkViewsTest {
      * ticketed generation in vanilla; a non-loading ghost lookup must use the get-now path. */
     @Test
     void nonLoadingGhostLookupNeverWaitsForFullGeneration() {
-        var columns = ChunkViews.columns(PlanetAccess.LEGACY, -1, 64);
+        var columns = ChunkViews.columns(PlanetAccess.SHARED, -1, 64);
         assertEquals(1, columns.owners().length);
         var pending = new java.util.concurrent.CompletableFuture<Boolean>();
         var queried = new ArrayList<Long>();
@@ -228,11 +227,11 @@ class ChunkViewsTest {
     void haloStripIsInjectiveAwayFromCorners() {
         for (var face : Face.values()) {
             var seen = new HashMap<Long, BlockPos>();
-            int x0 = origin(PlanetAccess.LEGACY, 0, face);
+            int x0 = origin(PlanetAccess.SHARED, 0, face);
             for (int u = -48; u < 0; u++)
                 for (int v = 64; v < 1984; v++) {
                     var q = new BlockPos(x0 + u, 70, v);
-                    long a = ChunkViews.alias(PlanetAccess.LEGACY, q.asLong());
+                    long a = ChunkViews.alias(PlanetAccess.SHARED, q.asLong());
                     var prev = seen.put(a, q);
                     assertNull(prev, face + " " + q + " " + prev);
                 }
@@ -312,6 +311,6 @@ class ChunkViewsTest {
         assertTrue(detach > 0);
         var body = flight.substring(detach, flight.indexOf("public static void site(", detach));
         assertTrue(body.indexOf("checkpoint(player)") < body.indexOf("getDataStorage().save()"));
-        assertTrue(body.contains("PlanetSystem.authority(player.serverLevel())"));
+        assertTrue(body.contains("player.serverLevel().getDataStorage().save()"));
     }
 }

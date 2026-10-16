@@ -23,12 +23,7 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 
 import java.util.concurrent.CompletableFuture;
 
-/** One Level's generator, an independently saved policy for each planet, disjoint native block addresses.
- * Registered only through an explicit system preset, never upgraded in old worlds.
- * This is deliberately a separate codec: never reinterpret an alpha.67 generator/save in place.
- * A system is saved either as the two named planets it began as ("a" temperate, "b" rocky) or as a list of any
- * length ("planets"), in storage order.
- */
+/** One level's generator, with independently saved planet policies in storage order. */
 public final class SystemChunkGenerator extends FlatLevelSource implements PlanetSystem.Saved {
     private static final MapCodec<SystemChunkGenerator> SAVED_CODEC =
             RecordCodecBuilder.mapCodec(
@@ -37,36 +32,10 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                             Codec.STRING
                                                     .fieldOf("storage_layout")
                                                     .forGetter(g -> g.layout),
-                                            PlanetChunkGenerator.CODEC
-                                                    .codec()
-                                                    .optionalFieldOf("a")
-                                                    .forGetter(
-                                                            g ->
-                                                                    g.named
-                                                                            ? java.util.Optional.of(
-                                                                                    g.planet(0))
-                                                                            : java.util.Optional
-                                                                                    .empty()),
-                                            PlanetChunkGenerator.CODEC
-                                                    .codec()
-                                                    .optionalFieldOf("b")
-                                                    .forGetter(
-                                                            g ->
-                                                                    g.named
-                                                                            ? java.util.Optional.of(
-                                                                                    g.planet(1))
-                                                                            : java.util.Optional
-                                                                                    .empty()),
                                             PlanetType.PLANET
                                                     .listOf()
-                                                    .optionalFieldOf("planets")
-                                                    .forGetter(
-                                                            g ->
-                                                                    g.named
-                                                                            ? java.util.Optional
-                                                                                    .empty()
-                                                                            : java.util.Optional.of(
-                                                                                    g.entries)),
+                                                    .fieldOf("planets")
+                                                    .forGetter(g -> g.entries),
                                             Codec.INT
                                                     .listOf()
                                                     .optionalFieldOf("stars")
@@ -100,17 +69,10 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                                     .forGetter(SystemChunkGenerator::starterShip))
                                     .apply(
                                             i,
-                                            (layout,
-                                                    a,
-                                                    b,
-                                                    planets,
-                                                    stars,
-                                                    universe,
-                                                    celestial,
-                                                    ship) ->
+                                            (layout, planets, stars, universe, celestial, ship) ->
                                                     withStarter(
                                                             saved(
-                                                                    layout, a, b, planets, stars,
+                                                                    layout, planets, stars,
                                                                     universe, celestial),
                                                             ship)));
     private static final MapCodec<SystemChunkGenerator> AUTHORED_CODEC =
@@ -156,6 +118,8 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                         () -> "system cannot be combined with " + key);
                         return AUTHORED_CODEC.decode(ops, input);
                     }
+                    if (input.get("a") != null || input.get("b") != null)
+                        return DataResult.error(() -> "A system needs a planets list");
                     return SAVED_CODEC.decode(ops, input);
                 }
 
@@ -197,7 +161,6 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         this.pending = system;
         entries = java.util.List.of();
         groups = new int[0];
-        named = false;
     }
 
     /** World presets load before holders are bound and before a world seed exists. Never guess that seed for a preview. */
@@ -281,73 +244,58 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
     /** A planet named by its type becomes one the first time it is asked for: see PlanetType.Entry. */
     private java.util.List<PlanetType.Entry> entries;
 
-    private final boolean named;
     private volatile java.util.List<PlanetChunkGenerator> planets;
 
     /** How many planets each sun has, in storage order; one sun unless saved otherwise ("stars"). */
     private int[] groups;
 
-    /** The layout the system was saved with: the row a system of two began with, or the square. */
+    /** The saved storage layout. */
     private final String layout;
 
     private volatile SystemBiomes biomes;
 
     private static SystemChunkGenerator saved(
             String layout,
-            java.util.Optional<PlanetChunkGenerator> a,
-            java.util.Optional<PlanetChunkGenerator> b,
-            java.util.Optional<java.util.List<PlanetType.Entry>> planets,
+            java.util.List<PlanetType.Entry> planets,
             java.util.Optional<java.util.List<Integer>> stars,
             java.util.Optional<net.minecraft.core.Holder<UniverseLayout>> universe,
             java.util.Optional<SystemDefinition.Sky> celestial) {
-        if (celestial.isPresent()
-                && (planets.isEmpty() || stars.isPresent() || a.isPresent() || b.isPresent()))
-            throw new IllegalArgumentException(
-                    "Saved celestial requires only a full planets list, not a/b/stars");
+        if (celestial.isPresent() && stars.isPresent())
+            throw new IllegalArgumentException("Saved celestial cannot be combined with stars");
         if (celestial.isPresent()) {
             var sky = celestial.get();
-            if (planets.get().size() != sky.names().size()
-                    || planets.get().stream().anyMatch(p -> !p.written()))
+            if (planets.size() != sky.names().size()
+                    || planets.stream().anyMatch(p -> !p.written()))
                 throw new IllegalArgumentException(
                         "Saved celestial requires matching full planet generators");
             var made =
                     new SystemChunkGenerator(
                             layout,
-                            planets.get(),
-                            false,
+                            planets,
                             sky.groups().stream().mapToInt(Integer::intValue).toArray(),
                             sky);
             made.universe = universe;
             return made;
         }
-        if (planets.isPresent()) {
-            if (a.isPresent() || b.isPresent())
-                throw new IllegalArgumentException(
-                        "A system is either a and b or a list of planets");
-            var made =
-                    new SystemChunkGenerator(
-                            layout,
-                            planets.get(),
-                            false,
-                            stars.map(s -> s.stream().mapToInt(Integer::intValue).toArray())
-                                    .orElse(new int[] {planets.get().size()}));
-            made.universe = universe;
-            return made;
-        }
-        if (a.isEmpty() || b.isEmpty() || stars.isPresent() || universe.isPresent())
-            throw new IllegalArgumentException("A system needs its planets");
-        return new SystemChunkGenerator(layout, a.get(), b.get());
+        var made =
+                new SystemChunkGenerator(
+                        layout,
+                        planets,
+                        stars.map(s -> s.stream().mapToInt(Integer::intValue).toArray())
+                                .orElse(new int[] {planets.size()}),
+                        null);
+        made.universe = universe;
+        return made;
     }
 
     public SystemChunkGenerator(String layout, PlanetChunkGenerator a, PlanetChunkGenerator b) {
         this(
                 layout,
                 java.util.List.of(new PlanetType.Entry(a), new PlanetType.Entry(b)),
-                true,
-                new int[] {2});
+                new int[] {2},
+                null);
         if (a.version() != 4 || b.version() != 5)
-            throw new IllegalArgumentException(
-                    "System requires independent A v4 and B v5 policies, not dimension handoff generators");
+            throw new IllegalArgumentException("System requires ecology v4 and rocky v5 policies");
     }
 
     public SystemChunkGenerator(String layout, java.util.List<PlanetChunkGenerator> planets) {
@@ -356,18 +304,12 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
 
     public SystemChunkGenerator(
             String layout, java.util.List<PlanetChunkGenerator> planets, int[] groups) {
-        this(layout, planets.stream().map(PlanetType.Entry::new).toList(), false, groups);
-    }
-
-    private SystemChunkGenerator(
-            String layout, java.util.List<PlanetType.Entry> entries, boolean named, int[] groups) {
-        this(layout, entries, named, groups, null);
+        this(layout, planets.stream().map(PlanetType.Entry::new).toList(), groups, null);
     }
 
     private SystemChunkGenerator(
             String layout,
             java.util.List<PlanetType.Entry> entries,
-            boolean named,
             int[] groups,
             SystemDefinition.Sky celestial) {
         super(first(entries).settings());
@@ -375,14 +317,10 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         if (celestial != null && !PlanetStorage.LAYOUT.equals(layout))
             throw new IllegalArgumentException(
                     "An authored system requires storage_layout six_face_square_v2");
-        // A row of two is the first two places of the square; a third planet is in the square
-        // alone.
-        if (!PlanetStorage.LAYOUT.equals(layout)
-                && !(PlanetStorage.ROW_LAYOUT.equals(layout) && entries.size() == 2))
+        if (!PlanetStorage.LAYOUT.equals(layout))
             throw new IllegalArgumentException("Unknown native system storage layout");
         this.layout = layout;
-        // The celestial model still carries two bodies, so a system has at least those two.
-        if (entries.size() < 2 || entries.size() > PlanetStorage.MAX_PLANETS)
+        if (entries.size() < 1 || entries.size() > PlanetStorage.MAX_PLANETS)
             throw new IllegalArgumentException("System planet count " + entries.size());
         if (java.util.Arrays.stream(groups).sum() != entries.size())
             throw new IllegalArgumentException(
@@ -394,7 +332,6 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         if (celestial == null) PlanetSystem.model(groups);
         this.groups = groups.clone();
         this.entries = java.util.List.copyOf(entries);
-        this.named = named;
         // Planets written out in full are checked now, as they always were; the rest when they are
         // made.
         if (entries.stream().allMatch(PlanetType.Entry::written)) planets();
@@ -422,9 +359,9 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                         beyond.stream())
                                 .toList();
                 for (var planet : list)
-                    if (planet.version() != 4 && planet.version() != 5 || planet.multiple())
+                    if (planet.version() != 4 && planet.version() != 5)
                         throw new IllegalArgumentException(
-                                "System requires independent A v4 and B v5 policies, not dimension handoff generators");
+                                "System requires ecology v4 and rocky v5 policies");
                 biomes =
                         new SystemBiomes(
                                 list.stream().map(PlanetChunkGenerator::getBiomeSource).toList());

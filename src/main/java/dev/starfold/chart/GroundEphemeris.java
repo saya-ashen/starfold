@@ -81,22 +81,31 @@ public final class GroundEphemeris {
         }
     }
 
-    /** A further planet of a system, on its own circle about its own centre. */
+    /** Paths use region axes, independent of the parent's rotation. */
+    public sealed interface Motion permits Fixed, Orbit {}
+
+    public record Fixed(Point position) implements Motion {
+        public Fixed {
+            point(position);
+        }
+    }
+
     public record Orbit(
-            Point center,
+            int parent,
             Point axis,
             Point radial,
             double radius,
             double period,
             double phase,
             long epoch,
-            Spin spin) {
+            Spin spin)
+            implements Motion {
         public Orbit {
-            point(center);
             unit(axis);
             unit(radial);
             finite(phase);
-            if (Math.abs(axis.dot(radial)) > 1e-9
+            if (parent < 0
+                    || Math.abs(axis.dot(radial)) > 1e-9
                     || !Double.isFinite(radius)
                     || radius < 0
                     || radius > 1e7
@@ -108,7 +117,7 @@ public final class GroundEphemeris {
                     || spin == null) throw new IllegalArgumentException("Orbit parameters");
         }
 
-        Frame at(double tick) {
+        Frame at(Frame parentFrame, double tick) {
             double omega = 2 * Math.PI / period, angle = phase + omega * ((tick - epoch) % period);
             var offset =
                     rotate(
@@ -117,14 +126,60 @@ public final class GroundEphemeris {
                                     radial)
                             .scale(radius);
             return new Frame(
-                    center.add(offset),
+                    parentFrame.center().add(offset),
                     spin.at(tick),
-                    axis.scale(omega).cross(offset),
+                    parentFrame.velocity().add(axis.scale(omega).cross(offset)),
                     spin.angular());
         }
     }
 
-    /** A sun: the first one is the model's own, at its centre; any others are further stars with planets about them. */
+    /** A surface's slot is its storage address, not its position in the catalog. */
+    public record Body(Motion motion, double radius, boolean light, int slot, double reach) {
+        public static final double DEFAULT_REACH = 2048;
+
+        /** Generated surfaces use the standard departure height; lights have no surface band. */
+        public Body(Motion motion, double radius, boolean light, int slot) {
+            this(motion, radius, light, slot, slot < 0 ? 0 : DEFAULT_REACH);
+        }
+
+        public Body {
+            if (motion == null
+                    || !Double.isFinite(radius)
+                    || radius < 0
+                    || (light && (radius < 32 || radius > 4096))
+                    || slot < -1
+                    || !Double.isFinite(reach)
+                    || (slot < 0 ? reach != 0 : reach < 512 || reach > DEFAULT_REACH)
+                    || (!light && slot < 0)) throw new IllegalArgumentException("Body parameters");
+        }
+
+        /** Heights above the nominal surface sphere, for handover and hull weight. */
+        public double hullOut() {
+            return reach;
+        }
+
+        public double hullIn() {
+            return .75 * reach;
+        }
+
+        public double flightExit() {
+            return 2 * reach;
+        }
+
+        public double flightEnter() {
+            return 1.5 * reach;
+        }
+
+        public double weightNone() {
+            return 1.5 * reach;
+        }
+
+        public double weightFull() {
+            return .5 * reach;
+        }
+    }
+
+    /** Evaluated luminous sphere, used by lighting and sky rendering. */
     public record Star(Point position, double radius) {
         public Star {
             point(position);
@@ -133,218 +188,179 @@ public final class GroundEphemeris {
         }
     }
 
-    /** The first two planets share one circle, opposite each other, as the system began; any further ones are in more. */
-    public record Model(
-            Point center,
-            Point axis,
-            Point radial,
-            double radius,
-            double period,
-            double phase,
-            long epoch,
-            Spin a,
-            Spin b,
-            GroundSolar.Sun sun,
-            boolean multiple,
-            java.util.List<Orbit> more,
-            java.util.List<Star> stars) {
-        public Model(
-                Point center,
-                Point axis,
-                Point radial,
-                double radius,
-                double period,
-                double phase,
-                long epoch,
-                Spin a,
-                Spin b,
-                GroundSolar.Sun sun,
-                boolean multiple,
-                java.util.List<Orbit> more) {
-            this(
-                    center,
-                    axis,
-                    radial,
-                    radius,
-                    period,
-                    phase,
-                    epoch,
-                    a,
-                    b,
-                    sun,
-                    multiple,
-                    more,
-                    java.util.List.of());
+    private static final Spin STILL = new Spin(false, Y, new Quaterniond(), 0, 24000, 0);
+
+    /** Immutable bodies in dependency order, with a separately indexed surface view. */
+    public static final class Model {
+        private final java.util.List<Body> bodies;
+        private final int[] slots;
+        private final Point[] anchors;
+        private final double[] reaches;
+        private final double drift, turn, extent;
+
+        /** The lights when none of them moves, so that asking for them every frame builds nothing. */
+        private final java.util.List<Star> still;
+
+        public Model(java.util.List<Body> bodies) {
+            this.bodies = java.util.List.copyOf(bodies);
+            bodies = this.bodies;
+            if (bodies.stream().noneMatch(Body::light))
+                throw new IllegalArgumentException("A celestial model requires a light");
+            slots = new int[(int) bodies.stream().filter(b -> b.slot() >= 0).count()];
+            java.util.Arrays.fill(slots, -1);
+            anchors = new Point[bodies.size()];
+            reaches = new double[bodies.size()];
+            double[] speeds = new double[bodies.size()];
+            double fastest = 0, turning = 0;
+            for (int i = 0; i < bodies.size(); i++) {
+                var body = bodies.get(i);
+                if (body.slot() >= 0) {
+                    if (body.slot() >= slots.length || slots[body.slot()] != -1)
+                        throw new IllegalArgumentException(
+                                "Surface slots must be unique and contiguous");
+                    slots[body.slot()] = i;
+                }
+                if (body.motion() instanceof Fixed f) anchors[i] = f.position();
+                else {
+                    var o = (Orbit) body.motion();
+                    if (o.parent() >= i)
+                        throw new IllegalArgumentException("Orbit parent must be an earlier body");
+                    anchors[i] = anchors[o.parent()];
+                    reaches[i] = reaches[o.parent()] + o.radius();
+                    speeds[i] = speeds[o.parent()] + o.radius() / o.period();
+                    if (body.slot() >= 0) turning = Math.max(turning, o.spin().angular().length());
+                }
+                if (body.slot() >= 0) fastest = Math.max(fastest, speeds[i]);
+            }
+            drift = 4 * Math.PI * fastest;
+            turn = turning;
+            double boundary = GroundTransit.SPACE_RADIUS;
+            for (int i = 0; i < bodies.size(); i++)
+                boundary =
+                        Math.max(boundary, anchors[i].sub(origin()).length() + reaches[i] + 8192);
+            extent = boundary;
+            still =
+                    bodies.stream().allMatch(b -> !b.light() || b.motion() instanceof Fixed)
+                            ? lights(0)
+                            : null;
         }
 
-        public Model(
-                Point center,
-                Point axis,
-                Point radial,
-                double radius,
-                double period,
-                double phase,
-                long epoch,
-                Spin a,
-                Spin b,
-                GroundSolar.Sun sun,
-                boolean multiple) {
-            this(
-                    center,
-                    axis,
-                    radial,
-                    radius,
-                    period,
-                    phase,
-                    epoch,
-                    a,
-                    b,
-                    sun,
-                    multiple,
-                    java.util.List.of());
-        }
-
-        public Model(
-                Point center,
-                Point axis,
-                Point radial,
-                double radius,
-                double period,
-                double phase,
-                long epoch,
-                Spin a,
-                Spin b,
-                GroundSolar.Sun sun) {
-            this(center, axis, radial, radius, period, phase, epoch, a, b, sun, false);
-        }
-
-        public Model(
-                Point center,
-                Point axis,
-                Point radial,
-                double radius,
-                double period,
-                double phase,
-                long epoch,
-                Spin a,
-                Spin b) {
-            this(center, axis, radial, radius, period, phase, epoch, a, b, GroundSolar.Sun.OFF);
+        public java.util.List<Body> bodies() {
+            return bodies;
         }
 
         public int count() {
-            return sun.enabled() && !multiple ? 1 : 2 + more.size();
+            return slots.length;
         }
 
-        public Model {
-            more = java.util.List.copyOf(more);
-            stars = java.util.List.copyOf(stars);
-            if ((!more.isEmpty() || !stars.isEmpty()) && !multiple)
-                throw new IllegalArgumentException("Further planets need a system");
-            if (sun == null
-                    || sun.enabled()
-                            && (sun.position().sub(center).length() > 1e-8
-                                    || sun.radius() + GroundOrbit.RADIUS + GroundSpace.MAX
-                                            >= radius))
-                throw new IllegalArgumentException("Solar orbit parameters");
-            point(center);
-            unit(axis);
-            unit(radial);
-            finite(phase);
-            if (Math.abs(axis.dot(radial)) > 1e-9
-                    || center.length() > 100000
-                    || radius < 6000
-                    || radius > 8192
-                    || period < 12000
-                    || period > 1e9
-                    || !Double.isFinite(radius)
-                    || !Double.isFinite(period)
-                    || epoch < 0
-                    || epoch > MAX_TICK
-                    || a == null
-                    || b == null) throw new IllegalArgumentException("Binary orbit parameters");
+        public int index(int slot) {
+            if (slot < 0 || slot >= slots.length) throw new IllegalArgumentException("Planet");
+            return slots[slot];
         }
 
-        public Frame at(int planet, double tick) {
+        public Body body(int slot) {
+            return bodies.get(index(slot));
+        }
+
+        public Orbit orbit(int slot) {
+            return (Orbit) body(slot).motion();
+        }
+
+        /** The fixed root of the home surface, used as the flight boundary and discovery origin. */
+        public Point origin() {
+            return anchors[slots.length == 0 ? 0 : slots[0]];
+        }
+
+        public Frame frame(int index, double tick) {
             time(tick);
-            if (planet < 0 || planet >= 2 + more.size())
-                throw new IllegalArgumentException("Planet");
-            if (planet >= 2) return more.get(planet - 2).at(tick);
-            double omega = 2 * Math.PI / period;
-            double angle = phase + omega * ((tick - epoch) % period) + (planet == 0 ? Math.PI : 0);
-            var rotation = new Quaterniond().rotationAxis(angle, axis.x(), axis.y(), axis.z());
-            var offset = rotate(rotation, radial).scale(radius);
-            var angular = axis.scale(omega);
-            var spin = spin(planet);
-            return new Frame(
-                    center.add(offset), spin.at(tick), angular.cross(offset), spin.angular());
+            var motion = bodies.get(index).motion();
+            if (motion instanceof Fixed f)
+                return new Frame(f.position(), new Quaterniond(), ZERO, ZERO);
+            var orbit = (Orbit) motion;
+            return orbit.at(frame(orbit.parent(), tick), tick);
         }
 
-        public Spin spin(int planet) {
-            if (planet < 0 || planet >= 2 + more.size())
-                throw new IllegalArgumentException("Planet");
-            return planet == 0 ? a : planet == 1 ? b : more.get(planet - 2).spin();
+        public Frame at(int slot, double tick) {
+            return frame(index(slot), tick);
         }
 
-        /** No nearer to a place than this is a planet, wherever on its circle it is: told without asking where it is,
-         *  which among the planets of a universe is nearly always enough to pass one over. */
-        public double least(int planet, Point world) {
-            if (planet < 0 || planet >= 2 + more.size())
-                throw new IllegalArgumentException("Planet");
-            if (planet < 2) return Math.max(0, world.sub(center).length() - radius);
-            var orbit = more.get(planet - 2);
-            return Math.max(0, world.sub(orbit.center()).length() - orbit.radius());
+        public Frame parent(int slot, double tick) {
+            return frame(orbit(slot).parent(), tick);
         }
 
-        /** Flight is confined to this distance from the centre: far enough to reach every planet of the system. */
+        public Spin spin(int slot) {
+            return body(slot).motion() instanceof Orbit o ? o.spin() : STILL;
+        }
+
+        /** A whole ancestor envelope gives a lower bound without evaluating the orbit. */
+        public double least(int slot, Point world) {
+            int i = index(slot);
+            return Math.max(0, world.sub(anchors[i]).length() - reaches[i]);
+        }
+
         public double extent() {
-            double extent = GroundTransit.SPACE_RADIUS;
-            for (var orbit : more)
-                extent =
-                        Math.max(
-                                extent,
-                                orbit.center().sub(center).length() + orbit.radius() + 8192);
-            for (var star : stars)
-                extent = Math.max(extent, star.position().sub(center).length() + 8192);
             return extent;
         }
 
-        /** Every sun of the model, its own first. */
-        public java.util.List<Star> everyStar() {
-            var all = new java.util.ArrayList<Star>();
-            all.add(new Star(sun.position(), sun.radius()));
-            all.addAll(stars);
-            return all;
+        public double drift() {
+            return drift;
         }
 
-        /** The sun that lights a place: the nearest. */
+        public double turn() {
+            return turn;
+        }
+
+        public java.util.List<Star> everyStar() {
+            return everyStar(0);
+        }
+
+        public java.util.List<Star> everyStar(double tick) {
+            return still != null ? still : lights(tick);
+        }
+
+        private java.util.List<Star> lights(double tick) {
+            var stars = new java.util.ArrayList<Star>();
+            for (int i = 0; i < bodies.size(); i++)
+                if (bodies.get(i).light())
+                    stars.add(new Star(frame(i, tick).center(), bodies.get(i).radius()));
+            return java.util.List.copyOf(stars);
+        }
+
+        /** The first light is the primary source; equal nearest distances retain catalog order. */
+        public Star primary() {
+            return everyStar().getFirst();
+        }
+
         public Star star(Point world) {
-            Star best = new Star(sun.position(), sun.radius());
-            double nearest = best.position().sub(world).length();
-            for (var star : stars) {
-                double d = star.position().sub(world).length();
-                if (d < nearest) {
-                    nearest = d;
+            return star(world, 0);
+        }
+
+        public Star star(Point world, double tick) {
+            Star best = null;
+            double nearest = Double.POSITIVE_INFINITY;
+            for (var star : everyStar(tick)) {
+                double distance = star.position().sub(world).length();
+                if (best == null || distance < nearest) {
                     best = star;
+                    nearest = distance;
                 }
             }
             return best;
         }
 
-        /** The fastest any two planets move against each other, and the fastest any of them turns. */
-        public double drift() {
-            double drift = 4 * Math.PI * radius / period;
-            for (var orbit : more)
-                drift =
-                        Math.max(
-                                drift,
-                                2 * Math.PI * (radius / period + orbit.radius() / orbit.period()));
-            return drift;
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Model m && bodies.equals(m.bodies);
         }
 
-        public double turn() {
-            double turn = Math.max(a.angular().length(), b.angular().length());
-            for (var orbit : more) turn = Math.max(turn, orbit.spin().angular().length());
-            return turn;
+        @Override
+        public int hashCode() {
+            return bodies.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "Model[bodies=" + bodies + "]";
         }
     }
 
@@ -389,43 +405,37 @@ public final class GroundEphemeris {
         }
     }
 
-    public static Model defaults() {
-        var a = new Spin(false, Y, new Quaterniond(), 0, 24000, 0);
-        var b = new Spin(false, Y, new Quaterniond(), 0, 36000, 0);
-        return new Model(new Point(0, 0, 8192), Y, new Point(0, 0, 1), 8192, 24000, 0, 0, a, b);
-    }
-
-    public static Model spinningDefaults() {
-        return spinning(defaults(), true, 0);
-    }
-
-    public static Model spinning(Model m, boolean on, long tick) {
+    public static Model spinning(Model model, boolean on, long tick) {
         return new Model(
-                m.center,
-                m.axis,
-                m.radial,
-                m.radius,
-                m.period,
-                m.phase,
-                m.epoch,
-                m.a.toggle(on, tick, 48000),
-                m.b.toggle(on, tick, 72000),
-                m.sun,
-                m.multiple,
-                m.more.stream()
+                model.bodies().stream()
                         .map(
-                                o ->
-                                        new Orbit(
-                                                o.center,
-                                                o.axis,
-                                                o.radial,
-                                                o.radius,
-                                                o.period,
-                                                o.phase,
-                                                o.epoch,
-                                                o.spin.toggle(on, tick, 72000)))
-                        .toList(),
-                m.stars);
+                                body -> {
+                                    if (!(body.motion() instanceof Orbit o) || body.slot() < 0)
+                                        return body;
+                                    var motion =
+                                            new Orbit(
+                                                    o.parent(),
+                                                    o.axis(),
+                                                    o.radial(),
+                                                    o.radius(),
+                                                    o.period(),
+                                                    o.phase(),
+                                                    o.epoch(),
+                                                    o.spin()
+                                                            .toggle(
+                                                                    on,
+                                                                    tick,
+                                                                    body.slot() == 0
+                                                                            ? 48000
+                                                                            : 72000));
+                                    return new Body(
+                                            motion,
+                                            body.radius(),
+                                            body.light(),
+                                            body.slot(),
+                                            body.reach());
+                                })
+                        .toList());
     }
 
     public static Point rotate(Quaterniond q, Point p) {

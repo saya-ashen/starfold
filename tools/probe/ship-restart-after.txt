@@ -1,0 +1,25 @@
+# E2 session 2: same world after orderly server restart, player still saved far away.
+# Keep -Dstarfold.shipProbe=true. Overrides are not saved; normal ALWAYS is restored on restart.
+strict
+waitworld
+# Assume startup/readiness stabilizes within 100 client ticks; an absent hull must not load eagerly.
+wait 100
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert dormant
+check dormant-after-restart if score @s s2_ok matches 1
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert checkpoint
+check payload-after-restart if score @s s2_ok matches 1
+cmd starfold ships
+# Compare UUID/id/locator/chart_place against the session-1 log; do not accept just matching 0:0.
+# Cache absence is expected after restart; inspect reads the payload by locator without loading a hull or terrain.
+cmd starfold shipprobe "0:0" near
+# Assume ordinary terrain loading and native Sable restoration within 200 client ticks.
+wait 200
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert live
+check live-after-return if score @s s2_ok matches 1
+# Assumes stationary chart/settled unpiloted hull; no claim about moving-frame wake or inventory here.
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert same-place
+check place-after-restart if score @s s2_ok matches 1
+shot ship-restart-after-final
+quit

@@ -218,7 +218,7 @@ class SpaceViewTest {
         assertEquals(near, SpaceView.nearest(model, eye, 500, 8));
         assertEquals(List.of(), SpaceView.nearest(model, eye, 500, 0));
         var pair = SpaceTest.tilted();
-        assertEquals(List.of(0, 1), SpaceView.nearest(pair, pair.center(), 12, 8));
+        assertEquals(List.of(0, 1), SpaceView.nearest(pair, pair.origin(), 12, 8));
     }
 
     @Test
@@ -227,7 +227,7 @@ class SpaceViewTest {
         for (double tick : new double[] {0, 1234, 8000})
             for (int id = 0; id < 2; id++) {
                 var center = model.at(id, tick).center();
-                var radial = PlanetSpace.unit(center.sub(model.sun().position()));
+                var radial = PlanetSpace.unit(center.sub(model.primary().position()));
                 var night = center.add(radial.scale(3000));
                 var day = center.sub(radial.scale(3000));
                 assertEquals(0, SpaceView.sunlight(model, night, tick), 1e-9);
@@ -246,22 +246,21 @@ class SpaceViewTest {
     }
 
     @Test
-    void passiveViewWireCarriesMaskLayoutAndIndependentSession() {
-        for (long epoch : new long[] {0, 1, -41, Long.MAX_VALUE})
-            for (boolean shared : new boolean[] {false, true}) {
-                var packet = new SpacePackets.View(epoch, new GroundSpace.Config(7, 1234), shared);
-                var b = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
-                try {
-                    SpacePackets.View.CODEC.encode(b, packet);
-                    assertEquals(17, b.readableBytes());
-                    assertEquals(packet, SpacePackets.View.CODEC.decode(b));
-                    assertEquals(0, b.readableBytes());
-                    assertEquals("starfold:native_space_v1_view", packet.type().id().toString());
-                } finally {
-                    b.release();
-                }
+    void passiveViewWireCarriesMaskAndIndependentSession() {
+        for (long epoch : new long[] {0, 1, -41, Long.MAX_VALUE}) {
+            var packet = new SpacePackets.View(epoch, new GroundSpace.Config(7, 1234));
+            var b = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+            try {
+                SpacePackets.View.CODEC.encode(b, packet);
+                assertEquals(16, b.readableBytes());
+                assertEquals(packet, SpacePackets.View.CODEC.decode(b));
+                assertEquals(0, b.readableBytes());
+                assertEquals("starfold:native_space_v2_view", packet.type().id().toString());
+            } finally {
+                b.release();
             }
-        assertThrows(IllegalArgumentException.class, () -> new SpacePackets.View(1, null, true));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new SpacePackets.View(1, null));
     }
 
     @Test

@@ -4,7 +4,6 @@ import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.sky.Space;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -44,11 +43,11 @@ public final class Universe extends SavedData {
 
     public static Grown grown = Grown.standalone();
 
-    /** A planet on its circle about one of the universe's suns. */
+    /** A generated surface and its path parameters, with its parent addressed in the local body catalog. */
     public record Body(
-            int star, double radius, double period, double phase, PlanetChunkGenerator planet) {
+            int parent, double radius, double period, double phase, PlanetChunkGenerator planet) {
         public Body {
-            if (star < 0
+            if (parent < 0
                     || planet == null
                     || !Double.isFinite(radius)
                     || !Double.isFinite(period)
@@ -56,10 +55,13 @@ public final class Universe extends SavedData {
         }
     }
 
-    /** Suns and planets are only ever added, at the end: a planet keeps its number, and with it its storage. */
-    private final List<GroundEphemeris.Star> stars;
+    /** Bodies append in dependency order; surface slots append independently of luminous bodies. */
+    private final List<GroundEphemeris.Body> catalog;
 
-    private final List<Body> bodies;
+    private final List<PlanetChunkGenerator> planets;
+    private static final GroundEphemeris.Spin DISCOVERY_SPIN =
+            new GroundEphemeris.Spin(
+                    false, GroundEphemeris.Y, new org.joml.Quaterniond(), 0, 36000, 0);
 
     /** The cells of an endless universe that have been looked into, whether or not a sun was there. */
     private final java.util.Set<Long> cells = new java.util.HashSet<>();
@@ -68,36 +70,94 @@ public final class Universe extends SavedData {
 
     /** Authored suns need not sit inside the home grid cell. Reserve their entire orbit envelopes, not just their centres. */
     public static boolean clearOfHome(Point position, double reach, GroundEphemeris.Model home) {
-        double surface =
-                new PlanetShape(PlanetShape.MAX).radius() + Space.OUT + SystemDefinition.MARGIN / 2;
-        for (var star : home.everyStar()) {
-            double outer = star.position().sub(home.center()).length() < 1e-8 ? home.radius() : 0;
-            for (var orbit : home.more())
-                if (orbit.center().sub(star.position()).length() < 1e-8)
-                    outer = Math.max(outer, orbit.radius());
-            if (position.sub(star.position()).length() < reach + outer + surface) return false;
+        double surface = new PlanetShape(PlanetShape.MAX).radius();
+        for (int i = 0; i < home.bodies().size(); i++) {
+            var body = home.bodies().get(i);
+            if (!body.light()) continue;
+            var centre = home.frame(i, 0).center();
+            double outer = 0, band = GroundEphemeris.Body.DEFAULT_REACH;
+            for (var child : home.bodies()) {
+                if (child.slot() < 0) continue;
+                var motion = child.motion();
+                double radius = 0;
+                int parent = -1;
+                while (motion instanceof GroundEphemeris.Orbit orbit) {
+                    radius += orbit.radius();
+                    parent = orbit.parent();
+                    motion = home.bodies().get(parent).motion();
+                }
+                if (parent == i && radius > outer + (band - child.hullOut())) {
+                    outer = radius;
+                    band = child.hullOut();
+                }
+            }
+            if (position.sub(centre).length()
+                    < reach + outer + (surface + band + SystemDefinition.MARGIN / 2)) return false;
         }
         return true;
     }
 
-    public Universe(List<GroundEphemeris.Star> stars, List<Body> bodies) {
-        this.stars = new ArrayList<>(stars);
-        this.bodies = new ArrayList<>(bodies);
-        for (var body : bodies)
-            if (body.star() >= stars.size())
-                throw new IllegalArgumentException("Universe body without its sun");
+    public Universe(List<GroundEphemeris.Body> catalog, List<PlanetChunkGenerator> planets) {
+        this.catalog = new ArrayList<>(catalog);
+        this.planets = new ArrayList<>(planets);
+        if (catalog.isEmpty()) {
+            if (!planets.isEmpty())
+                throw new IllegalArgumentException("Universe planets without bodies");
+        } else if (new GroundEphemeris.Model(catalog).count() != planets.size())
+            throw new IllegalArgumentException("Universe surface counts disagree");
+    }
+
+    public synchronized List<GroundEphemeris.Body> catalog() {
+        return List.copyOf(catalog);
     }
 
     public synchronized List<GroundEphemeris.Star> stars() {
-        return List.copyOf(stars);
+        return catalog.isEmpty() ? List.of() : new GroundEphemeris.Model(catalog).everyStar();
     }
 
     public synchronized List<Body> bodies() {
-        return List.copyOf(bodies);
+        if (catalog.isEmpty()) return List.of();
+        var result = new ArrayList<Body>();
+        var model = new GroundEphemeris.Model(catalog);
+        for (int slot = 0; slot < planets.size(); slot++) {
+            var orbit = model.orbit(slot);
+            result.add(
+                    new Body(
+                            orbit.parent(),
+                            orbit.radius(),
+                            orbit.period(),
+                            orbit.phase(),
+                            planets.get(slot)));
+        }
+        return List.copyOf(result);
     }
 
     public synchronized List<PlanetChunkGenerator> planets() {
-        return bodies.stream().map(Body::planet).toList();
+        return List.copyOf(planets);
+    }
+
+    private int addSun(Point position, double radius) {
+        int parent = catalog.size();
+        catalog.add(
+                new GroundEphemeris.Body(new GroundEphemeris.Fixed(position), radius, true, -1));
+        return parent;
+    }
+
+    private void addPlanet(Body body, GroundEphemeris.Model home) {
+        var template = home.orbit(0);
+        var spin = home.count() > 1 ? home.spin(1) : DISCOVERY_SPIN;
+        var orbit =
+                new GroundEphemeris.Orbit(
+                        body.parent(),
+                        template.axis(),
+                        template.radial(),
+                        body.radius(),
+                        body.period(),
+                        body.phase(),
+                        template.epoch(),
+                        spin);
+        catalog.add(new GroundEphemeris.Body(orbit, 0, false, planets.size()));
+        planets.add(body.planet());
     }
 
     public synchronized int explored() {
@@ -110,7 +170,7 @@ public final class Universe extends SavedData {
 
     /** The cell of the grid a place lies in, counted from the home sun. */
     public static int[] cell(UniverseLayout layout, GroundEphemeris.Model home, Point world) {
-        var d = world.sub(home.center());
+        var d = world.sub(home.origin());
         return new int[] {
             (int) Math.round(d.x() / layout.gap()), (int) Math.round(d.z() / layout.gap())
         };
@@ -133,7 +193,7 @@ public final class Universe extends SavedData {
         int planets =
                 layout.minPlanets() + random.nextInt(layout.maxPlanets() - layout.minPlanets() + 1);
         var position =
-                home.center()
+                home.origin()
                         .add(
                                 new Point(
                                         (x + jx * .5) * layout.gap(),
@@ -142,10 +202,10 @@ public final class Universe extends SavedData {
         if (protectHome
                 && !clearOfHome(
                         position,
-                        home.radius()
+                        home.orbit(0).radius()
                                 + (layout.maxPlanets() - 1) * layout.ring()
                                 + new PlanetShape(2048).radius()
-                                + Space.OUT
+                                + GroundEphemeris.Body.DEFAULT_REACH
                                 + SystemDefinition.MARGIN / 2,
                         home)) {
             cells.add(cell(x, z));
@@ -158,8 +218,7 @@ public final class Universe extends SavedData {
         setDirty();
         if (!sun) return false;
         int weights = layout.types().stream().mapToInt(UniverseLayout.Choice::weight).sum();
-        int star = stars.size();
-        stars.add(new GroundEphemeris.Star(position, radius));
+        int parent = addSun(position, radius);
         for (int place = 0; place < planets; place++) {
             int pick = random.nextInt(weights);
             var type = layout.types().get(0);
@@ -170,17 +229,18 @@ public final class Universe extends SavedData {
                 }
                 pick -= choice.weight();
             }
-            double orbit = home.radius() + place * layout.ring();
-            bodies.add(
+            double orbit = home.orbit(0).radius() + place * layout.ring();
+            addPlanet(
                     new Body(
-                            star,
+                            parent,
                             orbit,
-                            home.period() * Math.pow(orbit / home.radius(), 1.5),
+                            home.orbit(0).period() * Math.pow(orbit / home.orbit(0).radius(), 1.5),
                             random.nextDouble() * 2 * Math.PI,
                             type.type()
                                     .value()
                                     .planet(random.nextLong(), java.util.Optional.empty())
-                                    .identity(type.typeId(), java.util.Optional.empty())));
+                                    .identity(type.typeId(), java.util.Optional.empty())),
+                    home);
         }
         return true;
     }
@@ -197,7 +257,7 @@ public final class Universe extends SavedData {
         boolean added = false;
         for (int dx = -reach; dx <= reach; dx++)
             for (int dz = -reach; dz <= reach; dz++)
-                added |= discover(seed, layout, home, x + dx, z + dz, capacity - bodies.size());
+                added |= discover(seed, layout, home, x + dx, z + dz, capacity - planets.size());
         return added;
     }
 
@@ -243,25 +303,25 @@ public final class Universe extends SavedData {
             }
         places.sort(java.util.Comparator.comparingDouble(Point::length));
         int weights = layout.types().stream().mapToInt(UniverseLayout.Choice::weight).sum();
-        var stars = new ArrayList<GroundEphemeris.Star>();
-        var bodies = new ArrayList<Body>();
-        for (int cell = 0; stars.size() < count && cell < places.size(); cell++) {
-            var position = home.center().add(places.get(cell));
+        var universe = new Universe(List.of(), List.of());
+        for (int cell = 0, suns = 0; suns < count && cell < places.size(); cell++) {
+            var position = home.origin().add(places.get(cell));
             if (protectHome
                     && !clearOfHome(
                             position,
-                            home.radius()
+                            home.orbit(0).radius()
                                     + (layout.maxPlanets() - 1) * layout.ring()
                                     + new PlanetShape(2048).radius()
-                                    + Space.OUT
+                                    + GroundEphemeris.Body.DEFAULT_REACH
                                     + SystemDefinition.MARGIN / 2,
                             home)) continue;
-            int star = stars.size(), sunRadius = 384 + random.nextInt(257);
+            int sunRadius = 384 + random.nextInt(257);
             int planets =
                     layout.minPlanets()
                             + random.nextInt(layout.maxPlanets() - layout.minPlanets() + 1);
-            if (protectHome && home.count() + bodies.size() + planets > CAPACITY) break;
-            stars.add(new GroundEphemeris.Star(position, sunRadius));
+            if (protectHome && home.count() + universe.planets.size() + planets > CAPACITY) break;
+            int parent = universe.addSun(position, sunRadius);
+            suns++;
             for (int place = 0; place < planets; place++) {
                 int pick = random.nextInt(weights);
                 var type = layout.types().get(0);
@@ -272,84 +332,63 @@ public final class Universe extends SavedData {
                     }
                     pick -= choice.weight();
                 }
-                double radius = home.radius() + place * layout.ring();
-                bodies.add(
+                double radius = home.orbit(0).radius() + place * layout.ring();
+                universe.addPlanet(
                         new Body(
-                                star,
+                                parent,
                                 radius,
-                                home.period() * Math.pow(radius / home.radius(), 1.5),
+                                home.orbit(0).period()
+                                        * Math.pow(radius / home.orbit(0).radius(), 1.5),
                                 random.nextDouble() * 2 * Math.PI,
                                 type.type()
                                         .value()
                                         .planet(random.nextLong(), java.util.Optional.empty())
-                                        .identity(type.typeId(), java.util.Optional.empty())));
+                                        .identity(type.typeId(), java.util.Optional.empty())),
+                        home);
             }
         }
-        return new Universe(stars, bodies);
+        return universe;
     }
 
     /** The home system's model with this universe's suns and planets after it, in storage order. */
     public synchronized GroundEphemeris.Model model(GroundEphemeris.Model home) {
-        var more = new ArrayList<>(home.more());
-        var all = new ArrayList<>(home.stars());
-        all.addAll(stars);
-        for (var body : bodies)
-            more.add(
-                    new GroundEphemeris.Orbit(
-                            stars.get(body.star()).position(),
-                            home.axis(),
-                            home.radial(),
+        var all = new ArrayList<>(home.bodies());
+        int first = all.size();
+        for (var body : catalog) {
+            GroundEphemeris.Motion motion = body.motion();
+            if (motion instanceof GroundEphemeris.Orbit orbit)
+                motion =
+                        new GroundEphemeris.Orbit(
+                                first + orbit.parent(),
+                                orbit.axis(),
+                                orbit.radial(),
+                                orbit.radius(),
+                                orbit.period(),
+                                orbit.phase(),
+                                orbit.epoch(),
+                                orbit.spin());
+            all.add(
+                    new GroundEphemeris.Body(
+                            motion,
                             body.radius(),
-                            body.period(),
-                            body.phase(),
-                            home.epoch(),
-                            home.b()));
-        return new GroundEphemeris.Model(
-                home.center(),
-                home.axis(),
-                home.radial(),
-                home.radius(),
-                home.period(),
-                home.phase(),
-                home.epoch(),
-                home.a(),
-                home.b(),
-                home.sun(),
-                true,
-                more,
-                all);
+                            body.light(),
+                            body.slot() < 0 ? -1 : home.count() + body.slot(),
+                            body.reach()));
+        }
+        return new GroundEphemeris.Model(all);
     }
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider lookup) {
         var ops = RegistryOps.create(NbtOps.INSTANCE, lookup);
-        tag.putInt("format", 1);
-        var suns = new ListTag();
-        for (var star : stars) {
-            var t = new CompoundTag();
-            t.putDouble("x", star.position().x());
-            t.putDouble("y", star.position().y());
-            t.putDouble("z", star.position().z());
-            t.putDouble("radius", star.radius());
-            suns.add(t);
-        }
-        var planets = new ListTag();
-        for (var body : bodies) {
-            var t = new CompoundTag();
-            t.putInt("star", body.star());
-            t.putDouble("radius", body.radius());
-            t.putDouble("period_ticks", body.period());
-            t.putDouble("phase", body.phase());
-            t.put(
-                    "planet",
-                    PlanetChunkGenerator.CODEC
-                            .codec()
-                            .encodeStart(ops, body.planet())
-                            .getOrThrow());
-            planets.add(t);
-        }
-        tag.put("stars", suns);
-        tag.put("planets", planets);
+        tag.putInt("format", 3);
+        tag.put(
+                "bodies",
+                SystemSkyCodec.BODY.listOf().encodeStart(NbtOps.INSTANCE, catalog()).getOrThrow());
+        var entries = new ListTag();
+        for (var planet : planets)
+            entries.add(PlanetChunkGenerator.CODEC.codec().encodeStart(ops, planet).getOrThrow());
+        tag.put("planets", entries);
         if (!cells.isEmpty())
             tag.putLongArray("cells", cells.stream().sorted().mapToLong(Long::longValue).toArray());
         return tag;
@@ -357,42 +396,25 @@ public final class Universe extends SavedData {
 
     public static Universe load(CompoundTag tag, HolderLookup.Provider lookup) {
         if (!tag.contains("format", 3)
-                || tag.getInt("format") != 1
-                || !tag.contains("stars", 9)
+                || tag.getInt("format") != 3
+                || !tag.contains("bodies", 9)
                 || !tag.contains("planets", 9))
-            throw new IllegalArgumentException("Universe format");
+            throw new IllegalArgumentException(
+                    "Unsupported universe format; expected 3 (old saves are not supported)");
         var ops = RegistryOps.create(NbtOps.INSTANCE, lookup);
-        var stars = new ArrayList<GroundEphemeris.Star>();
-        for (var raw : tag.getList("stars", 10)) {
-            var t = (CompoundTag) raw;
-            for (var key : List.of("x", "y", "z", "radius"))
-                if (!t.contains(key, 6)) throw new IllegalArgumentException("Universe sun " + key);
-            stars.add(
-                    new GroundEphemeris.Star(
-                            new Point(t.getDouble("x"), t.getDouble("y"), t.getDouble("z")),
-                            t.getDouble("radius")));
-        }
-        var bodies = new ArrayList<Body>();
-        for (var raw : tag.getList("planets", 10)) {
-            var t = (CompoundTag) raw;
-            if (!t.contains("star", 3)
-                    || !t.contains("radius", 6)
-                    || !t.contains("period_ticks", 6)
-                    || !t.contains("phase", 6)
-                    || !t.contains("planet", 10))
-                throw new IllegalArgumentException("Universe planet");
-            bodies.add(
-                    new Body(
-                            t.getInt("star"),
-                            t.getDouble("radius"),
-                            t.getDouble("period_ticks"),
-                            t.getDouble("phase"),
-                            PlanetChunkGenerator.CODEC
-                                    .codec()
-                                    .parse(ops, t.getCompound("planet"))
-                                    .getOrThrow()));
-        }
-        var universe = new Universe(stars, bodies);
+        var catalog =
+                SystemSkyCodec.BODY
+                        .listOf()
+                        .parse(NbtOps.INSTANCE, tag.get("bodies"))
+                        .getOrThrow(IllegalArgumentException::new);
+        var planets = new ArrayList<PlanetChunkGenerator>();
+        for (var raw : tag.getList("planets", 10))
+            planets.add(
+                    PlanetChunkGenerator.CODEC
+                            .codec()
+                            .parse(ops, raw)
+                            .getOrThrow(IllegalArgumentException::new));
+        var universe = new Universe(catalog, planets);
         if (tag.contains("cells", 12))
             for (long cell : tag.getLongArray("cells")) universe.cells.add(cell);
         return universe;

@@ -4,7 +4,6 @@ import static dev.starfold.waypoint.WaypointCodec.require;
 
 import dev.starfold.mixin.SavedDataFileAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -131,7 +130,7 @@ public final class WaypointSave extends SavedData {
 
     public static WaypointSave get(ServerLevel level) {
         if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Native waypoint world");
-        var storage = PlanetSystem.authority(level).getDataStorage();
+        var storage = level.getDataStorage();
         return storage.computeIfAbsent(
                 new Factory<>(
                         () ->
@@ -177,19 +176,14 @@ public final class WaypointSave extends SavedData {
                 throw new IllegalArgumentException("Duplicate waypoint");
             }
         }
-        if (entry.contains("launch")) {
-            require(entry, "launch", Tag.TAG_COMPOUND);
-            var legacy = WaypointCodec.decode(entry.getCompound("launch"));
-            book.launches.put(legacy.planet(), legacy);
-            book.recentLaunch = legacy.planet();
-        }
+        if (entry.contains("launch"))
+            throw new IllegalArgumentException("Launch bookmarks require a launches list");
         if (entry.contains("launches")) {
             require(entry, "launches", Tag.TAG_LIST);
             require(entry, "recentLaunch", Tag.TAG_INT);
             var launches = (ListTag) entry.get("launches");
             if (!launches.isEmpty() && launches.getElementType() != Tag.TAG_COMPOUND)
                 throw new IllegalArgumentException("Launch list");
-            book.launches.clear();
             for (var value : launches) {
                 var marker = WaypointCodec.decode((CompoundTag) value);
                 if (book.launches.putIfAbsent(marker.planet(), marker) != null)

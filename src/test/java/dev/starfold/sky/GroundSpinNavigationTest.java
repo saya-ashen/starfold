@@ -17,7 +17,8 @@ import java.nio.file.*;
 import java.util.*;
 
 class GroundSpinNavigationTest {
-    final GroundEphemeris.Model model = GroundEphemeris.spinningDefaults();
+    final GroundEphemeris.Model model =
+            GroundEphemeris.spinning(dev.starfold.planet.PlanetSystem.model(), true, 0);
 
     GroundMotion.State body(Face face, double h, Quaterniond q) {
         return new GroundMotion.State(
@@ -58,8 +59,8 @@ class GroundSpinNavigationTest {
                                         model.at(id, t).world(p),
                                         model.at(id, t).worldVelocity(p, v)));
             }
-        assertEquals(48000, model.a().period());
-        assertEquals(72000, model.b().period());
+        assertEquals(48000, model.spin(0).period());
+        assertEquals(72000, model.spin(1).period());
     }
 
     @Test
@@ -92,18 +93,29 @@ class GroundSpinNavigationTest {
     }
 
     @Test
-    void legacyDormantMetadataRemainsInactiveAndFormatTwoRequiresFrozenPose() {
-        var clock = new GroundEphemerisSave(GroundEphemeris.defaults(), 123);
-        var old = clock.save(new CompoundTag(), null);
-        old.putInt("format", 1);
-        for (String n : List.of("spin_a", "spin_b"))
-            old.getCompound("motion").getCompound(n).remove("frozen_orientation");
-        var loaded = GroundEphemerisSave.load(old, null);
-        assertFalse(loaded.model.a().enabled());
-        assertEquals(new Quaterniond(), loaded.model.at(0, 200).rotation());
-        old.putInt("format", 2);
-        assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(old, null));
-        assertTrue(GroundEphemerisSave.fresh(false).model.a().enabled());
+    void oldFormatsAreRefusedAndCurrentFormatRequiresFrozenPose() {
+        var clock =
+                new GroundEphemerisSave(
+                        GroundEphemeris.spinning(
+                                dev.starfold.planet.PlanetSystem.model(), false, 0),
+                        123);
+        var saved = clock.save(new CompoundTag(), null);
+        for (int format : new int[] {0, 1, 2, 3, 4, 6}) {
+            var old = saved.copy();
+            old.putInt("format", format);
+            assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(old, null));
+        }
+        var loaded = GroundEphemerisSave.load(saved, null);
+        assertFalse(loaded.model.spin(0).enabled());
+        assertEquals(clock.model.at(0, 200).rotation(), loaded.model.at(0, 200).rotation());
+        saved.getCompound("motion")
+                .getList("bodies", 10)
+                .getCompound(1)
+                .getCompound("motion")
+                .getCompound("spin")
+                .remove("frozen");
+        assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(saved, null));
+        assertTrue(GroundEphemerisSave.fresh(false).model.spin(0).enabled());
     }
 
     @Test

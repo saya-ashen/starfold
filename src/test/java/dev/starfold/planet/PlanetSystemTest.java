@@ -374,7 +374,7 @@ public class PlanetSystemTest {
     }
 
     @Test
-    void explicitSolarBinaryFlagRoundTripsAndDoesNotEnableOldSolarB() {
+    void explicitSurfaceSlotsRoundTripWithoutAPhantomCompanion() {
         var old = GroundSolar.defaults();
         assertEquals(1, old.count());
         assertFalse(GroundEphemerisSave.modelTag(old).contains("multiple"));
@@ -384,9 +384,9 @@ public class PlanetSystemTest {
         assertEquals(dual, GroundEphemerisSave.model(GroundEphemerisSave.modelTag(dual)));
         for (long tick : new long[] {0, 12, 900, 12000}) {
             assertEquals(old.at(0, tick), dual.at(0, tick));
-            assertEquals(old.at(1, tick), dual.at(1, tick));
+            assertThrows(IllegalArgumentException.class, () -> old.at(1, tick));
         }
-        assertTrue(GroundEphemeris.spinning(dual, true, 100).multiple());
+        assertEquals(2, GroundEphemeris.spinning(dual, true, 100).count());
     }
 
     @Test
@@ -528,22 +528,18 @@ public class PlanetSystemTest {
                         20261001L,
                         4,
                         Optional.of(fixture.source(20261001L)),
-                        Optional.of(PlanetGeneration.defaults(4)),
-                        true);
+                        Optional.of(PlanetGeneration.defaults(4)));
         var b =
                 new PlanetChunkGenerator(
                         fixture.generator(4).settings(),
                         ROCK_SEED,
                         5,
                         Optional.empty(),
-                        Optional.of(POLICY),
-                        true);
-        assertTrue(a.multiple() && b.multiple());
+                        Optional.of(POLICY));
         assertEquals(4, a.version());
         assertEquals(5, b.version());
         assertNotEquals(a.seed(), b.seed());
         assertFalse(java.nio.file.Files.exists(root.resolve("dimension/native_rock.json")));
-        for (int v : new int[] {2, 3, 4}) assertFalse(fixture.generator(v).multiple());
         var type =
                 PlanetEcologyTest.lookup
                         .lookupOrThrow(net.minecraft.core.registries.Registries.DIMENSION_TYPE)
@@ -557,10 +553,13 @@ public class PlanetSystemTest {
         var bk =
                 net.minecraft.resources.ResourceKey.create(
                         net.minecraft.core.registries.Registries.LEVEL_STEM,
-                        PlanetLevels.ROCK.location());
+                        net.minecraft.resources.ResourceLocation.parse("starfold:native_rock"));
         var old = new net.minecraft.world.level.dimension.LevelStem(type, fixture.generator(2));
-        var as = new net.minecraft.world.level.dimension.LevelStem(type, a);
-        var bs = new net.minecraft.world.level.dimension.LevelStem(type, b);
+        var system =
+                new dev.starfold.universe.SystemChunkGenerator(
+                        PlanetStorage.LAYOUT, java.util.List.of(a, b));
+        assertEquals(2, system.count());
+        var as = new net.minecraft.world.level.dimension.LevelStem(type, system);
         var r =
                 new MappedRegistry<net.minecraft.world.level.dimension.LevelStem>(
                         net.minecraft.core.registries.Registries.LEVEL_STEM, Lifecycle.stable());
@@ -574,12 +573,10 @@ public class PlanetSystemTest {
                                 net.minecraft.world.level.dimension.LevelStem.OVERWORLD,
                                 over,
                                 ak,
-                                as,
-                                bk,
-                                bs));
+                                as));
         var baked = dims.bake(PlanetWorldPreset.registryFor(dims, original)).dimensions();
         assertSame(as, baked.get(ak));
-        assertSame(bs, baked.get(bk));
+        assertNull(baked.get(bk));
         assertFalse(original.containsKey(bk));
     }
 
@@ -758,23 +755,24 @@ public class PlanetSystemTest {
     }
 
     @Test
-    void liveSystemHooksRouteOneClockAndPreserveStateDuringDimensionHandoff() throws Exception {
+    void liveSystemHooksRouteOneClockAndPreserveStateDuringChartHandoff() throws Exception {
         var flight = Sources.text("GroundFlightServer");
         var clock = Sources.text("GroundClock");
         var wiring = Sources.text("StarfoldServer");
         assertTrue(
                 wiring.contains(
                         "NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Pre cpEvent)"));
-        assertTrue(wiring.contains("if(!PlanetSystem.multiple(level))saved.advance()"));
+        assertTrue(wiring.contains("if(a!=null)GroundClock.get(a).advance()"));
+        assertFalse(wiring.contains("saved.advance()"));
         assertTrue(flight.contains("s.state.tick()==clock.clock.tick()"));
-        assertTrue(clock.contains("PlanetSystem.authority(level).getDataStorage()"));
+        assertTrue(clock.contains("var storage=level.getDataStorage()"));
         assertTrue(
                 flight.contains(
-                        "player.teleportTo(destination,feet.x(),feet.y(),feet.z(),yaw,pitch)"));
+                        "player.connection.teleport(feet.x(),feet.y(),feet.z(),yaw,pitch)"));
         assertFalse(flight.contains("s.state=GroundDynamics.local(clock.clock.tick(),pose"));
         assertTrue(
                 Sources.text("GroundNavigationSave")
-                        .contains("PlanetSystem.authority(level).getDataStorage()"));
+                        .contains("var storage=level.getDataStorage()"));
         assertTrue(
                 Sources.text("GroundFlightClient").contains("predicted.planet()!=state.planet()"));
     }

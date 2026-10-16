@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import net.minecraft.core.HolderLookup;
@@ -41,7 +40,7 @@ public final class GroundSurfaceIndex extends SavedData {
     }
 
     public static GroundSurfaceIndex get(ServerLevel level, int id) {
-        int owner = PlanetSystem.shared(level) ? id : 0;
+        int owner = id;
         PlanetShape.valid(owner);
         return level.getDataStorage()
                 .computeIfAbsent(
@@ -62,11 +61,7 @@ public final class GroundSurfaceIndex extends SavedData {
     }
 
     public static GroundSurfaceIndex at(ServerLevel level, int chunkX, int chunkZ) {
-        return get(
-                level,
-                PlanetSystem.shared(level)
-                        ? PlanetStorage.planet(chunkX * 16.0, chunkZ * 16.0)
-                        : 0);
+        return get(level, PlanetStorage.planet(chunkX * 16.0, chunkZ * 16.0));
     }
 
     /** A chunk of this index's planet as that planet numbers its own chunks. */

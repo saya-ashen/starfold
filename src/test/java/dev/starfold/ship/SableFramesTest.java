@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.GroundOrbit;
-import dev.starfold.chart.GroundTransit;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
@@ -154,18 +153,12 @@ class SableFramesTest {
         ordered(calls(frames, "cross"), "update", "advanceSurroundings", "transport", "move");
         var tickets = type("dev/starfold/ship/SableTickets");
         var update = calls(tickets, "update");
-        ordered(
-                update,
-                "getAllSubLevels",
-                "isRemoved",
-                "boundingBox",
-                "inflate",
-                "columns",
-                "transport",
-                "addRegionTicket",
-                "removeRegionTicket");
-        assertTrue(update.contains("remove"));
-        assertTrue(update.contains("copyOf"));
+        ordered(update, "getAllSubLevels", "isRemoved", "input", "plan", "apply");
+        ordered(calls(tickets, "input"), "boundingBox", "inflate", "columns", "transport");
+        var apply = calls(tickets, "apply");
+        ordered(apply, "addRegionTicket", "removeRegionTicket");
+        assertTrue(apply.contains("remove"));
+        assertTrue(calls(type("dev/starfold/ship/ShipLeases"), "plan").contains("copyOf"));
         assertTrue(calls(tickets, "clear").contains("update"));
         boolean stopped = false;
         for (var method : frames.methods)
@@ -723,23 +716,24 @@ class SableFramesTest {
     /** All of a thing's weight up to where the far view takes over, none from where space begins, and less between. */
     @Test
     void weightFadesWithHeightBetweenTheAirAndSpace() {
-        assertEquals(1, HullWeight.at(0));
-        assertEquals(1, HullWeight.at(GroundOrbit.END));
-        assertEquals(0, HullWeight.at(GroundTransit.ENTER));
-        assertEquals(0, HullWeight.at(20000));
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
+        assertEquals(1, HullWeight.at(body, 0));
+        assertEquals(1, HullWeight.at(body, 1024));
+        assertEquals(0, HullWeight.at(body, 3072));
+        assertEquals(0, HullWeight.at(body, 20000));
         double last = 1;
-        for (double h = GroundOrbit.END; h <= GroundTransit.ENTER; h += 64) {
-            double w = HullWeight.at(h);
+        for (double h = 1024; h <= 3072; h += 64) {
+            double w = HullWeight.at(body, h);
             assertTrue(w <= last);
             last = w;
         }
-        assertEquals(.5, HullWeight.at((GroundOrbit.END + GroundTransit.ENTER) / 2), 1e-9);
+        assertEquals(.5, HullWeight.at(body, (1024 + 3072) / 2), 1e-9);
     }
 
     /** The air is gone before weight begins to go: nothing that needs air reaches where things float. */
     @Test
     void theAirOfEveryPlanetDimensionThinsToNothingByTheHeightOfTheFarView() throws Exception {
-        for (String dimension : new String[] {"native_ground", "native_planet", "native_rock"}) {
+        for (String dimension : new String[] {"native_planet"}) {
             var json =
                     com.google.gson.JsonParser.parseString(
                                     java.nio.file.Files.readString(
@@ -889,7 +883,11 @@ class SableFramesTest {
     @Test
     void regionBodiesWeighNothingEvenBelowTheChartFloor() throws Exception {
         for (double y : new double[] {-1000, 0, 128, Space.Y})
-            assertEquals(0, HullWeight.at(null, new Point(Space.X, y, Space.Z)));
+            assertEquals(
+                    0,
+                    HullWeight.at(
+                            (net.minecraft.world.level.Level) null,
+                            new Point(Space.X, y, Space.Z)));
         var weight =
                 type("dev/starfold/ship/HullWeight").methods.stream()
                         .filter(m -> m.name.equals("at") && m.desc.contains("Level"))

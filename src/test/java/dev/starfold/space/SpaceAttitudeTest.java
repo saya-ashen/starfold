@@ -99,25 +99,26 @@ class SpaceAttitudeTest {
 
     @Test
     void alignmentUsesStrictTimeAndHeightBoundaries() {
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
         assertEquals(12, SpaceServer.ALIGN_TIME);
         for (double closing : new double[] {-400, 0, 25}) {
-            assertTrue(SpaceServer.align(Math.nextDown(Space.IN + 300), closing));
-            assertFalse(SpaceServer.align(Space.IN + 300, closing));
-            assertFalse(SpaceServer.align(Math.nextUp(Space.IN + 300), closing));
+            assertTrue(SpaceServer.align(body, Math.nextDown(1536 + 300.0), closing));
+            assertFalse(SpaceServer.align(body, 1536 + 300, closing));
+            assertFalse(SpaceServer.align(body, Math.nextUp(1536 + 300.0), closing));
         }
         for (double closing : new double[] {50, 100, 400}) {
-            double boundary = Space.IN + closing * 12;
-            assertTrue(SpaceServer.align(Math.nextDown(boundary), closing));
-            assertFalse(SpaceServer.align(boundary, closing));
-            assertFalse(SpaceServer.align(Math.nextUp(boundary), closing));
+            double boundary = 1536 + closing * 12;
+            assertTrue(SpaceServer.align(body, Math.nextDown(boundary), closing));
+            assertFalse(SpaceServer.align(body, boundary, closing));
+            assertFalse(SpaceServer.align(body, Math.nextUp(boundary), closing));
         }
-        assertFalse(SpaceServer.align(Space.OUT, -400));
-        assertFalse(SpaceServer.align(3000, 0));
-        assertFalse(SpaceServer.align(3000, -400));
-        assertTrue(SpaceServer.align(6000, 400));
-        assertTrue(SpaceServer.align(Space.IN, -400));
-        assertFalse(SpaceServer.align(Space.IN + 300, 0));
-        assertTrue(SpaceServer.align(Space.IN + 300, Math.nextUp(25.0)));
+        assertFalse(SpaceServer.align(body, 2048, -400));
+        assertFalse(SpaceServer.align(body, 3000, 0));
+        assertFalse(SpaceServer.align(body, 3000, -400));
+        assertTrue(SpaceServer.align(body, 6000, 400));
+        assertTrue(SpaceServer.align(body, 1536, -400));
+        assertFalse(SpaceServer.align(body, 1536 + 300, 0));
+        assertTrue(SpaceServer.align(body, 1536 + 300, Math.nextUp(25.0)));
     }
 
     @Test

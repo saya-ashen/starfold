@@ -70,7 +70,11 @@ public final class SpaceNavigation {
                 var centre = model.at(id, tick).center();
                 double distance = centre.sub(ship).length();
                 if (distance < nearest
-                        && occludes(ship, end, centre, PlanetShape.of(id).radius() + Space.IN)) {
+                        && occludes(
+                                ship,
+                                end,
+                                centre,
+                                PlanetShape.of(id).radius() + model.body(id).hullIn())) {
                     blocker = id;
                     nearest = distance;
                 }

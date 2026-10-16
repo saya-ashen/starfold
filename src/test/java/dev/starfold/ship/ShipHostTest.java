@@ -27,8 +27,9 @@ class ShipHostTest {
         assertEquals(new ShipHost.SpeedCaps(200, 200), host.speedCaps(null));
         assertFalse(host.externalRoll(null, null));
         assertFalse(host.landingLoaded(null, null));
-        assertFalse(host.landingReady(0, true));
+        assertFalse(host.landingReady(dev.starfold.chart.GroundSolar.defaults().body(0), 0, true));
         assertEquals(Space.Frame.IDENTITY, host.surroundingsFrame(null));
+        assertEquals(dev.starfold.chart.GroundEphemeris.ZERO, host.carriedSpin(null, null));
         assertEquals(Space.Frame.IDENTITY, host.departureFrame(null, null, null, null, 0, 0));
         assertEquals(new SpacePackets.Frame(null, 0), host.carriedFrame(null));
         assertEquals(
@@ -64,8 +65,9 @@ class ShipHostTest {
                     "public dev.starfold.sky.Space.Frame departureFrame(ServerLevel level,dev.starfold.sky.Space.Motion motion,org.joml.Quaterniond orientation,dev.starfold.chart.GroundEphemeris.Model model,int planet,long tick){return SpaceServer.entering(level,motion,orientation,model,planet,tick);}",
                     "public void hullDeparted(ServerLevel level,int planet,String id){SpaceServer.departed(level,planet,id);}",
                     "public dev.starfold.sky.Space.Frame surroundingsFrame(ServerLevel level){return SpaceServer.frame(level);}",
-                    "public boolean landingLoaded(ServerLevel level,dev.starfold.geometry.BentStripGeometry.Point anchor){return SpaceApproach.full(level,anchor);}",
-                    "public boolean landingReady(double height,boolean full){return SpaceApproach.ready(height,full);}",
+                    "public Point carriedSpin(ServerLevel level,java.util.UUID hull){return SpaceServer.carriedSpin(level,hull);}",
+                    "public boolean landingLoaded(ServerLevel level,Point anchor){return SpaceApproach.full(level,anchor);}",
+                    "public boolean landingReady(dev.starfold.chart.GroundEphemeris.Body body,double height,boolean full){return SpaceApproach.ready(body,height,full);}",
                     "public net.minecraft.world.level.ChunkPos landingColumn(dev.starfold.geometry.BentStripGeometry.Point anchor){return SpaceApproach.column(anchor);}",
                     "public void hullEnteredChart(ServerLevel level,String id){SpaceServer.enteredChart(level,id);}",
                     "public void hullArrived(ServerLevel level,dev.ryanhcode.sable.sublevel.ServerSubLevel body){SpaceApproach.arrived(level,body);}",

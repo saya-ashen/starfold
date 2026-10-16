@@ -1,5 +1,5 @@
 plugins { id 'net.neoforged.moddev' version '2.0.148' }
-version = '0.1.1'
+version = '0.2.0'
 group = 'dev.starfold'
 base { archivesName = 'starfold' }
 repositories {
@@ -12,7 +12,7 @@ neoForge {
     runs {
         client { client(); gameDirectory = file('run')
             if (providers.gradleProperty('devProbeSave').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlaySingleplayer', providers.gradleProperty('devProbeSave').get(), '--width', '1280', '--height', '720')
-            else if (providers.gradleProperty('devProbe').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlayMultiplayer', 'localhost:25565', '--width', '1280', '--height', '720')
+            else if (providers.gradleProperty('devProbe').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlayMultiplayer', 'localhost:' + providers.gradleProperty('devProbePort').getOrElse('25565'), '--width', '1280', '--height', '720')
         }
         server { server(); gameDirectory = file('run'); programArgument '--nogui' }
     }
@@ -121,6 +121,7 @@ tasks.register('packagedContractTest', Test) {
     filter {
         includeTestsMatching 'dev.starfold.MixinContractTest.everySelectedInjectionSelectsRealMethodsAndEveryInvokeMatchesExactly'
         includeTestsMatching 'dev.starfold.MixinContractTest.shadowFieldsAndPacketAccessorsMatchUpstreamDescriptors'
+        includeTestsMatching 'dev.starfold.SablePersistenceContractTest.*'
     }
     def modJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
     def upstream = tasks.named('createMinecraftArtifacts').flatMap { it.gameJarArtifact }
@@ -138,6 +139,7 @@ tasks.register('packagedContractTest', Test) {
         systemProperty 'starfold.auditJar', modJar.get().asFile.absolutePath
         systemProperty 'starfold.auditUpstream', upstream.get().asFile.absolutePath
         systemProperty 'starfold.auditVeil', veil.first().absolutePath
+        systemProperty 'starfold.auditSable', configurations.sableBundle.singleFile.absolutePath
     }
     doLast {
         def archive = modJar.get().asFile

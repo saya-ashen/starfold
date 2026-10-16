@@ -108,6 +108,25 @@ class PlanetShapeTest {
     }
 
     @Test
+    void everyLegalSizeHasASharedTopologyWithUnchangedSeams() {
+        for (int size = PlanetShape.MIN; size <= PlanetShape.MAX; size += 16) {
+            var shape = new PlanetShape(size);
+            var topology = shape.topology();
+            assertSame(topology, shape.topology());
+            assertSame(topology, new PlanetShape(size).topology());
+            var expected = new CubeSurfaceTopology(size);
+            for (var face : Face.values())
+                for (int u : new int[] {-size, -1, 0, size - 1, size, 2 * size - 1})
+                    for (int v : new int[] {-1, 0, size - 1, size}) {
+                        var cell = new CubeSurfaceTopology.Cell(face, u, 7, v);
+                        assertEquals(expected.canonical(cell), topology.canonical(cell));
+                        assertEquals(expected.owned(cell), topology.owned(cell));
+                        assertEquals(expected.inHalo(u, v), topology.inHalo(u, v));
+                    }
+        }
+    }
+
+    @Test
     void onlySizesTheStorageLayoutCanHoldAreAccepted() {
         for (int bad : new int[] {0, 255, 1000, 2049, 4096})
             assertThrows(IllegalArgumentException.class, () -> new PlanetShape(bad), "" + bad);

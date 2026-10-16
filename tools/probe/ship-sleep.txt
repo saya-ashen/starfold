@@ -1,0 +1,43 @@
+# E1: fresh experience world, starter hull is 0:0; build nothing.
+# Enable -Dstarfold.shipProbe=true on the server (and client JVM for integrated play).
+# Use a settled hull with NO non-player aboard, no other online players/forced tickets.
+# The seed's starter sheds a world-side item. Inspect it, then remove only world-side items
+# on this hull for the empty-cargo fixture; plot entities and all other cargo remain untouched.
+strict
+waitworld
+# Assume starter assembly and settling complete within 200 client ticks (~10s at 20 TPS).
+wait 200
+cmd gamemode creative
+fly on
+cmd scoreboard objectives add s2_ok dummy
+# save-all synchronously reaches the locator hook; no elapsed wait claims durability.
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+cmd starfold shipprobe "0:0" remove world-items
+cmd starfold shipprobe "0:0" away
+# Assume teleport/carry fences settle within 40 client ticks, and the chosen +2000 chart image is >384 away.
+wait 40
+cmd starfold shipprobe "0:0" leases off
+# Assume terrain unload and native transient tickets expire within 600 client ticks (~30s at 20 TPS).
+# This wait is a budget, not proof; the following server result must pass.
+wait 600
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert dormant
+check unloaded if score @s s2_ok matches 1
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert checkpoint
+check payload-readable if score @s s2_ok matches 1
+cmd starfold ships
+cmd starfold shipprobe "0:0" near
+# Assume ordinary player terrain loading/Sable readiness restores the hull within 200 client ticks.
+wait 200
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert live
+check reloaded if score @s s2_ok matches 1
+# Compare serialized material anchor, not a changed COM; tolerates 0.5 block/1e-4 quaternion dot drift.
+# Assumes the settled, unpiloted hull has not drifted under ordinary surface physics since the save.
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert same-place
+check same-place if score @s s2_ok matches 1
+cmd starfold shipprobe "0:0" leases normal
+shot ship-sleep-final
+quit

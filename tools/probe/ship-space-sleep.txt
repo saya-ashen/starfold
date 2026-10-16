@@ -1,0 +1,53 @@
+# A: real starter flight, native sleep, quarter-day advance, wake in the retained frame.
+# Fresh experience world; -Dstarfold.shipProbe=true. Only one player/hull.
+strict
+waitworld
+wait 300
+cmd gamemode creative
+cmd scoreboard objectives add s5_ok dummy
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+press 32 1
+until region 6000
+press 32 0
+wait 40
+press 82 1
+wait 2
+press 82 0
+wait 20
+requirenohelm
+wait 2400
+cmd starfold shipprobe "0:0" motion
+cmd save-all flush
+cmd starfold shipprobe "0:0" remove world-items
+cmd starfold shipprobe "0:0" away
+wait 40
+cmd starfold shipprobe "0:0" leases off
+wait 600
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert dormant
+check space-dormant if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert checkpoint
+check checkpoint if score @s s5_ok matches 1
+cmd starfold shipprobe "0:0" clock quarter
+cmd starfold shipprobe "0:0" near current
+# Keep the original immediate wake check and audit every intervening server tick.
+# The later server-tick window separately gates positional holding.
+wait 40
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert live
+check space-awake if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert space-place
+check wake-place if score @s s5_ok matches 1
+# Budget only: the server, not the client wait, reads at exactly 100/400/1200 ticks.
+wait 1600
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert hold-window
+check wake-held-window if score @s s5_ok matches 1
+shot ship-space-sleep
+quit

@@ -30,8 +30,12 @@ public record PlanetShape(int size) {
     /** As many planets as one level's storage addresses. */
     public static final int MAX_PLANETS = 810_000;
 
-    private static final java.util.Map<Integer, CubeSurfaceTopology> TOPOLOGIES =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final CubeSurfaceTopology[] TOPOLOGIES = new CubeSurfaceTopology[MAX / 16 + 1];
+
+    static {
+        for (int size = MIN; size <= MAX; size += 16)
+            TOPOLOGIES[size / 16] = new CubeSurfaceTopology(size);
+    }
 
     /** The size every planet had before sizes were saved with a planet's generation. Code that still assumes one
      *  size for all planets says so by naming this. */
@@ -127,7 +131,7 @@ public record PlanetShape(int size) {
     }
 
     public CubeSurfaceTopology topology() {
-        return TOPOLOGIES.computeIfAbsent(size, CubeSurfaceTopology::new);
+        return TOPOLOGIES[size / 16];
     }
 
     public boolean owned(double u, double v) {

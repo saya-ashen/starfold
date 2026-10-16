@@ -105,7 +105,7 @@ public final class GroundFlightServer {
     }
 
     public static boolean compatible(ServerPlayer player) {
-        return (!PlanetSystem.terrain(player.level())
+        return (!PlanetLevels.is(player.level())
                         || player.connection.hasChannel(PlanetPackets.Profile.TYPE))
                 && player.connection.hasChannel(GroundFlightPackets.Setup.TYPE)
                 && player.connection.hasChannel(GroundFlightPackets.State.TYPE);
@@ -196,10 +196,7 @@ public final class GroundFlightServer {
         // now, rather than reading an unloaded chunk as solid and refusing a valid restore.
         if (!saved.space()) {
             var access = PlanetAccess.of(level);
-            var target =
-                    PlanetSystem.multiple(level)
-                            ? PlanetSystem.level(level, saved.planet())
-                            : level;
+            var target = level;
             var feet = access.feet(saved.planet(), saved.local());
             for (int dx = -1; dx <= 1; dx++)
                 for (int dz = -1; dz <= 1; dz++) {
@@ -252,13 +249,7 @@ public final class GroundFlightServer {
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                 player,
                 new GroundFlightPackets.Setup(
-                        s.id,
-                        clock.clock.model,
-                        clock.mask,
-                        s.state,
-                        s.controlled,
-                        clock.air,
-                        PlanetSystem.shared(player.level())));
+                        s.id, clock.clock.model, clock.mask, s.state, s.controlled, clock.air));
         FlightHost.get().targetSync(player);
     }
 
@@ -300,7 +291,7 @@ public final class GroundFlightServer {
                     login(player, clock);
                     continue;
                 }
-                if (PlanetSystem.multiple(level) && s.state.tick() == clock.clock.tick()) continue;
+                if (s.state.tick() == clock.clock.tick()) continue;
                 if (!s.controlled) {
                     GroundSeams.moved(player);
                     s.state = capture(player, clock);
@@ -402,29 +393,16 @@ public final class GroundFlightServer {
                         .normalize();
         float yaw = (float) GroundCamera.yaw(aim, player.getYRot()),
                 pitch = (float) GroundCamera.pitch(aim);
-        var destination =
-                PlanetSystem.multiple(player.serverLevel())
-                        ? PlanetSystem.level(player.serverLevel(), s.state.planet())
-                        : player.serverLevel();
-        if (destination != player.serverLevel() || planetChanged) {
+        if (planetChanged) {
             FlightHost.get().viewLost(player);
         }
         // Keep the observer's client coordinates continuous when this place is drawn in their
         // chart.
         ObserverFrames.relocate(player, feet);
-        if (access == PlanetAccess.SHARED) {
-            // Same ServerLevel and ClientLevel: position synchronization, never respawn/dimension
-            // travel.
-            if (old != pose.face().ordinal() || planetChanged || handoff)
-                player.connection.teleport(feet.x(), feet.y(), feet.z(), yaw, pitch);
-            else {
-                player.setPos(feet.x(), feet.y(), feet.z());
-                player.setYRot(yaw);
-                player.setXRot(pitch);
-            }
-        } else if (destination != player.serverLevel() || old != pose.face().ordinal() || handoff) {
-            player.teleportTo(destination, feet.x(), feet.y(), feet.z(), yaw, pitch);
-        } else {
+        // Synchronize position within the same level, without dimension travel.
+        if (old != pose.face().ordinal() || planetChanged || handoff)
+            player.connection.teleport(feet.x(), feet.y(), feet.z(), yaw, pitch);
+        else {
             player.setPos(feet.x(), feet.y(), feet.z());
             player.setYRot(yaw);
             player.setXRot(pitch);
@@ -459,10 +437,7 @@ public final class GroundFlightServer {
         // so an unclean stop
         // can never pair a fresh player file with a flight record from the last autosave.
         if (PlanetLevels.is(player.level())) {
-            PlanetSystem.authority(player.serverLevel()).getDataStorage().save();
-            if (Space.in(player)
-                    && PlanetSystem.authority(player.serverLevel()) != player.serverLevel())
-                player.serverLevel().getDataStorage().save();
+            player.serverLevel().getDataStorage().save();
         }
     }
 

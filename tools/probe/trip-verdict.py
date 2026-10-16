@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evidence-based full-trip gates. Landing remains explicitly informational.
 
-Only the versioned trip produces the required read-only TRIP snapshots. Missing,
+The versioned trip and moon scripts produce the required read-only TRIP snapshots. Missing,
 truncated or out-of-order evidence fails closed; reaching quit alone never passes.
 """
 import math
@@ -26,7 +26,7 @@ def number(line, key):
         return math.nan
 
 
-def verdict(text):
+def verdict(text, target=4):
     lines = text.splitlines()
     snapshots, positions = {}, {}
     duplicate = ""
@@ -61,9 +61,9 @@ def verdict(text):
           field(space, "space") == "true" and field(space, "helm") == "true")
 
     aimed = snapshots.get("s-aimed", "")
-    lock = evidence(r"PROBE LOCK s-lock locked 4(?: |$)",
+    lock = evidence(rf"PROBE LOCK s-lock locked {target}(?: |$)",
                     positions.get("s-aimed", len(lines)), positions.get("s-cruise", 0))
-    aim = evidence(r"PROBE SHIPAIM planet 4 error \S+ \S+ remaining [1-9]\d*",
+    aim = evidence(rf"PROBE SHIPAIM planet {target} error \S+ \S+ remaining [1-9]\d*",
                    positions.get("s-space", len(lines)), positions.get("s-aimed", 0))
     aim_match = re.search(r"error (\S+) (\S+) remaining", aim)
     aim_ok = False
@@ -79,9 +79,9 @@ def verdict(text):
     notice_met = evidence(r"PROBE until notice .* -> met",
                           positions.get("s-cruise", len(lines)), positions.get("s-notice", 0))
     stage("cruise and notice", ["s-cruise", "s-notice"], bool(notice_met) and
-          field(cruise, "space") == "true" and field(cruise, "locked") == "4" and
+          field(cruise, "space") == "true" and field(cruise, "locked") == str(target) and
           field(notice, "space") == "true" and field(notice, "phase") == "NOTICE" and
-          field(notice, "locked") == "4" and field(notice, "helm") == "true")
+          field(notice, "locked") == str(target) and field(notice, "helm") == "true")
 
     chart = snapshots.get("s-chart", "")
     chart_met = evidence(r"PROBE until chart .* -> met",
@@ -90,14 +90,14 @@ def verdict(text):
                     positions.get("s-chart", len(lines)))
     stage("hand-over and helm", ["s-notice", "s-chart"], bool(chart_met) and not lost and
           field(chart, "space") == "false" and field(chart, "chart") == "true" and
-          field(chart, "planet") == "4" and field(chart, "helm") == "true", lost or chart)
+          field(chart, "planet") == str(target) and field(chart, "helm") == "true", lost or chart)
 
     low = snapshots.get("s-low", "")
     descent = evidence(r"PROBE until clearance< 60(?:\.0)? -> met",
                        positions.get("s-chart", len(lines)), positions.get("s-low", 0))
     stage("descent", ["s-chart", "s-low"], bool(descent) and
           field(low, "helm") == "true" and field(low, "chart") == "true" and
-          field(low, "planet") == "4" and number(low, "clearance") < 60 and
+          field(low, "planet") == str(target) and number(low, "clearance") < 60 and
           number(chart, "clearance") > number(low, "clearance"))
 
     site = snapshots.get("s-site", "")
@@ -114,8 +114,9 @@ def verdict(text):
 
     landed = snapshots.get("s-landed", "")
     stage("landed", ["s-stair", "s-landed"], field(landed, "helm") == "true" and
-          field(landed, "chart") == "true" and field(landed, "planet") == "4" and
-          number(landed, "resting") >= 40 and number(landed, "clearance") <= 1,
+          field(landed, "chart") == "true" and field(landed, "planet") == str(target) and
+          number(landed, "resting") >= 40 and number(landed, "clearance") <= 0.15,
+          # LiftControl.CONTACT: a low hover is not contact.
           informational=True)
 
     complete = evidence(r"PROBE COMPLETE \| line \d+ of \d+")
@@ -130,15 +131,15 @@ def verdict(text):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("usage: trip-verdict.py <client-log>", file=sys.stderr)
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--moon"):
+        print("usage: trip-verdict.py <client-log> [--moon]", file=sys.stderr)
         return 2
     try:
         text = Path(sys.argv[1]).read_text(errors="replace")
     except OSError as error:
         print(error, file=sys.stderr)
         return 2
-    results = verdict(text)
+    results = verdict(text, target=2 if len(sys.argv) == 3 else 4)
     for name, ok, informational, line in results:
         suffix = " [INFORMATIONAL: terrain-dependent, not a regression gate]" if informational else ""
         print(f"{'PASS' if ok else 'FAIL'} {name}{suffix} | {line}")

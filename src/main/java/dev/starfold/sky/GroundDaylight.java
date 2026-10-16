@@ -7,7 +7,6 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -48,6 +47,10 @@ public final class GroundDaylight {
     }
 
     public static double elevation(ServerLevel level, BlockPos pos, long tick) {
+        return surfaceLight(level, pos, tick, false);
+    }
+
+    private static double surfaceLight(ServerLevel level, BlockPos pos, long tick, boolean shade) {
         if (Space.holds(pos.getX(), pos.getZ())) return 1;
         var access = PlanetAccess.of(level);
         var clock = GroundClock.get(level).clock;
@@ -60,7 +63,28 @@ public final class GroundDaylight {
         var up = frame.vector(shape.direction(cell.face(), cell.u() + .5, cell.v() + .5));
         var world = frame.center().add(up.scale(shape.radius()));
         var sun = clock.model.star(world).position().sub(world);
-        return sun.length() < 1e-9 ? 1 : up.dot(sun.scale(1 / sun.length()));
+        double elevation = sun.length() < 1e-9 ? 1 : up.dot(sun.scale(1 / sun.length()));
+        return shade
+                ? GroundSolar.daylight(elevation) * parentShade(clock.model, planet, world, tick)
+                : elevation;
+    }
+
+    /** A moon's parent can hide its sun even on the moon's sun-facing surface. */
+    public static double parentShade(
+            GroundEphemeris.Model model,
+            int planet,
+            dev.starfold.geometry.BentStripGeometry.Point world,
+            double tick) {
+        if (!(model.body(planet).motion() instanceof GroundEphemeris.Orbit orbit)) return 1;
+        int parent = orbit.parent();
+        int slot = model.bodies().get(parent).slot();
+        return slot < 0
+                ? 1
+                : sunlight(
+                        world,
+                        model.frame(parent, tick).center(),
+                        model.star(world).position(),
+                        PlanetShape.of(slot).radius());
     }
 
     /** The face of the home planet a world begins on: the one whose middle has the most daylight in the world's first
@@ -120,7 +144,7 @@ public final class GroundDaylight {
                 var clock = GroundClock.get(level).clock;
                 return SkyHost.get().sunlight(level, pos, clock);
             }
-            return GroundSolar.daylight(elevation(level, pos));
+            return surfaceLight(level, pos, GroundClock.get(level).clock.tick(), true);
         } catch (IllegalArgumentException | IllegalStateException outside) {
             return 1;
         }
@@ -149,7 +173,7 @@ public final class GroundDaylight {
         try {
             long now = GroundClock.get(level).clock.tick();
             for (long ahead = 100; ahead <= LONGEST; ahead += 100) {
-                double light = GroundSolar.daylight(elevation(level, pos, now + ahead));
+                double light = surfaceLight(level, pos, now + ahead, true);
                 if (light >= 1) return ahead;
                 if (day == 0 && darken(light) < 4) day = ahead;
             }
@@ -162,7 +186,6 @@ public final class GroundDaylight {
     public static boolean kept(net.minecraft.world.level.Level level, BlockPos pos) {
         return level instanceof ServerLevel server
                 && PlanetLevels.is(server)
-                && PlanetSystem.shared(server)
                 && PlanetAccess.of(server).inChart(pos);
     }
 
@@ -170,8 +193,7 @@ public final class GroundDaylight {
      *  that has one.
      *  Not while a vessel is under way, which flies by the clock. */
     public static void sleptThrough(ServerLevel level) {
-        if (!PlanetLevels.is(level) || !PlanetSystem.shared(level) || SkyHost.get().underWay())
-            return;
+        if (!PlanetLevels.is(level) || SkyHost.get().underWay()) return;
         for (var player : level.players())
             if (player.isSleeping() && kept(level, player.blockPosition())) {
                 long ahead = dawn(level, player.blockPosition());

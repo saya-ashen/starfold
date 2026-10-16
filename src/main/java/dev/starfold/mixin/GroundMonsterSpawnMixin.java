@@ -2,7 +2,6 @@ package dev.starfold.mixin;
 
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundDaylight;
 
 import net.minecraft.core.BlockPos;
@@ -26,9 +25,7 @@ public abstract class GroundMonsterSpawnMixin {
             RandomSource random,
             CallbackInfoReturnable<Boolean> ci) {
         ServerLevel level = world.getLevel();
-        if (!PlanetLevels.is(level)
-                || !PlanetSystem.shared(level)
-                || !PlanetAccess.of(level).inChart(pos)) return;
+        if (!PlanetLevels.is(level) || !PlanetAccess.of(level).inChart(pos)) return;
         boolean sunless = GroundDaylight.sunless(world, pos);
         if (!sunless && world.getBrightness(LightLayer.SKY, pos) > random.nextInt(32)) {
             ci.setReturnValue(false);

@@ -1,11 +1,12 @@
 package dev.starfold.ship;
 
 /** Pure force-limited vertical autopilot. Units: blocks, seconds, Sable mass and force. */
-final class LiftControl {
+public final class LiftControl {
     static final double HULL_GRAVITY = .75, OMEGA = 2, VELOCITY_GAIN = 4, TELEPORT_RESET = 64;
     static final double DESCENT = 47, BOOST_DESCENT = 110, GOVERNOR_HEIGHT = 200;
     static final double CLIMB = 160, BOOST_CLIMB = 640;
-    static final double CONTACT = .15, SETTLED_SPEED = .8, TOUCHDOWN = 1.2;
+    public static final double CONTACT = .15;
+    static final double SETTLED_SPEED = .8, TOUCHDOWN = 1.2;
     static final double BRAKE_RESERVE = .9,
             REACTION = .05,
             ENVELOPE_SAMPLE = .25,

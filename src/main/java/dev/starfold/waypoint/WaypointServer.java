@@ -50,15 +50,7 @@ public final class WaypointServer {
         var at = body.logicalPose().position();
         var access = PlanetAccess.of(level);
         if (!access.inChart(net.minecraft.core.BlockPos.containing(at.x, at.y, at.z))) return;
-        var box = HullLanding.bounds(body);
-        double clearance =
-                HullLanding.clearance(
-                        box.minX(),
-                        box.minY(),
-                        box.minZ(),
-                        box.maxX(),
-                        box.maxZ(),
-                        (x, z) -> HullLanding.surface(level, x, z));
+        double clearance = HullLanding.ground(body).clearance();
         var container =
                 (dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer)
                         dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
@@ -69,10 +61,7 @@ public final class WaypointServer {
                         * 20;
         if (!WaypointNavigation.grounded(clearance, speed)) return;
         try {
-            int planet =
-                    access == PlanetAccess.SHARED
-                            ? access.storagePlanet(at.x, at.z)
-                            : PlanetSystem.planet(level);
+            int planet = access.storagePlanet(at.x, at.z);
             var pad = StarterShip.launchCentre(level, body);
             var marker =
                     new Waypoint(
@@ -116,9 +105,7 @@ public final class WaypointServer {
         var body = SableFrames.aboard(player);
         double x = body == null ? player.getX() : body.logicalPose().position().x,
                 z = body == null ? player.getZ() : body.logicalPose().position().z;
-        return access == PlanetAccess.SHARED
-                ? access.storagePlanet(x, z)
-                : PlanetSystem.planet(player.serverLevel());
+        return access.storagePlanet(x, z);
     }
 
     public static LiteralArgumentBuilder<CommandSourceStack> commands() {

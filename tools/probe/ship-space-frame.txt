@@ -1,0 +1,56 @@
+# C: empty region gets a new entry frame, shifted by an emulated other-side arrival and turned 60 degrees.
+# Visit the old stored footprint first: every old column ticks, but the ship must stay dormant.
+# Fresh experience world, shipProbe flag, one player/hull; no fake second hull or block reconstruction.
+strict
+waitworld
+wait 300
+cmd gamemode creative
+cmd scoreboard objectives add s5_ok dummy
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+press 32 1
+until region 6000
+press 32 0
+wait 40
+press 82 1
+wait 2
+press 82 0
+wait 20
+requirenohelm
+wait 2400
+cmd save-all flush
+cmd starfold shipprobe "0:0" remove world-items
+cmd starfold shipprobe "0:0" old columns on
+wait 40
+cmd starfold shipprobe "0:0" away
+wait 40
+cmd starfold shipprobe "0:0" sleep
+wait 600
+cmd save-all flush
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert dormant
+check frame-dormant if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert checkpoint
+check frame-checkpoint if score @s s5_ok matches 1
+cmd starfold shipprobe "0:0" clock quarter
+cmd starfold shipprobe "0:0" frame changed
+cmd starfold shipprobe "0:0" old
+wait 200
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert old-ticking
+check stale-columns-ticking if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert dormant
+check stale-columns-no-reload if score @s s5_ok matches 1
+cmd starfold shipprobe "0:0" near current
+wait 40
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert live
+check frame-live if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert space-place
+check frame-place if score @s s5_ok matches 1
+cmd starfold shipprobe "0:0" old columns off
+shot ship-space-frame
+quit

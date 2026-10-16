@@ -135,11 +135,14 @@ class SpaceAssistTest {
         var s = Sources.text("SpaceServer");
         var weight =
                 s.substring(
-                        s.indexOf("private static boolean weighted"),
+                        s.indexOf(
+                                "private static java.util.Set<net.minecraft.world.entity.Entity> cabins"),
                         s.indexOf("static void weight("));
         assertFalse(weight.contains("aboard("));
         assertTrue(weight.contains("getTrackingSubLevel(entity)!=null"));
-        assertTrue(weight.contains("!body.isRemoved()&&SableFrames.inside(body,entity)"));
+        assertTrue(weight.contains("!body.isRemoved()"));
+        assertTrue(weight.contains("Space.in(entity)&&SableFrames.inside(body,entity)"));
+        assertTrue(weight.contains("cabins.contains(entity)"));
         var assist =
                 s.substring(
                         s.indexOf("if(Thrusters.steadied", s.indexOf("var turn=arriving?")),

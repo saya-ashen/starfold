@@ -8,7 +8,6 @@ import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.sky.Space;
 
 import org.junit.jupiter.api.Test;
 
@@ -125,8 +124,9 @@ class FarTargetTest {
                         new Point(30, 0, 40), new Point(30, 0, 40), ZERO, true, OFFSET, CAPS);
         var nearestOffset = new Point(2, 3, 4);
         var relative = drift.add(nearestOffset);
-        var arrived = SpaceServer.arrival(drift, NOSE, relative, Space.IN);
-        var result = SpaceServer.near(arrived, NOSE, relative.add(arrived.sub(drift)), Space.IN);
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
+        var arrived = SpaceServer.arrival(body, drift, NOSE, relative, 1536);
+        var result = SpaceServer.near(body, arrived, NOSE, relative.add(arrived.sub(drift)), 1536);
         point(NOSE.scale(7.5), result.add(nearestOffset));
         var s = Sources.text("SpaceServer");
         assertTrue(
@@ -140,33 +140,32 @@ class FarTargetTest {
     @Test
     void cycleIncludesEveryKnownPlanetAndThenNone() {
         var home = PlanetSystem.model();
-        var more = new java.util.ArrayList<>(home.more());
-        for (int i = 0; i < 6; i++)
-            more.add(
-                    new GroundEphemeris.Orbit(
-                            home.center().add(new Point(100000 + i * 10000, 0, 0)),
-                            home.axis(),
-                            home.radial(),
-                            home.radius(),
-                            home.period(),
+        var bodies = new java.util.ArrayList<>(home.bodies());
+        for (int i = 0; i < 6; i++) {
+            int parent = bodies.size();
+            bodies.add(
+                    new GroundEphemeris.Body(
+                            new GroundEphemeris.Fixed(
+                                    home.origin().add(new Point(100000 + i * 10000, 0, 0))),
+                            512,
+                            true,
+                            -1));
+            bodies.add(
+                    new GroundEphemeris.Body(
+                            new GroundEphemeris.Orbit(
+                                    parent,
+                                    home.orbit(0).axis(),
+                                    home.orbit(0).radial(),
+                                    home.orbit(0).radius(),
+                                    home.orbit(0).period(),
+                                    0,
+                                    home.orbit(0).epoch(),
+                                    home.spin(1)),
                             0,
-                            home.epoch(),
-                            home.b()));
-        var model =
-                new GroundEphemeris.Model(
-                        home.center(),
-                        home.axis(),
-                        home.radial(),
-                        home.radius(),
-                        home.period(),
-                        home.phase(),
-                        home.epoch(),
-                        home.a(),
-                        home.b(),
-                        home.sun(),
-                        true,
-                        more,
-                        home.stars());
+                            false,
+                            i + 2));
+        }
+        var model = new GroundEphemeris.Model(bodies);
         var ship = model.at(0, 0).center();
         var order = SpaceView.nearest(model, ship, 0, model.count());
         int locked = -1;

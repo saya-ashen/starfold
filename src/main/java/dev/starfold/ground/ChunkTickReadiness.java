@@ -38,10 +38,7 @@ public final class ChunkTickReadiness {
         int x = ChunkPos.getX(chunk), z = ChunkPos.getZ(chunk);
         long key = access.key(x, z);
         if (key < 0) return true;
-        int width =
-                access == PlanetAccess.LEGACY
-                        ? 128
-                        : PlanetShape.of((int) (key / PlanetStorage.CHUNKS_PER_PLANET)).chunks();
+        int width = PlanetShape.of((int) (key / PlanetStorage.CHUNKS_PER_PLANET)).chunks();
         // No positions, columns, closures or probe-map lookups on the interior path.
         if (!edge(key, width)) return true;
         boolean ready =

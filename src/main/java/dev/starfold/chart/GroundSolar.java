@@ -7,37 +7,30 @@ import org.joml.Quaterniond;
 
 /** Fixed luminous celestial data, independent of mesh, terrain, gravity and gameplay. */
 public final class GroundSolar {
-    public record Sun(boolean enabled, Point position, double radius) {
-        public static final Sun OFF = new Sun(false, GroundEphemeris.ZERO, 512);
-
-        public Sun {
-            GroundEphemeris.point(position);
-            if (position.length() > 100000
-                    || !Double.isFinite(radius)
-                    || radius < 32
-                    || radius > 1024) throw new IllegalArgumentException("Sun parameters");
-        }
-    }
-
     public static GroundEphemeris.Model defaults() {
-        var old = GroundEphemeris.defaults();
         var axis = new Point(Math.sin(Math.toRadians(23.5)), Math.cos(Math.toRadians(23.5)), 0);
         var spin = new GroundEphemeris.Spin(true, axis, new Quaterniond(), 0, 48000, 0);
         return new GroundEphemeris.Model(
-                old.center(),
-                old.axis(),
-                old.radial(),
-                old.radius(),
-                old.period(),
-                old.phase(),
-                old.epoch(),
-                spin,
-                old.b(),
-                new Sun(true, old.center(), 512));
+                java.util.List.of(
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Fixed(new Point(0, 0, 8192)), 512, true, -1),
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Orbit(
+                                        0,
+                                        GroundEphemeris.Y,
+                                        new Point(0, 0, 1),
+                                        8192,
+                                        24000,
+                                        Math.PI,
+                                        0,
+                                        spin),
+                                0,
+                                false,
+                                0)));
     }
 
     public static Point direction(GroundEphemeris.Model model, Point world) {
-        var d = model.sun().position().sub(world);
+        var d = model.primary().position().sub(world);
         return d.length() < 1e-9 ? GroundEphemeris.Y : d.scale(1 / d.length());
     }
 

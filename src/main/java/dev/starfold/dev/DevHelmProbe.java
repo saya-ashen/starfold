@@ -212,15 +212,7 @@ final class DevHelmProbe {
                                         player.onClimbable(),
                                         player.getHealth());
                     }
-            var box = HullLanding.bounds(body);
-            double clearance =
-                    HullLanding.clearance(
-                            box.minX(),
-                            box.minY(),
-                            box.minZ(),
-                            box.maxX(),
-                            box.maxZ(),
-                            (x, z) -> HullLanding.surface(level, x, z));
+            double clearance = HullLanding.ground(body).clearance();
             boolean pilot =
                     player instanceof net.minecraft.server.level.ServerPlayer server
                             ? body instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel ship

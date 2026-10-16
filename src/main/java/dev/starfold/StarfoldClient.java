@@ -30,7 +30,6 @@ import dev.starfold.waypoint.WaypointClient;
 import dev.starfold.waypoint.WaypointClientHost;
 
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;
 
@@ -112,11 +111,6 @@ public final class StarfoldClient {
                     @Override
                     public void departing() {
                         PlanetRemoteRenderer.departing();
-                    }
-
-                    @Override
-                    public boolean shared(Level level) {
-                        return SpaceClient.shared(level);
                     }
 
                     @Override

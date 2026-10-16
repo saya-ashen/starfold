@@ -216,22 +216,25 @@ class PlanetDepthTest {
         int
                 a =
                         generator
-                                .getAsJsonObject("a")
+                                .getAsJsonArray("planets")
+                                .get(0)
+                                .getAsJsonObject()
                                 .getAsJsonObject("planet_generation")
                                 .get("depth")
                                 .getAsInt(),
                 b =
                         generator
-                                .getAsJsonObject("b")
+                                .getAsJsonArray("planets")
+                                .get(1)
+                                .getAsJsonObject()
                                 .getAsJsonObject("planet_generation")
                                 .get("depth")
                                 .getAsInt();
         // Half of each planet's radius.
-        for (var planet : java.util.List.of("a", "b"))
+        for (var planet : generator.getAsJsonArray("planets"))
             assertEquals(
                     "core_shell",
-                    generator
-                            .getAsJsonObject(planet)
+                    planet.getAsJsonObject()
                             .getAsJsonObject("planet_generation")
                             .get("shell")
                             .getAsString());

@@ -2,13 +2,12 @@ package dev.starfold.dev;
 
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.render.GroundClient;
-import dev.starfold.render.GroundRenderer;
 import dev.starfold.render.GroundViewClient;
 import dev.starfold.worldgen.PlanetTint;
 
 /** Explicit, opt-in render evidence controls. No world or terrain changes. */
 public final class DevPortProbe {
-    public static boolean hold, legacyTint;
+    public static boolean hold;
     public static Double sky;
 
     public static boolean enabled() {
@@ -20,16 +19,26 @@ public final class DevPortProbe {
         var a = args.split(" ");
         switch (a[0]) {
             case "hold" -> hold = Boolean.parseBoolean(a[1]);
-            case "legacy" -> {
-                if (GroundClient.planet() != 0) throw new IllegalStateException("home only");
-                legacyTint = Boolean.parseBoolean(a[1]);
-                GroundRenderer.clear();
-            }
             case "audit" -> audit();
             case "sky" -> {
                 if (a[1].equals("live")) sky = null;
                 else if (a[1].equals("noon")) {
-                    double best = -2, chosen = 0, period = GroundClient.model().period();
+                    double best = -2,
+                            chosen = 0,
+                            period = GroundClient.model().orbit(GroundClient.planet()).period();
+                    int parent = GroundClient.model().orbit(GroundClient.planet()).parent();
+                    while (GroundClient.model().bodies().get(parent).motion()
+                            instanceof dev.starfold.chart.GroundEphemeris.Orbit orbit) {
+                        period =
+                                Math.max(
+                                        period,
+                                        Math.max(
+                                                orbit.period(),
+                                                GroundClient.model()
+                                                        .spin(GroundClient.planet())
+                                                        .period()));
+                        parent = orbit.parent();
+                    }
                     for (int i = 0; i < 4096; i++) {
                         sky = period * i / 4096;
                         double e = GroundClient.sunElevation();

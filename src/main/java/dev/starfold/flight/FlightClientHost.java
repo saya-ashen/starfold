@@ -7,17 +7,11 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.world.level.Level;
 
 /** Client view requests from personal flight. Alone there is no drawn chart or region view. */
 public interface FlightClientHost {
     /** Discard the old distant view on departure; alone there is no distant view. */
     default void departing() {}
-
-    /** Whether another travel frame shares this level; alone no other frame does. */
-    default boolean shared(Level level) {
-        return false;
-    }
 
     /** Associate the drawn chart with a flight session; alone nothing is drawn. */
     default void sessionBound(ClientLevel level, long session) {}

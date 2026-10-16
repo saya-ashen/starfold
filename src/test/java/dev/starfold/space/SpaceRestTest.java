@@ -377,7 +377,7 @@ class SpaceRestTest {
                     "getLinearVelocity(lead,new org.joml.Vector3d()).div(20)",
                     "v.length()>1e-9",
                     "gain(f.drift(),blendPush(f.universeVector(v),towardEntry,blend),piloted,0)",
-                    "if(!piloted)dragFrame(value,level,tick)",
+                    "if(!piloted)dragFrame(value,level,container,bodies,lead,tick)",
                     "for(var body:bodies)pipeline.addLinearAndAngularVelocity",
                     "if(Space.in(entity))",
                     "body!=null&&bodies.contains(body)&&SableFrames.tracked(entity,body)",

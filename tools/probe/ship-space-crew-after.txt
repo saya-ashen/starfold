@@ -1,0 +1,11 @@
+# Same world, actual login consumes starfold_aboard; no observer teleport.
+strict
+waitworld
+wait 100
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert live
+check crew-after-live if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert aboard
+check crew-after-aboard if score @s s5_ok matches 1
+shot ship-space-crew-after
+quit

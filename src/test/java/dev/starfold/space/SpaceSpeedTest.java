@@ -158,25 +158,26 @@ class SpaceSpeedTest {
 
     @Test
     void arrivalNoticeBlendAndGovernorReachEntryWithoutHighSpeedOvershoot() {
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
         var nose = new Point(0, 0, 1);
         for (double initial : new double[] {800, 1200, 2400}) {
-            double h = Space.IN + initial * SpaceServer.ALIGN_TIME - initial / 20;
+            double h = 1536 + initial * SpaceServer.ALIGN_TIME - initial / 20;
             var s = ArrivalState.cruise(0, "ship", 0);
             var v = nose.scale(initial / 20);
             int ticks = 0;
-            while (h > Space.IN && ticks++ < 2000) {
+            while (h > 1536 && ticks++ < 2000) {
                 s =
                         s.step(
                                 0,
                                 "ship",
                                 h,
                                 v.length() * 20,
-                                SpaceServer.align(h, v.length() * 20, true),
-                                h < Space.IN + 300,
+                                SpaceServer.align(body, h, v.length() * 20, true),
+                                h < 1536 + 300,
                                 false,
                                 false,
                                 true);
-                var governed = SpaceServer.govern(v, nose, v, h, true);
+                var governed = SpaceServer.govern(body, v, nose, v, h, true);
                 v = v.add(governed.sub(v).scale(s.blend()));
                 h -= v.z();
             }
@@ -184,7 +185,7 @@ class SpaceSpeedTest {
             assertEquals(1, s.blend());
             // The prior tick's envelope can be at most 150/(1-1/120) at the crossing.
             assertTrue(v.length() * 20 <= 150 / (1 - 1.0 / 120) + 1e-8);
-            assertEquals(150, SpaceServer.govern(v, nose, v, h, true).length() * 20, 1e-8);
+            assertEquals(150, SpaceServer.govern(body, v, nose, v, h, true).length() * 20, 1e-8);
             System.out.println(
                     "vmax arrival initial="
                             + initial

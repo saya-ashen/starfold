@@ -468,7 +468,7 @@ public final class ImageStream {
             var listener = engine.getLayerListener(layer == 0 ? LightLayer.SKY : LightLayer.BLOCK);
             for (int s = 0; s < count; s++) {
                 var out = new DataLayer();
-                boolean present = false, lit = false;
+                boolean lit = false;
                 var cache = new IdentityHashMap<LevelChunk, Optional<DataLayer>>();
                 for (int i = 0; i < 256; i++) {
                     var c = columns[i];
@@ -482,7 +482,6 @@ public final class ImageStream {
                                                                     SectionPos.of(
                                                                             k.getPos(), section))))
                                     .orElse(null);
-                    if (source != null) present = true;
                     for (int y = 0; y < 16; y++) {
                         int value =
                                 source != null
@@ -498,11 +497,8 @@ public final class ImageStream {
                         }
                     }
                 }
-                if (!present) continue;
-                if (lit) {
-                    masks[layer].set(s);
-                    updates.get(layer).add(out.getData());
-                } else masks[2 + layer].set(s);
+                // An absent owner layer must replace any light the client still holds.
+                lightSection(out, lit, s, masks[layer], masks[2 + layer], updates.get(layer));
             }
         }
         buffer.writeBitSet(masks[0]);
@@ -511,6 +507,19 @@ public final class ImageStream {
         buffer.writeBitSet(masks[3]);
         buffer.writeCollection(updates.get(0), (b, a) -> b.writeByteArray(a));
         buffer.writeCollection(updates.get(1), (b, a) -> b.writeByteArray(a));
+    }
+
+    static void lightSection(
+            DataLayer data,
+            boolean lit,
+            int section,
+            BitSet values,
+            BitSet empty,
+            List<byte[]> updates) {
+        if (lit) {
+            values.set(section);
+            updates.add(data.getData());
+        } else empty.set(section);
     }
 
     private static boolean relight(

@@ -17,20 +17,11 @@ public final class PlanetSpawn {
 
     public static Point site(ServerLevel level, int planet, int face) {
         PlanetShape.valid(planet);
-        var source = level.getChunkSource().getGenerator();
-        PlanetChunkGenerator generator =
-                source instanceof SystemChunkGenerator system
-                        ? system.planet(planet)
-                        : source instanceof PlanetChunkGenerator single ? single : null;
-        if (generator == null)
-            return new Point(
-                    face * 4096 + PlanetShape.STANDARD.half() + .5,
-                    129,
-                    PlanetShape.STANDARD.half() + .5);
+        var generator =
+                ((SystemChunkGenerator) level.getChunkSource().getGenerator()).planet(planet);
         int[] location = dryLand(generator.terrain(), CubeSurfaceTopology.Face.values()[face]);
-        boolean system = source instanceof SystemChunkGenerator;
-        int x = (system ? PlanetStorage.offset(planet) : 0) + face * 4096 + location[0],
-                z = (system ? PlanetStorage.offsetZ(planet) : 0) + location[1];
+        int x = PlanetStorage.offset(planet) + face * 4096 + location[0],
+                z = PlanetStorage.offsetZ(planet) + location[1];
         // Level.getHeight does not load an absent chunk: it returns min build height.
         // Request the FULL native chunk first, then read its authoritative heightmap.
         var chunk = level.getChunk(x >> 4, z >> 4);

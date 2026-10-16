@@ -52,7 +52,7 @@ public final class PlanetRemotePackets {
         public static final StreamCodec<RegistryFriendlyByteBuf, Summary> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
-                            b.writeByte(p.planet);
+                            b.writeVarInt(p.planet);
                             PlanetPackets.Profile.CODEC.encode(b, p.profile);
                             b.writeVarLong(p.revision);
                             b.writeLongArray(p.changed);
@@ -60,7 +60,7 @@ public final class PlanetRemotePackets {
                         },
                         b ->
                                 new Summary(
-                                        b.readUnsignedByte(),
+                                        b.readVarInt(),
                                         PlanetPackets.Profile.CODEC.decode(b),
                                         b.readVarLong(),
                                         b.readLongArray(new long[0], 1536),
@@ -84,12 +84,12 @@ public final class PlanetRemotePackets {
         public static final StreamCodec<RegistryFriendlyByteBuf, Surface> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
-                            b.writeByte(p.planet);
+                            b.writeVarInt(p.planet);
                             GroundViewPackets.Surface.CODEC.encode(b, p.surface);
                         },
                         b ->
                                 new Surface(
-                                        b.readUnsignedByte(),
+                                        b.readVarInt(),
                                         GroundViewPackets.Surface.CODEC.decode(b)));
 
         @Override

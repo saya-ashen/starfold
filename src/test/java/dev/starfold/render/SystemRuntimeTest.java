@@ -60,29 +60,28 @@ class SystemRuntimeTest {
         assertEquals(4, g.planet(0).version());
         assertEquals(5, g.planet(1).version());
         assertNotEquals(g.planet(0).seed(), g.planet(1).seed());
-        assertFalse(g.planet(0).multiple());
-        assertFalse(g.planet(1).multiple());
+        assertFalse(encoded.has("a") || encoded.has("b"));
+        assertEquals(2, encoded.getAsJsonArray("planets").size());
         // The setup presets stay loadable by id but are not offered in the world creation screen.
         assertFalse(
                 java.nio.file.Files.exists(
                         java.nio.file.Path.of(
                                 "src/main/resources/data/minecraft/tags/worldgen/world_preset/extended.json")));
-        var original =
-                JsonParser.parseString(
-                                Files.readString(
-                                        Path.of(
-                                                "src/main/resources/data/starfold/dimension/native_planet.json")))
-                        .getAsJsonObject();
-        assertEquals(2, original.getAsJsonObject("generator").get("terrain_version").getAsInt());
+        assertFalse(
+                Files.exists(
+                        Path.of("src/main/resources/data/starfold/dimension/native_planet.json")));
+        assertFalse(
+                Files.exists(
+                        Path.of("src/main/resources/data/starfold/dimension/native_ground.json")));
         var evidence = Path.of("build/native-system");
         Files.createDirectories(evidence);
         Files.writeString(
                 evidence.resolve("reproduction.json"),
-                "{\"gpu_verified\":false,\"runtime_verified\":false,\"single_level_preset\":true,\"old_default_version\":2,\"native_dimensions_in_preset\":1,\"storage_layout\":\"six_face_x32768_v1\"}\n");
+                "{\"gpu_verified\":false,\"runtime_verified\":false,\"single_level_preset\":true,\"native_dimensions_in_preset\":1,\"storage_layout\":\"six_face_square_v2\"}\n");
     }
 
     @Test
-    void setupDistinguishesSharedAndLegacyLayoutsEvenWithSameTwoPlanetModel() {
+    void setupCarriesEveryPlanetInOneLevel() {
         var model = PlanetSystem.model();
         for (int id = 0; id < 2; id++) {
             var state =
@@ -94,7 +93,7 @@ class SystemRuntimeTest {
                             new org.joml.Quaterniond(),
                             true,
                             GroundDynamics.OFF);
-            for (boolean shared : new boolean[] {false, true}) {
+            {
                 var packet =
                         new GroundFlightPackets.Setup(
                                 23,
@@ -102,17 +101,15 @@ class SystemRuntimeTest {
                                 GroundSpace.DEFAULT_MASK,
                                 state,
                                 true,
-                                GroundAir.DEFAULT,
-                                shared);
+                                GroundAir.DEFAULT);
                 var raw = io.netty.buffer.Unpooled.buffer();
                 try {
                     var buf = new RegistryFriendlyByteBuf(raw, RegistryAccess.EMPTY);
                     GroundFlightPackets.Setup.CODEC.encode(buf, packet);
                     var copy = GroundFlightPackets.Setup.CODEC.decode(buf);
                     assertEquals(packet, copy);
-                    assertEquals(shared, copy.shared());
                     assertEquals(0, buf.readableBytes());
-                    assertEquals("starfold:native_ground_v4_setup", copy.type().id().toString());
+                    assertEquals("starfold:native_ground_v6_setup", copy.type().id().toString());
                 } finally {
                     raw.release();
                 }
@@ -161,7 +158,7 @@ class SystemRuntimeTest {
         assertEquals(before, versions.get(a));
         assertTrue(versions.get(b) > before);
         assertEquals(2112, access.chunk(b).x);
-        assertThrows(IllegalArgumentException.class, () -> PlanetAccess.LEGACY.chunk(b));
+        assertThrows(IllegalArgumentException.class, () -> access.chunk(-1));
     }
 
     @Test
@@ -189,20 +186,16 @@ class SystemRuntimeTest {
     void sharedFlightBranchCannotInvokeCrossLevelTeleportAndClientBindsLayoutBeforeCaches()
             throws Exception {
         var server = Sources.text("GroundFlightServer");
-        int start = server.indexOf("if(access==PlanetAccess.SHARED)");
-        int end = server.indexOf("else if(destination!=", start);
-        assertTrue(start >= 0 && end > start);
-        var branch = server.substring(start, end);
-        assertTrue(branch.contains("player.connection.teleport("));
-        assertFalse(branch.contains("player.teleportTo("));
+        assertTrue(server.contains("player.connection.teleport("));
+        assertFalse(server.contains("player.teleportTo("));
         var system = Sources.text("PlanetSystem");
-        assertTrue(system.contains("if(shared(current))return current"));
+        assertFalse(system.contains("getLevel("));
         var client = Sources.text("GroundFlightClient");
-        int shared = client.indexOf("shared=packet.shared()");
+        int setup = client.indexOf("model=packet.model()");
         int bind = client.indexOf("FlightClientHost.get().sessionBound(level,session)");
         int air = client.indexOf("FlightClientHost.get().atmosphere(packet.air())");
         int metadata = client.indexOf("FlightClientHost.get().metadata(model,state.tick())");
-        assertTrue(shared >= 0 && bind > shared && air > bind && metadata > air);
+        assertTrue(setup >= 0 && bind > setup && air > bind && metadata > air);
         assertTrue(
                 Sources.text("StarfoldClient")
                         .contains(

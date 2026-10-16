@@ -80,7 +80,8 @@ class CommandedDescentTest {
     void thirteenHundredBlockPlainDescentIsBoundedAndLandsGently() {
         double h = 1300, v = 0, t = 0;
         while (h > .15 && t < 60) {
-            double gravity = 8.25 * HullWeight.at(h);
+            double gravity =
+                    8.25 * HullWeight.at(dev.starfold.chart.GroundSolar.defaults().body(0), h);
             var o =
                     LiftControl.step(
                             2228, gravity, 33500, 13400, h, h, v, h, HelmCommand.DOWN, false, true);

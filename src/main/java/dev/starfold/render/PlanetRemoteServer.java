@@ -8,7 +8,6 @@ import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceApproach;
 import dev.starfold.space.SpaceServer;
 import dev.starfold.space.SpaceView;
-import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.PlanetPackets;
 import dev.starfold.universe.SystemChunkGenerator;
 
@@ -133,15 +132,9 @@ public final class PlanetRemoteServer {
             long session,
             int id,
             Map<Integer, Viewer> mine) {
-        var level =
-                PlanetSystem.multiple(player.serverLevel())
-                        ? PlanetSystem.level(player.serverLevel(), id)
-                        : player.serverLevel();
+        var level = player.serverLevel();
         var source = level.getChunkSource().getGenerator();
-        var g =
-                source instanceof SystemChunkGenerator system
-                        ? system.planet(id)
-                        : source instanceof PlanetChunkGenerator single ? single : null;
+        var g = source instanceof SystemChunkGenerator system ? system.planet(id) : null;
         if (g == null) return;
         var index = GroundSurfaceIndex.get(level, id);
         var v = mine.get(id);

@@ -471,13 +471,30 @@ public final class Thrusters {
         public void sable$physicsTick(ServerSubLevel body, RigidBodyHandle handle, double step) {
             if (!getBlockState().getValue(BlockStateProperties.POWERED)) return;
             if (getLevel() != null) STEADIED.put(body, getLevel().getGameTime());
+            // A held space attitude belongs to its body, not the region's arbitrary up axis.
+            if (body.getLevel() instanceof net.minecraft.server.level.ServerLevel level
+                    && ShipRecords.hold(level, body) != null
+                    && !ShipRecords.piloted(level, body)) return;
+            boolean chart = LiftServer.enabled(body);
+            boolean externalRoll = ShipHost.get().externalRoll(getLevel(), body);
+            var ground = chart ? HullLanding.ground(body) : null;
+            boolean resting =
+                    groundRest(
+                            chart && !ground.fluid(),
+                            chart ? ground.clearance() : Double.NaN,
+                            handle.getLinearVelocity(new Vector3d()).y,
+                            HelmServer.bits(body),
+                            externalRoll);
+            // Ground supports the hull. Do not overwrite contact-solver spin with either
+            // leveling or damping; UP, steering or departure restores the gyro immediately.
+            if (resting) return;
             var correction =
                     level(
                             new Quaterniond(body.logicalPose().orientation()),
                             handle.getAngularVelocity(new Vector3d()),
                             step,
-                            ShipHost.get().externalRoll(getLevel(), body));
-            if (LiftServer.enabled(body)) correction.y *= LiftControl.CHART_YAW_DAMPING;
+                            externalRoll);
+            if (chart) correction.y *= LiftControl.CHART_YAW_DAMPING;
             handle.addLinearAndAngularVelocity(new Vector3d(), correction);
         }
     }
@@ -575,6 +592,15 @@ public final class Thrusters {
         var change = wanted.sub(spin).mul(Math.min(1, BITE * step));
         change.y -= turning * Math.min(1, STEER * step);
         return change;
+    }
+
+    static boolean groundRest(
+            boolean solidChart, double clearance, double velocityY, int bits, boolean externalRoll) {
+        return solidChart
+                && !externalRoll
+                && (bits & (HelmCommand.UP | HelmCommand.FORWARD | HelmCommand.BACK
+                        | HelmCommand.LEFT | HelmCommand.RIGHT)) == 0
+                && LiftControl.landed(clearance, velocityY);
     }
 
     private Thrusters() {}

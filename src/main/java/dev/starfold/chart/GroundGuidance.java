@@ -5,7 +5,7 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 /** Optional velocity assistance only: never owns position, camera or collision geometry. */
 public final class GroundGuidance {
     public record Options(int target, boolean relativeBrake, boolean landing) {
-        public static final Options OFF = new Options(1, false, false);
+        public static final Options OFF = new Options(0, false, false);
 
         public Options {
             GroundCosmos.valid(target);

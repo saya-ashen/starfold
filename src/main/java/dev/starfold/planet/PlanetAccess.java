@@ -8,42 +8,37 @@ import dev.starfold.geometry.CubeSurfaceTopology.Cell;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
-/** Explicit layout at the real Level boundary. Never infer a layout from a large X alone.
- * Legacy worlds retain their old interpretation, including empty storage gaps.
- */
-public enum PlanetAccess {
-    LEGACY,
-    SHARED;
+/** Storage addresses and face charts for the planets held in one level. */
+public final class PlanetAccess {
+    public static final PlanetAccess SHARED = new PlanetAccess();
+
+    private PlanetAccess() {}
 
     public static PlanetAccess of(Level level) {
-        return PlanetSystem.shared(level) ? SHARED : LEGACY;
+        return SHARED;
     }
 
     public boolean inChart(BlockPos pos) {
-        if (this == LEGACY) return GroundTopology.inChart(pos);
         int planet = PlanetStorage.find(pos.getX(), pos.getZ());
         return planet >= 0
                 && GroundTopology.inChart(PlanetShape.of(planet), PlanetStorage.local(planet, pos));
     }
 
     public GroundTopology.Address address(BlockPos pos) {
-        return this == SHARED ? PlanetStorage.address(pos).oriented() : GroundTopology.address(pos);
+        return PlanetStorage.address(pos).oriented();
     }
 
     public Cell cell(BlockPos pos) {
-        return GroundTopology.cell(
-                this == SHARED ? PlanetStorage.local(PlanetStorage.planet(pos), pos) : pos);
+        return GroundTopology.cell(PlanetStorage.local(PlanetStorage.planet(pos), pos));
     }
 
     public GroundTopology.Notification notification(BlockPos target, BlockPos source) {
-        return this == SHARED
-                ? PlanetStorage.notification(target, source)
-                : GroundTopology.notification(target, source);
+        return PlanetStorage.notification(target, source);
     }
 
     public Point feet(int planet, PlanetShape.Pose pose) {
         PlanetShape.valid(planet);
-        return this == SHARED ? PlanetStorage.feet(planet, pose) : GroundTopology.feet(pose);
+        return PlanetStorage.feet(planet, pose);
     }
 
     /** A body anchor is already a chart point, not entity feet: no 0.9 centre offset belongs here. */
@@ -53,38 +48,31 @@ public enum PlanetAccess {
     }
 
     public PlanetShape.Pose body(Point feet) {
-        return this == SHARED
-                ? PlanetStorage.body(PlanetStorage.planet(feet.x(), feet.z()), feet)
-                : GroundTopology.body(feet);
+        return PlanetStorage.body(PlanetStorage.planet(feet.x(), feet.z()), feet);
     }
 
     public long key(int chunkX, int chunkZ) {
-        return this == SHARED
-                ? PlanetStorage.key(chunkX, chunkZ)
-                : dev.starfold.storage.ChunkKeys.local(chunkX, chunkZ);
+        return PlanetStorage.key(chunkX, chunkZ);
     }
 
     public net.minecraft.world.level.ChunkPos chunk(long key) {
-        if (key < 0
-                || key
-                        >= (this == SHARED ? (long) PlanetShape.count() : 1L)
-                                * PlanetStorage.CHUNKS_PER_PLANET)
+        if (key < 0 || key >= (long) PlanetShape.count() * PlanetStorage.CHUNKS_PER_PLANET)
             throw new IllegalArgumentException("Layout chunk key");
         return PlanetStorage.chunk(key);
     }
 
-    /** The planet whose storage holds a place. A legacy level holds one. */
+    /** The planet whose storage holds a place. */
     public int storagePlanet(double x, double z) {
-        return this == SHARED ? PlanetStorage.planet(x, z) : 0;
+        return PlanetStorage.planet(x, z);
     }
 
     public int storagePlanet(BlockPos pos) {
         return storagePlanet(pos.getX(), pos.getZ());
     }
 
-    /** Shape of the planet whose storage holds a place. A legacy level holds one planet of the standard size. */
+    /** Shape of the planet whose storage holds a place. */
     public PlanetShape shape(double x, double z) {
-        return this == SHARED ? PlanetShape.of(PlanetStorage.planet(x, z)) : PlanetShape.STANDARD;
+        return PlanetShape.of(PlanetStorage.planet(x, z));
     }
 
     public PlanetShape shape(BlockPos pos) {
@@ -93,7 +81,7 @@ public enum PlanetAccess {
 
     /** The face whose chart a place is in: told from x alone, as the faces of every planet stand along x. */
     public int face(double x) {
-        return GroundCoordinates.face(x - (this == SHARED ? PlanetStorage.columnOffset(x) : 0));
+        return GroundCoordinates.face(x - PlanetStorage.columnOffset(x));
     }
 
     public Point originAt(double x, double z) {
@@ -105,7 +93,7 @@ public enum PlanetAccess {
     }
 
     public boolean samePlanet(double ax, double az, double bx, double bz) {
-        return this != SHARED || PlanetStorage.find(ax, az) == PlanetStorage.find(bx, bz);
+        return PlanetStorage.find(ax, az) == PlanetStorage.find(bx, bz);
     }
 
     /** Where a place of another face is drawn in the chart of the face an observer is on, or null. */
@@ -123,12 +111,11 @@ public enum PlanetAccess {
     /** A place in the middle of a face of a planet: an observer there sees that face's chart. */
     public Point middle(int planet, int face) {
         var o = origin(planet, face);
-        double half = (this == SHARED ? PlanetShape.of(planet) : PlanetShape.STANDARD).half();
+        double half = PlanetShape.of(planet).half();
         return new Point(o.x() + half, o.y(), o.z() + half);
     }
 
     public Point origin(int planet, int face) {
-        return GroundCoordinates.origin(face)
-                .add(this == SHARED ? PlanetStorage.origin(planet) : new Point(0, 0, 0));
+        return GroundCoordinates.origin(face).add(PlanetStorage.origin(planet));
     }
 }

@@ -107,6 +107,7 @@ public final class HelmServer {
                 new Session(
                         player, body, pos, state.getValue(BlockStateProperties.HORIZONTAL_FACING));
         sessions.put(body, session);
+        ShipRecords.binding(player.serverLevel(), body);
         send(session, true);
         var caps = ShipHost.get().speedCaps(body);
         player.displayClientMessage(
@@ -267,6 +268,9 @@ public final class HelmServer {
     private static void drop(Session s) {
         sessions.remove(s.body);
         pilots.release(s.body);
+        if (!s.body.isRemoved()
+                && s.body.getLevel() instanceof net.minecraft.server.level.ServerLevel level)
+            ShipRecords.binding(level, s.body);
         s.bits = 0;
         ShipHost.get().pilotReleased(s.player);
         send(s, false);

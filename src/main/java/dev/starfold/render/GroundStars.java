@@ -144,9 +144,7 @@ public final class GroundStars {
                                 GroundClient.state().pose(),
                                 GroundClient.eye(),
                                 GroundClient.view());
-                model =
-                        new Matrix4f(RenderSystem.getModelViewMatrix())
-                                .mul(context.matrixStack().last().pose());
+                model = new Matrix4f(context.positionMatrix());
                 model.m30(0)
                         .m31(0)
                         .m32(0)

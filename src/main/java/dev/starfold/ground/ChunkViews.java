@@ -35,12 +35,7 @@ public final class ChunkViews {
     }
 
     private static final int CACHE_LIMIT = 8192;
-    private static final Map<PlanetAccess, ConcurrentHashMap<Long, Columns>> COLUMNS =
-            Map.of(
-                    PlanetAccess.LEGACY,
-                    new ConcurrentHashMap<>(),
-                    PlanetAccess.SHARED,
-                    new ConcurrentHashMap<>());
+    private static final ConcurrentHashMap<Long, Columns> COLUMNS = new ConcurrentHashMap<>();
     private static final Map<ServerLevel, ConcurrentHashMap<Long, GhostChunk>> VIEWS =
             new WeakHashMap<>();
 
@@ -56,7 +51,7 @@ public final class ChunkViews {
     }
 
     public static Columns columns(PlanetAccess access, int chunkX, int chunkZ) {
-        var cache = COLUMNS.get(access);
+        var cache = COLUMNS;
         long key = ChunkPos.asLong(chunkX, chunkZ);
         var hit = cache.get(key);
         if (hit != null) return hit;

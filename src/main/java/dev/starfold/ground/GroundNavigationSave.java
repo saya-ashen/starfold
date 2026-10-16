@@ -6,7 +6,6 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -31,7 +30,7 @@ public final class GroundNavigationSave extends SavedData {
 
     public static GroundNavigationSave get(ServerLevel level) {
         if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Native dimension");
-        var storage = PlanetSystem.authority(level).getDataStorage();
+        var storage = level.getDataStorage();
         return storage.computeIfAbsent(
                 new Factory<>(
                         () ->

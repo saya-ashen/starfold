@@ -32,11 +32,7 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
     private final int planet;
 
     public GroundTerrain(Level level, Entity entity, GroundSpace.Config mask) {
-        this(
-                level,
-                entity,
-                mask,
-                entity == null ? PlanetSystem.planet(level) : PlanetSystem.planet(entity));
+        this(level, entity, mask, entity == null ? 0 : PlanetSystem.planet(entity));
     }
 
     public GroundTerrain(Level level, Entity entity, GroundSpace.Config mask, int planet) {
@@ -62,8 +58,7 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
                     if (!(source instanceof Level l)) return true;
                     if (l.isClientSide)
                         return l.getChunkSource().hasChunk(owner.getX() >> 4, owner.getZ() >> 4);
-                    return access != PlanetAccess.SHARED
-                            || !(l instanceof net.minecraft.server.level.ServerLevel server)
+                    return !(l instanceof net.minecraft.server.level.ServerLevel server)
                             || server.getChunkSource()
                                             .getChunkNow(owner.getX() >> 4, owner.getZ() >> 4)
                                     != null;
@@ -258,10 +253,7 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
                         level.isClientSide
                                 ? !level.getChunkSource()
                                         .hasChunk(canonical.getX() >> 4, canonical.getZ() >> 4)
-                                : access == PlanetAccess.SHARED
-                                        && level
-                                                instanceof
-                                                net.minecraft.server.level.ServerLevel server
+                                : level instanceof net.minecraft.server.level.ServerLevel server
                                         && server.getChunkSource()
                                                         .getChunkNow(
                                                                 canonical.getX() >> 4,
@@ -307,37 +299,19 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
             GroundSpace.Config mask) {
         return new GroundDynamics.Terrain() {
             public boolean clear(PlanetShape.Pose p) {
-                return clear(
-                        player == null ? PlanetSystem.planet(current) : PlanetSystem.planet(player),
-                        p);
+                return clear(player == null ? 0 : PlanetSystem.planet(player), p);
             }
 
             public double clearance(PlanetShape.Pose p) {
-                return clearance(
-                        player == null ? PlanetSystem.planet(current) : PlanetSystem.planet(player),
-                        p);
+                return clearance(player == null ? 0 : PlanetSystem.planet(player), p);
             }
 
             public boolean clear(int id, PlanetShape.Pose p) {
-                return new GroundTerrain(
-                                PlanetSystem.multiple(current)
-                                        ? PlanetSystem.level(current, id)
-                                        : current,
-                                player,
-                                mask,
-                                id)
-                        .clear(p);
+                return new GroundTerrain(current, player, mask, id).clear(p);
             }
 
             public double clearance(int id, PlanetShape.Pose p) {
-                return new GroundTerrain(
-                                PlanetSystem.multiple(current)
-                                        ? PlanetSystem.level(current, id)
-                                        : current,
-                                player,
-                                mask,
-                                id)
-                        .clearance(p);
+                return new GroundTerrain(current, player, mask, id).clearance(p);
             }
         };
     }

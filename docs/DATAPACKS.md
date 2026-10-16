@@ -152,7 +152,7 @@ planets live in the dimension `starfold:native_planet`, whose generator has the 
 | `storage_layout` | string | required | Write `six_face_square_v2` |
 | `system` | star system id, or a whole system written in place | none | The hand-written system to use. Cannot be combined with `planets`, `stars` or `universe`; see [Star systems](#star-systems) |
 | `planets` | list of 2–810000 planet entries | none | The home system's planets in storage order. The first must be written out in full, not by type |
-| `stars` | list of positive integers adding up to the number of `planets` | one sun with all of them | How the `planets` are shared among suns; the first sun has at least two |
+| `stars` | list of positive integers adding up to the number of `planets` | one sun with all of them | How the `planets` are shared among suns; each sun has at least one |
 | `universe` | layout id, or a whole layout written in place | no further universe | What lies beyond the `planets`. Only with `planets` |
 
 Three more fields exist and are not for pack authors: `a` and `b` are the older way of writing exactly two
@@ -365,13 +365,14 @@ and they are not measured from the first sun.
 
 | Field | Type and range | If omitted |
 |---|---|---|
-| `suns` | list of at least one sun; 2–1600 planets in all | required |
+| `suns` | list of at least one sun; 1–1600 planets in all | required |
 | `suns[].position` | three numbers `[x, y, z]` in blocks; see rule 5 for how far | required |
 | `suns[].radius` | number, 32–4096 blocks; at most 1024 for the home sun | required |
-| `suns[].planets` | list of at least one planet; at least two for the home sun | required |
+| `suns[].planets` | list of at least one planet | required |
 | `suns[].planets[].type` | planet type id, or a whole type written in place | required; an unknown id stops the world from loading |
 | `…size` | width of a face in blocks: in the type's range, a multiple of 16 | picked from the type and the planet's seed |
 | `…seed` | 64-bit integer | derived from the world seed and the planet's place in the file |
+| `…reach` | number, 512–2048 blocks above the surface; height where a ship leaves for space | `2048` |
 | `…name` | 1–64 characters, not blank, no control characters | A, B, … Z, P26, P27 … by storage order |
 | `…orbit` | object | required |
 | `…orbit.radius` | number, 1–10000000 blocks, within the rules below | required |
@@ -380,6 +381,7 @@ and they are not measured from the first sun.
 | `…spin` | object | **the planet does not turn** |
 | `…spin.period` | number, 24000–1000000000 ticks | required with `spin` |
 | `…spin.tilt` | number, -180–180 **degrees** | `0` |
+| `…moons` | list of moons, with the same fields as a planet except `moons` | no moons |
 | `home` | object, counting from 0 | `{"sun": 0, "planet": 0}` |
 | `home.sun` / `home.planet` | a sun of the file and one of its planets | `0` each |
 | `beyond` | layout id, or a whole layout written in place | **nothing beyond**: only the planets written here exist |
@@ -395,30 +397,65 @@ suns in order and through each sun's planets. Another world seed therefore chang
 
 ### Rules
 
-1. **The home planet has a partner.** The home planet and the first other planet in the home sun's list must share
-   one orbit radius and one period, half an orbit apart: phases that differ by π. That shared radius must be
-   **6000–8192**. Write π as `3.141592653589793`, not a shorter value. The two may differ in size and spin, and every
-   other planet is free.
-2. **Storage order is fixed.** The home planet is number 0 and its partner number 1; then the rest of the home
-   sun's planets in the order written; then the other suns and their planets in the order written. Default names
-   follow these numbers.
+1. **One planet is enough.** The home planet may be any planet of any sun. It obeys the same orbit and spacing
+   rules as every other planet.
+2. **Storage order is fixed.** The home planet is number 0; then the rest of the home sun's planets in the order
+   written; then the other suns and their planets in the order written. Default names follow these numbers. Moons follow all the planets, in the order written through the suns, planets and their
+   moon lists; adding moons changes no planet's slot.
 3. **Planets keep their distance.** With `r = size × 2 / π` (taking the type's largest size where `size` is left
-   out), the centres of two planets of one sun must never come closer than `r1 + r2 + 4352`. For different periods
+   out), the centres of two planets of one sun must never come closer than `r1 + r2 + reach1 + reach2 + 256`
+   (`r1 + r2 + 4352` with default reach). For different periods
    that means the orbit radii must differ by at least that much. For equal periods the distance is fixed at
    `sqrt((R1 - R2)² + 4 × R1 × R2 × sin²(Δphase / 2))`. Two planets on one ring with different periods are always
    refused.
-4. **Suns keep their distance.** An orbit's radius must exceed `sun radius + r + 2176`. A sun's reach is the
-   largest `orbit radius + r + 2176` among its planets, and two suns must stand at least the sum of their reaches
+4. **Suns keep their distance.** An orbit's radius must exceed `sun radius + r + reach + 128`
+   (`sun radius + r + 2176` with default reach). A sun's envelope is the largest
+   `orbit radius + r + reach + 128` among its planets, and two suns must stand at least the sum of their envelopes
    apart, whatever the phases.
 5. **Everything stays within reach.** The home sun stands at most 100000 blocks from the origin. For every sun,
-   its distance from the origin plus its reach is at most 200000 blocks, so that no planet lies where flight cannot
+   its distance from the origin plus its envelope is at most 200000 blocks, so that no planet lies where flight cannot
    take a player.
-6. **At most 1600 planets**, including any that `beyond` adds. Suns from `beyond` stay clear of the reach of
+6. **At most 1600 planets**, including any that `beyond` adds. Suns from `beyond` stay clear of the envelope of
    every hand-written sun, and fewer are made where there is no room. With `beyond`, the outermost orbit it may
    create must not take longer than 1000000000 ticks:
    `home period × ((home radius + (beyond.planets.max - 1) × beyond.ring) / home radius)^1.5`. If it does, shorten
-   the home period or reduce the ring or the number of planets.
+   the home period or reduce the ring or the number of planets. Its inner ring must also clear a generated sun
+   and the largest default-reach surface: `home radius > 640 + 2048 × 2 / π + 2048 + 128`. Its `star_gap` must be at
+   least `4 × (home radius + (beyond.planets.max - 1) × beyond.ring) + 16384`.
 7. Sizes must pass the type's range and the depth rule, and the dimension type must hold the depth.
+
+### Moons
+
+A moon is another surface planet, with its own type, size, seed, name, orbit, spin and reach. Its orbit radius is
+measured from its planet's centre, not the sun. The orbit plane stays in the region's axes; it does not turn with
+its planet's spin. A moon cannot have moons, and `home` selects a planet, not a moon. Generated and discovered
+systems make no moons.
+
+A moon's orbit radius must be at least `planet r + planet reach + moon r + moon reach + 256`. Two moons of one
+planet obey rule 3 with their own radii, periods and phases. For the sun-clearance, planet-spacing and envelope
+rules, replace a planet's `r + reach` with the largest of its own `r + reach` and each moon's
+`orbit radius + moon r + moon reach`. The family must fit throughout its orbit. The 1600 limit includes moons.
+Discovery also reserves the whole family's envelope.
+
+Seedless moons use the same seed derivation after all the planets, in written moon order. Adding a moon changes
+no existing planet's seed. Moons are saved and generated like any other surface. For example:
+
+```json
+{
+  "suns": [{
+    "position": [0, 0, 0],
+    "radius": 512,
+    "planets": [{
+      "type": "starfold:temperate", "size": 1024, "reach": 512,
+      "orbit": {"radius": 30000, "period": 120000},
+      "moons": [{
+        "type": "starfold:rocky", "size": 512, "reach": 512, "name": "Moon",
+        "orbit": {"radius": 5000, "period": 24000, "phase": 3.141592653589793}
+      }]
+    }]
+  }]
+}
+```
 
 A file that breaks a rule stops the world from being created, with a message naming the field or the sun and
 planet. Nothing is generated first, and the game does not fall back to another system.

@@ -2,11 +2,14 @@ package dev.starfold.space;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.sky.Space;
+
+import org.joml.Matrix4f;
 
 import java.util.*;
 
@@ -18,6 +21,19 @@ public final class SpaceView {
     /** Orbital chart observers see the same distant celestial bodies as passive region observers. */
     public static float chartFar(double altitude, int view) {
         return altitude > GroundOrbit.START ? FAR : view + 64f;
+    }
+
+    /** Keep the camera's field of view and offsets; only sky depth uses the celestial far plane. */
+    public static Matrix4f skyProjection(Matrix4f terrain) {
+        float near = terrain.m32() / (terrain.m22() - 1);
+        return new Matrix4f(terrain)
+                .m22(-(FAR + near) / (FAR - near))
+                .m32(-2 * FAR * near / (FAR - near));
+    }
+
+    /** The star fade washes out bodies too, but leaves twenty percent of their lit colour at noon. */
+    public static double bodyFade(double elevation, double space) {
+        return .2 + .8 * GroundSolar.stars(elevation, space);
     }
 
     public record Placement(Point center, Point u, Point up, Point v) {}

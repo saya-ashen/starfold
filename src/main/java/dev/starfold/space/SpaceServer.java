@@ -10,13 +10,13 @@ import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.network.StarfoldNetwork;
-import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.HelmServer;
 import dev.starfold.ship.SableFrames;
+import dev.starfold.ship.ShipParking;
+import dev.starfold.ship.ShipRecords;
 import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.GroundClock;
@@ -29,7 +29,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 import org.joml.Quaterniond;
 
-/** The region belongs to this Level, not to the shared celestial clock's authority Level. */
+/** The region and its celestial clock belong to this level. */
 public final class SpaceServer extends SavedData {
     public static final String FILE = "starfold_native_space_v2";
 
@@ -68,6 +68,8 @@ public final class SpaceServer extends SavedData {
             new java.util.WeakHashMap<>();
     private Space.Frame frame;
     private long epoch;
+    private Point holdTurn = GroundEphemeris.ZERO;
+    private java.util.UUID turningLead;
     private ArrivalState arrivalState = ArrivalState.empty();
     private dev.ryanhcode.sable.sublevel.ServerSubLevel inboundBody;
     private int inboundPlanet = -1;
@@ -79,6 +81,8 @@ public final class SpaceServer extends SavedData {
 
     private static final java.util.Map<net.minecraft.server.level.ServerPlayer, View> views =
             new java.util.WeakHashMap<>();
+    private static final java.util.Map<net.minecraft.world.entity.LivingEntity, ServerLevel>
+            weightless = new java.util.WeakHashMap<>();
     private static final net.minecraft.resources.ResourceLocation WEIGHTLESS =
             net.minecraft.resources.ResourceLocation.parse("starfold:space_weightless");
 
@@ -172,6 +176,7 @@ public final class SpaceServer extends SavedData {
                     views.clear();
                     wishes.clear();
                     targets.clear();
+                    weightless.clear();
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.level.LevelEvent.Unload event) -> {
@@ -282,7 +287,7 @@ public final class SpaceServer extends SavedData {
             views.remove(player);
             if (player.connection.hasChannel(SpacePackets.View.TYPE))
                 net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
-                        player, new SpacePackets.View(0, GroundSpace.DEFAULT_MASK, false));
+                        player, new SpacePackets.View(0, GroundSpace.DEFAULT_MASK));
             return 0;
         }
         var mask = GroundClock.get(player.serverLevel()).mask;
@@ -291,11 +296,7 @@ public final class SpaceServer extends SavedData {
                 v == null || v.level() != player.serverLevel() || !v.packet().mask().equals(mask);
         if (fresh) {
             long id = java.util.UUID.randomUUID().getMostSignificantBits();
-            v =
-                    new View(
-                            player.serverLevel(),
-                            new SpacePackets.View(
-                                    id == 0 ? 1 : id, mask, PlanetSystem.shared(player.level())));
+            v = new View(player.serverLevel(), new SpacePackets.View(id == 0 ? 1 : id, mask));
             views.put(player, v);
         }
         if (fresh) send(player);
@@ -316,26 +317,75 @@ public final class SpaceServer extends SavedData {
         for (var player : level.players())
             if (Space.in(player) ? observers.get(player) != level : observers.containsKey(player))
                 sync(player);
-        for (var entity : level.getAllEntities())
+        // Only those previously made free need their gravity restored after leaving the region.
+        weightless
+                .entrySet()
+                .removeIf(
+                        e -> {
+                            var living = e.getKey();
+                            if (e.getValue() != level) return false;
+                            if (!living.isRemoved() && living.level() == level && Space.in(living))
+                                return false;
+                            weight(
+                                    living.getAttribute(
+                                            net.minecraft.world.entity.ai.attributes.Attributes
+                                                    .GRAVITY),
+                                    false);
+                            return true;
+                        });
+        var cabins = cabins(level);
+        for (var entity : regionEntities(level))
             if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                boolean free = Space.in(entity) && !weighted(entity, cabins);
                 weight(
                         living.getAttribute(
                                 net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY),
-                        Space.in(entity) && !weighted(entity));
+                        free);
+                if (free) weightless.put(living, level);
+                else weightless.remove(living);
             }
     }
 
-    /** Weight uses contact NOW or cabin feet, never the passage/handover grace. */
-    private static boolean weighted(net.minecraft.world.entity.Entity entity) {
-        if (dev.ryanhcode.sable.Sable.HELPER.getTrackingSubLevel(entity) != null) return true;
-        var container =
-                dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(entity.level());
+    /** Membership ignores height, including entities above or below the terrain storage band. */
+    private static java.util.List<net.minecraft.world.entity.Entity> regionEntities(
+            ServerLevel level) {
+        return dev.starfold.ground.GroundSeams.entities(
+                level,
+                new net.minecraft.world.phys.AABB(
+                        Space.X - Space.REACH,
+                        Double.NEGATIVE_INFINITY,
+                        Space.Z - Space.REACH,
+                        Space.X + Space.REACH,
+                        Double.POSITIVE_INFINITY,
+                        Space.Z + Space.REACH));
+    }
+
+    /** Visit each cabin's local entities once, rather than visiting every hull for each space mob. */
+    private static java.util.Set<net.minecraft.world.entity.Entity> cabins(ServerLevel level) {
+        var found = new java.util.HashSet<net.minecraft.world.entity.Entity>();
+        var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
         if (container != null)
             for (var candidate : container.getAllSubLevels())
                 if (candidate instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel body
-                        && !body.isRemoved()
-                        && SableFrames.inside(body, entity)) return true;
-        return false;
+                        && !body.isRemoved()) {
+                    var bounds = SableFrames.cabinBounds(body);
+                    if (bounds == null
+                            || bounds.maxX < Space.X - Space.REACH
+                            || bounds.minX > Space.X + Space.REACH
+                            || bounds.maxZ < Space.Z - Space.REACH
+                            || bounds.minZ > Space.Z + Space.REACH) continue;
+                    for (var entity : dev.starfold.ground.GroundSeams.entities(level, bounds))
+                        if (Space.in(entity) && SableFrames.inside(body, entity)) found.add(entity);
+                }
+        return found;
+    }
+
+    /** Weight uses contact NOW or cabin feet, never the passage/handover grace. */
+    private static boolean weighted(
+            net.minecraft.world.entity.Entity entity,
+            java.util.Set<net.minecraft.world.entity.Entity> cabins) {
+        return dev.ryanhcode.sable.Sable.HELPER.getTrackingSubLevel(entity) != null
+                || cabins.contains(entity);
     }
 
     /** Multiplying the final attribute by zero leaves its base and every other mod's modifiers intact. */
@@ -511,7 +561,9 @@ public final class SpaceServer extends SavedData {
         var lead = lead(level, container);
         var value = get(level);
         var clock = GroundClock.get(level).clock;
+        for (var body : bodies) ShipRecords.binding(level, body);
         advanceLead(level, container, bodies, lead, value, clock);
+        settleFollowers(level, container, bodies, lead, value);
     }
 
     // Arrival, attitude, cruise and probes share more than six locals; keep this allocation-free
@@ -540,10 +592,7 @@ public final class SpaceServer extends SavedData {
         var position = entry.universe(point, model, tick);
         int destination = Space.nearest(model, position, tick);
         var towardEntry = model.at(destination, tick).center().sub(position);
-        var entryShape =
-                PlanetAccess.of(level) == PlanetAccess.SHARED
-                        ? PlanetShape.of(destination)
-                        : PlanetShape.STANDARD;
+        var entryShape = PlanetShape.of(destination);
         var impulse = entry.universeVector(v);
         double entryHeight = Space.height(model, destination, entryShape, position, tick),
                 entryClosing =
@@ -558,6 +607,7 @@ public final class SpaceServer extends SavedData {
                         .sub(model.at(destination, tick).velocity());
         value.inbound =
                 inbound(
+                        model.body(destination),
                         value.inbound
                                 && value.inboundBody == lead
                                 && value.inboundPlanet == destination,
@@ -580,8 +630,13 @@ public final class SpaceServer extends SavedData {
                         lead.getUniqueId().toString(),
                         entryHeight,
                         entryClosing,
-                        piloted && align(entryHeight, entryClosing, value.inbound),
-                        piloted && entryHeight < Space.IN + 300,
+                        piloted
+                                && align(
+                                        model.body(destination),
+                                        entryHeight,
+                                        entryClosing,
+                                        value.inbound),
+                        piloted && entryHeight < model.body(destination).hullIn() + 300,
                         abort,
                         false,
                         remaining < .1,
@@ -600,7 +655,8 @@ public final class SpaceServer extends SavedData {
                         new org.joml.Vector3d());
             subtractEntityImpulse(level, bodies, v);
         }
-        if (!piloted) dragFrame(value, level, tick);
+        if (!piloted) dragFrame(value, level, container, bodies, lead, tick);
+        else value.clearHoldTurn();
         value.setDirty();
         var universe = value.frame.universe(point, model, tick);
         int nearest = Space.nearest(model, universe, tick);
@@ -628,10 +684,7 @@ public final class SpaceServer extends SavedData {
                 wishes.put(player, new Wish(lead, pitch, roll, 0, 0, wish.tick()));
                 break;
             }
-            var shape =
-                    PlanetAccess.of(level) == PlanetAccess.SHARED
-                            ? PlanetShape.of(nearest)
-                            : PlanetShape.STANDARD;
+            var shape = PlanetShape.of(nearest);
             double height = Space.height(model, nearest, shape, universe, tick),
                     closing =
                             SpaceNavigation.closing(
@@ -675,24 +728,18 @@ public final class SpaceServer extends SavedData {
                                 Math.toDegrees(turn.angle()),
                                 entryHeight,
                                 entryClosing,
-                                align(entryHeight, entryClosing, value.inbound),
+                                align(
+                                        model.body(destination),
+                                        entryHeight,
+                                        entryClosing,
+                                        value.inbound),
                                 destination,
                                 value.arrivalState.departure());
             if (turn.x != 0 || turn.y != 0 || turn.z != 0) {
                 var old = value.frame;
                 value.frame = old.turned(turn, point);
                 value.setDirty();
-                for (var body : bodies)
-                    if (body != lead) {
-                        var p = body.logicalPose().position();
-                        var motion = SableFrames.motion(container, body, new Point(p.x, p.y, p.z));
-                        SableFrames.move(
-                                level,
-                                container,
-                                body,
-                                value.frame.level(old.universe(motion, model, tick), model, tick),
-                                true);
-                    }
+                value.relabelTurn(level, container, bodies, lead, old);
             }
         }
         Point targetVelocity = null;
@@ -700,10 +747,7 @@ public final class SpaceServer extends SavedData {
             for (var player : level.players())
                 if (helm(player, lead)) {
                     targetVelocity = targetVelocity(player, model, value.frame.planet(), tick);
-                    var shape =
-                            PlanetAccess.of(level) == PlanetAccess.SHARED
-                                    ? PlanetShape.of(nearest)
-                                    : PlanetShape.STANDARD;
+                    var shape = PlanetShape.of(nearest);
                     double height = Space.height(model, nearest, shape, universe, tick),
                             closing =
                                     SpaceNavigation.closing(
@@ -742,10 +786,7 @@ public final class SpaceServer extends SavedData {
                             Thrusters.boosted(lead, level.getGameTime()),
                             targetVelocity,
                             SpaceSpeedServer.caps(lead));
-            var shape =
-                    PlanetAccess.of(level) == PlanetAccess.SHARED
-                            ? PlanetShape.of(nearest)
-                            : PlanetShape.STANDARD;
+            var shape = PlanetShape.of(nearest);
             double height = Space.height(model, nearest, shape, universe, tick);
             var toward = model.at(nearest, tick).center().sub(universe);
             var relative =
@@ -755,12 +796,13 @@ public final class SpaceServer extends SavedData {
                             .sub(model.at(nearest, tick).velocity());
             value.inbound =
                     inbound(
+                            model.body(nearest),
                             value.inbound,
                             SpaceNavigation.closing(toward, relative, GroundEphemeris.ZERO),
                             missHeight(toward.scale(-1), relative, shape.radius()));
             var ungoverned = drift;
             double miss = missHeight(toward.scale(-1), relative, shape.radius());
-            var limited = govern(drift, toward, relative, height, true);
+            var limited = govern(model.body(nearest), drift, toward, relative, height, true);
             drift = drift.add(limited.sub(drift).scale(blend));
             if (Boolean.getBoolean("starfold.passbyProbe"))
                 org.slf4j.LoggerFactory.getLogger("starfold-probe")
@@ -785,16 +827,7 @@ public final class SpaceServer extends SavedData {
         if (ArrivalProbe.ENABLED && level.getGameTime() % 20 == 0) {
             var f = value.frame;
             var toward = model.at(nearest, tick).center().sub(universe);
-            double
-                    h =
-                            Space.height(
-                                    model,
-                                    nearest,
-                                    PlanetAccess.of(level) == PlanetAccess.SHARED
-                                            ? PlanetShape.of(nearest)
-                                            : PlanetShape.STANDARD,
-                                    universe,
-                                    tick),
+            double h = Space.height(model, nearest, PlanetShape.of(nearest), universe, tick),
                     closing =
                             SpaceNavigation.closing(
                                     toward,
@@ -848,7 +881,7 @@ public final class SpaceServer extends SavedData {
             ServerLevel level,
             java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
             Point v) {
-        for (var entity : level.getAllEntities())
+        for (var entity : regionEntities(level))
             if (Space.in(entity)) {
                 var body = SableFrames.aboard(entity);
                 if (body != null && bodies.contains(body) && SableFrames.tracked(entity, body))
@@ -859,16 +892,219 @@ public final class SpaceServer extends SavedData {
             }
     }
 
-    private static void dragFrame(SpaceServer value, ServerLevel level, long tick) {
-        value.frame =
-                value.frame.dragged(
-                        1
-                                / (1
-                                        + dev.ryanhcode.sable.physics.config.dimension_physics
-                                                        .DimensionPhysicsData.getUniversalDrag(
-                                                        level)
-                                                / 20),
-                        tick);
+    private static double dragFactor(ServerLevel level) {
+        return 1
+                / (1
+                        + dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
+                                        .getUniversalDrag(level)
+                                / 20);
+    }
+
+    public static Point carriedSpin(ServerLevel level, java.util.UUID hull) {
+        var value = get(level);
+        return hull.equals(value.turningLead) ? value.holdTurn : GroundEphemeris.ZERO;
+    }
+
+    private void clearHoldTurn() {
+        holdTurn = GroundEphemeris.ZERO;
+        turningLead = null;
+    }
+
+    private static void dragFrame(
+            SpaceServer value,
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel lead,
+            long tick) {
+        var held = ShipRecords.hold(level, lead);
+        if (held == null) {
+            coastLead(value, level, container, bodies, lead, tick);
+            return;
+        }
+        var model = GroundClock.get(level).clock.model;
+        var at = lead.logicalPose().position();
+        var point = new Point(at.x, at.y, at.z);
+        var anchor = lead.logicalPose().rotationPoint();
+        var plot = new Point(anchor.x(), anchor.y(), anchor.z());
+        var target = ShipParking.target(model, held, plot, tick);
+        var next = ShipParking.target(model, held, plot, tick + 1);
+        if (!lead.getUniqueId().equals(value.turningLead)) value.clearHoldTurn();
+        value.turningLead = lead.getUniqueId();
+        var pipeline = container.physicsSystem().getPipeline();
+        var impulse = pipeline.getAngularVelocity(lead, new org.joml.Vector3d()).div(20);
+        var spin =
+                value.holdTurn.add(
+                        value.frame.universeVector(new Point(impulse.x, impulse.y, impulse.z)));
+        var motion =
+                new Space.Motion(
+                        value.frame.universe(point, model, tick),
+                        value.frame.universeOrientation(
+                                new Quaterniond(lead.logicalPose().orientation())),
+                        value.frame.universeVelocity(GroundEphemeris.ZERO, model, tick),
+                        new org.joml.Vector3d(spin.x(), spin.y(), spin.z()));
+        var settled = ShipParking.settle(motion, target, next);
+        value.frame = ShipParking.settleFrame(value.frame, model, settled.velocity(), tick);
+        value.holdTurn = spinPoint(settled);
+        pipeline.addLinearAndAngularVelocity(lead, new org.joml.Vector3d(), impulse.mul(-20));
+        var old = value.frame;
+        value.frame = ShipParking.turnFrame(old, value.holdTurn, point);
+        if (old != value.frame) value.relabelTurn(level, container, bodies, lead, old);
+    }
+
+    private static void coastLead(
+            SpaceServer value,
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel lead,
+            long tick) {
+        // A helm without powered stabilization still uses the ordinary region drag, not body hold.
+        if (ShipRecords.piloted(level, lead)) {
+            value.clearHoldTurn();
+            value.frame = value.frame.dragged(dragFactor(level), tick);
+            return;
+        }
+        var model = GroundClock.get(level).clock.model;
+        var at = lead.logicalPose().position();
+        var point = new Point(at.x, at.y, at.z);
+        var universe = value.frame.universe(point, model, tick);
+        int body = ShipParking.nearestBody(model, universe, tick);
+        double factor = dragFactor(level);
+        var target = ShipParking.coastTarget(model, body, universe, tick);
+        value.frame = ShipParking.coastFrame(value.frame, model, body, point, factor, tick);
+        if (!lead.getUniqueId().equals(value.turningLead)) value.clearHoldTurn();
+        value.turningLead = lead.getUniqueId();
+        var angular = spinPoint(target);
+        if (angular.equals(GroundEphemeris.ZERO)) {
+            value.clearHoldTurn();
+            return;
+        }
+        var pipeline = container.physicsSystem().getPipeline();
+        var impulse = pipeline.getAngularVelocity(lead, new org.joml.Vector3d()).div(20);
+        value.holdTurn =
+                ShipParking.decay(
+                        value.holdTurn.add(
+                                value.frame.universeVector(
+                                        new Point(impulse.x, impulse.y, impulse.z))),
+                        angular,
+                        spinPoint(
+                                ShipParking.nextCoastTarget(
+                                        model,
+                                        body,
+                                        value.frame,
+                                        point,
+                                        GroundEphemeris.ZERO,
+                                        tick)),
+                        factor);
+        pipeline.addLinearAndAngularVelocity(lead, new org.joml.Vector3d(), impulse.mul(-20));
+        var old = value.frame;
+        value.frame = ShipParking.turnFrame(old, value.holdTurn, point);
+        if (old != value.frame) value.relabelTurn(level, container, bodies, lead, old);
+    }
+
+    private static Point spinPoint(Space.Motion motion) {
+        var spin = motion.spin();
+        return new Point(spin.x, spin.y, spin.z);
+    }
+
+    /** Only coordinate relabelling: no parked pose is imposed on a hull. */
+    private void relabelTurn(
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel lead,
+            Space.Frame old) {
+        var clock = GroundClock.get(level).clock;
+        for (var body : bodies)
+            if (body != lead) {
+                var p = body.logicalPose().position();
+                var motion = SableFrames.motion(container, body, new Point(p.x, p.y, p.z));
+                SableFrames.move(
+                        level,
+                        container,
+                        body,
+                        frame.level(
+                                old.universe(motion, clock.model, clock.tick()),
+                                clock.model,
+                                clock.tick()),
+                        true);
+            }
+    }
+
+    private static void settleFollowers(
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel lead,
+            SpaceServer value) {
+        var clock = GroundClock.get(level).clock;
+        var pipeline = container.physicsSystem().getPipeline();
+        for (var body : bodies) {
+            if (body == lead || ShipRecords.piloted(level, body)) continue;
+            var held = ShipRecords.hold(level, body);
+            if (held == null) {
+                coastFollower(level, container, body, value.frame);
+                continue;
+            }
+            var at = body.logicalPose().position();
+            var point = new Point(at.x, at.y, at.z);
+            var anchor = body.logicalPose().rotationPoint();
+            var plot = new Point(anchor.x(), anchor.y(), anchor.z());
+            var target =
+                    value.frame.level(
+                            ShipParking.target(clock.model, held, plot, clock.tick()),
+                            clock.model,
+                            clock.tick());
+            var next =
+                    value.frame.level(
+                            ShipParking.target(clock.model, held, plot, clock.tick() + 1),
+                            clock.model,
+                            clock.tick() + 1);
+            var motion = SableFrames.motion(container, body, point);
+            var settled = ShipParking.settle(motion, target, next);
+            var linear = settled.velocity().sub(motion.velocity()).scale(20);
+            var angular = settled.spin().sub(motion.spin()).mul(20);
+            pipeline.addLinearAndAngularVelocity(
+                    body, new org.joml.Vector3d(linear.x(), linear.y(), linear.z()), angular);
+        }
+    }
+
+    private static void coastFollower(
+            ServerLevel level,
+            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
+            Space.Frame frame) {
+        var clock = GroundClock.get(level).clock;
+        var at = body.logicalPose().position();
+        var point = new Point(at.x, at.y, at.z);
+        var universe = frame.universe(point, clock.model, clock.tick());
+        int nearest = ShipParking.nearestBody(clock.model, universe, clock.tick());
+        var target =
+                frame.level(
+                        ShipParking.coastTarget(clock.model, nearest, universe, clock.tick()),
+                        clock.model,
+                        clock.tick());
+        double factor = dragFactor(level);
+        var motion = SableFrames.motion(container, body, point);
+        var next = target;
+        if (target.spin().lengthSquared() != 0) {
+            var velocity = ShipParking.decay(motion.velocity(), target.velocity(), factor);
+            next =
+                    frame.level(
+                            ShipParking.nextCoastTarget(
+                                    clock.model, nearest, frame, point, velocity, clock.tick()),
+                            clock.model,
+                            clock.tick() + 1);
+        }
+        var settled = ShipParking.coast(motion, target, next, factor);
+        var linear = settled.velocity().sub(motion.velocity()).scale(20);
+        var angular = settled.spin().sub(motion.spin()).mul(20);
+        container
+                .physicsSystem()
+                .getPipeline()
+                .addLinearAndAngularVelocity(
+                        body, new org.joml.Vector3d(linear.x(), linear.y(), linear.z()), angular);
     }
 
     private static void shiftRegion(
@@ -916,6 +1152,7 @@ public final class SpaceServer extends SavedData {
         value.inboundBody = null;
         value.inboundPlanet = -1;
         value.arrivalState = ArrivalState.empty();
+        value.clearHoldTurn();
         value.setDirty();
         SpaceApproach.update(level, container, null);
     }
@@ -957,6 +1194,15 @@ public final class SpaceServer extends SavedData {
             for (var player : level.players()) if (SableFrames.aboard(player) == body) return body;
         }
         return first;
+    }
+
+    /** A region observer still needs the lead's labels while other hulls may sleep. */
+    public static boolean retainLead(
+            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+        var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
+        return container != null
+                && level.players().stream().anyMatch(Space::in)
+                && lead(level, container) == body;
     }
 
     /** The server's controller session owns pilot identity and forward, not player yaw. */
@@ -1036,10 +1282,7 @@ public final class SpaceServer extends SavedData {
         var f = frame(level);
         var universe = f.universe(new Point(at.x, at.y, at.z), model, tick);
         int nearest = Space.nearest(model, universe, tick);
-        var shape =
-                PlanetAccess.of(level) == PlanetAccess.SHARED
-                        ? PlanetShape.of(nearest)
-                        : PlanetShape.STANDARD;
+        var shape = PlanetShape.of(nearest);
         return !get(level).arriving;
     }
 
@@ -1110,13 +1353,14 @@ public final class SpaceServer extends SavedData {
      * 12v lead leaves about 7v after the 4s notice + 1s blend, before the 6(v-150)
      * governor boundary. Arrival directly projects velocity onto its envelope (not BRAKE-limited),
      * so the existing linear lead remains sufficient at 2400; no quadratic lead is needed. */
-    static boolean align(double height, double closing) {
-        return align(height, closing, true);
+    static boolean align(GroundEphemeris.Body body, double height, double closing) {
+        return align(body, height, closing, true);
     }
 
-    static boolean align(double height, double closing, boolean inbound) {
-        return height < Space.IN + 300
-                || inbound && closing > 0 && height - Space.IN < closing * ALIGN_TIME;
+    static boolean align(
+            GroundEphemeris.Body body, double height, double closing, boolean inbound) {
+        return height < body.hullIn() + 300
+                || inbound && closing > 0 && height - body.hullIn() < closing * ALIGN_TIME;
     }
 
     /** Straight-line closest approach in the nearest planet's velocity frame; recession has no future miss. */
@@ -1127,18 +1371,26 @@ public final class SpaceServer extends SavedData {
                 : Double.POSITIVE_INFINITY;
     }
 
-    static boolean inbound(boolean previous, double closing, double miss) {
-        return closing > 0 && (previous ? miss <= Space.IN + MISS_OUT : miss < Space.IN + MISS_IN);
+    static boolean inbound(
+            GroundEphemeris.Body body, boolean previous, double closing, double miss) {
+        return closing > 0
+                && (previous ? miss <= body.hullIn() + MISS_OUT : miss < body.hullIn() + MISS_IN);
     }
 
-    static boolean governed(double height, boolean inbound) {
-        return inbound || height < Space.IN + 300;
+    static boolean governed(GroundEphemeris.Body body, double height, boolean inbound) {
+        return inbound || height < body.hullIn() + 300;
     }
 
-    static Point govern(Point drift, Point toward, Point relative, double height, boolean inbound) {
-        if (!governed(height, inbound)) return drift;
-        var arrived = arrival(drift, toward, relative, height);
-        return near(arrived, toward, relative.add(arrived.sub(drift)), height);
+    static Point govern(
+            GroundEphemeris.Body body,
+            Point drift,
+            Point toward,
+            Point relative,
+            double height,
+            boolean inbound) {
+        if (!governed(body, height, inbound)) return drift;
+        var arrived = arrival(body, drift, toward, relative, height);
+        return near(body, arrived, toward, relative.add(arrived.sub(drift)), height);
     }
 
     /** Inverse ship rotation: nose up brings old +Y ahead; roll right brings old right upward. */
@@ -1175,7 +1427,10 @@ public final class SpaceServer extends SavedData {
                 model,
                 tick,
                 pivot,
-                align(height, closing),
+                align(
+                        model.body(Space.nearest(model, frame.universe(pivot, model, tick), tick)),
+                        height,
+                        closing),
                 steadied,
                 yaw,
                 pitch,
@@ -1337,28 +1592,30 @@ public final class SpaceServer extends SavedData {
     /** Only nearest-planet closing is governed; reference velocity and tangential drift are untouched.
      * This is a kinematic safety cap, not the assisted manual brake. Tracking it requires v/6 b/s².
      * At a discrete crossing the prior cap is at most ARRIVE/(1-1/(20*ARRIVE_TIME)). */
-    static double arrivalLimit(double height) {
-        return ARRIVE + Math.max(0, height - Space.IN) / ARRIVE_TIME;
+    static double arrivalLimit(GroundEphemeris.Body body, double height) {
+        return ARRIVE + Math.max(0, height - body.hullIn()) / ARRIVE_TIME;
     }
 
-    static double nearLimit(double height) {
-        return ARRIVE + Math.max(0, height - Space.IN) / NEAR_TIME;
+    static double nearLimit(GroundEphemeris.Body body, double height) {
+        return ARRIVE + Math.max(0, height - body.hullIn()) / NEAR_TIME;
     }
 
-    static Point arrival(Point drift, Point toward, Point relative, double height) {
+    static Point arrival(
+            GroundEphemeris.Body body, Point drift, Point toward, Point relative, double height) {
         double length = toward.length();
         if (length == 0) return drift;
         var radial = toward.scale(1 / length);
-        double closing = relative.dot(radial), limit = arrivalLimit(height) / 20;
+        double closing = relative.dot(radial), limit = arrivalLimit(body, height) / 20;
         return closing > limit ? drift.sub(radial.scale(closing - limit)) : drift;
     }
 
     /** After radial governing, spend the whole-speed budget on radial motion first; trim only tangent. */
-    static Point near(Point drift, Point toward, Point relative, double height) {
+    static Point near(
+            GroundEphemeris.Body body, Point drift, Point toward, Point relative, double height) {
         double length = toward.length();
         if (length == 0) return drift;
         var radial = toward.scale(1 / length);
-        double along = relative.dot(radial), limit = nearLimit(height) / 20;
+        double along = relative.dot(radial), limit = nearLimit(body, height) / 20;
         var tangent = relative.sub(radial.scale(along));
         double speed = tangent.length(),
                 allowed = Math.sqrt(Math.max(0, limit * limit - along * along));

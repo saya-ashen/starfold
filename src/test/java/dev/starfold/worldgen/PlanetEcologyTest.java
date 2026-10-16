@@ -385,33 +385,30 @@ public class PlanetEcologyTest {
     }
 
     @Test
-    void existingDefaultAndMiningPresetsAreNotUpgraded() throws Exception {
+    void ecologyPresetUsesTheSavedPolicyInsideASystem() throws Exception {
         var root = Path.of("src/main/resources/data/starfold");
-        for (var pair :
+        for (String removed :
                 List.of(
-                        Map.entry("dimension/native_planet.json", 2),
-                        Map.entry("worldgen/world_preset/native_mining.json", 3),
-                        Map.entry("worldgen/world_preset/native_ecology.json", 4))) {
-            var json =
-                    com.google.gson.JsonParser.parseString(
-                                    Files.readString(root.resolve(pair.getKey())))
-                            .getAsJsonObject();
-            var gen =
-                    json.has("dimensions")
-                            ? json.getAsJsonObject("dimensions")
-                                    .getAsJsonObject("starfold:native_planet")
-                                    .getAsJsonObject("generator")
-                            : json.getAsJsonObject("generator");
-            assertEquals(pair.getValue(), gen.get("terrain_version").getAsInt());
-            if (pair.getValue() == 4)
-                assertEquals(
-                        4,
-                        PlanetChunkGenerator.CODEC
-                                .codec()
-                                .parse(RegistryOps.create(JsonOps.INSTANCE, lookup), gen)
-                                .getOrThrow()
-                                .version());
-        }
+                        "dimension/native_planet.json",
+                        "worldgen/world_preset/native_mining.json",
+                        "worldgen/world_preset/native_ecology.json"))
+            assertFalse(Files.exists(root.resolve(removed)));
+        var gen =
+                com.google.gson.JsonParser.parseString(
+                                Files.readString(
+                                        root.resolve("worldgen/world_preset/native_system.json")))
+                        .getAsJsonObject()
+                        .getAsJsonObject("dimensions")
+                        .getAsJsonObject("starfold:native_planet")
+                        .getAsJsonObject("generator");
+        var system =
+                dev.starfold.universe.SystemChunkGenerator.CODEC
+                        .codec()
+                        .parse(RegistryOps.create(JsonOps.INSTANCE, lookup), gen)
+                        .getOrThrow();
+        assertEquals(4, system.planet(0).version());
+        assertEquals(20261001L, system.planet(0).seed());
+        assertEquals(generator(4).terrain().generation(), system.planet(0).generation());
         assertEquals(2, generator(2).version());
         assertEquals(3, generator(3).version());
     }
@@ -424,7 +421,12 @@ public class PlanetEcologyTest {
         var key = ResourceKey.create(Registries.LEVEL_STEM, PlanetLevels.PLANET.location());
         var over = new LevelStem(type, generator(2));
         var old = new LevelStem(type, generator(2));
-        var fresh = new LevelStem(type, generator(4));
+        var fresh =
+                new LevelStem(
+                        type,
+                        new dev.starfold.universe.SystemChunkGenerator(
+                                dev.starfold.planet.PlanetStorage.LAYOUT,
+                                List.of(generator(4), generator(4))));
         var r = new MappedRegistry<LevelStem>(Registries.LEVEL_STEM, Lifecycle.stable());
         Registry.register(r, LevelStem.OVERWORLD, over);
         Registry.register(r, key, old);

@@ -60,17 +60,9 @@ public final class HullLandingClient {
     }
 
     public static HullLanding.Ground ground() {
-        var mc = Minecraft.getInstance();
         var hull = HelmClient.body();
         if (!active()) return new HullLanding.Ground(Double.NaN, false);
-        var box = HullLanding.bounds(hull);
-        return HullLanding.ground(
-                box.minX(),
-                box.minY(),
-                box.minZ(),
-                box.maxX(),
-                box.maxZ(),
-                (x, z) -> HullLanding.column(mc.level, x, z));
+        return HullLanding.ground(hull);
     }
 
     public static HullLanding.Site site() {

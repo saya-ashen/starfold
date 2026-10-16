@@ -5,13 +5,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
-import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.GroundEphemerisSave;
-import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceView;
 import dev.starfold.universe.PlanetType;
 import dev.starfold.universe.PlanetTypeTest;
@@ -129,7 +127,7 @@ class AuthoredSystemTest {
         assertEquals(
                 block.matcher(english).results().map(m -> m.group(1)).toList(),
                 block.matcher(chinese).results().map(m -> m.group(1)).toList());
-        assertEquals(9, block.matcher(english).results().count());
+        assertEquals(10, block.matcher(english).results().count());
         assertEquals(
                 heading.matcher(english).results().map(m -> m.group(1)).toList(),
                 heading.matcher(chinese).results().map(m -> m.group(1)).toList());
@@ -265,11 +263,144 @@ class AuthoredSystemTest {
         }
         var made = read(d).materialize(42);
         assertEquals("Dune", made.sky().names().getFirst());
-        assertEquals(new Point(60000, 4000, -20000), made.sky().model().center());
-        assertEquals(420, made.sky().model().sun().radius());
+        assertEquals(new Point(60000, 4000, -20000), made.sky().model().origin());
+        assertEquals(420, made.sky().model().primary().radius());
         assertEquals(List.of(2, 3), made.sky().groups());
         assertEquals(SystemDefinition.derivedSeed(42, 4), made.planets().getFirst().seed());
         assertEquals("Aster", made.sky().names().get(2));
+    }
+
+    @Test
+    void reachRoundTripsThroughDefinitionGeneratorUniverseAndBothModelPackets() throws Exception {
+        var json = definition();
+        planet(json, 0, 0).addProperty("reach", 512);
+        var definition = read(json);
+        assertEquals(512, definition.suns().getFirst().planets().getFirst().reach());
+        assertEquals(2048, definition.suns().getFirst().planets().get(1).reach());
+        var encoded = SystemDefinition.CODEC.encodeStart(ops(), definition).getOrThrow();
+        var roundTrip = SystemDefinition.CODEC.parse(ops(), encoded).getOrThrow();
+        assertEquals(512, roundTrip.suns().getFirst().planets().getFirst().reach());
+        assertEquals(encoded, SystemDefinition.CODEC.encodeStart(ops(), roundTrip).getOrThrow());
+        assertEquals(definition.materialize(42).sky(), roundTrip.materialize(42).sky());
+        var made = definition.materialize(42);
+        var model = made.sky().model();
+        assertEquals(512, model.body(0).reach());
+        var system = generator(json, preset());
+        system.materialize(42);
+        var bare =
+                net.minecraft.resources.RegistryOps.create(
+                        com.mojang.serialization.JsonOps.INSTANCE, PlanetTypeTest.lookup());
+        var saved = SystemChunkGenerator.CODEC.codec().encodeStart(bare, system).getOrThrow();
+        assertEquals(
+                model,
+                SystemChunkGenerator.CODEC.codec().parse(bare, saved).getOrThrow().homeModel());
+        var universe = new Universe(model.bodies(), made.planets());
+        var tag = universe.save(new net.minecraft.nbt.CompoundTag(), PlanetTypeTest.lookup());
+        assertEquals(3, tag.getInt("format"));
+        var loaded = Universe.load(tag, PlanetTypeTest.lookup());
+        assertEquals(model.bodies(), loaded.catalog());
+        assertEquals(512, loaded.model(model).body(model.count()).reach());
+        for (int old : new int[] {1, 2, 4}) {
+            var obsolete = tag.copy();
+            obsolete.putInt("format", old);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> Universe.load(obsolete, PlanetEcologyTest.lookup));
+        }
+        var missing = tag.copy();
+        missing.getList("bodies", 10).getCompound(model.index(0)).remove("reach");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> Universe.load(missing, PlanetEcologyTest.lookup));
+        var raw = io.netty.buffer.Unpooled.buffer();
+        try {
+            var buffer =
+                    new net.minecraft.network.RegistryFriendlyByteBuf(
+                            raw, net.minecraft.core.RegistryAccess.EMPTY);
+            var sky = new GroundPackets.Sky(123, model);
+            GroundPackets.Sky.CODEC.encode(buffer, sky);
+            assertEquals(sky, GroundPackets.Sky.CODEC.decode(buffer));
+            var state =
+                    GroundDynamics.local(
+                            123,
+                            new PlanetShape.Pose(
+                                    dev.starfold.geometry.CubeSurfaceTopology.Face.TOP,
+                                    new Point(1024, 600, 1024)),
+                            GroundEphemeris.ZERO,
+                            new org.joml.Quaterniond(),
+                            true,
+                            GroundDynamics.OFF);
+            var setup =
+                    new dev.starfold.ground.GroundFlightPackets.Setup(
+                            42, model, dev.starfold.chart.GroundSpace.DEFAULT_MASK, state, true);
+            dev.starfold.ground.GroundFlightPackets.Setup.CODEC.encode(buffer, setup);
+            assertEquals(setup, dev.starfold.ground.GroundFlightPackets.Setup.CODEC.decode(buffer));
+            assertEquals(0, buffer.readableBytes());
+        } finally {
+            raw.release();
+        }
+        for (double invalid : new double[] {0, 511, 2049}) {
+            var bad = json.deepCopy();
+            planet(bad, 0, 0).addProperty("reach", invalid);
+            assertThrows(RuntimeException.class, () -> read(bad));
+        }
+    }
+
+    @Test
+    void defaultHomeClearanceRetainsTheOldArithmeticAtItsBoundary() throws Exception {
+        var model = read(definition()).materialize(42).sky().model();
+        double surface = new PlanetShape(PlanetShape.MAX).radius() + 2048 + 128;
+        double outer = 0;
+        for (int p = 0; p < 3; p++) outer = Math.max(outer, model.orbit(p).radius());
+        double boundary = 10000 + outer + surface;
+        for (double distance :
+                new double[] {Math.nextDown(boundary), boundary, Math.nextUp(boundary)}) {
+            var position = model.origin().add(new Point(-distance, 0, 0));
+            assertEquals(distance >= boundary, Universe.clearOfHome(position, 10000, model));
+        }
+    }
+
+    @Test
+    void smallerReachAllowsCloserRingsAndSunsAndShrinksTheHomeEnvelope() throws Exception {
+        var json = definition();
+        var defaults = read(json);
+        double radius =
+                new PlanetShape(
+                                defaults.suns()
+                                        .getFirst()
+                                        .planets()
+                                        .get(2)
+                                        .type()
+                                        .value()
+                                        .maxSize())
+                        .radius();
+        double biggest = new PlanetShape(2048).radius();
+        double required = biggest + radius + 512 + 512 + SystemDefinition.MARGIN;
+        planet(json, 0, 2).getAsJsonObject("orbit").addProperty("radius", 8192 + required + .01);
+        assertThrows(IllegalArgumentException.class, () -> read(json).validate());
+        for (int p = 0; p < 3; p++) planet(json, 0, p).addProperty("reach", 512);
+        var small = read(json);
+        small.validate();
+        var tooClose = json.deepCopy();
+        planet(tooClose, 0, 2)
+                .getAsJsonObject("orbit")
+                .addProperty("radius", 8192 + required - .01);
+        assertThrows(IllegalArgumentException.class, () -> read(tooClose).validate());
+        var nearSun = definition();
+        planet(nearSun, 1, 0).getAsJsonObject("orbit").addProperty("radius", 1500);
+        assertThrows(IllegalArgumentException.class, () -> read(nearSun).validate());
+        planet(nearSun, 1, 0).addProperty("reach", 512);
+        read(nearSun).validate();
+        var home = defaults.materialize(42).sky().model();
+        var smaller = definition();
+        for (int p = 0; p < 3; p++) planet(smaller, 0, p).addProperty("reach", 512);
+        var smallHome = read(smaller).materialize(42).sky().model();
+        double outer = 0;
+        for (int p = 0; p < 3; p++)
+            outer = Math.max(outer, home.orbit(p).radius() + home.body(p).hullOut());
+        var position = home.origin().add(new Point(outer + biggest + 128 + 10000 - 768, 0, 0));
+        assertFalse(Universe.clearOfHome(position, 10000, home));
+        assertTrue(Universe.clearOfHome(position, 10000, smallHome));
     }
 
     @Test
@@ -400,13 +531,16 @@ class AuthoredSystemTest {
                 }
                 id++;
             }
-        assertEquals(new Point(60000, 4000, -20000), model.stars().getFirst().position());
-        assertEquals(420, model.stars().getFirst().radius());
-        assertEquals(512, model.sun().radius());
-        assertTrue(model.a().enabled());
-        assertEquals(48000, model.a().period());
-        assertEquals(Math.sin(Math.toRadians(23.5)), model.a().axis().x());
-        assertFalse(model.b().enabled());
+        assertEquals(
+                new Point(60000, 4000, -20000),
+                model.everyStar().subList(1, model.everyStar().size()).getFirst().position());
+        assertEquals(
+                420, model.everyStar().subList(1, model.everyStar().size()).getFirst().radius());
+        assertEquals(512, model.primary().radius());
+        assertTrue(model.spin(0).enabled());
+        assertEquals(48000, model.spin(0).period());
+        assertEquals(Math.sin(Math.toRadians(23.5)), model.spin(0).axis().x());
+        assertFalse(model.spin(1).enabled());
     }
 
     @Test
@@ -521,19 +655,24 @@ class AuthoredSystemTest {
         var layout = restored.universe().orElseThrow().value();
         var universe = Universe.generate(45, layout, home, true);
         var all = universe.model(home);
+        for (var body : universe.catalog()) assertEquals(body.slot() < 0 ? 0 : 2048, body.reach());
         assertTrue(all.count() > 5);
         for (int p = 0; p < 5; p++)
             for (long tick : new long[] {0, 24000, 90000})
                 assertEquals(home.at(p, tick), all.at(p, tick));
-        assertFalse(Universe.clearOfHome(home.stars().getFirst().position(), 10000, home));
+        assertFalse(
+                Universe.clearOfHome(
+                        home.everyStar().subList(1, home.everyStar().size()).getFirst().position(),
+                        10000,
+                        home));
         for (var star : universe.stars())
             assertTrue(
                     Universe.clearOfHome(
                             star.position(),
-                            home.radius()
+                            home.orbit(0).radius()
                                     + (layout.maxPlanets() - 1) * layout.ring()
                                     + new PlanetShape(2048).radius()
-                                    + Space.OUT
+                                    + GroundEphemeris.Body.DEFAULT_REACH
                                     + 128,
                             home));
         var loaded =
@@ -609,34 +748,16 @@ class AuthoredSystemTest {
         record Bad(
                 String message, java.util.function.Consumer<com.google.gson.JsonObject> change) {}
         return List.of(
-                        new Bad("2..1600", d -> d.getAsJsonArray("suns").remove(0)),
+                        new Bad("1..1600", d -> {}),
                         new Bad(
                                 "home.sun/home.planet",
                                 d -> d.getAsJsonObject("home").addProperty("sun", 9)),
                         new Bad(
-                                "home sun needs at least two",
-                                d -> {
-                                    sun(d, 0).getAsJsonArray("planets").remove(2);
-                                    sun(d, 0).getAsJsonArray("planets").remove(1);
-                                }),
-                        new Bad(
-                                "base pair",
-                                d ->
-                                        planet(d, 0, 1)
-                                                .getAsJsonObject("orbit")
-                                                .addProperty("radius", 8000)),
-                        new Bad(
-                                "base pair",
+                                "orbits too close",
                                 d ->
                                         planet(d, 0, 1)
                                                 .getAsJsonObject("orbit")
                                                 .addProperty("period", 24001)),
-                        new Bad(
-                                "base pair",
-                                d ->
-                                        planet(d, 0, 1)
-                                                .getAsJsonObject("orbit")
-                                                .addProperty("phase", 3)),
                         new Bad("home sun position", d -> sun(d, 0).addProperty("radius", 1025)),
                         new Bad(
                                 "200000",
@@ -749,15 +870,26 @@ class AuthoredSystemTest {
                                         b.message,
                                         () -> {
                                             var data = definition();
-                                            if (b.message.equals("2..1600")) {
-                                                sun(data, 0).getAsJsonArray("planets").remove(2);
-                                                sun(data, 0).getAsJsonArray("planets").remove(1);
-                                                data.getAsJsonArray("suns").remove(1);
-                                            } else b.change.accept(data);
+                                            if (b.message.equals("1..1600"))
+                                                data.getAsJsonArray("suns").asList().clear();
+                                            else b.change.accept(data);
                                             assertTrue(
                                                     failure(data).contains(b.message),
                                                     () -> failure(data));
                                         }));
+    }
+
+    @Test
+    void homeUsesOrdinarySpacingWithoutPairLimits() throws Exception {
+        var d = definition();
+        planet(d, 0, 1).getAsJsonObject("orbit").addProperty("radius", 8000);
+        planet(d, 0, 1).getAsJsonObject("orbit").addProperty("phase", 3);
+        read(d).validate();
+        d.getAsJsonObject("home").addProperty("planet", 2);
+        var made = read(d).materialize(42);
+        assertEquals(List.of("Rime", "Aster", "Cinder", "D", "Dune"), made.sky().names());
+        assertEquals(SystemDefinition.derivedSeed(42, 2), made.planets().get(0).seed());
+        assertEquals(SystemDefinition.derivedSeed(42, 1), made.planets().get(2).seed());
     }
 
     @Test
@@ -780,7 +912,7 @@ class AuthoredSystemTest {
         var d = definition();
         var planets = sun(d, 0).getAsJsonArray("planets");
         while (planets.size() < 1601) planets.add(planet(d, 0, 0).deepCopy());
-        assertTrue(failure(d).contains("2..1600"));
+        assertTrue(failure(d).contains("1..1600"));
         for (String field : List.of("planets", "a", "b", "stars", "universe", "celestial")) {
             var p = preset();
             p.addProperty(field, "invalid");
@@ -790,7 +922,7 @@ class AuthoredSystemTest {
                             .contains("system cannot be combined with " + field));
         }
         var p = preset();
-        p.addProperty("storage_layout", PlanetStorage.ROW_LAYOUT);
+        p.addProperty("storage_layout", "six_face_x32768_v1");
         assertTrue(
                 assertThrows(RuntimeException.class, () -> generator(definition(), p))
                         .getMessage()
@@ -814,7 +946,7 @@ class AuthoredSystemTest {
     }
 
     @Test
-    void legacyModelsKeepEveryLiteralAndFrameBit() {
+    void proceduralBuildersKeepEveryLiteralAndFrameBit() {
         var a =
                 new GroundEphemeris.Spin(
                         true,
@@ -830,17 +962,25 @@ class AuthoredSystemTest {
         var center = new Point(0, 0, 8192);
         var axis = new Point(0, 1, 0);
         var radial = new Point(0, 0, 1);
-        var sun = new GroundSolar.Sun(true, center, 512);
-        var pair =
-                new GroundEphemeris.Model(
-                        center, axis, radial, 8192, 24000, 0, 0, a, b, sun, true, List.of(),
-                        List.of());
-        var further =
-                new GroundEphemeris.Orbit(
-                        new Point(49152, 0, 8192), axis, radial, 8192, 24000, 4.2, 0, b);
+        var pairBodies =
+                List.of(
+                        new GroundEphemeris.Body(new GroundEphemeris.Fixed(center), 512, true, -1),
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Orbit(
+                                        0, axis, radial, 8192, 24000, Math.PI, 0, a),
+                                0,
+                                false,
+                                0),
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Orbit(0, axis, radial, 8192, 24000, 0, 0, b),
+                                0,
+                                false,
+                                1));
+        var pair = new GroundEphemeris.Model(pairBodies);
+        var further = new GroundEphemeris.Orbit(3, axis, radial, 8192, 24000, 4.2, 0, b);
         var fourth =
                 new GroundEphemeris.Orbit(
-                        new Point(49152, 0, 8192),
+                        3,
                         axis,
                         radial,
                         20480,
@@ -848,21 +988,13 @@ class AuthoredSystemTest {
                         6.300000000000001,
                         0,
                         b);
-        var stars =
-                new GroundEphemeris.Model(
-                        center,
-                        axis,
-                        radial,
-                        8192,
-                        24000,
-                        0,
-                        0,
-                        a,
-                        b,
-                        sun,
-                        true,
-                        List.of(further, fourth),
-                        List.of(new GroundEphemeris.Star(new Point(49152, 0, 8192), 512)));
+        var bodies = new java.util.ArrayList<>(pairBodies);
+        bodies.add(
+                new GroundEphemeris.Body(
+                        new GroundEphemeris.Fixed(new Point(49152, 0, 8192)), 512, true, -1));
+        bodies.add(new GroundEphemeris.Body(further, 0, false, 2));
+        bodies.add(new GroundEphemeris.Body(fourth, 0, false, 3));
+        var stars = new GroundEphemeris.Model(bodies);
         for (var models :
                 List.of(
                         List.of(pair, PlanetSystem.model(new int[] {2})),

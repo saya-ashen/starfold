@@ -38,6 +38,15 @@ public final class GroundSeams {
                 : clientEntities.apply(level);
     }
 
+    /** Entities in a storage box, not in its chart images. */
+    public static java.util.List<Entity> entities(Level level, net.minecraft.world.phys.AABB box) {
+        var found = new java.util.ArrayList<Entity>();
+        ((dev.ryanhcode.sable.util.SubLevelInclusiveLevelEntityGetter<Entity>)
+                        ((dev.starfold.mixin.LevelEntityAccess) level).starfold$entities())
+                .getIgnoringSubLevels(box, found::add);
+        return found;
+    }
+
     private static BiFunction<Level, BlockPos, net.minecraft.world.level.block.entity.BlockEntity>
             clientEntity = (l, p) -> null;
 
@@ -461,7 +470,7 @@ public final class GroundSeams {
 
     public static net.minecraft.world.phys.AABB box(
             net.minecraft.world.phys.AABB source, double observerX, double observerZ) {
-        return box(PlanetAccess.LEGACY, source, observerX, observerZ);
+        return box(PlanetAccess.SHARED, source, observerX, observerZ);
     }
 
     public static net.minecraft.world.phys.AABB box(
@@ -496,6 +505,48 @@ public final class GroundSeams {
                 Math.max(a.x(), b.x()),
                 Math.max(a.y(), b.y()),
                 Math.max(a.z(), b.z()));
+    }
+
+    /** Storage boxes whose entities can appear in a query, including entities still in a chart halo. */
+    public static java.util.List<net.minecraft.world.phys.AABB> queryBoxes(
+            PlanetAccess access, net.minecraft.world.phys.AABB query) {
+        var center = query.getCenter();
+        if (!access.inChart(BlockPos.containing(center))) return java.util.List.of(query);
+        var base = access.originAt(center.x, center.z);
+        int planet = access.storagePlanet(center.x, center.z);
+        var chart =
+                new PlanetChart(
+                        access.shape(center.x, center.z),
+                        CubeSurfaceTopology.Face.values()[access.face(center.x)]);
+        var boxes = new java.util.ArrayList<net.minecraft.world.phys.AABB>();
+        boxes.add(query);
+        for (var tile : chart.tiles()) {
+            if (tile.face() == chart.root) continue;
+            var origin = access.origin(planet, tile.face().ordinal());
+            var a = origin.add(tile.local(new Point(query.minX, query.minY, query.minZ).sub(base)));
+            var b = origin.add(tile.local(new Point(query.maxX, query.maxY, query.maxZ).sub(base)));
+            boxes.add(
+                    new net.minecraft.world.phys.AABB(
+                            Math.min(a.x(), b.x()),
+                            Math.min(a.y(), b.y()),
+                            Math.min(a.z(), b.z()),
+                            Math.max(a.x(), b.x()),
+                            Math.max(a.y(), b.y()),
+                            Math.max(a.z(), b.z())));
+        }
+        return boxes;
+    }
+
+    /** A padded query strictly inside the owned face cannot meet a canonical neighbour. */
+    public static boolean interior(
+            PlanetAccess access, net.minecraft.world.phys.AABB query, double radius) {
+        var center = query.getCenter();
+        var base = access.originAt(center.x, center.z);
+        double size = access.shape(center.x, center.z).size();
+        return query.minX - radius > base.x()
+                && query.maxX + radius < base.x() + size
+                && query.minZ - radius > base.z()
+                && query.maxZ + radius < base.z() + size;
     }
 
     public static double distance(Entity observer, double x, double y, double z) {

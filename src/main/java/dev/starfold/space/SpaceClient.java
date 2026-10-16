@@ -200,10 +200,6 @@ public final class SpaceClient {
         return session() != 0 ? view.mask() : GroundSpace.DEFAULT_MASK;
     }
 
-    public static boolean shared(net.minecraft.world.level.Level value) {
-        return value == viewLevel && session() != 0 && view.shared();
-    }
-
     public static double sunlight() {
         if (!active()) return 1;
         return SpaceView.sunlight(

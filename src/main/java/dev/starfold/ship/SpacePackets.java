@@ -128,27 +128,24 @@ public final class SpacePackets {
     }
 
     /** A render-only epoch, independent of both the moving frame tick and flight ownership. Zero ends it. */
-    public record View(long session, GroundSpace.Config mask, boolean shared)
-            implements CustomPacketPayload {
+    public record View(long session, GroundSpace.Config mask) implements CustomPacketPayload {
         public View {
             if (mask == null) throw new IllegalArgumentException("Space view mask");
         }
 
         public static final Type<View> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_space_v1_view"));
+                new Type<>(ResourceLocation.parse("starfold:native_space_v2_view"));
         public static final StreamCodec<RegistryFriendlyByteBuf, View> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
                             b.writeLong(p.session);
                             b.writeInt(p.mask.core());
                             b.writeInt(p.mask.height());
-                            b.writeBoolean(p.shared);
                         },
                         b ->
                                 new View(
                                         b.readLong(),
-                                        new GroundSpace.Config(b.readInt(), b.readInt()),
-                                        b.readBoolean()));
+                                        new GroundSpace.Config(b.readInt(), b.readInt())));
 
         @Override
         public Type<View> type() {

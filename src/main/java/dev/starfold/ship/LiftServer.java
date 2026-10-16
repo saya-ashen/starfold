@@ -71,15 +71,7 @@ final class LiftServer {
         if (mass <= 0) return;
         var handle = physics.getPhysicsHandle(body);
         var velocity = physics.getPipeline().getLinearVelocity(body, new Vector3d());
-        var box = HullLanding.bounds(body);
-        var ground =
-                HullLanding.ground(
-                        box.minX(),
-                        box.minY(),
-                        box.minZ(),
-                        box.maxX(),
-                        box.maxZ(),
-                        (x, z) -> HullLanding.column(body.getLevel(), x, z));
+        var ground = HullLanding.ground(body);
         double gravity = hullGravity(body, at);
         int bits = HelmServer.bits(body);
         boolean command = (bits & (HelmCommand.UP | HelmCommand.DOWN)) != 0;

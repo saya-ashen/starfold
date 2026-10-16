@@ -36,15 +36,7 @@ final class DevProneProbe {
                 CloakMotion.follow(cloak.y, feet.y),
                 CloakMotion.follow(cloak.z, feet.z));
         history.put(p, new Previous(body, at, velocity, cloak));
-        var box = HullLanding.bounds(body);
-        double clearance =
-                HullLanding.clearance(
-                        box.minX(),
-                        box.minY(),
-                        box.minZ(),
-                        box.maxX(),
-                        box.maxZ(),
-                        (x, z) -> HullLanding.surface(level, x, z));
+        double clearance = HullLanding.ground(body).clearance();
         var data = new java.util.LinkedHashMap<String, Object>();
         data.put("side", level.isClientSide ? "client" : "server");
         data.put("tick", level.getGameTime());

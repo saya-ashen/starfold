@@ -1,8 +1,0 @@
-{
-  "dimensions": {
-    "minecraft:overworld": {"type":"minecraft:overworld","generator":{"type":"minecraft:noise","settings":"minecraft:overworld","biome_source":{"type":"minecraft:multi_noise","preset":"minecraft:overworld"}}},
-    "minecraft:the_nether": {"type":"minecraft:the_nether","generator":{"type":"minecraft:noise","settings":"minecraft:nether","biome_source":{"type":"minecraft:multi_noise","preset":"minecraft:nether"}}},
-    "minecraft:the_end": {"type":"minecraft:the_end","generator":{"type":"minecraft:noise","settings":"minecraft:end","biome_source":{"type":"minecraft:the_end"}}},
-    "starfold:native_planet": {"type":"starfold:native_ground","generator":{"type":"starfold:native_planet","terrain_seed":20261001,"terrain_version":4,"planet_biomes":{"terrain_seed":20261001,"forest":"minecraft:forest","plains":"minecraft:plains","desert":"minecraft:desert","ocean":"minecraft:ocean"},"settings":{"biome":"minecraft:plains","features":false,"lakes":false,"layers":[{"height":1,"block":"minecraft:bedrock"}],"structure_overrides":[]}}}
-  }
-}

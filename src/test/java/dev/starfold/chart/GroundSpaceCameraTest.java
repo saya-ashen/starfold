@@ -15,7 +15,8 @@ import java.util.*;
 
 /** Offline camera ownership and lens regressions, not Minecraft/GPU acceptance. */
 class GroundSpaceCameraTest {
-    final GroundEphemeris.Model model = GroundEphemeris.defaults();
+    final GroundEphemeris.Model model =
+            GroundEphemeris.spinning(dev.starfold.planet.PlanetSystem.model(), false, 0);
 
     void same(Quaterniond a, Quaterniond b) {
         assertEquals(1, Math.abs(a.dot(b)), 1e-10);

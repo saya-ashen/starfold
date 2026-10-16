@@ -60,6 +60,11 @@ public interface ShipHost {
     /** A hull has departed its planet, after its coordinate transport. */
     default void hullDeparted(ServerLevel level, int planet, String id) {}
 
+    /** Spin carried by region labels instead of the hull's native angular velocity. */
+    default Point carriedSpin(ServerLevel level, java.util.UUID hull) {
+        return GroundEphemeris.ZERO;
+    }
+
     /** The current labels for hull motion outside the charts; alone, labels are unchanged. */
     default Space.Frame surroundingsFrame(ServerLevel level) {
         return Space.Frame.IDENTITY;
@@ -71,7 +76,7 @@ public interface ShipHost {
     }
 
     /** Whether the prepared destination is ready for handover; alone, handover is unavailable. */
-    default boolean landingReady(double height, boolean full) {
+    default boolean landingReady(GroundEphemeris.Body body, double height, boolean full) {
         return false;
     }
 
@@ -89,6 +94,26 @@ public interface ShipHost {
     /** Snapshot carried with a player's coordinate relabel; alone, the observer is outside any moving frame. */
     default SpacePackets.Frame carriedFrame(ServerPlayer player) {
         return new SpacePackets.Frame(null, 0);
+    }
+
+    /** Production retains every loaded hull; a dev experiment may exclude one UUID. */
+    default boolean alwaysTicket(java.util.UUID ship) {
+        return true;
+    }
+
+    /** A transient probe hold is a separate reason, never a saved force-load ticket. */
+    default boolean probeTicket(java.util.UUID ship) {
+        return false;
+    }
+
+    /** Space dormancy stays off unless a development experiment enables it. */
+    default boolean spaceDormancy() {
+        return Boolean.getBoolean("starfold.shipProbe");
+    }
+
+    /** An occupied region retains its lead, even with a distant observer. */
+    default boolean retainLead(ServerLevel level, ServerSubLevel body) {
+        return false;
     }
 
     static ShipHost get() {

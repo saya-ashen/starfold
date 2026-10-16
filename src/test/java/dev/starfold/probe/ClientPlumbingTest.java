@@ -98,7 +98,7 @@ class ClientPlumbingTest {
         var wiring = Sources.text("StarfoldServer");
         assertTrue(
                 wiring.contains(
-                        "SpaceServer.initialize();StarfoldNetwork.playS2C(SableBoardingPacket.TYPE,SableBoardingPacket.CODEC);DevBoardingProbe.initialize();SableBoarding.initialize();Thrusters.initialize(modBus);"));
+                        "SpaceServer.initialize();StarfoldNetwork.playS2C(SableBoardingPacket.TYPE,SableBoardingPacket.CODEC);DevBoardingProbe.initialize();dev.starfold.dev.DevEntityBench.initialize();SableBoarding.initialize();Thrusters.initialize(modBus);"));
         var boarding = Sources.text("SableBoarding");
         assertFalse(boarding.contains("DevBoardingProbe"));
         assertFalse(boarding.contains("playS2C("));

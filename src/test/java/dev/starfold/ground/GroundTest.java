@@ -106,7 +106,7 @@ class GroundTest {
         assertNotEquals(GroundEphemerisSave.FILE, GroundClock.FILE);
         assertFalse(tag.contains("pairs"));
         assertThrows(IllegalStateException.class, () -> GroundClock.fresh(true));
-        tag.getCompound("motion").remove("sun");
+        tag.getCompound("motion").remove("bodies");
         assertThrows(IllegalArgumentException.class, () -> GroundClock.load(tag, null));
     }
 
@@ -121,10 +121,17 @@ class GroundTest {
             GroundPackets.Sky.CODEC.encode(b, p);
             assertEquals(p, GroundPackets.Sky.CODEC.decode(b));
             assertEquals(0, b.readableBytes());
-            assertEquals("native_ground_v2_sky", p.type().id().getPath());
+            assertEquals("native_ground_v4_sky", p.type().id().getPath());
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> new GroundPackets.Sky(0, GroundEphemeris.defaults()));
+                    () ->
+                            new GroundEphemeris.Model(
+                                    java.util.List.of(
+                                            new GroundEphemeris.Body(
+                                                    new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
+                                                    0,
+                                                    false,
+                                                    0))));
         } finally {
             raw.release();
         }
@@ -143,7 +150,7 @@ class GroundTest {
                         "setBlock(",
                         "action("))
             for (var source : sources) assertFalse(source.contains(forbidden), forbidden);
-        assertTrue(Sources.text("PlanetLevels").contains("native_ground"));
+        assertTrue(Sources.text("PlanetLevels").contains("native_planet"));
         assertTrue(Sources.text("Starfold").contains("StarfoldServer.initialize(modBus)"));
         assertTrue(
                 Sources.text("GroundClock")
@@ -152,19 +159,19 @@ class GroundTest {
     }
 
     @Test
-    void dimensionUsesNativeFlatGeneratorAndNormalLighting() throws Exception {
+    void systemDimensionUsesNativeGeneratorsAndNormalLighting() throws Exception {
         var root = Path.of("src/main/resources/data/starfold");
         var dim =
                 com.google.gson.JsonParser.parseString(
-                                Files.readString(root.resolve("dimension/native_ground.json")))
+                                Files.readString(
+                                        root.resolve("worldgen/world_preset/native_system.json")))
                         .getAsJsonObject();
-        var generator = dim.getAsJsonObject("generator");
-        assertEquals("minecraft:flat", generator.get("type").getAsString());
-        int height =
-                generator.getAsJsonObject("settings").getAsJsonArray("layers").asList().stream()
-                        .mapToInt(e -> e.getAsJsonObject().get("height").getAsInt())
-                        .sum();
-        assertEquals(128, height - 64);
+        var generator =
+                dim.getAsJsonObject("dimensions")
+                        .getAsJsonObject("starfold:native_planet")
+                        .getAsJsonObject("generator");
+        assertEquals("starfold:native_system", generator.get("type").getAsString());
+        assertEquals(2, generator.getAsJsonArray("planets").size());
         var type =
                 com.google.gson.JsonParser.parseString(
                                 Files.readString(root.resolve("dimension_type/native_ground.json")))
@@ -308,7 +315,11 @@ class GroundTest {
     @Test
     void nativeLightingIsDimensionScopedAndUsesTheSavedSun() throws Exception {
         assertTrue(Sources.text("GroundLightMixin").contains("PlanetLevels.is"));
-        assertTrue(Sources.text("GroundLightMixin").contains("GroundSolar.daylight"));
+        assertTrue(Sources.text("GroundLightMixin").contains("GroundClient.daylight()"));
+        assertTrue(
+                Sources.text("GroundClient")
+                        .contains(
+                                "GroundSolar.daylight(elevation())*GroundDaylight.parentShade(model,planet(),universeEye(),time())"));
         assertTrue(Sources.text("GroundFogMixin").contains("GroundSolar.sky"));
         assertTrue(Sources.text("GroundClient").contains("SkyType.NONE"));
     }

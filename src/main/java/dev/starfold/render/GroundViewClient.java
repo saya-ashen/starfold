@@ -7,9 +7,8 @@ import dev.starfold.ground.GroundSeams;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.GroundTopology;
-import dev.starfold.planet.PlanetAccess;
+import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.universe.PlanetPackets;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrain;
@@ -308,7 +307,7 @@ public final class GroundViewClient {
                     if (!GroundFlightClient.ready()
                             || packet.session() != GroundFlightClient.session()
                             || net.minecraft.client.Minecraft.getInstance().level != level
-                            || !PlanetSystem.terrain(level)) return;
+                            || !PlanetLevels.is(level)) return;
                     previewed = false;
                     profile = packet;
                     terrain =
@@ -514,8 +513,7 @@ public final class GroundViewClient {
     }
 
     private static boolean samePlanet(net.minecraft.core.BlockPos pos) {
-        return GroundClient.access() != PlanetAccess.SHARED
-                || PlanetStorage.find(pos.getX(), pos.getZ()) == boundPlanet;
+        return PlanetStorage.find(pos.getX(), pos.getZ()) == boundPlanet;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

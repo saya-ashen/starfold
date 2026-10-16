@@ -5,6 +5,7 @@ import dev.starfold.chart.GroundCamera;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundMotion;
 import dev.starfold.chart.GroundOrbit;
+import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.GroundSpaceOptics;
 import dev.starfold.chart.PlanetAir;
@@ -230,8 +231,7 @@ public final class GroundClient {
         var access = access();
         return p.finite()
                 && access.inChart(net.minecraft.core.BlockPos.containing(p.x(), p.y(), p.z()))
-                && (access != PlanetAccess.SHARED
-                        || access.storagePlanet(p.x(), p.z()) == f.planet())
+                && access.storagePlanet(p.x(), p.z()) == f.planet()
                 && access.face(p.x()) == f.root()
                 && shape().topology()
                         .inHalo(p.x() - origin(f.root()).x(), p.z() - origin(f.root()).z());
@@ -263,15 +263,15 @@ public final class GroundClient {
 
     /** Shape of the planet being observed. */
     public static PlanetShape shape() {
-        return access() == PlanetAccess.SHARED ? PlanetShape.of(planet()) : PlanetShape.STANDARD;
+        return PlanetShape.of(planet());
     }
 
     public static int storageOffset() {
-        return access() == PlanetAccess.SHARED ? PlanetStorage.offset(planet()) : 0;
+        return PlanetStorage.offset(planet());
     }
 
     public static int storageOffsetZ() {
-        return access() == PlanetAccess.SHARED ? PlanetStorage.offsetZ(planet()) : 0;
+        return PlanetStorage.offsetZ(planet());
     }
 
     public static net.minecraft.core.BlockPos local(net.minecraft.core.BlockPos p) {
@@ -395,10 +395,16 @@ public final class GroundClient {
     /** How much of the sun reaches the observer past the planet they are reckoned from: a vessel above the night side is still in sunlight. */
     public static double sunlight() {
         return GroundDaylight.sunlight(
-                universeEye(),
-                model.at(planet(), time()).center(),
-                star().position(),
-                shape().radius());
+                        universeEye(),
+                        model.at(planet(), time()).center(),
+                        star().position(),
+                        shape().radius())
+                * GroundDaylight.parentShade(model, planet(), universeEye(), time());
+    }
+
+    public static double daylight() {
+        return GroundSolar.daylight(elevation())
+                * GroundDaylight.parentShade(model, planet(), universeEye(), time());
     }
 
     public static double elevation() {
@@ -537,7 +543,8 @@ public final class GroundClient {
         modBus.addListener(
                 (net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent event) ->
                         event.register(
-                                PlanetLevels.DIMENSION.location(),
+                                net.minecraft.resources.ResourceLocation.parse(
+                                        "starfold:native_ground"),
                                 new net.minecraft.client.renderer.DimensionSpecialEffects
                                         .OverworldEffects() {
                                     @Override

@@ -82,6 +82,7 @@ public final class SableBoarding {
     }
 
     private static void login(ServerPlayer player) {
+        ShipDormancy.crew(player);
         if (!player.getPersistentData().contains(KEY)) return;
         if (!PlanetLevels.is(player.level())
                 || !valid(player.getPersistentData().getCompound(KEY))

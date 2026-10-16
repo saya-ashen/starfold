@@ -1,0 +1,30 @@
+# E2 session 1: fresh experience world; 0:0 is the existing starter. Build nothing.
+# Enable -Dstarfold.shipProbe=true; no non-player aboard, other player, forced/spawn reservation.
+strict
+waitworld
+# Assume starter assembly/settling within 200 client ticks.
+wait 200
+cmd gamemode creative
+fly on
+cmd scoreboard objectives add s2_ok dummy
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+# Empty-cargo fixture: remove the starter's world-side dropped item, not plot residents.
+cmd starfold shipprobe "0:0" remove world-items
+cmd starfold shipprobe "0:0" away
+# Assume teleport/carry fences settle within 40 client ticks; actual chart distance must be >wake range.
+wait 40
+cmd starfold shipprobe "0:0" leases off
+# Assume native absence unload completes within 600 client ticks; server assertion is the verdict.
+wait 600
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert dormant
+check dormant-before-restart if score @s s2_ok matches 1
+cmd execute store result score @s s2_ok run starfold shipprobe "0:0" assert checkpoint
+check payload-before-restart if score @s s2_ok matches 1
+cmd starfold ships
+# Record the inspect line's UUID, id, locator and chart_place for comparison in session 2.
+# dev.sh must stop the server orderly; retain this world for ship-restart-after.txt.
+shot ship-restart-before-final
+quit

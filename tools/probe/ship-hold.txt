@@ -1,0 +1,91 @@
+# Hold read: fresh starfold_pack:experience world, home spin enabled, starter is 0:0.
+# Enable -Dstarfold.shipProbe=true on the server (client JVM too for integrated play).
+# Only one player/hull; no other forces or redstone-latched thrust. Do not disable its gyro.
+# Client waits only give a budget; server audits gate exact 100/400/1200-tick hold readings.
+# Commands read only the live hold; no leases, forced sleep or hull teleport.
+# strict fences command sends; the check lines below validate server return values.
+strict
+# Assumes the chosen experience world is loading, not a generated-universe preset.
+waitworld
+# Assumes starter assembly and spawn readiness within 300 client ticks.
+wait 300
+# Assumes operator permissions; creative avoids survival helm-exit confirmation.
+cmd gamemode creative
+# Assumes a fresh objective name (reruns must remove/reuse the objective externally).
+cmd scoreboard objectives add s3_ok dummy
+# Assumes the single starter has a reachable helm; this moves the player, not the hull.
+boardblock helm
+# Assumes local boarding/tracking fences finish in 30 ticks.
+wait 30
+# Assumes the helm is visible below the player in the probe's search range.
+find starfold:helm
+# Assumes crosshair/rotation propagation in 6 ticks.
+wait 6
+# Assumes empty hand and the helm under the crosshair; uses the real block interaction.
+usehit helm
+# Assumes server authority reaches the client within 30 ticks.
+wait 30
+# Requires actual client helm authority, not merely proximity.
+requirehelm
+# Assumes powered lift hardware can climb with Space, without booster or lateral thrust.
+press 32 1
+# Assumes natural home departure within 6000 ticks; no target planet/fixture relocation.
+until region 6000
+# Assumes release of Space stops commanded lift; redstone thrust is not overridden.
+press 32 0
+# Assumes departure carry fences clear in 40 ticks; still above spinning home.
+wait 40
+# Assumes default R binding and creative exit without confirmation.
+press 82 1
+# Assumes a key click is consumed in 2 ticks.
+wait 2
+# Releases R, preventing repeated exits.
+press 82 0
+# Assumes the server release and client acknowledgement take at most 20 ticks.
+wait 20
+# Requires authority to be gone; mere missing input is not an unpiloted hull.
+requirenohelm
+# Assumes 0:0 is still the original starter, live in space, with a captured hold.
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+# Checks the server read succeeded; does not assert a drift threshold.
+check hold-0 if score @s s3_ok matches 1
+# Assumes ~20 seconds at 20 TPS; compare printed tick and release_tick.
+wait 400
+# Same live held starter; prints current/release place and block/degree difference.
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+check hold-20 if score @s s3_ok matches 1
+# Assumes another ~20 seconds; no steering, player movement or redstone edits.
+wait 400
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+check hold-40 if score @s s3_ok matches 1
+# Same assumption, elapsed budget ~60 seconds.
+wait 400
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+check hold-60 if score @s s3_ok matches 1
+# Same assumption, elapsed budget ~80 seconds.
+wait 400
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+check hold-80 if score @s s3_ok matches 1
+# Same assumption, elapsed budget ~100 seconds.
+wait 400
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+check hold-100 if score @s s3_ok matches 1
+# Same assumption, elapsed budget ~120 seconds. Residual uses successive reads, not release offset alone.
+wait 400
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" motion
+check hold-120 if score @s s3_ok matches 1
+# All three server-tick samples must exist and be below .1 block AND .1 degree.
+cmd execute store result score @s s3_ok run starfold shipprobe "0:0" assert hold-window
+check held-place-window if score @s s3_ok matches 1
+# Assumes the starter remains in reach; board the existing helm, never spawn another hull.
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+# Requires taking the helm again; the server discards the transient body binding.
+requirehelm
+# strict requires a final screenshot before the acknowledged quit.
+shot ship-hold-final
+quit

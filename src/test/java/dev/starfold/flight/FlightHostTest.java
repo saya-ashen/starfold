@@ -54,7 +54,6 @@ class FlightHostTest {
         for (String delegate :
                 List.of(
                         "void departing(){PlanetRemoteRenderer.departing();}",
-                        "boolean shared(Level level){return SpaceClient.shared(level);}",
                         "void sessionBound(ClientLevel level,long session){GroundViewClient.bindSession(level,session);}",
                         "void atmosphere(GroundAir.Config config){GroundClient.air(config);}",
                         "void metadata(GroundEphemeris.Model model,long tick){GroundClient.metadata(model,tick);}",

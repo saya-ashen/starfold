@@ -9,6 +9,13 @@
     {"name":"ChartU","type":"float","count":3,"values":[1,0,0]},
     {"name":"ChartUp","type":"float","count":3,"values":[0,1,0]},
     {"name":"ChartV","type":"float","count":3,"values":[0,0,1]},
-    {"name":"SunBody","type":"float","count":3,"values":[0,0,8192]}
+    {"name":"SunBody","type":"float","count":3,"values":[0,0,8192]},
+    {"name":"BodyEye","type":"float","count":3,"values":[0,0,0]},
+    {"name":"Occluder","type":"float","count":3,"values":[0,0,0]},
+    {"name":"OccluderRadius","type":"float","count":1,"values":[0]},
+    {"name":"ShadeCenter","type":"float","count":3,"values":[0,0,0]},
+    {"name":"ShadeRadius","type":"float","count":1,"values":[0]},
+    {"name":"SkyColor","type":"float","count":3,"values":[0,0,0]},
+    {"name":"BodyFade","type":"float","count":1,"values":[1]}
   ]
 }

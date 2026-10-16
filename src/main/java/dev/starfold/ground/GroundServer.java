@@ -2,7 +2,6 @@ package dev.starfold.ground;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.universe.SystemChunkGenerator;
@@ -51,7 +50,7 @@ public final class GroundServer {
         PlanetSystem.names(system.names());
         PlanetSystem.identities(
                 java.util.stream.IntStream.range(0, system.count())
-                        .mapToObj(id -> PlanetIdentity.of(system.planet(id)))
+                        .mapToObj(id -> system.planet(id).identity())
                         .toList());
     }
 

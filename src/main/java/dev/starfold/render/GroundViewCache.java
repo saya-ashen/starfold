@@ -52,6 +52,14 @@ public final class GroundViewCache {
                             && Arrays.equals(states, other.states);
         }
 
+        /** Geometry and material inputs; a newer notification alone does not change the picture. */
+        public boolean sameColumns(Surface other) {
+            return other == this
+                    || other != null
+                            && Arrays.equals(heights, other.heights)
+                            && Arrays.equals(states, other.states);
+        }
+
         public int height(int u, int v) {
             return heights[u + 16 * v];
         }

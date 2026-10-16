@@ -3,10 +3,13 @@ package dev.starfold;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 
 import dev.starfold.dev.DevBoardingProbe;
+import dev.starfold.dev.DevShipPersistenceProbe;
+import dev.starfold.dev.DevShipRecords;
 import dev.starfold.flight.AnomalyZone;
 import dev.starfold.flight.FlightHost;
 import dev.starfold.flight.FlightPermit;
 import dev.starfold.flight.GroundFlightServer;
+import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.*;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.ground.GroundServer;
@@ -28,6 +31,7 @@ import dev.starfold.ship.SableBoarding;
 import dev.starfold.ship.SableBoardingPacket;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.ship.ShipHost;
+import dev.starfold.ship.ShipRecords;
 import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.StarterShip;
 import dev.starfold.ship.Thrusters;
@@ -154,6 +158,22 @@ public final class StarfoldServer {
         ShipHost.install(
                 new ShipHost() {
                     @Override
+                    public boolean alwaysTicket(java.util.UUID ship) {
+                        return DevShipPersistenceProbe.alwaysTicket(ship);
+                    }
+
+                    @Override
+                    public boolean retainLead(
+                            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+                        return SpaceServer.retainLead(level, body);
+                    }
+
+                    @Override
+                    public boolean probeTicket(java.util.UUID ship) {
+                        return DevShipPersistenceProbe.held(ship);
+                    }
+
+                    @Override
                     public double minimumSpeed() {
                         return SpaceSpeed.V_MIN;
                     }
@@ -211,15 +231,21 @@ public final class StarfoldServer {
                     }
 
                     @Override
-                    public boolean landingLoaded(
-                            ServerLevel level,
-                            dev.starfold.geometry.BentStripGeometry.Point anchor) {
+                    public Point carriedSpin(ServerLevel level, java.util.UUID hull) {
+                        return SpaceServer.carriedSpin(level, hull);
+                    }
+
+                    @Override
+                    public boolean landingLoaded(ServerLevel level, Point anchor) {
                         return SpaceApproach.full(level, anchor);
                     }
 
                     @Override
-                    public boolean landingReady(double height, boolean full) {
-                        return SpaceApproach.ready(height, full);
+                    public boolean landingReady(
+                            dev.starfold.chart.GroundEphemeris.Body body,
+                            double height,
+                            boolean full) {
+                        return SpaceApproach.ready(body, height, full);
                     }
 
                     @Override
@@ -302,6 +328,7 @@ public final class StarfoldServer {
         SpaceServer.initialize();
         StarfoldNetwork.playS2C(SableBoardingPacket.TYPE, SableBoardingPacket.CODEC);
         DevBoardingProbe.initialize();
+        dev.starfold.dev.DevEntityBench.initialize();
         SableBoarding.initialize();
         Thrusters.initialize(modBus);
         Airstair.initialize(modBus);
@@ -328,10 +355,14 @@ public final class StarfoldServer {
                         Universe.bind(level, system);
                         GroundServer.system(system);
                     }
+                    ShipRecords.attach(level);
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.server.ServerStoppedEvent cpEvent) -> {
                     var server = cpEvent.getServer();
+                    ShipRecords.clear();
+                    dev.starfold.ship.ShipDormancy.clear();
+                    DevShipPersistenceProbe.clear();
                     PlanetSystem.reset();
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -414,7 +445,7 @@ public final class StarfoldServer {
                     var server = cpEvent.getServer();
                     var a = server.getLevel(PlanetLevels.PLANET);
                     try {
-                        if (a != null && PlanetSystem.multiple(a)) GroundClock.get(a).advance();
+                        if (a != null) GroundClock.get(a).advance();
                     } catch (IllegalArgumentException | IllegalStateException error) {
                         for (var p : server.getPlayerList().getPlayers())
                             if (PlanetLevels.is(p.level()))
@@ -431,12 +462,13 @@ public final class StarfoldServer {
                     if (!PlanetLevels.is(level)) return;
                     try {
                         var saved = GroundClock.get(level);
-                        if (!PlanetSystem.multiple(level)) saved.advance();
                         GroundFlightServer.tick(level, saved);
                         ImageStream.tick(level);
                         GroundViewServer.tick(level, saved);
                         AnomalyZone.tick(level);
+                        DevShipPersistenceProbe.tick(level);
                         if (level.getGameTime() % 20 == 0) {
+                            ShipRecords.refresh(level);
                             for (var player : List.copyOf(level.players())) {
                                 var at = GroundFlightServer.position(player, saved);
                                 if (at != null && Universe.grow(level, at))
@@ -462,7 +494,9 @@ public final class StarfoldServer {
                             coreCommands()
                                     .then(navigationCommands())
                                     .then(faceCommands())
-                                    .then(spinCommands()));
+                                    .then(spinCommands())
+                                    .then(DevShipRecords.command())
+                                    .then(DevShipPersistenceProbe.command()));
                 });
     }
 

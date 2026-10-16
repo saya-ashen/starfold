@@ -89,14 +89,14 @@ class SpaceApproachTest {
                 var position = motion.position().sub(model.at(planet, tick).center());
                 var velocity = toward.scale(40);
                 int steps = 0;
-                while (position.length() - shape.radius() > Space.IN) {
+                while (position.length() - shape.radius() > 1536) {
                     double height = position.length() - shape.radius();
                     var radial = position.scale(-1 / position.length());
                     velocity =
                             radial.scale(
                                     Math.min(
                                             velocity.dot(radial),
-                                            (150 + Math.max(0, height - Space.IN) / 6) / 20));
+                                            (150 + Math.max(0, height - 1536) / 6) / 20));
                     position = position.add(velocity);
                     steps++;
                     assertTrue(steps < 600);
@@ -195,15 +195,16 @@ class SpaceApproachTest {
 
     @Test
     void readinessIsStrictAndTheEmergencyFloorNeverWaits() {
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
         for (boolean full : new boolean[] {false, true}) {
-            assertFalse(SpaceApproach.ready(Space.IN, full));
-            assertFalse(SpaceApproach.ready(Space.IN + 1, full));
-            assertTrue(SpaceApproach.ready(Space.IN - 512 - .001, full));
+            assertFalse(SpaceApproach.ready(body, 1536, full));
+            assertFalse(SpaceApproach.ready(body, 1536 + 1, full));
+            assertTrue(SpaceApproach.ready(body, 1536 - 512 - .001, full));
         }
-        assertFalse(SpaceApproach.ready(Space.IN - 512, false));
-        assertTrue(SpaceApproach.ready(Space.IN - 512, true));
-        assertFalse(SpaceApproach.ready(Space.IN - .001, false));
-        assertTrue(SpaceApproach.ready(Space.IN - .001, true));
+        assertFalse(SpaceApproach.ready(body, 1536 - 512, false));
+        assertTrue(SpaceApproach.ready(body, 1536 - 512, true));
+        assertFalse(SpaceApproach.ready(body, 1536 - .001, false));
+        assertTrue(SpaceApproach.ready(body, 1536 - .001, true));
     }
 
     @Test
@@ -247,7 +248,7 @@ class SpaceApproachTest {
         assertTrue(
                 Sources.text("SpaceServer")
                         .contains(
-                                "value.inboundPlanet=-1;value.arrivalState=ArrivalState.empty();value.setDirty();SpaceApproach.update(level,container,null);}"));
+                                "value.inboundPlanet=-1;value.arrivalState=ArrivalState.empty();value.clearHoldTurn();value.setDirty();SpaceApproach.update(level,container,null);}"));
         assertTrue(
                 Sources.text("SpaceServer")
                         .contains(

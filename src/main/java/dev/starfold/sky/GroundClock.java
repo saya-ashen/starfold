@@ -32,8 +32,6 @@ public final class GroundClock extends SavedData {
 
     public static GroundClock load(CompoundTag tag, HolderLookup.Provider lookup) {
         var value = new GroundClock(GroundEphemerisSave.load(tag, lookup));
-        if (!value.clock.model.sun().enabled())
-            throw new IllegalArgumentException("Native solar model");
         if (tag.contains("native_mask")) {
             if (!tag.contains("native_mask", 10))
                 throw new IllegalArgumentException("Native mask type");
@@ -55,21 +53,17 @@ public final class GroundClock extends SavedData {
 
     public static GroundClock get(ServerLevel level) {
         if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Dimension");
-        boolean multiple = PlanetSystem.multiple(level);
-        var storage = PlanetSystem.authority(level).getDataStorage();
+        var storage = level.getDataStorage();
         var value =
                 storage.computeIfAbsent(
                         new Factory<>(
                                 () -> {
-                                    var fresh =
-                                            fresh(
-                                                    ((dev.starfold.mixin.SavedDataFileAccess)
-                                                                    storage)
-                                                            .starfold$spaceDataFile(FILE)
-                                                            .exists());
-                                    if (!multiple) return fresh;
-                                    // Old systems begin at sunrise. An authored sky starts at zero
-                                    // so its written phases mean what the author sees.
+                                    fresh(
+                                            ((dev.starfold.mixin.SavedDataFileAccess) storage)
+                                                    .starfold$spaceDataFile(FILE)
+                                                    .exists());
+                                    // Generated systems begin at sunrise; authored phases start at
+                                    // zero.
                                     var model = PlanetSystem.model(level);
                                     var saved =
                                             level.getChunkSource().getGenerator()
@@ -102,14 +96,13 @@ public final class GroundClock extends SavedData {
                                 GroundClock::load,
                                 null),
                         FILE);
-        if (multiple
-                && value.clock.model.count() < PlanetSystem.count(level)
+        if (value.clock.model.count() < PlanetSystem.count(level)
                 && level.getChunkSource().getGenerator() instanceof PlanetSystem.Saved grown
                 && grown.beyond(level)) {
             value.clock.model = PlanetSystem.model(level);
             value.setDirty();
         }
-        if (value.clock.model.count() != (multiple ? PlanetSystem.count(level) : 1))
+        if (value.clock.model.count() != PlanetSystem.count(level))
             throw new IllegalStateException("Saved native system/clock mismatch; refusing upgrade");
         return value;
     }

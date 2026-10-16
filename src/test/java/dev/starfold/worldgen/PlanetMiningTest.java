@@ -332,14 +332,21 @@ class PlanetMiningTest {
     }
 
     @Test
-    void explicitPresetChoiceSurvivesMinecraftBakeWithoutUpgradingOldDimensions() {
+    void explicitSystemChoiceSurvivesMinecraftBakeWithoutMutatingTheRegistry() {
         var lookup = net.minecraft.data.registries.VanillaRegistries.createLookup();
         var type =
                 lookup.lookupOrThrow(Registries.DIMENSION_TYPE)
                         .getOrThrow(BuiltinDimensionTypes.OVERWORLD);
         var key = ResourceKey.create(Registries.LEVEL_STEM, PlanetLevels.PLANET.location());
         var old = new LevelStem(type, generator(2));
-        var fresh = new LevelStem(type, generator(3));
+        PlanetEcologyTest.boot();
+        var ecology = new PlanetEcologyTest().generator(4);
+        var fresh =
+                new LevelStem(
+                        type,
+                        new dev.starfold.universe.SystemChunkGenerator(
+                                dev.starfold.planet.PlanetStorage.LAYOUT,
+                                List.of(ecology, ecology)));
         var overworld = new LevelStem(type, generator(2));
         var registry = new MappedRegistry<LevelStem>(Registries.LEVEL_STEM, Lifecycle.stable());
         Registry.register(registry, LevelStem.OVERWORLD, overworld);
@@ -359,26 +366,25 @@ class PlanetMiningTest {
     }
 
     @Test
-    void onlyOptInNewWorldPresetContainsVersionThree() throws Exception {
+    void onlyAnOptInSystemPresetContainsPlanetTerrain() throws Exception {
         var root = Path.of("src/main/resources");
         var parser = new com.google.gson.Gson();
-        var defaults =
-                parser.fromJson(
-                        Files.readString(
-                                root.resolve("data/starfold/dimension/native_planet.json")),
-                        com.google.gson.JsonObject.class);
-        assertEquals(2, defaults.getAsJsonObject("generator").get("terrain_version").getAsInt());
+        assertFalse(Files.exists(root.resolve("data/starfold/dimension/native_planet.json")));
+        assertFalse(Files.exists(root.resolve("data/starfold/dimension/native_ground.json")));
         var preset =
                 parser.fromJson(
                         Files.readString(
                                 root.resolve(
-                                        "data/starfold/worldgen/world_preset/native_mining.json")),
+                                        "data/starfold/worldgen/world_preset/native_system.json")),
                         com.google.gson.JsonObject.class);
         assertEquals(
-                3,
+                4,
                 preset.getAsJsonObject("dimensions")
                         .getAsJsonObject("starfold:native_planet")
                         .getAsJsonObject("generator")
+                        .getAsJsonArray("planets")
+                        .get(0)
+                        .getAsJsonObject()
                         .get("terrain_version")
                         .getAsInt());
         assertTrue(
@@ -421,15 +427,19 @@ class PlanetMiningTest {
         var nativeJson =
                 preset.getAsJsonObject("dimensions").getAsJsonObject("starfold:native_planet");
         assertEquals(
-                "starfold:native_planet",
+                "starfold:native_system",
                 nativeJson.getAsJsonObject("generator").get("type").getAsString());
+        PlanetEcologyTest.boot();
         var g =
-                PlanetChunkGenerator.CODEC
+                dev.starfold.universe.SystemChunkGenerator.CODEC
                         .codec()
-                        .parse(ops, nativeJson.get("generator"))
+                        .parse(
+                                RegistryOps.create(JsonOps.INSTANCE, PlanetEcologyTest.lookup),
+                                nativeJson.get("generator"))
                         .getOrThrow();
         var holder = DimensionType.CODEC.parse(ops, nativeJson.get("type")).getOrThrow();
-        assertEquals(3, g.version());
+        assertEquals(4, g.planet(0).version());
+        assertEquals(5, g.planet(1).version());
         assertEquals(nativeType, holder.value());
     }
 

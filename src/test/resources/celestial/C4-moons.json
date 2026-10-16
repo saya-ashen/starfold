@@ -1,0 +1,27 @@
+{
+  "suns": [
+    {
+      "position": [1000, 200, -3000],
+      "radius": 512,
+      "planets": [
+        {
+          "type": "starfold:temperate", "size": 1024, "name": "Home", "reach": 512,
+          "orbit": {"radius": 30000, "period": 120000, "phase": 0},
+          "spin": {"period": 72000, "tilt": 23.5},
+          "moons": [
+            {
+              "type": "handwritten:ash", "size": 512, "name": "Moon", "reach": 512,
+              "orbit": {"radius": 5000, "period": 24000, "phase": 3.141592653589793},
+              "spin": {"period": 48000, "tilt": -12}
+            }
+          ]
+        },
+        {
+          "type": "starfold:desert", "size": 1024, "name": "Outer",
+          "orbit": {"radius": 65000, "period": 240000, "phase": 1.2}
+        }
+      ]
+    }
+  ],
+  "home": {"sun": 0, "planet": 0}
+}

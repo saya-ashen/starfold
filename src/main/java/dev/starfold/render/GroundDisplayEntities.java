@@ -1,7 +1,6 @@
 package dev.starfold.render;
 
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -34,8 +33,7 @@ public final class GroundDisplayEntities {
         int bytes = 0;
         for (var be : chunk.getBlockEntities().values()) {
             var position = be.getBlockPos();
-            if (PlanetSystem.shared(chunk.getLevel()))
-                position = PlanetStorage.local(PlanetStorage.planet(position), position);
+            position = PlanetStorage.local(PlanetStorage.planet(position), position);
             var image =
                     new Image(
                             position,

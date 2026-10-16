@@ -21,12 +21,10 @@ public final class GroundPackets {
     public record Sky(long tick, GroundEphemeris.Model model) implements CustomPacketPayload {
         public Sky {
             GroundEphemeris.time(tick);
-            if (model != null && !model.sun().enabled())
-                throw new IllegalArgumentException("Native sky");
         }
 
         public static final Type<Sky> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v2_sky"));
+                new Type<>(ResourceLocation.parse("starfold:native_ground_v4_sky"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Sky> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
@@ -38,8 +36,8 @@ public final class GroundPackets {
                             long tick = b.readLong();
                             if (!b.readBoolean()) return new Sky(tick, null);
                             var tag = b.readNbt();
-                            if (tag == null || !tag.contains("sun", 10))
-                                throw new IllegalArgumentException("Missing native sun");
+                            if (tag == null)
+                                throw new IllegalArgumentException("Missing celestial model");
                             return new Sky(tick, GroundEphemerisSave.model(tag));
                         });
 

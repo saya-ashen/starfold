@@ -15,9 +15,11 @@ class MixinContractTest {
                 System.getProperty(
                         path.startsWith("net/minecraft/")
                                 ? "starfold.auditUpstream"
-                                : path.startsWith("foundry/veil/")
-                                        ? "starfold.auditVeil"
-                                        : "starfold.auditJar");
+                                : path.startsWith("dev/ryanhcode/sable/")
+                                        ? "starfold.auditSable"
+                                        : path.startsWith("foundry/veil/")
+                                                ? "starfold.auditVeil"
+                                                : "starfold.auditJar");
         if (archive == null) return TestArchiveResources.open("/" + path);
         try (var zip = new java.util.zip.ZipFile(archive)) {
             var entry = zip.getEntry(path);
@@ -78,6 +80,11 @@ class MixinContractTest {
                                                             "TeleportPacketAccess",
                                                             "TrackedAccess")
                                                     .contains(s)
+                                            || s.equals("HullBottomCacheMixin")
+                                            || s.equals("SableShipWriteMixin")
+                                            || s.equals("SableShipStorageMixin")
+                                            || s.equals("SableShipSerializationMixin")
+                                            || s.equals("SableShipReadinessMixin")
                                             || s.startsWith("Ground")
                                             || s.equals("CoreShaderShaderMixin")
                                             || s.equals("CoreShaderVeilProcessorMixin"))
@@ -116,6 +123,30 @@ class MixinContractTest {
             if (a.values != null)
                 for (int i = 1; i < a.values.size(); i += 2) ats(a.values.get(i), out);
         } else if (node instanceof List<?> list) for (var v : list) ats(v, out);
+    }
+
+    /** A type in the mixin package that the configuration does not list cannot be loaded at all. */
+    @Test
+    void everyTypeInTheMixinPackageIsAListedMixin() throws Exception {
+        Set<String> listed;
+        try (var in = resource("starfold.mixins.json")) {
+            var json =
+                    com.google.gson.JsonParser.parseString(new String(in.readAllBytes()))
+                            .getAsJsonObject();
+            listed = new TreeSet<>();
+            for (var key : List.of("mixins", "client", "server"))
+                if (json.has(key))
+                    json.getAsJsonArray(key).forEach(e -> listed.add(e.getAsString()));
+        }
+        var files = new TreeSet<String>();
+        try (var paths =
+                java.nio.file.Files.list(
+                        java.nio.file.Path.of("src/main/java/dev/starfold/mixin"))) {
+            paths.map(path -> path.getFileName().toString())
+                    .filter(name -> name.endsWith(".java"))
+                    .forEach(name -> files.add(name.substring(0, name.length() - 5)));
+        }
+        assertEquals(listed, files);
     }
 
     @Test
@@ -169,7 +200,7 @@ class MixinContractTest {
                             if ("INVOKE".equals(value(position, "value"))) {
                                 var expected = (String) value(position, "target");
                                 assertNotNull(expected);
-                                boolean found = false;
+                                boolean found = false, staticInvoke = false;
                                 for (var upstream : methods)
                                     for (var instruction : upstream.instructions)
                                         if (instruction instanceof MethodInsnNode call
@@ -178,7 +209,10 @@ class MixinContractTest {
                                                                 + call.owner
                                                                 + ";"
                                                                 + call.name
-                                                                + call.desc)) found = true;
+                                                                + call.desc)) {
+                                            found = true;
+                                            staticInvoke = call.getOpcode() == Opcodes.INVOKESTATIC;
+                                        }
                                 assertTrue(found, name + ": " + selector + " -> " + expected);
                                 invokes++;
                                 String descriptor = expected.substring(expected.indexOf('('));
@@ -192,14 +226,17 @@ class MixinContractTest {
                                 }
                                 if (a.desc.endsWith("/WrapOperation;")) {
                                     var args = Type.getArgumentTypes(method.desc);
-                                    assertEquals(
-                                            Type.getObjectType(
-                                                    expected.substring(1, expected.indexOf(';'))),
-                                            args[0]);
+                                    int receiver = staticInvoke ? 0 : 1;
+                                    if (!staticInvoke)
+                                        assertEquals(
+                                                Type.getObjectType(
+                                                        expected.substring(
+                                                                1, expected.indexOf(';'))),
+                                                args[0]);
                                     var invoked = Type.getArgumentTypes(descriptor);
                                     for (int i = 0; i < invoked.length; i++)
-                                        assertEquals(invoked[i], args[i + 1]);
-                                    int operation = invoked.length + 1;
+                                        assertEquals(invoked[i], args[i + receiver]);
+                                    int operation = invoked.length + receiver;
                                     assertEquals(
                                             "com/llamalad7/mixinextras/injector/wrapoperation/Operation",
                                             args[operation].getInternalName());

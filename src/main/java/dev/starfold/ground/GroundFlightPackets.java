@@ -34,19 +34,8 @@ public final class GroundFlightPackets {
             GroundSpace.Config mask,
             GroundDynamics.State state,
             boolean controlled,
-            GroundAir.Config air,
-            boolean shared)
+            GroundAir.Config air)
             implements CustomPacketPayload {
-        public Setup(
-                long session,
-                GroundEphemeris.Model model,
-                GroundSpace.Config mask,
-                GroundDynamics.State state,
-                boolean controlled,
-                GroundAir.Config air) {
-            this(session, model, mask, state, controlled, air, false);
-        }
-
         public Setup(
                 long session,
                 GroundEphemeris.Model model,
@@ -57,12 +46,9 @@ public final class GroundFlightPackets {
         }
 
         public Setup {
-            if (shared && (model == null || model.count() < 2))
-                throw new IllegalArgumentException("Shared layout needs its planets");
             if (air == null) throw new IllegalArgumentException("Native air setup");
             GroundFlightPackets.session(session);
             if (model == null
-                    || !model.sun().enabled()
                     || mask == null
                     || state == null
                     || state.planet() >= model.count()
@@ -74,7 +60,8 @@ public final class GroundFlightPackets {
                 throw new IllegalArgumentException("Native setup");
         }
 
-        public static final Type<Setup> TYPE = GroundFlightPackets.type("setup");
+        public static final Type<Setup> TYPE =
+                new Type<>(ResourceLocation.parse("starfold:native_ground_v6_setup"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Setup> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
@@ -86,13 +73,12 @@ public final class GroundFlightPackets {
                             b.writeBoolean(p.controlled);
                             b.writeVarInt(p.air.start());
                             b.writeVarInt(p.air.end());
-                            b.writeBoolean(p.shared);
                         },
                         b -> {
                             long id = b.readLong();
                             var model = b.readNbt();
-                            if (model == null || !model.contains("sun", 10))
-                                throw new IllegalArgumentException("Native Sun missing");
+                            if (model == null)
+                                throw new IllegalArgumentException("Celestial model missing");
                             var mask = new GroundSpace.Config(b.readVarInt(), b.readVarInt());
                             var state = b.readNbt();
                             if (state == null)
@@ -103,8 +89,7 @@ public final class GroundFlightPackets {
                                     mask,
                                     GroundNavigationSave.decode(state),
                                     b.readBoolean(),
-                                    new GroundAir.Config(b.readVarInt(), b.readVarInt()),
-                                    b.readBoolean());
+                                    new GroundAir.Config(b.readVarInt(), b.readVarInt()));
                         });
 
         @Override
@@ -247,7 +232,7 @@ public final class GroundFlightPackets {
         public static final StreamCodec<RegistryFriendlyByteBuf, Frame> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
-                            b.writeByte(p.frame.planet());
+                            b.writeVarInt(p.frame.planet());
                             b.writeByte(p.frame.root());
                             b.writeByte(p.frame.turns());
                             b.writeInt(p.frame.tx());
@@ -256,7 +241,7 @@ public final class GroundFlightPackets {
                         b ->
                                 new Frame(
                                         new ObserverFrame(
-                                                b.readUnsignedByte(),
+                                                b.readVarInt(),
                                                 b.readUnsignedByte(),
                                                 b.readUnsignedByte(),
                                                 b.readInt(),

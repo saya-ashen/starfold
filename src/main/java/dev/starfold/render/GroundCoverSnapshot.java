@@ -47,6 +47,17 @@ public final class GroundCoverSnapshot {
         return new GroundCoverSnapshot(heights, surfaces, unknown);
     }
 
+    /** All baked inputs, including the halo, rather than block or packet revision stamps. */
+    public boolean sameInputs(GroundCoverSnapshot other) {
+        if (other == null
+                || heights != other.heights
+                || !unknown.equals(other.unknown)
+                || !surfaces.keySet().equals(other.surfaces.keySet())) return false;
+        for (var entry : surfaces.entrySet())
+            if (!entry.getValue().sameColumns(other.surfaces.get(entry.getKey()))) return false;
+        return true;
+    }
+
     public PlanetHeightCache heights() {
         return heights;
     }

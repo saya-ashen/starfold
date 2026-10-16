@@ -4,13 +4,11 @@ import com.mojang.serialization.*;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import dev.starfold.chart.GroundEphemeris;
-import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.sky.Space;
 
 import net.minecraft.core.*;
 import net.minecraft.resources.*;
@@ -97,7 +95,21 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
             Optional<String> name,
             Path orbit,
             Optional<Rotation> spin,
-            Optional<ResourceLocation> typeId) {
+            Optional<ResourceLocation> typeId,
+            double reach,
+            List<Planet> moons) {
+        public Planet(
+                Holder<PlanetType> type,
+                Optional<Integer> size,
+                Optional<Long> seed,
+                Optional<String> name,
+                Path orbit,
+                Optional<Rotation> spin,
+                Optional<ResourceLocation> typeId,
+                double reach) {
+            this(type, size, seed, name, orbit, spin, typeId, reach, List.of());
+        }
+
         public Planet(
                 Holder<PlanetType> type,
                 Optional<Integer> size,
@@ -105,15 +117,23 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                 Optional<String> name,
                 Path orbit,
                 Optional<Rotation> spin) {
-            this(type, size, seed, name, orbit, spin, Optional.empty());
+            this(
+                    type,
+                    size,
+                    seed,
+                    name,
+                    orbit,
+                    spin,
+                    Optional.empty(),
+                    GroundEphemeris.Body.DEFAULT_REACH);
         }
 
         public Optional<ResourceLocation> typeId() {
             return type.unwrapKey().map(ResourceKey::location).or(() -> typeId);
         }
 
-        static final Codec<Planet> CODEC =
-                RecordCodecBuilder.create(
+        private static final MapCodec<Planet> SURFACE =
+                RecordCodecBuilder.mapCodec(
                         i ->
                                 i.group(
                                                 UniverseLayout.savedInPlace(
@@ -137,10 +157,55 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                                         .forGetter(Planet::spin),
                                                 ResourceLocation.CODEC
                                                         .optionalFieldOf("type_id")
-                                                        .forGetter(Planet::typeId))
+                                                        .forGetter(Planet::typeId),
+                                                Codec.doubleRange(
+                                                                512,
+                                                                GroundEphemeris.Body.DEFAULT_REACH)
+                                                        .optionalFieldOf(
+                                                                "reach",
+                                                                GroundEphemeris.Body.DEFAULT_REACH)
+                                                        .forGetter(Planet::reach))
                                         .apply(i, Planet::new));
 
+        private static final Codec<Planet> MOON =
+                new Codec<>() {
+                    @Override
+                    public <T> DataResult<com.mojang.datafixers.util.Pair<Planet, T>> decode(
+                            DynamicOps<T> ops, T input) {
+                        if (ops.get(input, "moons").result().isPresent())
+                            return DataResult.error(() -> "A moon cannot have moons");
+                        return SURFACE.codec().decode(ops, input);
+                    }
+
+                    @Override
+                    public <T> DataResult<T> encode(Planet value, DynamicOps<T> ops, T prefix) {
+                        if (!value.moons.isEmpty())
+                            return DataResult.error(() -> "A moon cannot have moons");
+                        return SURFACE.codec().encode(value, ops, prefix);
+                    }
+                };
+
+        static final Codec<Planet> CODEC =
+                RecordCodecBuilder.create(
+                        i ->
+                                i.group(
+                                                SURFACE.forGetter((Planet p) -> p),
+                                                strict(MOON.listOf())
+                                                        .optionalFieldOf("moons", List.of())
+                                                        .forGetter(Planet::moons))
+                                        .apply(
+                                                i,
+                                                (p, moons) ->
+                                                        new Planet(
+                                                                p.type, p.size, p.seed, p.name,
+                                                                p.orbit, p.spin, p.typeId, p.reach,
+                                                                moons)));
+
         public Planet {
+            moons = List.copyOf(moons);
+            if (moons.stream().anyMatch(m -> !m.moons.isEmpty()))
+                throw new IllegalArgumentException("A moon cannot have moons");
+            range(reach, 512, GroundEphemeris.Body.DEFAULT_REACH, "planet.reach");
             size.ifPresent(
                     s -> {
                         try {
@@ -244,10 +309,14 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
 
     public SystemDefinition {
         suns = List.copyOf(suns);
-        long count = suns.stream().mapToLong(s -> s.planets.size()).sum();
-        if (count < 2 || count > Universe.CAPACITY || count > PlanetStorage.MAX_PLANETS)
+        long count =
+                suns.stream()
+                        .flatMap(s -> s.planets.stream())
+                        .mapToLong(p -> 1L + p.moons.size())
+                        .sum();
+        if (count < 1 || count > Universe.CAPACITY || count > PlanetStorage.MAX_PLANETS)
             throw new IllegalArgumentException(
-                    "system needs 2..1600 planets (synchronised model capacity)");
+                    "system needs 1..1600 planets (synchronised model capacity)");
         if (home.sun < 0
                 || home.sun >= suns.size()
                 || home.planet < 0
@@ -255,26 +324,9 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
             throw new IllegalArgumentException(
                     "home.sun/home.planet must index an existing sun and planet (zero based)");
         var sun = suns.get(home.sun);
-        if (sun.planets.size() < 2)
-            throw new IllegalArgumentException(
-                    "home sun needs at least two planets for the base pair");
         if (sun.position.length() > 100000 || sun.radius > 1024)
             throw new IllegalArgumentException(
                     "home sun position must be within 100000 blocks of origin and radius at most 1024");
-        var a = sun.planets.get(home.planet).orbit;
-        var b = sun.planets.get(companion(home)).orbit;
-        if (a.radius < 6000
-                || a.radius > 8192
-                || a.radius != b.radius
-                || a.period != b.period
-                || Math.abs(Math.cos(a.phase - b.phase) + 1) > 1e-12
-                || Math.abs(Math.sin(a.phase - b.phase)) > 1e-6)
-            throw new IllegalArgumentException(
-                    "home base pair must share radius 6000..8192 and period, with phases exactly pi apart");
-    }
-
-    private static int companion(Home home) {
-        return home.planet == 0 ? 1 : 0;
     }
 
     private static void range(double n, double min, double max, String field) {
@@ -293,14 +345,26 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
             var layout = beyond.get().value();
             var path = suns.get(home.sun).planets.get(home.planet).orbit;
             double outer = path.radius + (layout.maxPlanets() - 1) * layout.ring();
+            double first =
+                    640
+                            + new PlanetShape(PlanetShape.MAX).radius()
+                            + GroundEphemeris.Body.DEFAULT_REACH
+                            + MARGIN / 2;
+            if (path.radius <= first || layout.gap() < 4 * outer + 16384)
+                throw new IllegalArgumentException(
+                        "beyond rings need home orbit radius above "
+                                + first
+                                + " and star_gap at least "
+                                + (4 * outer + 16384));
             if (path.period * Math.pow(outer / path.radius, 1.5) > 1e9)
                 throw new IllegalArgumentException(
-                        "beyond outer orbit period exceeds 1000000000 ticks; shorten the home pair period or reduce beyond rings");
+                        "beyond outer orbit period exceeds 1000000000 ticks; shorten the home period or reduce beyond rings");
         }
         double[] reaches = new double[suns.size()];
         for (int s = 0; s < suns.size(); s++) {
             var sun = suns.get(s);
             double[] radii = new double[sun.planets.size()];
+            double[] families = new double[radii.length];
             for (int p = 0; p < radii.length; p++) {
                 var planet = sun.planets.get(p);
                 try {
@@ -323,7 +387,8 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                     + e.getMessage(),
                             e);
                 }
-                double reach = radii[p] + Space.OUT + MARGIN / 2;
+                families[p] = family(planet, radii[p], "sun " + s + " planet " + p);
+                double reach = families[p] + MARGIN / 2;
                 if (planet.orbit.radius <= sun.radius + reach)
                     throw new IllegalArgumentException(
                             "sun "
@@ -335,18 +400,11 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                 reaches[s] = Math.max(reaches[s], planet.orbit.radius + reach);
                 for (int q = 0; q < p; q++) {
                     var other = sun.planets.get(q);
-                    double distance = Math.abs(planet.orbit.radius - other.orbit.radius);
-                    if (planet.orbit.period == other.orbit.period) {
-                        double phase = planet.orbit.phase - other.orbit.phase;
-                        distance =
-                                Math.sqrt(
-                                        Math.pow(planet.orbit.radius - other.orbit.radius, 2)
-                                                + 4
-                                                        * planet.orbit.radius
-                                                        * other.orbit.radius
-                                                        * Math.pow(Math.sin(phase / 2), 2));
-                    }
-                    double required = radii[p] + radii[q] + 2 * Space.OUT + MARGIN;
+                    double distance = distance(planet.orbit, other.orbit);
+                    double required =
+                            planet.moons.isEmpty() && other.moons.isEmpty()
+                                    ? radii[p] + radii[q] + (planet.reach + other.reach) + MARGIN
+                                    : families[p] + families[q] + MARGIN;
                     if (!Double.isFinite(distance) || distance < required)
                         throw new IllegalArgumentException(
                                 "sun "
@@ -381,6 +439,65 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
         }
     }
 
+    private static double radius(Planet planet) {
+        var type = planet.type.value();
+        int size = planet.size.orElse(type.maxSize());
+        type.generation(size);
+        return new PlanetShape(size).radius();
+    }
+
+    /** The parent's shell and every moon's entire path must fit inside the sun's spacing envelope. */
+    private static double family(Planet planet, double radius, String label) {
+        double extent = radius + planet.reach;
+        var shells = new double[planet.moons.size()];
+        for (int m = 0; m < shells.length; m++) {
+            var moon = planet.moons.get(m);
+            try {
+                shells[m] = radius(moon) + moon.reach;
+            } catch (RuntimeException error) {
+                throw new IllegalArgumentException(
+                        label + " moon " + m + ": " + error.getMessage(), error);
+            }
+            double required = radius + planet.reach + shells[m] + MARGIN;
+            if (moon.orbit.radius < required)
+                throw new IllegalArgumentException(
+                        label
+                                + " moon "
+                                + m
+                                + " orbit too close to its planet; radius must be at least "
+                                + required);
+            extent = Math.max(extent, moon.orbit.radius + shells[m]);
+            for (int n = 0; n < m; n++) {
+                double distance = distance(moon.orbit, planet.moons.get(n).orbit);
+                double need = shells[m] + shells[n] + MARGIN;
+                if (!Double.isFinite(distance) || distance < need)
+                    throw new IllegalArgumentException(
+                            label
+                                    + " moons "
+                                    + n
+                                    + " and "
+                                    + m
+                                    + " orbits too close: minimum "
+                                    + distance
+                                    + ", need "
+                                    + need
+                                    + "; separate rings, or use equal periods and separated phases");
+            }
+        }
+        return extent;
+    }
+
+    private static double distance(Path a, Path b) {
+        return a.period == b.period
+                ? Math.sqrt(
+                        Math.pow(a.radius - b.radius, 2)
+                                + 4
+                                        * a.radius
+                                        * b.radius
+                                        * Math.pow(Math.sin((a.phase - b.phase) / 2), 2))
+                : Math.abs(a.radius - b.radius);
+    }
+
     /** This is the saved celestial source, not a reference back into a pack. The running clock copies it once. */
     public record Sky(GroundEphemeris.Model model, List<String> names, List<Integer> groups) {
         private static final Codec<GroundEphemeris.Model> MODEL = SystemSkyCodec.MODEL;
@@ -402,12 +519,9 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
         public Sky {
             names = List.copyOf(names);
             groups = List.copyOf(groups);
-            if (!model.multiple()
-                    || !model.sun().enabled()
-                    || model.count() > Universe.CAPACITY
+            if (model.count() > Universe.CAPACITY
                     || names.size() != model.count()
                     || groups.isEmpty()
-                    || groups.getFirst() < 2
                     || groups.stream().anyMatch(n -> n < 1)
                     || groups.stream().mapToLong(Integer::longValue).sum() != names.size()
                     || groups.size() != model.everyStar().size())
@@ -422,66 +536,68 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
     public Made materialize(long worldSeed) {
         validate();
         var planets = new ArrayList<PlanetChunkGenerator>();
-        var paths = new ArrayList<GroundEphemeris.Orbit>();
+        var bodies = new ArrayList<GroundEphemeris.Body>();
         var names = new ArrayList<String>();
-        var stars = new ArrayList<GroundEphemeris.Star>();
         var groups = new ArrayList<Integer>();
+        var parents = new IdentityHashMap<Planet, Integer>();
         var order = new ArrayList<Integer>();
         order.add(home.sun);
         for (int s = 0; s < suns.size(); s++) if (s != home.sun) order.add(s);
         for (int s : order) {
             var sun = suns.get(s);
-            if (s != home.sun) stars.add(new GroundEphemeris.Star(sun.position, sun.radius));
-            groups.add(sun.planets.size());
+            int parent = bodies.size();
+            bodies.add(
+                    new GroundEphemeris.Body(
+                            new GroundEphemeris.Fixed(sun.position), sun.radius, true, -1));
+            groups.add(sun.planets.stream().mapToInt(p -> 1 + p.moons.size()).sum());
             var places = new ArrayList<Integer>();
-            if (s == home.sun) {
-                places.add(home.planet);
-                places.add(companion(home));
-            }
+            if (s == home.sun) places.add(home.planet);
             for (int p = 0; p < sun.planets.size(); p++) if (!places.contains(p)) places.add(p);
             int offset = 0;
             for (int before = 0; before < s; before++) offset += suns.get(before).planets.size();
             for (int p : places) {
                 var planet = sun.planets.get(p);
                 long seed = planet.seed.orElse(derivedSeed(worldSeed, offset + p));
-                planets.add(
-                        planet.type
-                                .value()
-                                .planet(seed, planet.size)
-                                .identity(planet.typeId(), planet.name));
-                names.add(planet.name.orElse(PlanetSystem.defaultName(names.size())));
-                var path = planet.orbit;
-                paths.add(
-                        new GroundEphemeris.Orbit(
-                                sun.position,
-                                GroundEphemeris.Y,
-                                new Point(0, 0, 1),
-                                path.radius,
-                                path.period,
-                                path.phase,
-                                0,
-                                planet.rotation()));
+                parents.put(planet, bodies.size());
+                append(planet, seed, parent, planets, bodies, names);
             }
         }
-        var sun = suns.get(home.sun);
-        var a = paths.get(0);
-        var b = paths.get(1);
-        var model =
-                new GroundEphemeris.Model(
-                        sun.position,
+        int ordinal = planets.size();
+        for (var sun : suns)
+            for (var planet : sun.planets)
+                for (var moon : planet.moons) {
+                    long seed = moon.seed.orElse(derivedSeed(worldSeed, ordinal++));
+                    append(moon, seed, parents.get(planet), planets, bodies, names);
+                }
+        var model = new GroundEphemeris.Model(bodies);
+        return new Made(List.copyOf(planets), new Sky(model, names, groups), beyond);
+    }
+
+    private static void append(
+            Planet planet,
+            long seed,
+            int parent,
+            List<PlanetChunkGenerator> planets,
+            List<GroundEphemeris.Body> bodies,
+            List<String> names) {
+        planets.add(
+                planet.type
+                        .value()
+                        .planet(seed, planet.size)
+                        .identity(planet.typeId(), planet.name));
+        names.add(planet.name.orElse(PlanetSystem.defaultName(names.size())));
+        var path = planet.orbit;
+        var orbit =
+                new GroundEphemeris.Orbit(
+                        parent,
                         GroundEphemeris.Y,
                         new Point(0, 0, 1),
-                        a.radius(),
-                        a.period(),
-                        a.phase() - Math.PI,
+                        path.radius,
+                        path.period,
+                        path.phase,
                         0,
-                        a.spin(),
-                        b.spin(),
-                        new GroundSolar.Sun(true, sun.position, sun.radius),
-                        true,
-                        paths.subList(2, paths.size()),
-                        stars);
-        return new Made(List.copyOf(planets), new Sky(model, names, groups), beyond);
+                        planet.rotation());
+        bodies.add(new GroundEphemeris.Body(orbit, 0, false, planets.size() - 1, planet.reach));
     }
 
     /** WorldDimensions.bake runs after holder binding, but before a dedicated server saves or creates levels. */

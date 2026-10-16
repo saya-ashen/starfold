@@ -59,8 +59,7 @@ public final class GroundTickets {
                                 new ChunkPos(player.blockPosition()), ImageStream.radius(player)));
                 continue;
             }
-            if (access == PlanetAccess.SHARED
-                    && GroundHost.get().controlled(player)
+            if (GroundHost.get().controlled(player)
                     && access.inChart(player.blockPosition())
                     && player.getY() < GroundCoordinates.FLOOR + 2048) {
                 // Nine approach owners only. Region tickets let the chunk pipeline stream them

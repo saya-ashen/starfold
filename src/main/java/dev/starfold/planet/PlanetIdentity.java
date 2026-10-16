@@ -17,10 +17,6 @@ public record PlanetIdentity(
         name.ifPresent(PlanetIdentity::validName);
     }
 
-    public static PlanetIdentity of(PlanetSystem.SavedPlanet planet) {
-        return planet.identity();
-    }
-
     public static void validName(String name) {
         if (name.isBlank()
                 || name.length() > 64

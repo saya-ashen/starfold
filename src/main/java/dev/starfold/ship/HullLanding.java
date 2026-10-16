@@ -173,7 +173,7 @@ public final class HullLanding {
                         box.maxX(),
                         box.maxZ(),
                         (x, z) -> column(level, x, z));
-        return safeExit(box.minY() - survey.highest(), true, survey.kind());
+        return safeExit(ground(body).clearance(), true, survey.kind());
     }
 
     public static boolean showSurface(int tier, FlightMode mode, double clearance) {
@@ -183,7 +183,7 @@ public final class HullLanding {
                 && clearance < 200;
     }
 
-    /** All occupied footprint columns, not just the nine clearance samples. Unknown is never safe. */
+    /** Stair planning survey of the bounding footprint. Unknown is never safe. */
     static Survey survey(double minX, double minZ, double maxX, double maxZ, SurfaceColumn column) {
         double low = Double.POSITIVE_INFINITY, high = Double.NEGATIVE_INFINITY;
         boolean water = false, lava = false, unknown = false;
@@ -215,15 +215,7 @@ public final class HullLanding {
             dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
         var at = body.logicalPose().position();
         if (!PlanetLevels.is(level) || Space.holds(at.x, at.z)) return false;
-        var box = bounds(body);
-        var ground =
-                ground(
-                        box.minX(),
-                        box.minY(),
-                        box.minZ(),
-                        box.maxX(),
-                        box.maxZ(),
-                        (x, z) -> column(level, x, z));
+        var ground = ground(body);
         return showSurface(3, FlightMode.CHART, ground.clearance());
     }
 
@@ -267,43 +259,9 @@ public final class HullLanding {
         Surface surface(int x, int z);
     }
 
-    /** Preserve the material of the highest sampled surface; solid wins a height tie. */
-    static Ground ground(
-            double minX,
-            double bottom,
-            double minZ,
-            double maxX,
-            double maxZ,
-            SurfaceColumn column) {
-        double highest = Double.NEGATIVE_INFINITY;
-        boolean fluid = false;
-        for (double x : new double[] {minX, (minX + maxX) / 2, Math.nextDown(maxX)})
-            for (double z : new double[] {minZ, (minZ + maxZ) / 2, Math.nextDown(maxZ)}) {
-                var surface = column.surface((int) Math.floor(x), (int) Math.floor(z));
-                if (!Double.isFinite(surface.height())) continue;
-                if (surface.height() > highest) {
-                    highest = surface.height();
-                    fluid = surface.fluid();
-                } else if (surface.height() == highest) fluid &= surface.fluid();
-            }
-        return new Ground(Double.isFinite(highest) ? bottom - highest : Double.NaN, fluid);
-    }
-
-    @FunctionalInterface
-    public interface Column {
-        double surface(int x, int z);
-    }
-
-    /** Corners, edge midpoints and centre; inset the maximum edges into the hull's occupied columns. */
-    public static double clearance(
-            double minX, double bottom, double minZ, double maxX, double maxZ, Column column) {
-        double highest = Double.NEGATIVE_INFINITY;
-        for (double x : new double[] {minX, (minX + maxX) / 2, Math.nextDown(maxX)})
-            for (double z : new double[] {minZ, (minZ + maxZ) / 2, Math.nextDown(maxZ)}) {
-                double surface = column.surface((int) Math.floor(x), (int) Math.floor(z));
-                if (Double.isFinite(surface)) highest = Math.max(highest, surface);
-            }
-        return Double.isFinite(highest) ? bottom - highest : Double.NaN;
+    /** Signed collision-bottom clearance, paired with the terrain columns actually covered. */
+    public static Ground ground(dev.ryanhcode.sable.sublevel.SubLevel body) {
+        return HullBottom.ground(body, (x, z) -> column(body.getLevel(), x, z, true));
     }
 
     /** Fresh physical bounds: server cached bounds precede physics; client boundingBox is swept for rendering. */
@@ -329,6 +287,10 @@ public final class HullLanding {
     }
 
     static Surface column(Level level, int x, int z) {
+        return column(level, x, z, false); // Stair survey/planning keeps its existing heightmap contract.
+    }
+
+    private static Surface column(Level level, int x, int z, boolean collisionTop) {
         if (!level.isClientSide) {
             var access = PlanetAccess.of(level);
             var pos = new BlockPos(x, GroundCoordinates.FLOOR, z);
@@ -349,11 +311,17 @@ public final class HullLanding {
         if (chunk == null || chunk instanceof net.minecraft.world.level.chunk.EmptyLevelChunk)
             return new Surface(Double.NaN, false);
         int top = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, x & 15, z & 15);
-        var state = chunk.getBlockState(new BlockPos(x, top, z));
-        return new Surface(
-                top + 1,
-                state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock,
-                state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA));
+        var pos = new BlockPos(x, top, z);
+        var state = chunk.getBlockState(pos);
+        boolean fluid = state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock;
+        double height = top + 1.;
+        if (collisionTop && !fluid) {
+            var shape = state.getCollisionShape(level, pos);
+            // A motion-blocking top without a collision box keeps the heightmap top: a loaded column is
+            // never unknown, or the descent envelope would be lost over it.
+            if (!shape.isEmpty()) height = top + shape.max(net.minecraft.core.Direction.Axis.Y);
+        }
+        return new Surface(height, fluid, state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA));
     }
 
     private HullLanding() {}

@@ -138,9 +138,7 @@ public final class GroundDynamics {
     }
 
     private static void active(GroundEphemeris.Model model, State state) {
-        if (!model.sun().enabled()
-                || state.planet >= model.count()
-                || state.guidance.target() >= model.count())
+        if (state.planet >= model.count() || state.guidance.target() >= model.count())
             throw new IllegalArgumentException("Inactive native planet/model");
     }
 
@@ -232,10 +230,7 @@ public final class GroundDynamics {
             var local = model.at(id, time).local(world);
             double height = local.length() - PlanetShape.of(id).radius();
             if (height < GroundSpace.MIN + 1) return false;
-            if (height > GroundOrbit.LIMIT) {
-                if (model.count() == 1) return false;
-                continue;
-            }
+            if (height > GroundOrbit.LIMIT) continue;
             if (!terrain.clear(id, GroundTopology.locate(PlanetShape.of(id), local))) return false;
         }
         return true;
@@ -284,7 +279,7 @@ public final class GroundDynamics {
                         saved.guidance,
                         saved.planet);
         if (state.space) {
-            if (state.position.sub(model.center()).length() > model.extent()
+            if (state.position.sub(model.origin()).length() > model.extent()
                     || !clear(model, terrain, state.position, tick))
                 throw new IllegalStateException("Saved native vessel occupied");
         } else if (!terrain.clear(state.planet, state.local))
@@ -435,7 +430,9 @@ public final class GroundDynamics {
                 throw new IllegalStateException("Native moving terrain collision");
             var pose = GroundTopology.locate(PlanetShape.of(old.planet), p);
             var result = localPlanet(tick, old.planet, pose, v, q, true, old.guidance);
-            return pose.point().y() > GroundTransit.EXIT ? detach(model, result) : result;
+            return pose.point().y() > model.body(old.planet).flightExit()
+                    ? detach(model, result)
+                    : result;
         }
         var q = input.orientation();
         var direction = command(q, input, GroundEphemeris.Y, 1);
@@ -462,7 +459,7 @@ public final class GroundDynamics {
         for (int i = 0; i < count; i++) {
             var next = p.add(part);
             double t = old.tick + (i + 1.0) / count;
-            if (next.sub(model.center()).length() > model.extent()
+            if (next.sub(model.origin()).length() > model.extent()
                     || !clear(model, terrain, next, t)) {
                 v = GroundEphemeris.ZERO;
                 break;
@@ -474,7 +471,7 @@ public final class GroundDynamics {
         int id = select(model, p, old.planet, tick);
         var result = new State(tick, true, p, v, q, null, true, brake, old.guidance, id);
         return p.sub(model.at(id, tick).center()).length() - PlanetShape.of(id).radius()
-                        < GroundTransit.ENTER
+                        < model.body(id).flightEnter()
                 ? attach(model, result, id)
                 : result;
     }

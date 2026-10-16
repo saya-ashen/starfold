@@ -1,0 +1,36 @@
+# Disposable fresh experience world, home size 2048.
+# Face 1's west edge x=4096 joins face 0's east edge x=2048 (unrotated).
+# Prepared corridor, real on-foot input, normal husk chase; checks read canonical server positions.
+waitworld
+wait 300
+cmd gamemode creative
+cmd difficulty normal
+cmd gamerule doMobSpawning false
+cmd gamerule doDaylightCycle false
+cmd tp @s 4107.5 251 866.5 90 0
+wait 700
+cmd fill 4070 250 864 4130 255 868 air
+cmd fill 4070 249 864 4130 249 868 smooth_stone
+cmd fill 4070 250 864 4130 252 864 glass
+cmd fill 4070 250 868 4130 252 868 glass
+cmd tp @s 4107.5 250 866.5 90 0
+wait 60
+cmd effect give @s minecraft:resistance infinite 4 true
+cmd effect give @s minecraft:saturation infinite 0 true
+cmd gamemode survival
+fly off
+cmd summon minecraft:husk 4115.5 250 866.5 {Tags:["p1_seam"],PersistenceRequired:1b,Invulnerable:1b}
+wait 40
+log seam-foot-before
+entities
+look 90 0
+walk20 400
+log seam-foot-after
+check foot-crossed if entity @s[x=1990,y=249,z=864,dx=58,dy=5,dz=4]
+wait 400
+entities
+cmd data get entity @e[type=minecraft:husk,tag=p1_seam,limit=1] Pos
+check mob-crossed if entity @e[type=minecraft:husk,tag=p1_seam,x=1990,y=249,z=864,dx=58,dy=5,dz=4]
+log seam-mob-after
+shot entity-seam-crossed
+quit

@@ -12,7 +12,8 @@ import java.nio.file.*;
 import java.util.*;
 
 class GroundGuidanceTest {
-    final GroundEphemeris.Model model = GroundEphemeris.spinningDefaults();
+    final GroundEphemeris.Model model =
+            GroundEphemeris.spinning(dev.starfold.planet.PlanetSystem.model(), true, 0);
 
     void close(Point a, Point b) {
         assertTrue(a.sub(b).length() < 1e-6, a + " != " + b);

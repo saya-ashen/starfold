@@ -75,6 +75,13 @@ class UniverseTest {
 
     static final GroundEphemeris.Model HOME = PlanetSystem.model();
 
+    static GroundEphemeris.Star source(Universe universe, int parent) {
+        var body = universe.catalog().get(parent);
+        assertTrue(body.light());
+        return new GroundEphemeris.Star(
+                ((GroundEphemeris.Fixed) body.motion()).position(), body.radius());
+    }
+
     @Test
     void theSameSeedMakesTheSameUniverseAndAnotherSeedAnother() throws Exception {
         var layout = layout();
@@ -86,7 +93,7 @@ class UniverseTest {
         for (int i = 0; i < a.bodies().size(); i++) {
             var x = a.bodies().get(i);
             var y = again.bodies().get(i);
-            assertEquals(x.star(), y.star());
+            assertEquals(x.parent(), y.parent());
             assertEquals(x.radius(), y.radius());
             assertEquals(x.phase(), y.phase());
             assertEquals(x.planet().seed(), y.planet().seed());
@@ -106,11 +113,11 @@ class UniverseTest {
             int stars = u.stars().size();
             counts.add(stars);
             assertTrue(stars >= layout.minStars() && stars <= layout.maxStars());
-            var perStar = new int[stars];
+            var perStar = new java.util.HashMap<Integer, Integer>();
             for (var body : u.bodies()) {
-                perStar[body.star()]++;
+                perStar.merge(body.parent(), 1, Integer::sum);
                 assertEquals(
-                        HOME.radius() + (perStar[body.star()] - 1) * layout.ring(),
+                        HOME.orbit(0).radius() + (perStar.get(body.parent()) - 1) * layout.ring(),
                         body.radius(),
                         1e-9,
                         "rings in order");
@@ -123,17 +130,18 @@ class UniverseTest {
                                 ? g.palette().cover().map(Object::toString).orElse("rock")
                                 : "temperate");
             }
-            for (int n : perStar)
+            assertEquals(stars, perStar.size());
+            for (int n : perStar.values())
                 assertTrue(
                         n >= layout.minPlanets() && n <= layout.maxPlanets(),
                         "planets of a sun: " + n);
-            double reach = HOME.radius() + (layout.maxPlanets() - 1) * layout.ring();
+            double reach = HOME.orbit(0).radius() + (layout.maxPlanets() - 1) * layout.ring();
             for (int i = 0; i < stars; i++) {
                 var p = u.stars().get(i).position();
                 assertTrue(
-                        p.sub(HOME.center()).length() >= layout.gap() * .75 - 1e-6,
+                        p.sub(HOME.origin()).length() >= layout.gap() * .75 - 1e-6,
                         "clear of home");
-                assertTrue(Math.abs(p.y() - HOME.center().y()) <= layout.gap() * .35 + 1e-6);
+                assertTrue(Math.abs(p.y() - HOME.origin().y()) <= layout.gap() * .35 + 1e-6);
                 for (int j = 0; j < i; j++)
                     assertTrue(
                             p.sub(u.stars().get(j).position()).length() >= 2 * reach + 8192,
@@ -147,9 +155,9 @@ class UniverseTest {
                 var centre = model.at(id, 5000).center();
                 assertEquals(
                         body.radius(),
-                        centre.sub(u.stars().get(body.star()).position()).length(),
+                        centre.sub(source(u, body.parent()).position()).length(),
                         1e-6);
-                assertEquals(u.stars().get(body.star()), model.star(centre));
+                assertEquals(source(u, body.parent()), model.star(centre));
             }
             for (int id = 0; id < 2; id++)
                 assertEquals(HOME.at(id, 5000).center(), model.at(id, 5000).center());
@@ -171,7 +179,7 @@ class UniverseTest {
         for (int i = 0; i < u.bodies().size(); i++) {
             var x = u.bodies().get(i);
             var y = back.bodies().get(i);
-            assertEquals(x.star(), y.star());
+            assertEquals(x.parent(), y.parent());
             assertEquals(x.radius(), y.radius());
             assertEquals(x.period(), y.period());
             assertEquals(x.phase(), y.phase());
@@ -181,10 +189,10 @@ class UniverseTest {
         assertEquals(tag, back.save(new CompoundTag(), lookup));
         assertEquals(u.model(HOME), back.model(HOME));
         var broken = tag.copy();
-        broken.putInt("format", 2);
+        broken.putInt("format", 1);
         assertThrows(IllegalArgumentException.class, () -> Universe.load(broken, lookup));
         var orphan = tag.copy();
-        ((CompoundTag) orphan.getList("planets", 10).get(0)).putInt("star", 99);
+        orphan.getList("bodies", 10).getCompound(1).getCompound("motion").putInt("parent", 99);
         assertThrows(IllegalArgumentException.class, () -> Universe.load(orphan, lookup));
     }
 
@@ -314,7 +322,7 @@ class UniverseTest {
         var u = Universe.generate(77, layout(), HOME);
         var model = u.model(HOME);
         for (var star : u.stars())
-            assertTrue(star.position().sub(model.center()).length() + 8192 <= model.extent());
+            assertTrue(star.position().sub(model.origin()).length() + 8192 <= model.extent());
         assertTrue(model.extent() < PlanetShape.MAX_HEIGHT);
     }
 
@@ -344,7 +352,7 @@ class UniverseTest {
             for (var body : pair.getKey().bodies())
                 pair.getValue()
                         .computeIfAbsent(
-                                pair.getKey().stars().get(body.star()),
+                                source(pair.getKey(), body.parent()),
                                 k -> new java.util.ArrayList<>())
                         .add(
                                 body.radius()
@@ -364,9 +372,16 @@ class UniverseTest {
         // What was there stays where it was in the list: a planet keeps its number as the universe
         // grows.
         var before = begun.bodies();
+        var beforeCatalog = begun.catalog();
+        var beforePlanets = begun.planets();
         assertTrue(begun.explore(seed, layout, HOME, 2, 0, 1, 900) || begun.explored() > 8);
         var after = begun.bodies();
-        for (int id = 0; id < before.size(); id++) assertSame(before.get(id), after.get(id));
+        for (int id = 0; id < before.size(); id++) {
+            assertEquals(before.get(id), after.get(id));
+            assertSame(beforePlanets.get(id), begun.planets().get(id));
+        }
+        for (int id = 0; id < beforeCatalog.size(); id++)
+            assertSame(beforeCatalog.get(id), begun.catalog().get(id));
         assertFalse(begun.explore(seed, layout, HOME, 2, 0, 1, 900), "nothing is found twice");
     }
 
@@ -379,24 +394,24 @@ class UniverseTest {
         assertEquals(25 * 25 - 1, cells);
         double share = u.stars().size() / (double) cells;
         assertEquals(layout.density(), share, .06);
-        double reach = HOME.radius() + (layout.maxPlanets() - 1) * layout.ring();
+        double reach = HOME.orbit(0).radius() + (layout.maxPlanets() - 1) * layout.ring();
         var stars = u.stars();
         for (int i = 0; i < stars.size(); i++) {
             assertTrue(
-                    stars.get(i).position().sub(HOME.center()).length()
+                    stars.get(i).position().sub(HOME.origin()).length()
                             >= layout.gap() * .75 - 1e-6);
             for (int j = 0; j < i; j++)
                 assertTrue(
                         stars.get(i).position().sub(stars.get(j).position()).length()
                                 >= 2 * reach + 8192);
         }
-        assertArrayEquals(new int[] {0, 0}, Universe.cell(layout, HOME, HOME.center()));
+        assertArrayEquals(new int[] {0, 0}, Universe.cell(layout, HOME, HOME.origin()));
         assertArrayEquals(
                 new int[] {2, -1},
                 Universe.cell(
                         layout,
                         HOME,
-                        HOME.center()
+                        HOME.origin()
                                 .add(
                                         new dev.starfold.geometry.BentStripGeometry.Point(
                                                 2.3 * layout.gap(), 5000, -.6 * layout.gap()))));
@@ -436,6 +451,8 @@ class UniverseTest {
             assertTrue(u.explore(7, single, HOME, x, 0, 0, capacity));
         assertEquals(Universe.CAPACITY - 1, u.model(HOME).count());
         var before = u.bodies();
+        var beforeCatalog = u.catalog();
+        var beforePlanets = u.planets();
         var suns = u.stars();
         int explored = u.explored();
         u.setDirty(false);
@@ -459,7 +476,12 @@ class UniverseTest {
         assertEquals(Universe.CAPACITY, system.count());
         assertEquals(system.count(), u.model(HOME).count());
         assertSame(u.bodies().get(capacity - 1).planet(), system.planet(last));
-        for (int id = 0; id < before.size(); id++) assertSame(before.get(id), u.bodies().get(id));
+        for (int id = 0; id < before.size(); id++) {
+            assertEquals(before.get(id), u.bodies().get(id));
+            assertSame(beforePlanets.get(id), u.planets().get(id));
+        }
+        for (int id = 0; id < beforeCatalog.size(); id++)
+            assertSame(beforeCatalog.get(id), u.catalog().get(id));
         var lookup = PlanetTypeTest.lookup();
         var full = u.save(new CompoundTag(), lookup);
         u.setDirty(false);
@@ -554,6 +576,40 @@ class UniverseTest {
     }
 
     @Test
+    void discoverySnapshotsKeepMotionAndRemapRealBodyParentsWhenAddedToHome() throws Exception {
+        var home = PlanetSystem.model(new int[] {2, 2});
+        var universe = Universe.generate(987654321L, layout(), home);
+        var local = universe.catalog();
+        assertFalse(local.isEmpty());
+        var changedHome = GroundEphemeris.spinning(home, true, 12345);
+        var combined = universe.model(changedHome);
+        for (int index = 0; index < local.size(); index++) {
+            var original = local.get(index);
+            var appended = combined.bodies().get(changedHome.bodies().size() + index);
+            assertEquals(original.radius(), appended.radius());
+            assertEquals(original.light(), appended.light());
+            assertEquals(
+                    original.slot() < 0 ? -1 : home.count() + original.slot(), appended.slot());
+            if (original.motion() instanceof GroundEphemeris.Orbit orbit) {
+                var remapped = (GroundEphemeris.Orbit) appended.motion();
+                assertEquals(changedHome.bodies().size() + orbit.parent(), remapped.parent());
+                assertEquals(orbit.axis(), remapped.axis());
+                assertEquals(orbit.radial(), remapped.radial());
+                assertEquals(orbit.radius(), remapped.radius());
+                assertEquals(orbit.period(), remapped.period());
+                assertEquals(orbit.phase(), remapped.phase());
+                assertEquals(orbit.epoch(), remapped.epoch());
+                assertEquals(orbit.spin(), remapped.spin());
+                assertNotEquals(changedHome.spin(1), remapped.spin());
+            } else assertEquals(original.motion(), appended.motion());
+        }
+        var lookup = PlanetTypeTest.lookup();
+        var restored = Universe.load(universe.save(new CompoundTag(), lookup), lookup);
+        assertEquals(local, restored.catalog());
+        assertEquals(combined, restored.model(changedHome));
+    }
+
+    @Test
     void aUniverseOfNineHundredPlanetsIsStillCheapToFlyIn() throws Exception {
         // As many as a world holds: every cell within fifteen of home, about a planet to a cell.
         var layout = layout("default");
@@ -621,7 +677,7 @@ class UniverseTest {
                     var centre = model.at(id, tick).center();
                     for (var probe :
                             new dev.starfold.geometry.BentStripGeometry.Point[] {
-                                HOME.center(),
+                                HOME.origin(),
                                 centre.add(
                                         new dev.starfold.geometry.BentStripGeometry.Point(
                                                 3000, -200, 50)),

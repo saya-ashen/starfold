@@ -313,11 +313,18 @@ class SpaceTurnTest {
                 source.substring(
                         source.indexOf("if(Thrusters.steadied(lead"),
                         source.indexOf("var delta=anchor(point)"));
-        assertTrue(turn.contains("if(body!=lead)"));
+        assertTrue(turn.contains("value.relabelTurn(level,container,bodies,lead,old)"));
+        var relabel =
+                source.substring(
+                        source.indexOf("private void relabelTurn"),
+                        source.indexOf("private static void settleFollowers"));
+        assertTrue(relabel.contains("if(body!=lead)"));
         assertTrue(source.contains("send(player,true)"));
-        assertFalse(turn.contains("addLinearAndAngularVelocity"));
-        assertFalse(turn.contains("rider.set"));
-        assertFalse(turn.contains("teleport"));
-        assertFalse(turn.contains("resetVelocity"));
+        for (var part : new dev.starfold.SourceText[] {turn, relabel}) {
+            assertFalse(part.contains("addLinearAndAngularVelocity"));
+            assertFalse(part.contains("rider.set"));
+            assertFalse(part.contains("teleport"));
+            assertFalse(part.contains("resetVelocity"));
+        }
     }
 }

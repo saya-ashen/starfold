@@ -71,15 +71,38 @@ public class SpaceTest {
                         72000,
                         12);
         return new GroundEphemeris.Model(
-                new Point(100, -200, 300),
-                new Point(0, 1, 0),
-                new Point(1, 0, 0),
-                7000,
-                30000,
-                .3,
-                12,
-                a,
-                b);
+                java.util.List.of(
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Fixed(new Point(100, -200, 300)),
+                                512,
+                                true,
+                                -1),
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Orbit(
+                                        0,
+                                        new Point(0, 1, 0),
+                                        new Point(1, 0, 0),
+                                        7000,
+                                        30000,
+                                        .3 + Math.PI,
+                                        12,
+                                        a),
+                                0,
+                                false,
+                                0),
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Orbit(
+                                        0,
+                                        new Point(0, 1, 0),
+                                        new Point(1, 0, 0),
+                                        7000,
+                                        30000,
+                                        .3,
+                                        12,
+                                        b),
+                                0,
+                                false,
+                                1)));
     }
 
     public static Space.Motion chart(Point p) {
@@ -258,11 +281,10 @@ public class SpaceTest {
         PlanetShape.assign(1, SHAPES[1]);
         try {
             var model = tilted();
-            for (var access : PlanetAccess.values())
-                for (int id = 0; id < (access == PlanetAccess.SHARED ? 2 : 1); id++)
+            for (var access : new PlanetAccess[] {PlanetAccess.SHARED})
+                for (int id = 0; id < 2; id++)
                     for (var face : Face.values()) {
-                        var shape =
-                                access == PlanetAccess.SHARED ? SHAPES[id] : PlanetShape.STANDARD;
+                        var shape = SHAPES[id];
                         var pose =
                                 new PlanetShape.Pose(
                                         face,
@@ -337,7 +359,11 @@ public class SpaceTest {
 
     @Test
     void allSizesFacesHeightsAndMovingSpinningTicksRoundTrip() {
-        for (var model : new GroundEphemeris.Model[] {GroundEphemeris.defaults(), tilted()})
+        for (var model :
+                new GroundEphemeris.Model[] {
+                    GroundEphemeris.spinning(dev.starfold.planet.PlanetSystem.model(), false, 0),
+                    tilted()
+                })
             for (int id = 0; id < model.count(); id++)
                 for (var shape : SHAPES)
                     for (double tick : new double[] {0, 1234.5, 24000, 98765})
@@ -489,33 +515,15 @@ public class SpaceTest {
                 }
         }
         // Exact equidistance (identical centres), not a floating-point almost-midpoint.
-        var extra =
-                new GroundEphemeris.Orbit(
-                        model.at(0, 0).center(),
-                        new Point(0, 1, 0),
-                        new Point(1, 0, 0),
-                        0,
-                        30000,
-                        0,
-                        0,
-                        model.a());
-        var tied =
-                new GroundEphemeris.Model(
-                        model.center(),
-                        model.axis(),
-                        model.radial(),
-                        model.radius(),
-                        model.period(),
-                        model.phase(),
-                        model.epoch(),
-                        model.a(),
-                        model.b(),
-                        model.sun(),
-                        true,
-                        java.util.List.of(extra));
+        var bodies = new java.util.ArrayList<>(model.bodies());
+        bodies.add(
+                new GroundEphemeris.Body(
+                        new GroundEphemeris.Fixed(model.at(0, 0).center()), 0, false, 2));
+        var tied = new GroundEphemeris.Model(bodies);
         assertEquals(0, Space.nearest(tied, tied.at(0, 0).center(), 0));
         var single = GroundSolar.defaults();
-        assertEquals(0, Space.nearest(single, single.at(1, 0).center(), 0));
+        assertEquals(
+                0, Space.nearest(single, single.at(0, 0).center().add(new Point(100000, 0, 0)), 0));
         assertThrows(IllegalArgumentException.class, () -> Space.drift(single, 1, 0));
         assertThrows(
                 IllegalArgumentException.class,
@@ -569,21 +577,22 @@ public class SpaceTest {
 
     @Test
     void ownershipTransitionsAreStrictAndHysteretic() {
-        assertEquals(2048, Space.OUT);
-        assertEquals(1536, Space.IN);
-        assertTrue(Space.IN < Space.OUT);
-        assertFalse(Space.leaves(Space.OUT));
-        assertTrue(Space.leaves(Math.nextUp(Space.OUT)));
-        assertFalse(Space.leaves(Math.nextDown(Space.OUT)));
-        assertFalse(Space.enters(Space.IN));
-        assertTrue(Space.enters(Math.nextDown(Space.IN)));
-        assertFalse(Space.enters(Math.nextUp(Space.IN)));
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
+        assertEquals(2048, body.hullOut());
+        assertEquals(1536, body.hullIn());
+        assertTrue(body.hullIn() < body.hullOut());
+        assertFalse(Space.leaves(body, 2048));
+        assertTrue(Space.leaves(body, Math.nextUp(2048.0)));
+        assertFalse(Space.leaves(body, Math.nextDown(2048.0)));
+        assertFalse(Space.enters(body, 1536));
+        assertTrue(Space.enters(body, Math.nextDown(1536.0)));
+        assertFalse(Space.enters(body, Math.nextUp(1536.0)));
         for (double h : new double[] {1536, 1800, 2048}) {
-            assertFalse(Space.leaves(h));
-            assertFalse(Space.enters(h));
+            assertFalse(Space.leaves(body, h));
+            assertFalse(Space.enters(body, h));
         }
-        assertTrue(Space.enters(-100));
-        assertTrue(Space.leaves(10000));
+        assertTrue(Space.enters(body, -100));
+        assertTrue(Space.leaves(body, 10000));
     }
 
     @Test

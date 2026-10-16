@@ -306,17 +306,17 @@ class PlanetCountTest {
     }
 
     @Test
-    void aRowOfTwoIsStillReadAndAThirdPlanetNeedsTheSquare() throws Exception {
+    void everySystemUsesTheSquareAndTheOldRowIsRefused() throws Exception {
         var two = fixture.generator();
         assertEquals(
                 2,
-                new SystemChunkGenerator(PlanetStorage.ROW_LAYOUT, two.planet(0), two.planet(1))
+                new SystemChunkGenerator(PlanetStorage.LAYOUT, two.planet(0), two.planet(1))
                         .count());
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         new SystemChunkGenerator(
-                                PlanetStorage.ROW_LAYOUT,
+                                "six_face_x32768_v1",
                                 List.of(two.planet(0), two.planet(1), third())));
         var ops =
                 net.minecraft.resources.RegistryOps.create(
@@ -327,10 +327,14 @@ class PlanetCountTest {
                         .encodeStart(
                                 ops,
                                 new SystemChunkGenerator(
-                                        PlanetStorage.ROW_LAYOUT, two.planet(0), two.planet(1)))
+                                        PlanetStorage.LAYOUT, two.planet(0), two.planet(1)))
                         .getOrThrow()
                         .getAsJsonObject();
-        assertEquals("six_face_x32768_v1", row.get("storage_layout").getAsString());
+        assertEquals(PlanetStorage.LAYOUT, row.get("storage_layout").getAsString());
+        row.addProperty("storage_layout", "six_face_x32768_v1");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SystemChunkGenerator.CODEC.codec().parse(ops, row));
         assertEquals(
                 "six_face_square_v2",
                 SystemChunkGenerator.CODEC
@@ -356,19 +360,19 @@ class PlanetCountTest {
                                             "src/main/resources/data/starfold/worldgen/world_preset/"
                                                     + preset
                                                     + ".json"))
-                            .contains("\"storage_layout\":\"six_face_x32768_v1\""),
+                            .contains("\"storage_layout\":\"six_face_square_v2\""),
                     preset);
     }
 
     @Test
-    void aSystemIsSavedAsItsNamedPairOrAsAListAndNeverBoth() {
+    void everySystemIsSavedAsAListAndTheNamedPairIsRefused() {
         var ops =
                 net.minecraft.resources.RegistryOps.create(
                         JsonOps.INSTANCE, PlanetEcologyTest.lookup);
         var codec = SystemChunkGenerator.CODEC.codec();
         var pair = codec.encodeStart(ops, fixture.generator()).getOrThrow().getAsJsonObject();
-        assertTrue(pair.has("a") && pair.has("b"));
-        assertFalse(pair.has("planets"));
+        assertFalse(pair.has("a") || pair.has("b"));
+        assertEquals(2, pair.getAsJsonArray("planets").size());
         var list = codec.encodeStart(ops, three()).getOrThrow().getAsJsonObject();
         assertFalse(list.has("a") || list.has("b"));
         assertEquals(3, list.getAsJsonArray("planets").size());
@@ -378,17 +382,18 @@ class PlanetCountTest {
         assertEquals(20261003L, back.planet(2).terrain().seed());
         assertEquals(list, codec.encodeStart(ops, back).getOrThrow());
         var both = list.deepCopy();
-        both.add("a", pair.get("a"));
-        assertThrows(IllegalArgumentException.class, () -> codec.parse(ops, both));
+        both.add("a", pair.getAsJsonArray("planets").get(0));
+        assertTrue(codec.parse(ops, both).error().isPresent());
         var neither = list.deepCopy();
         neither.remove("planets");
-        assertThrows(IllegalArgumentException.class, () -> codec.parse(ops, neither));
+        assertTrue(codec.parse(ops, neither).error().isPresent());
         var one = list.deepCopy();
         one.getAsJsonArray("planets").remove(2);
         one.getAsJsonArray("planets").remove(1);
+        assertEquals(1, codec.parse(ops, one).getOrThrow().count());
+        one.getAsJsonArray("planets").remove(0);
         assertThrows(IllegalArgumentException.class, () -> codec.parse(ops, one));
-        // A list may hold any of the planet policies in any order; the named pair stays the
-        // temperate and the rocky one.
+        // A list may hold any of the planet policies in any order.
         assertEquals(
                 2,
                 new SystemChunkGenerator(PlanetStorage.LAYOUT, List.of(third(), third())).count());
@@ -434,15 +439,16 @@ class PlanetCountTest {
             }
         assertThrows(IllegalArgumentException.class, () -> two.at(2, 0));
         assertThrows(IllegalArgumentException.class, () -> three.at(3, 0));
-        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(1));
+        assertEquals(1, PlanetSystem.model(1).count());
+        assertEquals(two.at(0, 1234), PlanetSystem.model(1).at(0, 1234));
+        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(0));
         // The third planet circles the same sun a ring further out, and never comes near the first
         // two.
-        double ring = two.radius() + PlanetSystem.RING;
+        double ring = two.orbit(0).radius() + PlanetSystem.RING;
         for (long tick = 0; tick < 400000; tick += 3371) {
             var c = three.at(2, tick);
-            assertEquals(ring, c.center().sub(three.center()).length(), 1e-6);
-            assertEquals(
-                    2 * Math.PI * ring / three.more().get(0).period(), c.velocity().length(), 1e-9);
+            assertEquals(ring, c.center().sub(three.origin()).length(), 1e-6);
+            assertEquals(2 * Math.PI * ring / three.orbit(2).period(), c.velocity().length(), 1e-9);
             for (int id = 0; id < 2; id++)
                 assertTrue(
                         c.center().sub(three.at(id, tick).center()).length()
@@ -458,38 +464,24 @@ class PlanetCountTest {
         assertEquals(GroundTransit.SPACE_RADIUS, two.extent());
         assertTrue(three.drift() >= two.drift());
         assertEquals(two.turn(), three.turn());
-        assertSame(three.more().get(0).spin(), three.spin(2));
+        assertSame(three.orbit(2).spin(), three.spin(2));
     }
 
     @Test
     void aLargerModelIsSavedSentAndSpunWhole() {
         var three = PlanetSystem.model(4);
         var tag = GroundEphemerisSave.modelTag(three);
-        assertEquals(2, tag.getList("more", 10).size());
+        assertEquals(5, tag.getList("bodies", 10).size());
         assertEquals(three, GroundEphemerisSave.model(tag));
-        assertFalse(
-                GroundEphemerisSave.modelTag(PlanetSystem.model()).contains("more"),
-                "a pair is saved as it always was");
+        assertEquals(
+                3, GroundEphemerisSave.modelTag(PlanetSystem.model()).getList("bodies", 10).size());
         var spun = GroundEphemeris.spinning(three, false, 500);
         assertEquals(4, spun.count());
         assertFalse(spun.spin(3).enabled());
         assertEquals(three.at(3, 500).center(), spun.at(3, 500).center());
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        new GroundEphemeris.Model(
-                                three.center(),
-                                three.axis(),
-                                three.radial(),
-                                three.radius(),
-                                three.period(),
-                                three.phase(),
-                                three.epoch(),
-                                three.a(),
-                                three.b(),
-                                three.sun(),
-                                false,
-                                three.more()));
+                () -> new GroundEphemeris.Model(three.bodies().subList(1, three.bodies().size())));
     }
 
     @Test
@@ -624,22 +616,24 @@ class PlanetCountTest {
     void aUniverseOfSeveralSunsKeepsEachPlanetAboutItsOwnAndLightsEachPlaceByTheNearest() {
         var one = PlanetSystem.model(3);
         assertEquals(one, PlanetSystem.model(new int[] {3}));
-        assertTrue(one.stars().isEmpty());
+        assertTrue(one.everyStar().subList(1, one.everyStar().size()).isEmpty());
         assertEquals(1, one.everyStar().size());
         var m = PlanetSystem.model(new int[] {2, 2});
         assertEquals(4, m.count());
-        assertEquals(1, m.stars().size());
+        assertEquals(1, m.everyStar().subList(1, m.everyStar().size()).size());
         assertEquals(2, m.everyStar().size());
         var two = PlanetSystem.model();
         for (long tick : new long[] {0, 999, 123456})
             for (int id = 0; id < 2; id++)
                 assertEquals(two.at(id, tick).center(), m.at(id, tick).center());
-        var far = m.stars().get(0);
-        assertEquals(PlanetSystem.STAR_GAP, far.position().sub(m.sun().position()).length(), 1e-9);
+        var far = m.everyStar().subList(1, m.everyStar().size()).get(0);
+        assertEquals(
+                PlanetSystem.STAR_GAP, far.position().sub(m.primary().position()).length(), 1e-9);
         for (long tick = 0; tick < 300000; tick += 4111) {
-            assertEquals(m.radius(), m.at(2, tick).center().sub(far.position()).length(), 1e-6);
             assertEquals(
-                    m.radius() + PlanetSystem.RING,
+                    m.orbit(0).radius(), m.at(2, tick).center().sub(far.position()).length(), 1e-6);
+            assertEquals(
+                    m.orbit(0).radius() + PlanetSystem.RING,
                     m.at(3, tick).center().sub(far.position()).length(),
                     1e-6);
             for (int id = 0; id < 2; id++)
@@ -647,14 +641,18 @@ class PlanetCountTest {
                         m.everyStar().get(0).getClass(),
                         m.star(m.at(id, tick).center()).getClass());
             for (int id = 0; id < 2; id++)
-                assertEquals(m.sun().position(), m.star(m.at(id, tick).center()).position());
+                assertEquals(m.primary().position(), m.star(m.at(id, tick).center()).position());
             for (int id = 2; id < 4; id++) assertEquals(far, m.star(m.at(id, tick).center()));
         }
         assertTrue(m.extent() >= PlanetSystem.STAR_GAP + 8192);
         assertEquals(m, GroundEphemerisSave.model(GroundEphemerisSave.modelTag(m)));
         assertFalse(GroundEphemerisSave.modelTag(one).contains("stars"));
-        assertEquals(m.stars(), GroundEphemeris.spinning(m, false, 10).stars());
-        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[] {1, 3}));
+        assertEquals(
+                m.everyStar().subList(1, m.everyStar().size()),
+                GroundEphemeris.spinning(m, false, 10)
+                        .everyStar()
+                        .subList(1, m.everyStar().size()));
+        assertEquals(4, PlanetSystem.model(new int[] {1, 3}).count());
         assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[] {2, 0}));
         assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[0]));
     }
@@ -709,6 +707,30 @@ class PlanetCountTest {
         PlanetShape.system(new int[] {2048, 1024, 512}, new int[] {191, 191, 191});
         try {
             assertEquals(2, ObserverFrame.identity(2, 0).planet());
+        } finally {
+            PlanetSystem.reset();
+        }
+    }
+
+    @Test
+    void aFrameOnAPlanetBeyondTheFirst256KeepsItsPlanet() {
+        var sizes = new int[300];
+        var depths = new int[300];
+        java.util.Arrays.fill(sizes, 512);
+        java.util.Arrays.fill(depths, 191);
+        PlanetShape.system(sizes, depths);
+        try {
+            var b =
+                    new net.minecraft.network.RegistryFriendlyByteBuf(
+                            io.netty.buffer.Unpooled.buffer(),
+                            net.minecraft.core.RegistryAccess.EMPTY);
+            var sent =
+                    new dev.starfold.ground.GroundFlightPackets.Frame(
+                            ObserverFrame.identity(299, 0));
+            dev.starfold.ground.GroundFlightPackets.Frame.CODEC.encode(b, sent);
+            assertEquals(
+                    299,
+                    dev.starfold.ground.GroundFlightPackets.Frame.CODEC.decode(b).frame().planet());
         } finally {
             PlanetSystem.reset();
         }

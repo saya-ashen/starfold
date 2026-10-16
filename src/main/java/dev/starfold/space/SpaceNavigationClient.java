@@ -544,7 +544,7 @@ public final class SpaceNavigationClient {
                 frame.universeVelocity(GroundEphemeris.ZERO, model, tick)
                         .sub(model.at(planet, tick).velocity());
         var d = hullVector(hull, frame.levelVector(radial));
-        var point = pivot.add(radial.scale(Math.max(0, height - Space.IN)));
+        var point = pivot.add(radial.scale(Math.max(0, height - model.body(planet).hullIn())));
         var viewEye = SpaceClient.universeEye(context.camera().getPosition());
         var local = SpaceView.relative(frame, viewEye, point);
         var camera =
@@ -559,10 +559,10 @@ public final class SpaceNavigationClient {
                         .05,
                         .1);
         return new FlightSnapshot.Arrival(
-                Math.max(0, height - Space.IN),
+                Math.max(0, height - model.body(planet).hullIn()),
                 relative.dot(radial) * 20,
-                SpaceServer.arrivalLimit(height),
-                SpaceServer.nearLimit(height),
+                SpaceServer.arrivalLimit(model.body(planet), height),
+                SpaceServer.nearLimit(model.body(planet), height),
                 marker,
                 1 - Math.acos(Math.clamp(-d.y(), -1, 1)) / Math.PI,
                 new FlightSnapshot.Thrust(

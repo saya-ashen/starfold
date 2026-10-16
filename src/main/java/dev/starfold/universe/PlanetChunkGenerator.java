@@ -3,11 +3,9 @@ package dev.starfold.universe;
 import com.mojang.serialization.*;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.GroundTopology;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.storage.ChunkKeys;
 import dev.starfold.worldgen.PlanetBiomes;
 import dev.starfold.worldgen.PlanetGeneration;
@@ -28,8 +26,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.concurrent.CompletableFuture;
 
 /** Generates original Minecraft voxels once. Empty storage gaps are not another planet. */
-public final class PlanetChunkGenerator extends FlatLevelSource
-        implements PlanetSystem.SavedPlanet {
+public final class PlanetChunkGenerator extends FlatLevelSource {
     public static final MapCodec<PlanetChunkGenerator> CODEC =
             RecordCodecBuilder.mapCodec(
                     i ->
@@ -53,9 +50,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
                                             PlanetGeneration.CODEC
                                                     .optionalFieldOf("planet_generation")
                                                     .forGetter(g -> g.savedGeneration),
-                                            Codec.BOOL
-                                                    .optionalFieldOf("multi_planet", false)
-                                                    .forGetter(PlanetChunkGenerator::multiple),
                                             ResourceLocation.CODEC
                                                     .optionalFieldOf("planet_type_id")
                                                     .forGetter(PlanetChunkGenerator::typeId),
@@ -77,7 +71,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
                                                     version,
                                                     biomes,
                                                     generation,
-                                                    multiple,
                                                     type,
                                                     legacy,
                                                     name) -> {
@@ -92,7 +85,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
                                                         version,
                                                         biomes,
                                                         generation,
-                                                        multiple,
                                                         type,
                                                         name.isPresent() ? name : legacy);
                                             }));
@@ -115,7 +107,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
                 version(),
                 java.util.Optional.ofNullable(planetBiomes),
                 savedGeneration,
-                multiple,
                 type,
                 name);
     }
@@ -123,7 +114,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
     private final PlanetTerrain terrain;
     private final PlanetBiomes planetBiomes;
     private final java.util.Optional<PlanetGeneration> savedGeneration;
-    private final boolean multiple;
 
     public PlanetChunkGenerator(FlatLevelGeneratorSettings settings, long seed, int version) {
         this(settings, seed, version, java.util.Optional.empty());
@@ -143,23 +133,12 @@ public final class PlanetChunkGenerator extends FlatLevelSource
             int version,
             java.util.Optional<PlanetBiomes> biomes,
             java.util.Optional<PlanetGeneration> generation) {
-        this(settings, seed, version, biomes, generation, false);
-    }
-
-    public PlanetChunkGenerator(
-            FlatLevelGeneratorSettings settings,
-            long seed,
-            int version,
-            java.util.Optional<PlanetBiomes> biomes,
-            java.util.Optional<PlanetGeneration> generation,
-            boolean multiple) {
         this(
                 settings,
                 seed,
                 version,
                 biomes,
                 generation,
-                multiple,
                 java.util.Optional.empty(),
                 java.util.Optional.empty());
     }
@@ -170,16 +149,12 @@ public final class PlanetChunkGenerator extends FlatLevelSource
             int version,
             java.util.Optional<PlanetBiomes> biomes,
             java.util.Optional<PlanetGeneration> generation,
-            boolean multiple,
             java.util.Optional<ResourceLocation> typeId,
             java.util.Optional<String> displayName) {
         super(settings);
         this.typeId = java.util.Objects.requireNonNull(typeId);
         this.displayName = java.util.Objects.requireNonNull(displayName);
         displayName.ifPresent(SystemDefinition::validName);
-        if (multiple && version != 4 && version != 5)
-            throw new IllegalArgumentException("Multi-planet generator version");
-        this.multiple = multiple;
         if (version == PlanetTerrain.ROCK_VERSION && generation.isEmpty())
             throw new IllegalArgumentException("Rocky terrain requires saved generation policy");
         savedGeneration = generation;
@@ -219,19 +194,12 @@ public final class PlanetChunkGenerator extends FlatLevelSource
         return terrain.seed();
     }
 
-    @Override
     public int version() {
         return terrain.version();
     }
 
-    @Override
     public dev.starfold.planet.PlanetIdentity identity() {
         return new dev.starfold.planet.PlanetIdentity(typeId(), generation().type(), displayName());
-    }
-
-    @Override
-    public PlanetShape shape() {
-        return terrain().shape();
     }
 
     public PlanetTerrain terrain() {
@@ -240,11 +208,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
 
     public PlanetGeneration generation() {
         return terrain.generation();
-    }
-
-    @Override
-    public boolean multiple() {
-        return multiple;
     }
 
     private static final DeferredRegister<MapCodec<? extends ChunkGenerator>> GENERATORS =
@@ -257,7 +220,6 @@ public final class PlanetChunkGenerator extends FlatLevelSource
         PlanetType.initialize(modBus);
         GENERATORS.register("native_system", () -> SystemChunkGenerator.CODEC);
         BIOMES.register("native_system", () -> SystemBiomes.CODEC);
-        GENERATORS.register("native_planet", () -> CODEC);
         BIOMES.register("native_ecology", () -> PlanetBiomes.CODEC);
         GENERATORS.register(modBus);
         BIOMES.register(modBus);

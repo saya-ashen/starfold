@@ -156,8 +156,7 @@ class GroundFlightRuntimeTest {
         assertTrue(server.contains("GroundFlightServer.entry(player,level,clock)"));
         assertTrue(
                 server.indexOf("GroundFlightServer.entry(player,level,clock)")
-                        < server.indexOf(
-                                "WorldSessionSave.get(PlanetSystem.authority(level)).remember(player)"));
+                        < server.indexOf("WorldSessionSave.get(level).remember(player)"));
         assertTrue(server.contains("GroundFlightServer.enter(player,clock,saved)"));
         assertTrue(server.contains("GroundFlightServer.detach(player)"));
         assertTrue(server.contains("GroundFlightServer.restart(player,clock)"));

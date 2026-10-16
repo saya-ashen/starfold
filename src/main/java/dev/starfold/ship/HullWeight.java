@@ -1,24 +1,22 @@
 package dev.starfold.ship;
 
+import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGap;
-import dev.starfold.chart.GroundOrbit;
-import dev.starfold.chart.GroundTransit;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
+import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
-/** How much a Sable body weighs at a height over a planet: all of it up to where the far view takes over, none from
- *  where a vessel is reckoned to be in space, and evenly less between. Players keep their weight at any height: off a
- *  ship they fall to the planet, as they did before there were ships. */
+/** Hull weight fades between the body's full-weight and weightless heights. Players keep their
+ * weight at any height; space-region hulls remain weightless. */
 public final class HullWeight {
-    public static final double FULL = GroundOrbit.END, NONE = GroundTransit.ENTER;
-
-    public static double at(double height) {
-        return 1 - GroundGap.smooth(FULL, NONE, height);
+    public static double at(GroundEphemeris.Body body, double height) {
+        return 1 - GroundGap.smooth(body.weightFull(), body.weightNone(), height);
     }
 
     public static double at(Level level, Point feet) {
@@ -26,7 +24,9 @@ public final class HullWeight {
         var access = PlanetAccess.of(level);
         if (!PlanetLevels.is(level)
                 || !access.inChart(BlockPos.containing(feet.x(), feet.y(), feet.z()))) return 1;
-        return at(access.chart(feet).y());
+        var model = GroundClock.get((ServerLevel) level).clock.model;
+        int planet = access.storagePlanet(feet.x(), feet.z());
+        return at(model.body(planet), access.chart(feet).y());
     }
 
     private HullWeight() {}

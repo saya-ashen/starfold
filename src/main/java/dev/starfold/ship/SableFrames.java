@@ -18,7 +18,6 @@ import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
@@ -56,6 +55,7 @@ public final class SableFrames {
 
     public static void initialize() {
         StarfoldNetwork.playS2C(SableCarry.TYPE, SableCarry.CODEC);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(HullBottom::chunkLoaded);
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent
                                 event) -> RELIABLE.remove(event.getEntity()));
@@ -213,6 +213,35 @@ public final class SableFrames {
                 body.logicalPose(),
                 bounds.toAABB().inflate(.5),
                 new Vector3d(entity.getX(), entity.getY(), entity.getZ()));
+    }
+
+    /** Broad phase for the same inflated plot used by inside, including rotated/scaled cabins. */
+    public static net.minecraft.world.phys.AABB cabinBounds(
+            dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+        var bounds = body.getPlot().getBoundingBox();
+        return bounds == null ? null : cabinBounds(body.logicalPose(), bounds.toAABB());
+    }
+
+    static net.minecraft.world.phys.AABB cabinBounds(
+            Pose3dc pose, net.minecraft.world.phys.AABB plot) {
+        return new dev.ryanhcode.sable.companion.math.BoundingBox3d(plot.inflate(.5))
+                .transform(pose)
+                .toMojang();
+    }
+
+    /** The cabin plus the anchor-centred grace sphere; a large hull's crew need not be near its anchor. */
+    static net.minecraft.world.phys.AABB crewBounds(
+            Pose3dc pose, net.minecraft.world.phys.AABB cabin) {
+        var at = pose.position();
+        var grace =
+                new net.minecraft.world.phys.AABB(
+                        at.x() - REACH,
+                        at.y() - REACH,
+                        at.z() - REACH,
+                        at.x() + REACH,
+                        at.y() + REACH,
+                        at.z() + REACH);
+        return cabin == null ? grace : grace.minmax(cabin);
     }
 
     static boolean inside(Pose3dc pose, net.minecraft.world.phys.AABB bounds, Vector3d feet) {
@@ -377,14 +406,7 @@ public final class SableFrames {
                                 net.minecraft.core.BlockPos.containing(
                                         at.x, GroundCoordinates.FLOOR, at.z))) return;
         var box = HullLanding.bounds(body);
-        var ground =
-                HullLanding.ground(
-                        box.minX(),
-                        box.minY(),
-                        box.minZ(),
-                        box.maxX(),
-                        box.maxZ(),
-                        (x, z) -> HullLanding.column(level, x, z));
+        var ground = HullLanding.ground(body);
         double clearance = ground.clearance();
         var pipeline = container.physicsSystem().getPipeline();
         var velocity = pipeline.getLinearVelocity(body, new Vector3d());
@@ -504,12 +526,10 @@ public final class SableFrames {
         if (!access.inChart(net.minecraft.core.BlockPos.containing(at.x, at.y, at.z))) return;
         var point = access.chart(new BentStripGeometry.Point(at.x, at.y, at.z));
         var shape = access.shape(at.x, at.z);
-        if (!shape.owned(point.x(), point.z()) || !Space.leaves(point.y())) return;
+        if (!shape.owned(point.x(), point.z())) return;
         var clock = GroundClock.get(level).clock;
-        int planet =
-                access == PlanetAccess.SHARED
-                        ? access.storagePlanet(at.x, at.z)
-                        : clock.model.count() == 1 ? 0 : PlanetSystem.planet(level);
+        int planet = access.storagePlanet(at.x, at.z);
+        if (!Space.leaves(clock.model.body(planet), point.y())) return;
         var pose =
                 new PlanetShape.Pose(CubeSurfaceTopology.Face.values()[access.face(at.x)], point);
         var universe =
@@ -553,17 +573,14 @@ public final class SableFrames {
                                 clock.model,
                                 clock.tick());
         int planet = Space.nearest(clock.model, universe.position(), clock.tick());
-        var shape = access == PlanetAccess.SHARED ? PlanetShape.of(planet) : PlanetShape.STANDARD;
-        // Old saves put the other planet in another Level. Do not pretend its chart is in this one.
-        if (access == PlanetAccess.LEGACY
-                && planet != (clock.model.count() == 1 ? 0 : PlanetSystem.planet(level))) return;
+        var shape = PlanetShape.of(planet);
         double height = Space.height(clock.model, planet, shape, universe.position(), clock.tick());
-        if (!Space.enters(height)) return;
+        if (!Space.enters(clock.model.body(planet), height)) return;
         var arrival = Space.in(clock.model, planet, shape, universe, clock.tick());
         var chart = arrival.motion();
         var anchor = access.bodyAnchor(planet, arrival.pose());
         boolean full = ShipHost.get().landingLoaded(level, anchor);
-        if (!ShipHost.get().landingReady(height, full)) return;
+        if (!ShipHost.get().landingReady(clock.model.body(planet), height, full)) return;
         if (ArrivalProbe.ENABLED)
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
@@ -616,8 +633,8 @@ public final class SableFrames {
             GroundSeams.Transport seam) {
         var before = new Pose3d(body.logicalPose());
         var riders = new java.util.LinkedHashMap<net.minecraft.world.entity.Entity, Vector3d>();
-        for (var e : level.getAllEntities())
-            if (aboard(e) == body) {
+        for (var e : crew(level, body, before))
+            if (!e.isRemoved() && aboard(e) == body) {
                 riders.put(e, new Vector3d(e.getX(), e.getY(), e.getZ()));
                 for (var passenger : e.getIndirectPassengers())
                     riders.put(
@@ -708,6 +725,32 @@ public final class SableFrames {
                 if (rider instanceof ServerPlayer player) CARRYING.remove(player);
             }
         }
+    }
+
+    private static java.util.Set<net.minecraft.world.entity.Entity> crew(
+            net.minecraft.server.level.ServerLevel level,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
+            Pose3dc before) {
+        var candidates =
+                new java.util.LinkedHashSet<>(
+                        GroundSeams.entities(
+                                level,
+                                crewBounds(before, cabinBounds(body))
+                                        .inflate(level.getMaxEntityRadius())));
+        // Contact can refer to the preceding pose while a fast hull is being re-anchored.
+        var plot = body.getPlot().getBoundingBox();
+        if (plot != null)
+            candidates.addAll(
+                    GroundSeams.entities(
+                            level,
+                            cabinBounds(body.lastPose(), plot.toAABB())
+                                    .inflate(level.getMaxEntityRadius())));
+        // Known contact/grace riders survive a relabel, even before their section is updated.
+        for (var entry : ABOARD_OF.entrySet())
+            if (entry.getValue().body() == body && entry.getKey().level() == level)
+                candidates.add(entry.getKey());
+        candidates.addAll(level.players());
+        return candidates;
     }
 
     private static void logCarryOrientation(

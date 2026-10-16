@@ -1,16 +1,29 @@
 package dev.starfold.universe;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import dev.starfold.chart.GroundEphemeris;
-import dev.starfold.chart.GroundSolar;
 import dev.starfold.geometry.BentStripGeometry.Point;
 
 import org.joml.Quaterniond;
 
-/** Typed numbers survive both JSON world-preset copies and level.dat. Converting raw NBT through JSON loses 0.0's type. */
+/** One typed body spelling for JSON, NBT saves and packet model snapshots. */
 public final class SystemSkyCodec {
+    public static final int FORMAT = 5;
+    private static final Codec<Integer> VERSION =
+            Codec.INT.validate(
+                    v ->
+                            v == FORMAT
+                                    ? DataResult.success(v)
+                                    : DataResult.error(
+                                            () ->
+                                                    "Unsupported celestial format "
+                                                            + v
+                                                            + "; expected "
+                                                            + FORMAT));
     private static final Codec<Point> POINT =
             RecordCodecBuilder.create(
                     i ->
@@ -53,12 +66,20 @@ public final class SystemSkyCodec {
                                                     .fieldOf("frozen")
                                                     .forGetter(GroundEphemeris.Spin::frozen))
                                     .apply(i, GroundEphemeris.Spin::new));
-    private static final Codec<GroundEphemeris.Orbit> ORBIT =
-            RecordCodecBuilder.create(
+    private static final MapCodec<GroundEphemeris.Fixed> FIXED =
+            RecordCodecBuilder.mapCodec(
                     i ->
                             i.group(
-                                            POINT.fieldOf("center")
-                                                    .forGetter(GroundEphemeris.Orbit::center),
+                                            POINT.fieldOf("position")
+                                                    .forGetter(GroundEphemeris.Fixed::position))
+                                    .apply(i, GroundEphemeris.Fixed::new));
+    private static final MapCodec<GroundEphemeris.Orbit> ORBIT =
+            RecordCodecBuilder.mapCodec(
+                    i ->
+                            i.group(
+                                            Codec.INT
+                                                    .fieldOf("parent")
+                                                    .forGetter(GroundEphemeris.Orbit::parent),
                                             POINT.fieldOf("axis")
                                                     .forGetter(GroundEphemeris.Orbit::axis),
                                             POINT.fieldOf("radial")
@@ -78,65 +99,49 @@ public final class SystemSkyCodec {
                                             SPIN.fieldOf("spin")
                                                     .forGetter(GroundEphemeris.Orbit::spin))
                                     .apply(i, GroundEphemeris.Orbit::new));
-    private static final Codec<GroundEphemeris.Star> STAR =
+    private static final Codec<GroundEphemeris.Motion> MOTION =
+            Codec.STRING.dispatch(
+                    "type",
+                    m -> m instanceof GroundEphemeris.Fixed ? "fixed" : "orbit",
+                    type ->
+                            switch (type) {
+                                case "fixed" -> FIXED;
+                                case "orbit" -> ORBIT;
+                                default ->
+                                        throw new IllegalArgumentException(
+                                                "Unknown celestial motion " + type);
+                            });
+    public static final Codec<GroundEphemeris.Body> BODY =
             RecordCodecBuilder.create(
                     i ->
                             i.group(
-                                            POINT.fieldOf("position")
-                                                    .forGetter(GroundEphemeris.Star::position),
+                                            MOTION.fieldOf("motion")
+                                                    .forGetter(GroundEphemeris.Body::motion),
                                             Codec.DOUBLE
                                                     .fieldOf("radius")
-                                                    .forGetter(GroundEphemeris.Star::radius))
-                                    .apply(i, GroundEphemeris.Star::new));
-    private static final Codec<GroundSolar.Sun> SUN =
-            RecordCodecBuilder.create(
-                    i ->
-                            i.group(
+                                                    .forGetter(GroundEphemeris.Body::radius),
                                             Codec.BOOL
-                                                    .fieldOf("enabled")
-                                                    .forGetter(GroundSolar.Sun::enabled),
-                                            POINT.fieldOf("position")
-                                                    .forGetter(GroundSolar.Sun::position),
+                                                    .fieldOf("light")
+                                                    .forGetter(GroundEphemeris.Body::light),
+                                            Codec.INT
+                                                    .fieldOf("slot")
+                                                    .forGetter(GroundEphemeris.Body::slot),
                                             Codec.DOUBLE
-                                                    .fieldOf("radius")
-                                                    .forGetter(GroundSolar.Sun::radius))
-                                    .apply(i, GroundSolar.Sun::new));
+                                                    .fieldOf("reach")
+                                                    .forGetter(GroundEphemeris.Body::reach))
+                                    .apply(i, GroundEphemeris.Body::new));
     public static final Codec<GroundEphemeris.Model> MODEL =
             RecordCodecBuilder.create(
                     i ->
                             i.group(
-                                            POINT.fieldOf("center")
-                                                    .forGetter(GroundEphemeris.Model::center),
-                                            POINT.fieldOf("axis")
-                                                    .forGetter(GroundEphemeris.Model::axis),
-                                            POINT.fieldOf("radial")
-                                                    .forGetter(GroundEphemeris.Model::radial),
-                                            Codec.DOUBLE
-                                                    .fieldOf("radius")
-                                                    .forGetter(GroundEphemeris.Model::radius),
-                                            Codec.DOUBLE
-                                                    .fieldOf("period")
-                                                    .forGetter(GroundEphemeris.Model::period),
-                                            Codec.DOUBLE
-                                                    .fieldOf("phase")
-                                                    .forGetter(GroundEphemeris.Model::phase),
-                                            Codec.LONG
-                                                    .fieldOf("epoch")
-                                                    .forGetter(GroundEphemeris.Model::epoch),
-                                            SPIN.fieldOf("a").forGetter(GroundEphemeris.Model::a),
-                                            SPIN.fieldOf("b").forGetter(GroundEphemeris.Model::b),
-                                            SUN.fieldOf("sun")
-                                                    .forGetter(GroundEphemeris.Model::sun),
-                                            Codec.BOOL
-                                                    .fieldOf("multiple")
-                                                    .forGetter(GroundEphemeris.Model::multiple),
-                                            ORBIT.listOf()
-                                                    .fieldOf("more")
-                                                    .forGetter(GroundEphemeris.Model::more),
-                                            STAR.listOf()
-                                                    .fieldOf("stars")
-                                                    .forGetter(GroundEphemeris.Model::stars))
-                                    .apply(i, GroundEphemeris.Model::new));
+                                            VERSION.fieldOf("format").forGetter(m -> FORMAT),
+                                            BODY.listOf()
+                                                    .fieldOf("bodies")
+                                                    .forGetter(GroundEphemeris.Model::bodies))
+                                    .apply(
+                                            i,
+                                            (version, bodies) ->
+                                                    new GroundEphemeris.Model(bodies)));
 
     private SystemSkyCodec() {}
 }

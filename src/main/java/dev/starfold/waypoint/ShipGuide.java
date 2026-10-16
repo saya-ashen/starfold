@@ -3,7 +3,6 @@ package dev.starfold.waypoint;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.HelmServer;
 import dev.starfold.ship.HullLanding;
@@ -84,14 +83,7 @@ public final class ShipGuide {
             return;
         }
         var box = HullLanding.bounds(body);
-        double clearance =
-                HullLanding.clearance(
-                        box.minX(),
-                        box.minY(),
-                        box.minZ(),
-                        box.maxX(),
-                        box.maxZ(),
-                        (x, z) -> HullLanding.surface(level, x, z));
+        double clearance = HullLanding.ground(body).clearance();
         var pipeline =
                 dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level)
                         .physicsSystem()
@@ -101,10 +93,7 @@ public final class ShipGuide {
                         + pipeline.getAngularVelocity(body, new Vector3d()).length()
                                 * Math.max(box.maxX() - box.minX(), box.maxZ() - box.minZ());
         state.settled = settled(state.settled, clearance, speed);
-        int planet =
-                access == PlanetAccess.SHARED
-                        ? access.storagePlanet(at.x, at.z)
-                        : PlanetSystem.planet(level);
+        int planet = access.storagePlanet(at.x, at.z);
         if (state.settled >= 20) {
             // The same grounded launch bookmark used by navigation; a parked hull alone is not
             // lift-off.

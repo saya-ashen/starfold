@@ -1,0 +1,20 @@
+# Supplemental orbital looks, not surface or travel acceptance.
+# Requires server JAVA_TOOL_OPTIONS: -Dstarfold.helmProbe=true -Dstarfold.packProbe=true.
+waitworld
+wait 300
+cmd gamemode creative
+cmd packprobe descent 0 4
+wait 1200
+nav home-orbit-remote-ready
+skylook 2
+wait 20
+shot M1-home-orbit-moon
+cmd packprobe visit 2 3
+wait 200
+cmd packprobe descent 2 3
+wait 2000
+nav moon-orbit-remote-ready
+skylook 0
+wait 20
+shot M1-moon-orbit-home
+quit

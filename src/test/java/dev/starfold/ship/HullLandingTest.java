@@ -7,6 +7,16 @@ import dev.starfold.Sources;
 import org.junit.jupiter.api.Test;
 
 class HullLandingTest {
+    private static HullLanding.Ground ground(double x, double y, double z, double maxX, double maxZ,
+            HullLanding.SurfaceColumn column) {
+        return HullBottom.measure(java.util.List.of(new net.minecraft.world.phys.AABB(x, y, z, maxX, y + 1, maxZ)),
+                v -> v, column);
+    }
+
+    private static double clearance(double x, double y, double z, double maxX, double maxZ,
+            java.util.function.ToDoubleBiFunction<Integer, Integer> column) {
+        return ground(x, y, z, maxX, maxZ, (a, b) -> new HullLanding.Surface(column.applyAsDouble(a, b), false)).clearance();
+    }
     @Test
     void fluidStopsDownwardMotionWithoutLifting() {
         for (double h : new double[] {-100, -.01, 0})
@@ -22,14 +32,14 @@ class HullLandingTest {
     void highestSurfaceCarriesItsMaterial() {
         assertEquals(
                 new HullLanding.Ground(-1, true),
-                HullLanding.ground(0, 19, 0, 10, 10, (x, z) -> new HullLanding.Surface(20, true)));
+                ground(0, 19, 0, 10, 10, (x, z) -> new HullLanding.Surface(20, true)));
         assertEquals(
                 new HullLanding.Ground(-1, false),
-                HullLanding.ground(
+                ground(
                         0, 19, 0, 10, 10, (x, z) -> new HullLanding.Surface(20, x != 5 || z != 5)));
         assertEquals(
                 new HullLanding.Ground(1, true),
-                HullLanding.ground(
+                ground(
                         0,
                         21,
                         0,
@@ -38,7 +48,7 @@ class HullLandingTest {
                         (x, z) -> new HullLanding.Surface(x == 5 ? 20 : 18, x == 5)));
         assertTrue(
                 Double.isNaN(
-                        HullLanding.ground(
+                        ground(
                                         0,
                                         20,
                                         0,
@@ -106,10 +116,10 @@ class HullLandingTest {
     }
 
     @Test
-    void ninePointsUseHighestKnownSurface() {
+    void realBottomCoversEveryIntersectedColumnNotOnlyNineSamples() {
         var points = new java.util.HashSet<String>();
         double h =
-                HullLanding.clearance(
+                clearance(
                         0,
                         40,
                         0,
@@ -119,19 +129,19 @@ class HullLandingTest {
                             points.add(x + "," + z);
                             return x == 9 && z == 4 ? 30 : x == 0 ? Double.NaN : 20;
                         });
-        assertEquals(20, h);
-        assertEquals(9, points.size());
+        assertEquals(10, h);
+        assertEquals(100, points.size());
         assertTrue(points.contains("9,5"));
         assertEquals(
-                10, HullLanding.clearance(0, 40, 0, 10, 10, (x, z) -> x == 9 && z == 5 ? 30 : 20));
+                10, clearance(0, 40, 0, 10, 10, (x, z) -> x == 9 && z == 5 ? 30 : 20));
     }
 
     @Test
     void unknownFootprintAndNegativeCoordinates() {
-        assertTrue(Double.isNaN(HullLanding.clearance(-10, 40, -10, 0, 0, (x, z) -> Double.NaN)));
+        assertTrue(Double.isNaN(clearance(-10, 40, -10, 0, 0, (x, z) -> Double.NaN)));
         assertEquals(
                 8,
-                HullLanding.clearance(
+                clearance(
                         -10,
                         40,
                         -10,

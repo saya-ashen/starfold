@@ -1,9 +1,11 @@
 package dev.starfold.dev;
 
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.render.GroundClient;
 import dev.starfold.ship.Airstair;
 import dev.starfold.ship.HelmClient;
 import dev.starfold.ship.HelmInputClient;
+import dev.starfold.ship.HullLanding;
 import dev.starfold.ship.HullLandingClient;
 import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceClient;
@@ -33,7 +35,7 @@ final class DevTripProbe {
         double clearance = HullLandingClient.clearance();
         resting =
                 Double.isFinite(clearance)
-                                && clearance <= 1
+                                && clearance <= dev.starfold.ship.LiftControl.CONTACT
                                 && Math.abs(HullLandingClient.vertical()) < .3
                                 && HullLandingClient.horizontal() < .3
                         ? resting + 1
@@ -56,9 +58,22 @@ final class DevTripProbe {
                                                         && s.length > 0
                                                         && s.visual >= 1);
         var frame = SpaceClient.frame();
+        int loaded = 0, chunks = 0;
+        if (body != null && HullLandingClient.active()) {
+            var box = HullLanding.bounds(body);
+            for (int x = (int) Math.floor(box.minX()) >> 4;
+                    x <= (int) Math.floor(Math.nextDown(box.maxX())) >> 4;
+                    x++)
+                for (int z = (int) Math.floor(box.minZ()) >> 4;
+                        z <= (int) Math.floor(Math.nextDown(box.maxZ())) >> 4;
+                        z++) {
+                    chunks++;
+                    if (mc.level.getChunkSource().hasChunk(x, z)) loaded++;
+                }
+        }
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                 .info(
-                        "PROBE TRIP {} tick {} sky {} partial {} space {} phase {} locked {} helm {} chart {} planet {} clearance {} vertical {} horizontal {} stair {} resting {} drift {} orientation {} site {}",
+                        "PROBE TRIP {} tick {} sky {} partial {} space {} phase {} locked {} helm {} chart {} planet {} height {} chunks {}/{} clearance {} vertical {} horizontal {} stair {} resting {} drift {} orientation {} site {}",
                         label,
                         mc.level.getGameTime(),
                         SpaceClient.time(),
@@ -69,6 +84,11 @@ final class DevTripProbe {
                         pilot,
                         !SpaceClient.active() && !Space.holds(mc.player.getX(), mc.player.getZ()),
                         GroundClient.frame().planet(),
+                        body == null || SpaceClient.active()
+                                ? Double.NaN
+                                : body.logicalPose().position().y() - GroundCoordinates.FLOOR,
+                        loaded,
+                        chunks,
                         HullLandingClient.clearance(),
                         HullLandingClient.vertical(),
                         HullLandingClient.horizontal(),

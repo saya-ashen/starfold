@@ -225,6 +225,9 @@ class SpacePlayerTest {
                                 "absorbLeadImpulse",
                                 "subtractEntityImpulse",
                                 "dragFrame",
+                                "coastLead",
+                                "dragFactor",
+                                "relabelTurn",
                                 "shiftRegion"));
         for (String name :
                 new String[] {
@@ -238,7 +241,7 @@ class SpacePlayerTest {
                     "nearer",
                     "toward",
                     "gain",
-                    "dragged",
+                    "coastFrame",
                     "getUniversalDrag",
                     "setDirty",
                     "addLinearAndAngularVelocity",
@@ -252,8 +255,9 @@ class SpacePlayerTest {
                 }) assertTrue(step.contains(name), name);
         before(step, "gain", "addLinearAndAngularVelocity");
         before(step, "gain", "setDeltaMovement");
-        before(step, "setDeltaMovement", "dragged");
-        before(step, "dragged", "toward");
+        before(step, "setDeltaMovement", "coastFrame");
+        before(step, "coastFrame", "toward");
+        assertTrue(Sources.text("ShipParking").contains("return frame.dragged(factor,tick)"));
         assertFalse(step.contains("velocityShift"));
         before(step, "anchor", "shifted");
         assertTrue(step.lastIndexOf("shifted") < step.lastIndexOf("move"));
@@ -308,7 +312,7 @@ class SpacePlayerTest {
     void regionIdentityLeavesPacketDirectionsAndSablePoseExactlyAlone() {
         var frame = ObserverFrame.identity(0, 0);
         var at = new Point(Space.X + 12.5, Space.Y + 3, Space.Z - 5.5);
-        for (var access : new PlanetAccess[] {PlanetAccess.SHARED, PlanetAccess.LEGACY}) {
+        for (var access : new PlanetAccess[] {PlanetAccess.SHARED}) {
             int turns = PacketMap.turns(access, frame, at.x(), at.y(), at.z());
             assertEquals(0, turns);
             assertEquals(at, frame.toClient(at));
@@ -452,7 +456,7 @@ class SpacePlayerTest {
                     "LevelTickEvent.Pre",
                     "instanceof net.minecraft.world.entity.LivingEntity living",
                     "Attributes.GRAVITY",
-                    "in(entity)&&!weighted(entity)",
+                    "in(entity)&&!weighted(entity,cabins)",
                     "getTrackingSubLevel(entity)!=null",
                     "SableFrames.inside(body,entity)",
                     "space_weightless",

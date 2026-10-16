@@ -2,7 +2,6 @@ package dev.starfold.mixin;
 
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundDaylight;
 
 import net.minecraft.core.BlockPos;
@@ -21,7 +20,6 @@ public abstract class GroundSunBurnMixin {
         var mob = (Mob) (Object) this;
         if (!(mob.level() instanceof ServerLevel level)
                 || !PlanetLevels.is(level)
-                || !PlanetSystem.shared(level)
                 || !PlanetAccess.of(level).inChart(mob.blockPosition())) return;
         var eyes = BlockPos.containing(mob.getX(), mob.getEyeY(), mob.getZ());
         // As vanilla has it at full daylight: a chance of one in twenty-five each tick, dry and

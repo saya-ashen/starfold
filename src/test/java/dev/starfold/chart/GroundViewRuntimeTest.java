@@ -171,9 +171,8 @@ class GroundViewRuntimeTest {
         assertTrue(server.contains("GroundChunkSnapshot.capture("));
         assertTrue(server.contains("packet.session()!=GroundFlightServer.session(p)"));
         assertFalse(server.contains("setBlock("));
-        assertTrue(
-                server.contains(
-                        "chunk==null&&!PlanetSystem.shared(level)&&keys.get((int)tile.key())"));
+        assertTrue(server.contains("if(chunk==null)continue"));
+        assertFalse(server.contains("level.getChunk("));
         assertTrue(client.contains("cache.accept(packet.chunk())"));
         assertTrue(client.contains("cache.refill(packet.chunk())"));
         assertTrue(client.contains("known") || client.contains("cache.version(key)"));

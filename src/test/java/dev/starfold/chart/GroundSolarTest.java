@@ -29,24 +29,24 @@ class GroundSolarTest {
     @Test
     void oneActivePlanetOrbitsOneFixedSunWithoutAnyGravity() {
         assertEquals(1, model.count());
-        assertTrue(model.sun().enabled());
-        assertEquals(model.center(), model.sun().position());
-        assertEquals(512, model.sun().radius());
+        assertTrue(model.bodies().stream().anyMatch(GroundEphemeris.Body::light));
+        assertEquals(model.origin(), model.primary().position());
+        assertEquals(512, model.primary().radius());
         for (double t : new double[] {0, 6000, 12000, 24000, 99999999})
             assertEquals(
-                    model.radius(),
-                    model.at(0, t).center().sub(model.sun().position()).length(),
+                    model.orbit(0).radius(),
+                    model.at(0, t).center().sub(model.primary().position()).length(),
                     1e-7);
-        assertEquals(48000, model.a().period());
+        assertEquals(48000, model.spin(0).period());
     }
 
     @Test
     void newSavesAreSolarAndRoundTripSunAxisPhaseClock() {
         var s = GroundEphemerisSave.fresh(false);
-        assertTrue(s.model.sun().enabled());
+        assertTrue(s.model.bodies().stream().anyMatch(GroundEphemeris.Body::light));
         for (int i = 0; i < 300; i++) s.advance();
         var tag = s.save(new CompoundTag(), null);
-        assertEquals(3, tag.getInt("format"));
+        assertEquals(5, tag.getInt("format"));
         var copy = GroundEphemerisSave.load(tag, null);
         assertEquals(s.model, copy.model);
         assertEquals(s.tick(), copy.tick());
@@ -58,11 +58,19 @@ class GroundSolarTest {
     void sunDataRejectsNonfiniteMissingAndOverlappingParameters() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new GroundSolar.Sun(true, new Point(Double.NaN, 0, 0), 512));
+                () ->
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Fixed(new Point(Double.NaN, 0, 0)),
+                                512,
+                                true,
+                                -1));
         assertThrows(
-                IllegalArgumentException.class, () -> new GroundSolar.Sun(true, model.center(), 0));
+                IllegalArgumentException.class,
+                () ->
+                        new GroundEphemeris.Body(
+                                new GroundEphemeris.Fixed(model.origin()), 0, true, -1));
         var t = GroundEphemerisSave.fresh(false).save(new CompoundTag(), null);
-        t.getCompound("motion").remove("sun");
+        t.getCompound("motion").remove("bodies");
         assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(t, null));
     }
 

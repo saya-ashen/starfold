@@ -49,6 +49,17 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(len(module.verdict(fixture())), 9)
         self.assertTrue(all(row[1] for row in module.verdict(fixture())))
 
+    def test_moon_uses_the_same_gates_for_appended_slot_two(self):
+        moon = fixture().replace("planet 4", "planet 2").replace("locked 4", "locked 2")
+        self.assertTrue(all(row[1] for row in module.verdict(moon, target=2)))
+        self.assertFalse(all(row[1] for row in module.verdict(moon)))
+        for old, new, stage in (("LOCK s-lock locked 2", "LOCK s-lock locked 0", "aim and lock"),
+                                ("planet 2", "planet 0", "hand-over and helm"),
+                                ("clearance 59", "clearance NaN", "descent")):
+            with self.subTest(stage=stage):
+                results = module.verdict(moon.replace(old, new), target=2)
+                self.assertFalse(next(row[1] for row in results if row[0] == stage))
+
     def test_quit_is_not_acceptance(self):
         self.assertTrue(any(not row[1] and not row[2] for row in module.verdict(
             "PROBE COMPLETE | line 1 of 1\n[CHAT] CP_PROBE_SERVER_ACK")))

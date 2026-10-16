@@ -1,0 +1,40 @@
+# B before: fresh experience world, real departure, sleep and advance while absent.
+# Reuse exactly this world for ship-space-restart-after.txt; dev.sh stops the server orderly.
+strict
+waitworld
+wait 300
+cmd gamemode creative
+cmd scoreboard objectives add s5_ok dummy
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+press 32 1
+until region 6000
+press 32 0
+wait 40
+press 82 1
+wait 2
+press 82 0
+wait 20
+requirenohelm
+wait 2400
+cmd save-all flush
+cmd starfold shipprobe "0:0" remove world-items
+cmd starfold shipprobe "0:0" away
+wait 40
+cmd starfold shipprobe "0:0" leases off
+wait 600
+cmd save-all flush
+cmd starfold shipprobe "0:0" inspect
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert dormant
+check space-before-dormant if score @s s5_ok matches 1
+cmd execute store result score @s s5_ok run starfold shipprobe "0:0" assert checkpoint
+check space-before-checkpoint if score @s s5_ok matches 1
+cmd starfold shipprobe "0:0" clock quarter
+cmd save-all flush
+shot ship-space-restart-before
+quit

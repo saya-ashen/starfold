@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.starfold.Sources;
 import dev.starfold.flight.HudLayout;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.sky.Space;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,14 +21,15 @@ class ArrivalLandingHudTest {
 
     @Test
     void displayedArrivalCapsAreTheActualServerCaps() {
-        for (double height : new double[] {0, Space.IN, 2200, 5000, 10000}) {
+        var body = dev.starfold.chart.GroundSolar.defaults().body(0);
+        for (double height : new double[] {0, 1536, 2200, 5000, 10000}) {
             var toward = new Point(1, 0, 0);
             var velocity = new Point(10000, 0, 0);
-            var result = SpaceServer.arrival(velocity, toward, velocity, height);
-            assertEquals(SpaceServer.arrivalLimit(height), result.x() * 20, 1e-8);
+            var result = SpaceServer.arrival(body, velocity, toward, velocity, height);
+            assertEquals(SpaceServer.arrivalLimit(body, height), result.x() * 20, 1e-8);
             var tangent = new Point(0, 10000, 0);
-            var near = SpaceServer.near(tangent, toward, tangent, height);
-            assertEquals(SpaceServer.nearLimit(height), near.y() * 20, 1e-8);
+            var near = SpaceServer.near(body, tangent, toward, tangent, height);
+            assertEquals(SpaceServer.nearLimit(body, height), near.y() * 20, 1e-8);
         }
     }
 

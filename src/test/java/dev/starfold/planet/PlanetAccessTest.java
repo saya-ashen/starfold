@@ -57,15 +57,13 @@ class PlanetAccessTest {
     }
 
     @Test
-    void legacyLayoutDoesNotReinterpretBAddresses() {
+    void storageAddressesIdentifyBWithoutChangingLocalTopology() {
         var b = new BlockPos(32768 + 1024, 128, 1024);
-        assertFalse(PlanetAccess.LEGACY.inChart(b));
         assertTrue(PlanetAccess.SHARED.inChart(b));
         assertThrows(IllegalArgumentException.class, () -> GroundTopology.address(b));
-        assertThrows(IllegalArgumentException.class, () -> PlanetAccess.LEGACY.address(b));
-        assertEquals(0, PlanetAccess.LEGACY.storagePlanet(b));
+        assertEquals(b, PlanetAccess.SHARED.address(b).owner());
         assertEquals(1, PlanetAccess.SHARED.storagePlanet(b));
-        assertEquals(PlanetAccess.LEGACY, PlanetAccess.of(null));
+        assertSame(PlanetAccess.SHARED, PlanetAccess.of(null));
     }
 
     @Test
@@ -165,7 +163,7 @@ class PlanetAccessTest {
             for (var g : Face.values()) {
                 var observer = GroundCoordinates.origin(f.ordinal()).add(new Point(1000, 20, 1000));
                 var target = GroundCoordinates.origin(g.ordinal()).add(new Point(3, 20, 900));
-                var a = PlanetAccess.LEGACY.image(observer.x(), observer.z(), target);
+                var a = access.image(observer.x(), observer.z(), target);
                 var b =
                         access.image(
                                 observer.x() + 32768,

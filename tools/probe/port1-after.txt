@@ -22,14 +22,6 @@ shot port1-after-home-orbit
 wait 100
 shot port1-after-home-repeat
 port audit
-port legacy true
-wait 500
-shot port1-home-legacy
-wait 100
-shot port1-home-legacy-repeat
-port legacy false
-wait 500
-shot port1-home-new-again
 port hold false
 port sky live
 cmd packprobe visit 1

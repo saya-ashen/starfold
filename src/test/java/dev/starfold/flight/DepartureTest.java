@@ -23,24 +23,22 @@ class DepartureTest {
     void pointingThroughDepartureDoesNotStartNotice() {
         var s = depart();
         for (int i = 0; i < 140; i++) {
-            s = step(s, Space.OUT, false);
+            s = step(s, 2048, false);
             assertEquals(ArrivalState.Phase.CRUISE, s.phase());
         }
     }
 
     @Test
     void backstopStillFires() {
-        assertTrue(step(depart(), Space.IN + 299, true).latched());
+        assertTrue(step(depart(), 1536 + 299, true).latched());
     }
 
     @Test
     void explicitDepartureLockRestoresNormalRule() {
         assertEquals(
-                ArrivalState.Phase.NOTICE,
-                step(depart().lock(1, "ship"), Space.OUT, false).phase());
+                ArrivalState.Phase.NOTICE, step(depart().lock(1, "ship"), 2048, false).phase());
         assertEquals(
-                ArrivalState.Phase.CRUISE,
-                step(depart().lock(0, "ship"), Space.OUT, false).phase());
+                ArrivalState.Phase.CRUISE, step(depart().lock(0, "ship"), 2048, false).phase());
     }
 
     @Test
@@ -65,7 +63,7 @@ class DepartureTest {
     void neitherSixtySecondsNorClimbingBeyondOldGraceEndsSuppression() {
         var s = depart();
         for (int i = 0; i < 2400; i++) {
-            s = step(s, i < 1200 ? 2500 : Space.OUT + 1500 + 10000, false);
+            s = step(s, i < 1200 ? 2500 : 2048 + 1500 + 10000, false);
             assertEquals(ArrivalState.Phase.CRUISE, s.phase());
             assertEquals(depart().departure(), s.departure());
         }
@@ -86,7 +84,7 @@ class DepartureTest {
                 s.step(2, "ship", 2500, 300, true, false, false, false, true, -1).phase());
         for (int planet : new int[] {1, 2})
             assertTrue(
-                    s.step(planet, "ship", Space.IN + 299, 0, true, true, false, false, true, 3)
+                    s.step(planet, "ship", 1536 + 299, 0, true, true, false, false, true, 3)
                             .latched());
         assertEquals(
                 ArrivalState.Phase.NOTICE,
@@ -97,9 +95,9 @@ class DepartureTest {
 
     @Test
     void lockChangeDoesNotBreakExistingLatch() {
-        var s = depart().step(2, "ship", Space.IN + 299, 0, false, true, false, false, true, -1);
+        var s = depart().step(2, "ship", 1536 + 299, 0, false, true, false, false, true, -1);
         for (int i = 0; i < 100; i++)
-            s = s.step(2, "ship", Space.IN + 299, 0, false, false, false, false, true, 3);
+            s = s.step(2, "ship", 1536 + 299, 0, false, false, false, false, true, 3);
         assertTrue(s.latched());
         assertEquals(depart().departure(), s.departure());
     }
@@ -110,10 +108,10 @@ class DepartureTest {
         var field = SpaceServer.class.getDeclaredField("arrivalState");
         field.setAccessible(true);
         var s = depart();
-        for (int i = 0; i < 1300; i++) s = step(s, Space.OUT + 2000, false);
+        for (int i = 0; i < 1300; i++) s = step(s, 2048 + 2000, false);
         for (var state :
                 new ArrivalState[] {
-                    s, s.step(2, "ship", Space.IN + 299, 0, false, true, false, false, true)
+                    s, s.step(2, "ship", 1536 + 299, 0, false, true, false, false, true)
                 }) {
             field.set(server, state);
             var tag = server.save(new net.minecraft.nbt.CompoundTag(), null);
