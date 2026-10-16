@@ -6,45 +6,41 @@ What is planned beyond the current release, and how far each item has been thoug
 promise or a date. An item marked *decided* has an agreed direction; *idea* means it was discussed and judged
 workable on paper; *unknown* names a question that has to be answered before the item can be built.
 
-## In progress: making the code easier to work in
+## Done in 0.2.0
 
-The code is being reorganised on the branch `refactor`, with no change in behaviour: packages by subsystem, one
-formatting style, and dependencies that point one way. The aim is that no package depends on a package above it;
-small cycles inside one package are accepted. What is left is the server runtime, where ground, personal flight,
-ships and the space region call each other directly. The plan for it:
+- **The code is easier to work in.** Packages by subsystem, one formatting style, and dependencies that point one
+  way: geometry, chart, planet, sky, worldgen, universe, ground, flight, ship, space, then waypoint, render and dev,
+  with the wiring on top. A lower layer asks the layers above it only through a host interface that the wiring
+  installs. The only references left that point up are a few into mixins and one from sky into universe.
+- **The first part of the body model.** Suns, planets and moons are one kind of body: a motion (fixed, or an orbit
+  about another body), a radius, whether it gives light, and a reach for gravity, hand-over and hull weight. The
+  fixed pair of home planets is gone, a system may hold a single planet, and every body of a world is in one level.
+- **Moons**, defined in datapacks, with full surfaces, and other bodies drawn in the sky seen from the ground.
+- **Ships nobody pilots in space** coast to a stop and then hold their place relative to the nearest body, also
+  across saving and reloading.
 
-- One record for each player of which frame they are in and who owns it (on foot on a planet, in personal flight,
-  aboard a hull, in the space region), kept low and read by everyone, in place of asking each subsystem.
-- Lower layers announce what happened; the wiring class connects whoever listens.
-- Order from the bottom up: geometry, chart, planet, sky, worldgen, universe, ground, flight, ship, space, then
-  waypoint, render and dev, with the wiring on top. The space region knows ships; ships do not know space.
-
-## Next: one model for every body *(decided)*
-
-Today a sun is a position with a radius, a planet is an orbit with storage and generation, and a ship is a physics
-body that the celestial model does not know. The first two planets of a system are written as a fixed pair.
+## Next: finish the body model *(decided)*
 
 Planned is one body type built from parts:
 
-| Part | Holds | Present |
-|---|---|---|
-| Identity | region and index, name, kind | always |
-| Motion | fixed, an orbit about another body, or driven by physics | always, one of the three |
-| Extent | radius, strength and range of gravity, the heights at which a ship is handed over | always |
-| Appearance | how it is drawn from afar | always |
-| Surface | real chunks: storage, shape, generation | optional |
-| Behaviours | giving light, a hazard zone, a satellite's function | optional |
+| Part | Holds | Present | State |
+|---|---|---|---|
+| Identity | region and index, name, kind | always | open: a body is still one number for the whole universe |
+| Motion | fixed, an orbit about another body, or driven by physics | always, one of the three | fixed and orbit done; physics open |
+| Extent | radius, strength and range of gravity, the heights at which a ship is handed over | always | done |
+| Appearance | how it is drawn from afar | always | open |
+| Surface | real chunks: storage, shape, generation | optional | done |
+| Behaviours | giving light, a hazard zone, a satellite's function | optional | light done |
 
 Kinds are combinations: a sun is fixed and gives light; a planet orbits a sun and has a surface; a moon orbits a
-planet; a gas planet has no surface; a ship is driven by physics and carries its blocks in a hull.
+planet; a gas planet has no surface; a ship is driven by physics and carries its blocks in a hull. Ships are not
+bodies yet: they are kept as records of their own.
 
 - A body's identity is its region and its index in it, not one number for the whole universe, so that regions can
   later be separated.
-- The fixed pair of home planets goes away with it.
 
 ## Built on the body model
 
-- **Moons.** Needs an orbit whose centre is another body. *(idea)*
 - **Space stations as one-faced bodies.** A station is a body with a single flat face and no terrain. It has
   chunks of its own, is reached and landed on like a planet, and exists whether or not a ship is near. It circles
   a planet and keeps the same side towards it; gravity on it points at that planet, so the planet is underfoot and
@@ -59,12 +55,13 @@ planet; a gas planet has no surface; a ship is driven by physics and carries its
   satellite does comes later; navigation, mapping and relaying were named. *(idea)*
 - **Ships that stay.** A ship with nobody near becomes a record with an identity and a place, so that it can be
   left and found again and several ships can be apart at once. This also lifts today's limit of one lead ship in the
-  space region. *(idea)* *Unknown:* how Sable keeps and restores a hull nobody is near.
+  space region. *(idea)* Built so far, behind a development switch and off in releases: a hull in space is
+  recorded with its place relative to its body when it unloads and loaded there again. In the release tests waking
+  it at its current place failed, so it stays off until that is understood.
 - **Gravity with a range.** Each body pulls within a distance and not beyond it; only the nearest body counts.
-  Ship weight already fades with height above a planet and is zero in space, with heights that are global constants;
-  they become properties of the body and reach into the space region. A ship nobody pilots stays where it is
-  relative to the nearest body and turns with it. *(decided)* The work is in the feel: arrival and hovering have to
-  be retuned by flying.
+  *(decided)* The reach is now a property of the body and sets hand-over and hull weight, and a ship nobody pilots
+  holds still relative to the nearest body. Left: gravity in the space region itself, and retuning arrival and
+  hovering by flying.
 
 ## Far ahead: large multiplayer *(idea, nothing is to be built for it now)*
 
