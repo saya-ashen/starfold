@@ -413,6 +413,7 @@ public final class StarfoldServer {
                     GroundServer.clear();
                     GroundTickets.clear();
                     ImageStream.clear();
+                    ChunkTickReadiness.clear();
                     AnomalyZone.clear();
                 });
     }
@@ -464,6 +465,7 @@ public final class StarfoldServer {
                         var saved = GroundClock.get(level);
                         GroundFlightServer.tick(level, saved);
                         ImageStream.tick(level);
+                        ChunkTickReadiness.postProcessHeld(level);
                         GroundViewServer.tick(level, saved);
                         AnomalyZone.tick(level);
                         DevShipPersistenceProbe.tick(level);

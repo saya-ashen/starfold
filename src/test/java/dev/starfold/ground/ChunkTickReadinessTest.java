@@ -150,6 +150,51 @@ class ChunkTickReadinessTest {
     }
 
     @Test
+    void heldPostProcessingRunsOnceWhenReadyAndIsDroppedWhenUnloaded() {
+        var held = new LinkedHashMap<Long, String>();
+        held.put(1L, "ready");
+        held.put(2L, "waiting");
+        held.put(3L, "unloaded");
+        held.put(4L, "ready later");
+        var ran = new ArrayList<String>();
+        var readyNow = new HashSet<>(Set.of(1L, 3L));
+        ChunkTickReadiness.release(
+                held,
+                (pos, chunk) -> pos != 3L,
+                pos -> {
+                    // A chunk runs only after every due entry has left the map.
+                    assertFalse(ran.size() > 0);
+                    return readyNow.contains(pos);
+                },
+                chunk -> {
+                    assertFalse(held.containsValue(chunk));
+                    ran.add(chunk);
+                });
+        assertEquals(List.of("ready"), ran);
+        assertEquals(List.of(2L, 4L), List.copyOf(held.keySet()));
+        readyNow.add(4L);
+        ChunkTickReadiness.release(held, (pos, chunk) -> true, readyNow::contains, ran::add);
+        assertEquals(List.of("ready", "ready later"), ran);
+        assertEquals(List.of(2L), List.copyOf(held.keySet()));
+    }
+
+    @Test
+    void postProcessingOfASeamChunkWaitsBehindTheSameRule() throws Exception {
+        var mixin = Sources.text("GroundPostProcessMixin");
+        assertTrue(
+                mixin.contains(
+                        "method=\"postProcessGeneration\",at=@At(\"HEAD\"),cancellable=true"));
+        assertTrue(
+                mixin.contains(
+                        "if(ChunkTickReadiness.holdPostProcess((LevelChunk)(Object)this))ci.cancel();"));
+        var readiness = Sources.text("ChunkTickReadiness");
+        assertTrue(readiness.contains("if(ready(level,pos))returnfalse;"));
+        assertTrue(
+                Sources.text("StarfoldServer")
+                        .contains("ChunkTickReadiness.postProcessHeld(level);"));
+    }
+
+    @Test
     void faceAndPlanetKeyOffsetsDoNotChangeTheRule() {
         for (int planet = 0; planet < 4; planet++)
             for (int face = 0; face < 6; face++) {
