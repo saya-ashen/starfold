@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import dev.ryanhcode.sable.Sable;
 import dev.starfold.ship.HelmClient;
-import dev.starfold.ship.HelmInputClient;
 import dev.starfold.ship.HullLanding;
 
 import net.minecraft.client.Minecraft;
@@ -16,7 +15,6 @@ import java.util.ArrayList;
 /** The moving universe in a camera-local shell, not hull exhaust or a HUD layer. */
 public final class SpaceDustClient {
     static final double DUST_MIN = SpaceDust.MIN_SPEED,
-            CRUISE_BOOST = SpaceDust.BOOST_SPEED,
             AHEAD_TICKS = 1.5,
             DEPTH_TICKS = 1,
             CONE = .45;
@@ -78,9 +76,8 @@ public final class SpaceDustClient {
             return;
         }
         motes.removeIf(p -> !p.isAlive());
-        var flight = HelmInputClient.state(HelmClient.body().getUniqueId());
         budget +=
-                SpaceDust.rate(speed, flight == null ? SpaceDust.BOOST_SPEED : flight.boostCap())
+                SpaceDust.rate(speed)
                         * (mc.options.particles().get() == ParticleStatus.DECREASED ? .5 : 1);
         var velocity = new Vector3d(drift.x(), drift.y(), drift.z());
         var forward = new Vector3d(velocity).normalize();

@@ -6,7 +6,10 @@ import org.lwjgl.opengl.GL20;
 
 /** Write through the shader's managed value before uploading. Veil discovers uniforms not in
  * the JSON and uploads them on apply; raw glUniform alone leaves its CPU copy at zero.
- * The raw path is for unregistered uniforms in vanilla, with program-scoped locations. */
+ * The raw path is for unregistered uniforms in vanilla, with program-scoped locations.
+ * Call only after ShaderInstance.apply has bound this shader (our apply wrapper does this).
+ * For pre-draw preparation use getUniform().set instead: selecting a RenderSystem shader
+ * does not bind a GL program, and drawWithShader clears the binding after each draw. */
 public final class ShaderUniforms {
     private static final ProgramUniformCache<ShaderInstance> LOCATIONS =
             new ProgramUniformCache<>();

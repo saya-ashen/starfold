@@ -1,5 +1,7 @@
 package dev.starfold.ship;
 
+import dev.starfold.space.SpacePackets;
+
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.util.SableBufferUtils;
 import dev.starfold.chart.GroundEphemeris;

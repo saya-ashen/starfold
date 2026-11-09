@@ -1,0 +1,6 @@
+{
+  "parent": "starfold:block/gas_scoop",
+  "display": {
+    "gui": {"rotation": [25, 225, 0], "scale": [0.65, 0.65, 0.65]}
+  }
+}

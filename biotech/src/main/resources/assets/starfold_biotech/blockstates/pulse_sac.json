@@ -1,0 +1,21 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "starfold_biotech:block/pulse_sac"
+      },
+      {
+        "model": "starfold_biotech:block/pulse_sac",
+        "y": 90
+      },
+      {
+        "model": "starfold_biotech:block/pulse_sac",
+        "y": 180
+      },
+      {
+        "model": "starfold_biotech:block/pulse_sac",
+        "y": 270
+      }
+    ]
+  }
+}

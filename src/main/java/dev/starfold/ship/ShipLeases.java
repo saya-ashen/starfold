@@ -19,16 +19,17 @@ public final class ShipLeases {
     public record Input(UUID ship, Set<Long> footprint, Set<Reason> reasons, Set<Long> cargo) {
         public Input {
             Objects.requireNonNull(ship);
-            footprint = Set.copyOf(footprint);
+            // Packed chunk keys cluster in copyOf's linear-probing tables.
+            footprint = Collections.unmodifiableSet(new HashSet<>(footprint));
             reasons = Set.copyOf(reasons);
-            cargo = Set.copyOf(cargo);
+            cargo = Collections.unmodifiableSet(new HashSet<>(cargo));
         }
     }
 
     public record Plan(Map<UUID, Set<Long>> ships, Map<Long, Integer> references) {
         public Plan {
             ships = Map.copyOf(ships);
-            references = Map.copyOf(references);
+            references = Collections.unmodifiableMap(new HashMap<>(references));
         }
 
         public Set<Long> columns() {
@@ -50,7 +51,7 @@ public final class ShipLeases {
                 columns.addAll(input.footprint());
                 columns.addAll(input.cargo());
             }
-            if (ships.putIfAbsent(input.ship(), Set.copyOf(columns)) != null)
+            if (ships.putIfAbsent(input.ship(), Collections.unmodifiableSet(columns)) != null)
                 throw new IllegalArgumentException("Duplicate ship lease");
             for (long column : columns) references.merge(column, 1, Integer::sum);
         }

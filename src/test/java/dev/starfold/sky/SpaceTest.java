@@ -76,7 +76,8 @@ public class SpaceTest {
                                 new GroundEphemeris.Fixed(new Point(100, -200, 300)),
                                 512,
                                 true,
-                                -1),
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT),
                         new GroundEphemeris.Body(
                                 new GroundEphemeris.Orbit(
                                         0,
@@ -89,7 +90,8 @@ public class SpaceTest {
                                         a),
                                 0,
                                 false,
-                                0),
+                                0,
+                                GroundEphemeris.Appearance.SURFACE),
                         new GroundEphemeris.Body(
                                 new GroundEphemeris.Orbit(
                                         0,
@@ -102,7 +104,8 @@ public class SpaceTest {
                                         b),
                                 0,
                                 false,
-                                1)));
+                                1,
+                                GroundEphemeris.Appearance.SURFACE)));
     }
 
     public static Space.Motion chart(Point p) {
@@ -518,7 +521,11 @@ public class SpaceTest {
         var bodies = new java.util.ArrayList<>(model.bodies());
         bodies.add(
                 new GroundEphemeris.Body(
-                        new GroundEphemeris.Fixed(model.at(0, 0).center()), 0, false, 2));
+                        new GroundEphemeris.Fixed(model.at(0, 0).center()),
+                        0,
+                        false,
+                        2,
+                        GroundEphemeris.Appearance.SURFACE));
         var tied = new GroundEphemeris.Model(bodies);
         assertEquals(0, Space.nearest(tied, tied.at(0, 0).center(), 0));
         var single = GroundSolar.defaults();

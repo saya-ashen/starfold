@@ -7,7 +7,7 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.ChunkViews;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
@@ -65,8 +65,8 @@ public final class SpaceApproach {
             if (height <= model.body(planet).hullIn() || velocity.dot(position) >= 0) break;
             var toward = position.scale(-1);
             var radial =
-                    SpaceServer.arrival(model.body(planet), velocity, toward, velocity, height);
-            velocity = SpaceServer.near(model.body(planet), radial, toward, radial, height);
+                    SpaceFlightMath.arrival(model.body(planet), velocity, toward, velocity, height);
+            velocity = SpaceFlightMath.near(model.body(planet), radial, toward, radial, height);
             position = position.add(velocity);
             if (movingParent) {
                 var now = model.at(planet, tick + steps);
@@ -99,11 +99,11 @@ public final class SpaceApproach {
 
     /** Lead changes, empty regions and removed bodies release before the cadence check. */
     static void update(ServerLevel level, ServerSubLevelContainer container, ServerSubLevel lead) {
-        long start = ArrivalProbe.start();
+        long start = DevelopmentHooks.arrival.start();
         try {
             updateMeasured(level, container, lead);
         } finally {
-            ArrivalProbe.end("approach", start);
+            DevelopmentHooks.arrival.end("approach", start);
         }
     }
 
@@ -182,7 +182,7 @@ public final class SpaceApproach {
         for (long key : previous)
             if (!wanted.contains(key))
                 level.getChunkSource().removeRegionTicket(TYPE, new ChunkPos(key), 0, key);
-        held.put(level, new Held(lead, tick, planet, center, Set.copyOf(wanted)));
+        held.put(level, new Held(lead, tick, planet, center, Collections.unmodifiableSet(wanted)));
         if (Boolean.getBoolean("starfold.carryProbe"))
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(

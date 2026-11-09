@@ -2,6 +2,9 @@
   "vertex":"starfold:native_ground_exterior","fragment":"starfold:native_ground_exterior",
   "attributes":["Position","Color","Normal"],"samplers":[],
   "uniforms":[
+    {"name":"GasCount","type":"int","count":1,"values":[0]},
+    {"name":"GasSpheres","type":"float","count":256,"values":[0]},
+    {"name":"AtmosphereGrade","type":"float","count":3,"values":[1,1,1]},
     {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
     {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
     {"name":"SpaceLens","type":"float","count":3,"values":[0,1,1]},
@@ -16,6 +19,7 @@
     {"name":"ShadeCenter","type":"float","count":3,"values":[0,0,0]},
     {"name":"ShadeRadius","type":"float","count":1,"values":[0]},
     {"name":"SkyColor","type":"float","count":3,"values":[0,0,0]},
+    {"name":"PatchFade","type":"float","count":1,"values":[1]},
     {"name":"BodyFade","type":"float","count":1,"values":[1]}
   ]
 }

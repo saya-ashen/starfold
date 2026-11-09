@@ -1,0 +1,54 @@
+waitworld
+strict
+wait 100
+cmd gamemode creative
+cmd starfold terrain
+wait 120
+cmd gamerule doMobSpawning false
+cmd weather clear
+cmd starfold spin off
+cmd tp @s 1024.5 174 1016.5 0 25
+fly on
+wait 600
+cmd fill 1016 169 1016 1032 169 1032 stone
+cmd fill 1016 170 1016 1032 178 1032 air
+cmd fill 1016 175 1016 1032 175 1032 stone
+wait 200
+cmd packprobe lightaudit
+shot light-send-ordinary-before
+log light-send-ordinary-place
+cmd setblock 1024 170 1024 torch
+wait 120
+light 1025 170 1024
+cmd packprobe lightaudit
+shot light-send-ordinary-on
+log light-send-ordinary-remove
+cmd setblock 1024 170 1024 air
+wait 120
+light 1025 170 1024
+cmd packprobe lightaudit
+shot light-send-ordinary-after
+cmd tp @s 2043.5 173 1016.5 0 25
+fly on
+wait 600
+cmd fill 2038 169 1016 2056 169 1032 stone
+cmd fill 2038 170 1016 2056 178 1032 air
+cmd fill 2038 175 1016 2056 175 1032 stone
+wait 200
+cmd packprobe lightaudit
+shot light-send-seam-before
+log light-send-seam-place
+cmd setblock 2047 170 1024 torch
+wait 120
+light 2046 170 1024
+light 2048 170 1024
+cmd packprobe lightaudit
+shot light-send-seam-on
+log light-send-seam-remove
+cmd setblock 2047 170 1024 air
+wait 120
+light 2046 170 1024
+light 2048 170 1024
+cmd packprobe lightaudit
+shot light-send-seam-after
+quit

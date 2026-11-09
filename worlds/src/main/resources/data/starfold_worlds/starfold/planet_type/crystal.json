@@ -1,0 +1,193 @@
+{
+  "shape": {
+    "size": {
+      "min": 768,
+      "max": 768
+    },
+    "depth_ratio": 0.5,
+    "shell": "core_shell"
+  },
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 1,
+    "relief": {
+      "mountains": 20,
+      "hills": 6,
+      "roughness": 1
+    },
+    "landforms": [
+      {
+        "type": "starfold:crater",
+        "parameters": {
+          "density": 4,
+          "radius_min": 16,
+          "radius_max": 160,
+          "amplitude": 30,
+          "operation": "raise"
+        }
+      },
+      {
+        "type": "starfold:plateau",
+        "parameters": {
+          "density": 0.3,
+          "radius_min": 48,
+          "radius_max": 128,
+          "amplitude": 32,
+          "operation": "raise"
+        }
+      }
+    ],
+    "erosion": {
+      "rivers": false,
+      "strength": 1,
+      "river_threshold": 48
+    },
+    "climate": {
+      "temperature": 27,
+      "latitude_gradient": 47,
+      "humidity": -0.8,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "starfold_worlds:crystal_geodes",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0,
+          "region_max": 0.3
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "starfold_worlds:crystal_fields",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0.65,
+          "region_max": 1
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "starfold_worlds:crystal_barren",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:amethyst_block",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:calcite"
+      },
+      {
+        "block": "minecraft:smooth_basalt",
+        "from": 0.2
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.6
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:lapis_ore",
+        "from": 0.15,
+        "to": 1,
+        "rarity": 0.9,
+        "deep": "minecraft:deepslate_lapis_ore"
+      },
+      {
+        "block": "minecraft:diamond_ore",
+        "from": 0.8,
+        "to": 1,
+        "rarity": 0.985,
+        "deep": "minecraft:deepslate_diamond_ore"
+      }
+    ],
+    "caves": {
+      "width": 0.08,
+      "scale": 36
+    },
+    "water": {
+      "block": "minecraft:air",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": [
+      {
+        "type": "starfold:arch",
+        "parameters": {
+          "density": 0.18,
+          "radius": 20,
+          "height": 18,
+          "operation": "fill",
+          "slope_min": 0.2,
+          "slope_max": 200,
+          "cave_connection": false,
+          "offset": 5
+        }
+      }
+    ]
+  },
+  "life": {
+    "biome": "starfold_worlds:crystal_fields",
+    "creatures": false,
+    "features": true,
+    "structures": false
+  },
+  "environment": {
+    "atmosphere": {
+      "density": 0.05,
+      "color": 11705317,
+      "breathable": false
+    }
+  }
+}

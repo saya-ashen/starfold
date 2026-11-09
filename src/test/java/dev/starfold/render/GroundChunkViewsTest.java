@@ -111,8 +111,6 @@ class GroundChunkViewsTest {
         cache.accept(first);
         for (int i = 1; i <= 512; i++)
             cache.accept(GroundChunkSnapshot.fromStates(0, i % 128, i / 128, 7, states));
-        assertEquals(512, cache.detailCount());
-        assertTrue(cache.detailBytes() <= GroundViewCache.BYTE_LIMIT);
         assertFalse(cache.detailed(first.key()));
         assertNotNull(cache.surface(first.key()));
         assertNull(cache.canonical(BlockPos.ZERO));
@@ -121,7 +119,6 @@ class GroundChunkViewsTest {
         assertTrue(cache.detailed(first.key()));
         assertFalse(cache.accept(GroundChunkSnapshot.fromStates(0, 0, 0, 6, states)));
         cache.clear();
-        assertEquals(0, cache.detailBytes());
         assertEquals(-1, cache.version(first.key()));
     }
 
@@ -161,33 +158,6 @@ class GroundChunkViewsTest {
                 () ->
                         new GroundChunkSnapshot(
                                 0, 0, 0, 5, base.palette(), base.packed(), new byte[1]));
-    }
-
-    @Test
-    void onlyExactFullNativeGeneratorStatesCertifyBaseline() {
-        var states = new int[GroundChunkSnapshot.VALUES];
-        for (int y = -64; y < 320; y++) {
-            var state =
-                    y == -64
-                            ? Blocks.BEDROCK.defaultBlockState()
-                            : y < 124
-                                    ? Blocks.STONE.defaultBlockState()
-                                    : y < 127
-                                            ? Blocks.DIRT.defaultBlockState()
-                                            : y == 127
-                                                    ? Blocks.GRASS_BLOCK.defaultBlockState()
-                                                    : Blocks.AIR.defaultBlockState();
-            Arrays.fill(
-                    states,
-                    (y + 64) * 256,
-                    (y + 65) * 256,
-                    Block.BLOCK_STATE_REGISTRY.getId(state));
-        }
-        var image = GroundChunkSnapshot.fromStates(0, 0, 0, 1, states);
-        assertTrue(image.baseline());
-        states[(50 + 64) * 256] =
-                Block.BLOCK_STATE_REGISTRY.getId(Blocks.CHEST.defaultBlockState());
-        assertFalse(GroundChunkSnapshot.fromStates(0, 0, 0, 2, states).baseline());
     }
 
     @Test

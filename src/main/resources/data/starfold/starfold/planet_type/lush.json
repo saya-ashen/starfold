@@ -1,21 +1,239 @@
 {
-  "biome": "minecraft:plains",
-  "size": {
-    "min": 1024,
-    "max": 2048
+  "shape": {
+    "size": {
+      "min": 1024,
+      "max": 2048
+    },
+    "depth_ratio": 0.5
   },
-  "depth_ratio": 0.5,
-  "algorithm": "ecology",
-  "biomes": {
-    "forest": "minecraft:forest",
-    "plains": "minecraft:plains",
-    "desert": "minecraft:desert",
-    "ocean": "minecraft:ocean"
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 0.6,
+    "relief": {
+      "mountains": 100,
+      "hills": 18,
+      "roughness": 1
+    },
+    "landforms": [],
+    "erosion": {
+      "rivers": true,
+      "strength": 1,
+      "river_threshold": 5
+    },
+    "climate": {
+      "temperature": 27,
+      "latitude_gradient": 47,
+      "humidity": 0.2,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:climate",
+        "parameters": {
+          "biome": "minecraft:ocean",
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "humidity_min": 0,
+          "humidity_max": 1,
+          "height_min": -1024,
+          "height_max": 127,
+          "river": false,
+          "coast": false
+        }
+      },
+      {
+        "type": "starfold:climate",
+        "parameters": {
+          "biome": "minecraft:desert",
+          "temperature_min": 20,
+          "temperature_max": 300,
+          "humidity_min": 0,
+          "humidity_max": 0.4,
+          "height_min": -1024,
+          "height_max": 320,
+          "river": false,
+          "coast": false
+        }
+      },
+      {
+        "type": "starfold:climate",
+        "parameters": {
+          "biome": "minecraft:forest",
+          "temperature_min": -15,
+          "temperature_max": 30,
+          "humidity_min": 0.5,
+          "humidity_max": 1,
+          "height_min": -1024,
+          "height_max": 320,
+          "river": false,
+          "coast": false
+        }
+      },
+      {
+        "type": "starfold:climate",
+        "parameters": {
+          "biome": "minecraft:plains",
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "humidity_min": 0,
+          "humidity_max": 1,
+          "height_min": -1024,
+          "height_max": 320,
+          "river": false,
+          "coast": false
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:gravel",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": true,
+          "biome": ""
+        }
+      },
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:stone",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 3,
+          "shore": false,
+          "biome": ""
+        }
+      },
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:sand",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": "minecraft:desert"
+        }
+      },
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:grass_block",
+          "depth_min": 0,
+          "depth_max": 0,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      },
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:dirt",
+          "depth_min": 1,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:stone"
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:coal_ore",
+        "from": 0,
+        "to": 0.6,
+        "rarity": 0.82
+      },
+      {
+        "block": "minecraft:iron_ore",
+        "from": 0.15,
+        "to": 1,
+        "rarity": 0.84
+      },
+      {
+        "block": "minecraft:diamond_ore",
+        "from": 0.8,
+        "to": 1,
+        "rarity": 0.94
+      }
+    ],
+    "caves": {
+      "width": 0.085,
+      "scale": 36
+    },
+    "water": {
+      "block": "minecraft:water",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": [
+      {
+        "type": "starfold:cave_mouth",
+        "parameters": {
+          "density": 0.18,
+          "radius": 5,
+          "height": 10,
+          "operation": "carve",
+          "slope_min": 0.2,
+          "slope_max": 200,
+          "cave_connection": true,
+          "offset": 0
+        }
+      },
+      {
+        "type": "starfold:sinkhole",
+        "parameters": {
+          "density": 0.18,
+          "radius": 10,
+          "height": 16,
+          "operation": "carve",
+          "slope_min": 0,
+          "slope_max": 0.6,
+          "cave_connection": true,
+          "offset": -8
+        }
+      }
+    ]
   },
-  "climate": {
-    "humidity": 0.22,
-    "temperature": -0.1,
-    "latitude": 0.1
+  "life": {
+    "biome": "minecraft:plains"
   },
-  "ocean": 0.55
+  "environment": {}
 }

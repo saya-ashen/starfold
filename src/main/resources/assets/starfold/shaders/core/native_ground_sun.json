@@ -2,6 +2,12 @@
   "vertex":"starfold:native_ground_sun","fragment":"starfold:native_ground_sun",
   "attributes":["Position"],"samplers":[],
   "uniforms":[
+    {"name":"DepthFar","type":"float","count":1,"values":[1]},
+    {"name":"SurfaceLow","type":"float","count":3,"values":[1,0.80,0.42]},
+    {"name":"SurfaceHigh","type":"float","count":3,"values":[1,0.97,0.82]},
+    {"name":"HaloWidth","type":"float","count":1,"values":[0.16]},
+    {"name":"HaloStrength","type":"float","count":1,"values":[0.24]},
+    {"name":"HaloColor","type":"float","count":3,"values":[1,1,1]},
     {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
     {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
     {"name":"SpaceLens","type":"float","count":3,"values":[0,1,1]},

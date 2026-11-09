@@ -1,0 +1,223 @@
+{
+  "suns": [
+    {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "radius": 12000,
+      "gm": 10306173020.81594,
+      "planets": [
+        {
+          "type": "starfold_worlds:rocky",
+          "size": 1024,
+          "seed": 20261002,
+          "name": "planet.starfold_worlds.anvil",
+          "orbit": {
+            "radius": 180000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 108000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_worlds:lush",
+          "size": 1024,
+          "seed": 20261006,
+          "name": "planet.starfold_worlds.viridia",
+          "orbit": {
+            "radius": 330000,
+            "phase": 0
+          }
+        },
+        {
+          "type": "starfold_worlds:home",
+          "size": 2048,
+          "seed": 20261001,
+          "name": "planet.starfold_worlds.hearth",
+          "orbit": {
+            "radius": 458261.51156430726,
+            "phase": 0
+          },
+          "spin": {
+            "period": 42666.666666666664,
+            "tilt": 23.5
+          },
+          "moons": [
+            {
+              "type": "starfold_worlds:asteroid",
+              "size": 416,
+              "seed": 20261008,
+              "name": "planet.starfold_worlds.fleck",
+              "orbit": {
+                "radius": 40000,
+                "phase": 0
+              },
+              "spin": {
+                "period": 168000,
+                "tilt": 0
+              }
+            }
+          ]
+        },
+        {
+          "type": "starfold_worlds:archipelago",
+          "size": 1536,
+          "seed": 20261005,
+          "name": "planet.starfold_worlds.pelagia",
+          "orbit": {
+            "radius": 580000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 144000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_worlds:desert",
+          "size": 1024,
+          "seed": 20261004,
+          "name": "planet.starfold_worlds.saffron",
+          "orbit": {
+            "radius": 700000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 132000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_worlds:mushroom",
+          "size": 768,
+          "seed": 20261007,
+          "name": "planet.starfold_worlds.haven",
+          "orbit": {
+            "radius": 2200000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 156000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_worlds:warden",
+          "size": 1024,
+          "seed": 20261012,
+          "name": "planet.starfold_worlds.hush",
+          "orbit": {
+            "radius": 3000000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 96000,
+            "tilt": 0
+          }
+        },
+        {
+          "type": "starfold_worlds:end",
+          "size": 1024,
+          "seed": 20261011,
+          "name": "planet.starfold_worlds.ivory",
+          "orbit": {
+            "radius": 3800000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 204000,
+            "tilt": 0
+          }
+        }
+      ],
+      "gas_giants": [
+        {
+          "radius": 4096,
+          "orbit": {
+            "radius": 1400000,
+            "phase": 0
+          },
+          "spin": {
+            "period": 96000,
+            "tilt": 12
+          },
+          "gas": {
+            "seed": 20261013,
+            "name": "planet.starfold_worlds.amber",
+            "low_color": 9987389,
+            "high_color": 15389090,
+            "outer_height": 512,
+            "max_depth": 1024
+          },
+          "moons": [
+            {
+              "type": "starfold_worlds:basalt",
+              "size": 1024,
+              "seed": 20261009,
+              "name": "planet.starfold_worlds.cinder",
+              "orbit": {
+                "radius": 30000,
+                "phase": 0
+              },
+              "spin": {
+                "period": 180000,
+                "tilt": 0
+              }
+            },
+            {
+              "type": "starfold_worlds:ice",
+              "size": 768,
+              "seed": 20261003,
+              "name": "planet.starfold_worlds.rime",
+              "orbit": {
+                "radius": 50000,
+                "phase": 0
+              },
+              "spin": {
+                "period": 120000,
+                "tilt": 0
+              }
+            },
+            {
+              "type": "starfold_worlds:crystal",
+              "size": 768,
+              "seed": 20261010,
+              "name": "planet.starfold_worlds.prism",
+              "orbit": {
+                "radius": 80000,
+                "phase": 0
+              },
+              "spin": {
+                "period": 192000,
+                "tilt": 0
+              }
+            },
+            {
+              "type": "starfold_biotech:flesh",
+              "size": 768,
+              "seed": 20261101,
+              "name": "planet.starfold_biotech.flesh",
+              "orbit": {
+                "radius": 110000,
+                "phase": 0
+              },
+              "spin": {
+                "period": 162000,
+                "tilt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "home": {
+    "sun": 0,
+    "planet": 2
+  },
+  "beyond": "starfold_worlds:experience"
+}

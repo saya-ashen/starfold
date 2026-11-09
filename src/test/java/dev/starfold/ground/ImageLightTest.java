@@ -14,7 +14,7 @@ class ImageLightTest {
         assertTrue(source.contains("@Inject(method = \"onLightUpdate\""));
         assertTrue(
                 source.contains(
-                        "level.getServer().execute(() -> ImageStream.lit(level, section.chunk()))"));
+                        "level.getServer().execute(() -> ImageStream.lit(level, layer, section))"));
         assertFalse(source.contains("broadcastChanges"));
         assertFalse(source.contains("getTickingChunk"));
         assertTrue(source.contains("PlanetLevels.is(level)"));

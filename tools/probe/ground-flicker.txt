@@ -1,0 +1,23 @@
+wait 300
+createworld
+wait 100
+createworld go
+waitworld
+wait 100
+cmd gamemode survival
+cmd tp @s ~60 ~ ~-40
+wait 200
+look 0 45
+wait 40
+shot flicker-a
+look 3 45
+wait 10
+shot flicker-b
+look 6 46
+wait 10
+shot flicker-c
+look 90 30
+wait 10
+shot flicker-d
+nav here
+quit

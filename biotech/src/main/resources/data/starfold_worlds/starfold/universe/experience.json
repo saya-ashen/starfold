@@ -1,0 +1,67 @@
+{
+  "stars": {
+    "min": 8,
+    "max": 8
+  },
+  "planets": {
+    "min": 2,
+    "max": 3
+  },
+  "star_gap": 5200000,
+  "ring": 12288,
+  "density": 0.0,
+  "types": [
+    {
+      "type": "starfold_worlds:home",
+      "weight": 1
+    },
+    {
+      "type": "starfold_worlds:rocky",
+      "weight": 4
+    },
+    {
+      "type": "starfold_worlds:ice",
+      "weight": 3
+    },
+    {
+      "type": "starfold_worlds:desert",
+      "weight": 3
+    },
+    {
+      "type": "starfold_worlds:archipelago",
+      "weight": 1
+    },
+    {
+      "type": "starfold_worlds:lush",
+      "weight": 1
+    },
+    {
+      "type": "starfold_worlds:mushroom",
+      "weight": 1
+    },
+    {
+      "type": "starfold_worlds:asteroid",
+      "weight": 3
+    },
+    {
+      "type": "starfold_worlds:basalt",
+      "weight": 2
+    },
+    {
+      "type": "starfold_worlds:crystal",
+      "weight": 2
+    },
+    {
+      "type": "starfold_worlds:end",
+      "weight": 1
+    },
+    {
+      "type": "starfold_worlds:warden",
+      "weight": 1
+    },
+    {
+      "type": "starfold_biotech:flesh",
+      "weight": 1
+    }
+  ]
+}

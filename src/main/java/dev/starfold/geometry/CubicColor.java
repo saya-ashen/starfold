@@ -34,10 +34,5 @@ public final class CubicColor {
         };
     }
 
-    public static double textureWeight(double footprint) {
-        double t = Math.clamp((footprint - .5) / 1.5, 0, 1);
-        return 1 - t * t * (3 - 2 * t);
-    }
-
     private CubicColor() {}
 }

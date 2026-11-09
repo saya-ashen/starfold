@@ -11,7 +11,6 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ship.SableCarry;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.Space;
 
 import io.netty.buffer.Unpooled;
@@ -175,7 +174,7 @@ class SpaceRestTest {
         var delta = new Point(120, -340, 560);
         var turn =
                 Space.Frame.turn(
-                        old, model, 1234, pivot, Math.toRadians(SpaceServer.ALIGN_TURN) / 20);
+                        old, model, 1234, pivot, Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20);
         var shifted = old.shifted(delta);
         var turned = old.turned(turn, pivot);
         for (var next : new Space.Frame[] {shifted, turned}) {
@@ -355,51 +354,19 @@ class SpaceRestTest {
     }
 
     @Test
-    void runtimeUsesConfiguredDragAndOnlyUntrackedRegionEntitiesReceiveTheFold() throws Exception {
-        var source = Sources.text("SpaceServer");
-        var fold =
-                source.substring(
-                        source.indexOf("var before=value.frame"),
-                        source.indexOf("var universe=value.frame.universe(point"));
-        assertTrue(fold.contains("absorbLeadImpulse(value,tick,v,towardEntry,blend,piloted)"));
-        assertTrue(fold.contains("subtractEntityImpulse(level,bodies,v)"));
-        var impulseHelpers =
-                source.substring(
-                                source.indexOf("private static void subtractEntityImpulse"),
-                                source.indexOf("private static void shiftRegion"))
-                        .plus(
-                                source.substring(
-                                        source.indexOf("private static void absorbLeadImpulse"),
-                                        source.indexOf(
-                                                "private static dev.ryanhcode.sable.sublevel.ServerSubLevel lead")));
-        for (String required :
-                new String[] {
-                    "getLinearVelocity(lead,new org.joml.Vector3d()).div(20)",
-                    "v.length()>1e-9",
-                    "gain(f.drift(),blendPush(f.universeVector(v),towardEntry,blend),piloted,0)",
-                    "if(!piloted)dragFrame(value,level,container,bodies,lead,tick)",
-                    "for(var body:bodies)pipeline.addLinearAndAngularVelocity",
-                    "if(Space.in(entity))",
-                    "body!=null&&bodies.contains(body)&&SableFrames.tracked(entity,body)",
-                    "getDeltaMovement().subtract(v.x(),v.y(),v.z())",
-                    "player.hurtMarked=true",
-                    "DimensionPhysicsData.getUniversalDrag(level)/20",
-                    "value.setDirty()"
-                }) assertTrue(fold.plus(impulseHelpers).contains(required), required);
-        var reference =
-                source.substring(
-                        source.indexOf("if(nearer(model"),
-                        source.indexOf("if(Thrusters.steadied(lead"));
-        assertTrue(reference.contains("toward"));
-        assertFalse(reference.contains("pipeline"));
-        assertFalse(reference.contains("setDeltaMovement"));
-        assertFalse(reference.contains("send"));
-        assertTrue(source.contains("!before.rebased(tick).equals(value.frame)"));
-        assertTrue(source.contains("send(player,true)"));
-        assertTrue(source.contains("if(fresh)send(player);if(fresh||"));
-        var client = Sources.text("SpaceClient");
-        assertTrue(
-                client.contains(
-                        "frames.sample(eye(),renderTick(),SpaceClientHost.get().ephemeris(),time())"));
+    void runtimeCoastsWithoutDragAndOnlyUntrackedRegionEntitiesReceiveTheFold() throws Exception {
+        var advance = SpaceBytecode.calls("space/SpaceServer", "advanceLead");
+        SpaceBytecode.before(advance, "SpaceServer.absorbLeadImpulse", "PhysicsPipeline.addLinearAndAngularVelocity");
+        SpaceBytecode.before(advance, "SpaceServer.subtractEntityImpulse", "SpaceServer.dragFrame");
+        SpaceBytecode.before(advance, "SpaceServer.dragFrame", "Space$Frame.toward");
+        var subtract = SpaceBytecode.calls("space/SpaceServer", "subtractEntityImpulse");
+        SpaceBytecode.before(subtract, "Space.in", "Entity.setDeltaMovement");
+        SpaceBytecode.before(subtract, "SableFrames.tracked", "Entity.setDeltaMovement");
+        assertFalse(subtract.stream().anyMatch(c -> c.endsWith(".teleportTo") || c.endsWith(".setPos")));
+        var fold = SpaceBytecode.calls("space/SpaceServer", "absorbLeadImpulse");
+        assertTrue(fold.contains("SpaceFlightMath.gain"));
+        assertTrue(fold.contains("SpaceFlightMath.blendPush"));
+        assertFalse(fold.stream().anyMatch(c -> c.contains("PhysicsPipeline") || c.contains("Entity.")));
+        assertTrue(SpaceBytecode.calls("space/SpaceServer", "coastLead").contains("ShipParking.coastFrame"));
     }
 }

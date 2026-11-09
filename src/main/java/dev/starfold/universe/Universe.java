@@ -2,7 +2,9 @@ package dev.starfold.universe;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
+import dev.starfold.chart.SunSettings;
 import dev.starfold.geometry.BentStripGeometry.Point;
+import dev.starfold.sky.BodyIdAllocator;
 import dev.starfold.sky.GroundClock;
 
 import net.minecraft.core.HolderLookup;
@@ -64,7 +66,19 @@ public final class Universe extends SavedData {
                     false, GroundEphemeris.Y, new org.joml.Quaterniond(), 0, 36000, 0);
 
     /** The cells of an endless universe that have been looked into, whether or not a sun was there. */
-    private final java.util.Set<Long> cells = new java.util.HashSet<>();
+    private final java.util.Map<Long, Integer> cells = new java.util.LinkedHashMap<>();
+
+    private final BodyIdAllocator allocator;
+
+    private int discoverCell(int x, int z) {
+        int region = allocator.allocateRegion();
+        cells.put(cell(x, z), region);
+        return region;
+    }
+
+    public BodyIdAllocator allocator() {
+        return allocator;
+    }
 
     private boolean protectHome;
 
@@ -77,7 +91,7 @@ public final class Universe extends SavedData {
             var centre = home.frame(i, 0).center();
             double outer = 0, band = GroundEphemeris.Body.DEFAULT_REACH;
             for (var child : home.bodies()) {
-                if (child.slot() < 0) continue;
+                if (child.slot() < 0 && child.gas().isEmpty()) continue;
                 var motion = child.motion();
                 double radius = 0;
                 int parent = -1;
@@ -86,9 +100,13 @@ public final class Universe extends SavedData {
                     parent = orbit.parent();
                     motion = home.bodies().get(parent).motion();
                 }
-                if (parent == i && radius > outer + (band - child.hullOut())) {
+                double childBand =
+                        child.gas()
+                                .map(g -> child.radius() + g.outerHeight() - surface)
+                                .orElse(child.hullOut());
+                if (parent == i && radius > outer + (band - childBand)) {
                     outer = radius;
-                    band = child.hullOut();
+                    band = childBand;
                 }
             }
             if (position.sub(centre).length()
@@ -98,7 +116,18 @@ public final class Universe extends SavedData {
     }
 
     public Universe(List<GroundEphemeris.Body> catalog, List<PlanetChunkGenerator> planets) {
-        this.catalog = new ArrayList<>(catalog);
+        this(catalog, planets, new BodyIdAllocator());
+        allocator.reserve(this.catalog);
+    }
+
+    public Universe(
+            List<GroundEphemeris.Body> catalog,
+            List<PlanetChunkGenerator> planets,
+            BodyIdAllocator allocator) {
+        this.allocator = java.util.Objects.requireNonNull(allocator);
+        this.catalog =
+                new ArrayList<>(
+                        catalog.isEmpty() ? catalog : new GroundEphemeris.Model(catalog).bodies());
         this.planets = new ArrayList<>(planets);
         if (catalog.isEmpty()) {
             if (!planets.isEmpty())
@@ -136,14 +165,20 @@ public final class Universe extends SavedData {
         return List.copyOf(planets);
     }
 
-    private int addSun(Point position, double radius) {
+    private int addSun(Point position, double radius, int region) {
         int parent = catalog.size();
         catalog.add(
-                new GroundEphemeris.Body(new GroundEphemeris.Fixed(position), radius, true, -1));
+                new GroundEphemeris.Body(
+                                new GroundEphemeris.Fixed(position),
+                                radius,
+                                true,
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT)
+                        .identified(allocator.allocate(region)));
         return parent;
     }
 
-    private void addPlanet(Body body, GroundEphemeris.Model home) {
+    private void addPlanet(Body body, GroundEphemeris.Model home, int region) {
         var template = home.orbit(0);
         var spin = home.count() > 1 ? home.spin(1) : DISCOVERY_SPIN;
         var orbit =
@@ -156,7 +191,11 @@ public final class Universe extends SavedData {
                         body.phase(),
                         template.epoch(),
                         spin);
-        catalog.add(new GroundEphemeris.Body(orbit, 0, false, planets.size()));
+        catalog.add(
+                new GroundEphemeris.Body(
+                                orbit, 0, false, planets.size(), GroundEphemeris.Appearance.SURFACE)
+                        .withEnvironment(body.planet().generation().environment())
+                        .identified(allocator.allocate(region)));
         planets.add(body.planet());
     }
 
@@ -165,7 +204,7 @@ public final class Universe extends SavedData {
     }
 
     static long cell(int x, int z) {
-        return (long) x << 32 | z & 0xffffffffL;
+        return net.minecraft.world.level.ChunkPos.asLong(z, x);
     }
 
     /** The cell of the grid a place lies in, counted from the home sun. */
@@ -181,24 +220,15 @@ public final class Universe extends SavedData {
      *  @return whether a sun was added; room says how many more planets the world can hold */
     public synchronized boolean discover(
             long seed, UniverseLayout layout, GroundEphemeris.Model home, int x, int z, int room) {
-        if (!layout.endless() || x == 0 && z == 0 || cells.contains(cell(x, z))) return false;
+        if (!layout.endless() || x == 0 && z == 0 || cells.containsKey(cell(x, z))) return false;
         long mixed =
                 (seed ^ 0x43756265506C616EL) + x * 0x9E3779B97F4A7C15L + z * 0xC2B2AE3D27D4EB4FL;
         var random = new SplittableRandom(mixed);
-        double jx = random.nextDouble() - .5,
-                jy = random.nextDouble() - .5,
-                jz = random.nextDouble() - .5;
         boolean sun = random.nextDouble() < layout.density();
-        int radius = 384 + random.nextInt(257);
+        double radius = SunSettings.generatedRadius(random.nextInt(257));
         int planets =
                 layout.minPlanets() + random.nextInt(layout.maxPlanets() - layout.minPlanets() + 1);
-        var position =
-                home.origin()
-                        .add(
-                                new Point(
-                                        (x + jx * .5) * layout.gap(),
-                                        jy * layout.gap() * .7,
-                                        (z + jz * .5) * layout.gap()));
+        var position = home.origin().add(new Point(x * layout.gap(), 0, z * layout.gap()));
         if (protectHome
                 && !clearOfHome(
                         position,
@@ -208,17 +238,18 @@ public final class Universe extends SavedData {
                                 + GroundEphemeris.Body.DEFAULT_REACH
                                 + SystemDefinition.MARGIN / 2,
                         home)) {
-            cells.add(cell(x, z));
+            discoverCell(x, z);
             setDirty();
             return false;
         }
         // A cell that cannot be held yet is left unlooked-into, to be found when there is room.
         if (sun && planets > room) return false;
-        cells.add(cell(x, z));
+        int region = discoverCell(x, z);
         setDirty();
         if (!sun) return false;
         int weights = layout.types().stream().mapToInt(UniverseLayout.Choice::weight).sum();
-        int parent = addSun(position, radius);
+        int parent = addSun(position, radius, region);
+        double phase = random.nextDouble() * 2 * Math.PI;
         for (int place = 0; place < planets; place++) {
             int pick = random.nextInt(weights);
             var type = layout.types().get(0);
@@ -229,18 +260,21 @@ public final class Universe extends SavedData {
                 }
                 pick -= choice.weight();
             }
-            double orbit = home.orbit(0).radius() + place * layout.ring();
+            double orbit = home.orbit(0).radius() + (planets == 2 ? 0 : place) * layout.ring();
             addPlanet(
                     new Body(
                             parent,
                             orbit,
-                            home.orbit(0).period() * Math.pow(orbit / home.orbit(0).radius(), 1.5),
-                            random.nextDouble() * 2 * Math.PI,
+                            new SystemDefinition.Path(orbit, 0).period(SystemDefinition.STAR_GM),
+                            planets == 2
+                                    ? phase + place * 2 * Math.PI / 3
+                                    : random.nextDouble() * 2 * Math.PI,
                             type.type()
                                     .value()
                                     .planet(random.nextLong(), java.util.Optional.empty())
                                     .identity(type.typeId(), java.util.Optional.empty())),
-                    home);
+                    home,
+                    region);
         }
         return true;
     }
@@ -261,10 +295,9 @@ public final class Universe extends SavedData {
         return added;
     }
 
-    /** Further suns stand in the cells of a grid a gap wide about the home sun, each somewhere within the middle half
-     *  of its cell and up to a third of a gap above or below the plane; the nearest are taken. No two are therefore
-     *  nearer than half a gap. Each has its planets a ring
-     *  apart, of types drawn by weight, each planet with a seed of its own that chooses its size and its ground. */
+    /** Further suns stand on a grid a gap wide about home. Removing positional jitter bounds neighbouring-star
+     *  flight times; two-planet systems share a ring with a fixed 120-degree separation. Larger systems retain
+     *  separate rings. Types are drawn by weight, each planet with its own terrain seed. */
     /** As many planets as a world holds. Storage has room for far more; what bounds it is that the model of them all
      *  goes to a client in one packet, of at most a mebibyte, at about 550 bytes a planet. */
     public static final int CAPACITY = 1600;
@@ -278,10 +311,21 @@ public final class Universe extends SavedData {
 
     public static Universe generate(
             long seed, UniverseLayout layout, GroundEphemeris.Model home, boolean protectHome) {
+        var allocator = new BodyIdAllocator();
+        allocator.reserve(home.bodies());
+        return generate(seed, layout, home, protectHome, allocator);
+    }
+
+    public static Universe generate(
+            long seed,
+            UniverseLayout layout,
+            GroundEphemeris.Model home,
+            boolean protectHome,
+            BodyIdAllocator allocator) {
         // An endless universe begins with the cells about home; the rest are found as someone comes
         // near them.
         if (layout.endless()) {
-            var endless = new Universe(List.of(), List.of());
+            var endless = new Universe(List.of(), List.of(), allocator);
             endless.protectHome = protectHome;
             endless.explore(seed, layout, home, 0, 0, REACH, CAPACITY - home.count());
             return endless;
@@ -291,19 +335,12 @@ public final class Universe extends SavedData {
         var places = new ArrayList<Point>();
         for (int x = -4; x <= 4; x++)
             for (int z = -4; z <= 4; z++) {
-                double jx = random.nextDouble() - .5,
-                        jy = random.nextDouble() - .5,
-                        jz = random.nextDouble() - .5;
                 if (x == 0 && z == 0) continue;
-                places.add(
-                        new Point(
-                                (x + jx * .5) * layout.gap(),
-                                jy * layout.gap() * .7,
-                                (z + jz * .5) * layout.gap()));
+                places.add(new Point(x * layout.gap(), 0, z * layout.gap()));
             }
         places.sort(java.util.Comparator.comparingDouble(Point::length));
         int weights = layout.types().stream().mapToInt(UniverseLayout.Choice::weight).sum();
-        var universe = new Universe(List.of(), List.of());
+        var universe = new Universe(List.of(), List.of(), allocator);
         for (int cell = 0, suns = 0; suns < count && cell < places.size(); cell++) {
             var position = home.origin().add(places.get(cell));
             if (protectHome
@@ -315,12 +352,13 @@ public final class Universe extends SavedData {
                                     + GroundEphemeris.Body.DEFAULT_REACH
                                     + SystemDefinition.MARGIN / 2,
                             home)) continue;
-            int sunRadius = 384 + random.nextInt(257);
+            double sunRadius = SunSettings.generatedRadius(random.nextInt(257));
             int planets =
                     layout.minPlanets()
                             + random.nextInt(layout.maxPlanets() - layout.minPlanets() + 1);
             if (protectHome && home.count() + universe.planets.size() + planets > CAPACITY) break;
-            int parent = universe.addSun(position, sunRadius);
+            int parent = universe.addSun(position, sunRadius, 0);
+            double phase = random.nextDouble() * 2 * Math.PI;
             suns++;
             for (int place = 0; place < planets; place++) {
                 int pick = random.nextInt(weights);
@@ -332,19 +370,22 @@ public final class Universe extends SavedData {
                     }
                     pick -= choice.weight();
                 }
-                double radius = home.orbit(0).radius() + place * layout.ring();
+                double radius = home.orbit(0).radius() + (planets == 2 ? 0 : place) * layout.ring();
                 universe.addPlanet(
                         new Body(
                                 parent,
                                 radius,
-                                home.orbit(0).period()
-                                        * Math.pow(radius / home.orbit(0).radius(), 1.5),
-                                random.nextDouble() * 2 * Math.PI,
+                                new SystemDefinition.Path(radius, 0)
+                                        .period(SystemDefinition.STAR_GM),
+                                planets == 2
+                                        ? phase + place * 2 * Math.PI / 3
+                                        : random.nextDouble() * 2 * Math.PI,
                                 type.type()
                                         .value()
                                         .planet(random.nextLong(), java.util.Optional.empty())
                                         .identity(type.typeId(), java.util.Optional.empty())),
-                        home);
+                        home,
+                        0);
             }
         }
         return universe;
@@ -373,7 +414,12 @@ public final class Universe extends SavedData {
                             body.radius(),
                             body.light(),
                             body.slot() < 0 ? -1 : home.count() + body.slot(),
-                            body.reach()));
+                            body.reach(),
+                            body.appearance(),
+                            body.id(),
+                            body.atmosphere(),
+                            body.temperatureOffset(),
+                            body.gas()));
         }
         return new GroundEphemeris.Model(all);
     }
@@ -381,30 +427,38 @@ public final class Universe extends SavedData {
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider lookup) {
         var ops = RegistryOps.create(NbtOps.INSTANCE, lookup);
-        tag.putInt("format", 3);
+        tag.putInt("format", 8);
         tag.put(
                 "bodies",
-                SystemSkyCodec.BODY.listOf().encodeStart(NbtOps.INSTANCE, catalog()).getOrThrow());
+                SystemSkyCodec.CATALOG.encodeStart(NbtOps.INSTANCE, catalog()).getOrThrow());
         var entries = new ListTag();
         for (var planet : planets)
             entries.add(PlanetChunkGenerator.CODEC.codec().encodeStart(ops, planet).getOrThrow());
         tag.put("planets", entries);
-        if (!cells.isEmpty())
-            tag.putLongArray("cells", cells.stream().sorted().mapToLong(Long::longValue).toArray());
+        if (!cells.isEmpty()) {
+            var entriesByCell = new ListTag();
+            cells.forEach(
+                    (cell, region) -> {
+                        var entry = new CompoundTag();
+                        entry.putLong("cell", cell);
+                        entry.putInt("region", region);
+                        entriesByCell.add(entry);
+                    });
+            tag.put("cells", entriesByCell);
+        }
         return tag;
     }
 
-    public static Universe load(CompoundTag tag, HolderLookup.Provider lookup) {
+    public static Universe load(
+            CompoundTag tag, HolderLookup.Provider lookup, BodyIdAllocator allocator) {
         if (!tag.contains("format", 3)
-                || tag.getInt("format") != 3
+                || tag.getInt("format") != 8
                 || !tag.contains("bodies", 9)
                 || !tag.contains("planets", 9))
-            throw new IllegalArgumentException(
-                    "Unsupported universe format; expected 3 (old saves are not supported)");
+            throw new IllegalArgumentException("Unsupported universe format; expected 8");
         var ops = RegistryOps.create(NbtOps.INSTANCE, lookup);
         var catalog =
-                SystemSkyCodec.BODY
-                        .listOf()
+                SystemSkyCodec.CATALOG
                         .parse(NbtOps.INSTANCE, tag.get("bodies"))
                         .getOrThrow(IllegalArgumentException::new);
         var planets = new ArrayList<PlanetChunkGenerator>();
@@ -414,15 +468,36 @@ public final class Universe extends SavedData {
                             .codec()
                             .parse(ops, raw)
                             .getOrThrow(IllegalArgumentException::new));
-        var universe = new Universe(catalog, planets);
-        if (tag.contains("cells", 12))
-            for (long cell : tag.getLongArray("cells")) universe.cells.add(cell);
+        var universe = new Universe(catalog, planets, allocator);
+        var regions = new java.util.HashSet<Integer>();
+        if (tag.contains("cells")) {
+            if (!tag.contains("cells", 9)) throw new IllegalArgumentException("Universe cells");
+            for (var raw : tag.getList("cells", 10)) {
+                var entry = (CompoundTag) raw;
+                int region = entry.getInt("region");
+                allocator.requireRegion(region);
+                if (!entry.contains("cell", 4)
+                        || !entry.contains("region", 3)
+                        || region <= 0
+                        || !regions.add(region)
+                        || universe.cells.putIfAbsent(entry.getLong("cell"), region) != null)
+                    throw new IllegalArgumentException("Invalid universe cell region");
+            }
+        }
+        for (var body : catalog) {
+            var id = body.id();
+            allocator.requireAllocated(id);
+            if (id.region() != 0 && !regions.contains(id.region()))
+                throw new IllegalArgumentException(
+                        "Body identity outside allocated region/counter");
+        }
         return universe;
     }
 
     /** The universe of a system that has a layout: read from the world, or made of the world's seed the first time.
      *  The system's generator is told its planets, so that everything after counts and addresses them. */
     public static Universe bind(ServerLevel level, SystemChunkGenerator system) {
+        var allocator = BodyIdAllocator.get(level, system.homeModel());
         if (system.universe().isEmpty()) return null;
         var storage = level.getDataStorage();
         var universe =
@@ -439,11 +514,12 @@ public final class Universe extends SavedData {
                                                     level.getSeed(),
                                                     system.universe().get().value(),
                                                     system.homeModel(),
-                                                    system.authored());
+                                                    system.authored(),
+                                                    allocator);
                                     made.setDirty();
                                     return made;
                                 },
-                                Universe::load,
+                                (tag, lookup) -> Universe.load(tag, lookup, allocator),
                                 null),
                         FILE);
         universe.protectHome = system.authored();
@@ -466,6 +542,7 @@ public final class Universe extends SavedData {
                 level.getSeed(), layout, home, at[0], at[1], REACH, CAPACITY - home.count()))
             return false;
         system.bind(universe.planets());
+        dev.starfold.worldgen.plan.PlanetPlanStore.bind(level,system);
         grown.accept(
                 level,
                 system,
@@ -488,7 +565,12 @@ public final class Universe extends SavedData {
                                         () -> {
                                             throw new IllegalStateException("Universe not bound");
                                         },
-                                        Universe::load,
+                                        (tag, lookup) ->
+                                                Universe.load(
+                                                        tag,
+                                                        lookup,
+                                                        BodyIdAllocator.get(
+                                                                level, system.homeModel())),
                                         null),
                                 FILE)
                 : null;

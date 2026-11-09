@@ -30,7 +30,8 @@ class MoonApproachTest {
         }
         System.out.println(
                 "C4 moon 600-tick linear target error: own=" + error + " family max=" + largest);
-        assertTrue(largest > 76 && largest < 77);
+        // The compact C4 fixture now derives much faster parent orbits from stellar GM.
+        assertTrue(largest > 5348 && largest < 5349);
     }
 
     @Test
@@ -60,14 +61,14 @@ class MoonApproachTest {
                         || relativeVelocity.dot(relativePosition) >= 0) break;
                 var toward = relativePosition.scale(-1);
                 var radial =
-                        SpaceServer.arrival(
+                        SpaceFlightMath.arrival(
                                 model.body(planet),
                                 relativeVelocity,
                                 toward,
                                 relativeVelocity,
                                 height);
                 velocity =
-                        SpaceServer.near(model.body(planet), radial, toward, radial, height)
+                        SpaceFlightMath.near(model.body(planet), radial, toward, radial, height)
                                 .add(target.velocity());
                 world = world.add(velocity);
             }

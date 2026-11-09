@@ -29,7 +29,10 @@ public final class ShipRecords {
         if (!PlanetLevels.is(level) || observers.containsKey(level)) return;
         var container = SubLevelContainer.getContainer(level);
         if (container == null) return;
-        var observer = new ShipObserver(ShipSave.get(level));
+        var observer =
+                new ShipObserver(
+                        ShipSave.get(level),
+                        slot -> GroundClock.get(level).clock.model.id(slot).region());
         observers.put(level, observer);
         container.addObserver(
                 new SubLevelObserver() {
@@ -40,6 +43,7 @@ public final class ShipRecords {
 
                     @Override
                     public void onSubLevelRemoved(SubLevel hull, SubLevelRemovalReason reason) {
+                        GasShipDamage.removed(level, hull.getUniqueId());
                         observer.removed(
                                 hull.getUniqueId(), reason == SubLevelRemovalReason.REMOVED);
                     }
@@ -51,7 +55,7 @@ public final class ShipRecords {
 
     public static void refresh(ServerLevel level) {
         var observer = observers.get(level);
-        if (observer != null) observer.refresh();
+        if (observer != null) { observer.refresh(); ShipHost.get().mapSync(level); }
     }
 
     /** Sample release before the region folds motion or changes its labels. */
@@ -79,6 +83,7 @@ public final class ShipRecords {
             observer.bind(hull.getUniqueId(), true, null);
         } else if (holding == (held != null)) return;
         observer.serialized(hull.getUniqueId(), sample(level, hull));
+        ShipHost.get().mapSync(level);
     }
 
     public static ShipRecord.Place hold(ServerLevel level, SubLevel hull) {
@@ -104,6 +109,7 @@ public final class ShipRecords {
         if (observer == null) return;
         var pose = serializedPose(data);
         observer.serialized(data.uuid(), sample(level, hull, pose));
+        ShipHost.get().mapSync(level);
     }
 
     public static void pointerSaved(
@@ -141,6 +147,9 @@ public final class ShipRecords {
     private static ShipRecord.Place captureWhenSlow(
             ServerLevel level, SubLevel hull, ShipRecord.Place place) {
         if (!(hull instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel server)) return null;
+        // An emptied body is marked removed and loses its Rapier body at once, but stays in the
+        // container until processSubLevelRemovals; its velocity cannot be read. No hold yet.
+        if (server.isRemoved()) return null;
         var container =
                 dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer.getContainer(level);
         if (container == null) return null;
@@ -167,11 +176,7 @@ public final class ShipRecords {
     }
 
     private static ShipObserver.Sample sample(ServerLevel level, SubLevel hull) {
-        var sample = sample(level, hull, hull.logicalPose());
-        if (sample.state() instanceof ShipRecord.OnSlot slot)
-            return new ShipObserver.Sample(
-                    sample.dimension(), sample.name(), new ShipRecord.OnSlot(slot.slot()));
-        return sample;
+        return sample(level, hull, hull.logicalPose());
     }
 
     private static ShipObserver.Sample sample(

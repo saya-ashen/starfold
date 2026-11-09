@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "HHH"
+  ],
+  "key": {
+    "H": {
+      "tag": "starfold_materials:osmium_pressure_hull"
+    }
+  },
+  "result": {
+    "id": "starfold_materials:osmium_pressure_hull_slab",
+    "count": 6
+  }
+}

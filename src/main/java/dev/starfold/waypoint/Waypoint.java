@@ -9,6 +9,7 @@ import dev.starfold.planet.GroundTopology;
 /** Immutable planet-local navigation annotation, independent of persistence and commands. */
 public record Waypoint(String name, int planet, PlanetShape.Pose pose) {
     public static final String LAUNCH = "starfold:launch";
+    public static final int MAX_MARKERS = 64;
 
     public static final class Failure extends IllegalArgumentException {
         final String key;

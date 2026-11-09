@@ -186,7 +186,7 @@ public record PlanetShape(int size) {
                 || planet.length() > radius() + MAX_HEIGHT)
             throw new IllegalArgumentException("Outside planet shell");
         Face face = Face.TOP;
-        for (var other : Face.values())
+        for (var other : Face.VALUES)
             if (planet.dot(other.normal) > planet.dot(face.normal)) face = other;
         double scale = half() / planet.dot(face.normal), last = Math.nextDown((double) size);
         return new Pose(

@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.starfold.devtools.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["FrameMixin", "LevelMixin", "WorldMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

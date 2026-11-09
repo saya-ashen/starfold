@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class ThrusterRendererTest {
     @org.junit.jupiter.api.BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -62,6 +62,11 @@ class ThrusterRendererTest {
                         BuiltInRegistries.BLOCK
                                 .get(ResourceLocation.parse("starfold:booster"))
                                 .defaultBlockState()));
+        var occlusion = Sources.text("ThrusterOcclusionMixin");
+        assertFalse(occlusion.contains("getBlockState("));
+        assertTrue(occlusion.contains("ThrusterClient.inset(neighbourState)"));
+        assertTrue(occlusion.contains("LocalCapture.CAPTURE_FAILHARD"));
+        assertTrue(occlusion.contains(";skipRendering("));
         var config = FlightPermitTest.json("starfold.mixins.json");
         assertTrue(
                 config.getAsJsonArray("client").asList().stream()

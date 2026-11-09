@@ -41,10 +41,40 @@ public final class HelmPackets {
             double cy,
             double cz,
             HullLanding.Site landing,
-            double cruiseCap,
-            double boostCap,
-            boolean boosted)
+            boolean boosted,
+            double fuel,
+            double deltaV)
             implements CustomPacketPayload {
+        public State(
+                UUID body,
+                BlockPos pos,
+                Direction facing,
+                boolean active,
+                boolean pilot,
+                int bits,
+                boolean free,
+                double cx,
+                double cy,
+                double cz,
+                HullLanding.Site landing,
+                boolean boosted) {
+            this(
+                    body,
+                    pos,
+                    facing,
+                    active,
+                    pilot,
+                    bits,
+                    free,
+                    cx,
+                    cy,
+                    cz,
+                    landing,
+                    boosted,
+                    -1,
+                    -1);
+        }
+
         public State(
                 UUID body,
                 BlockPos pos,
@@ -68,8 +98,6 @@ public final class HelmPackets {
                     cy,
                     cz,
                     HullLanding.Site.UNKNOWN,
-                    ShipHost.get().minimumSpeed(),
-                    ShipHost.get().minimumSpeed(),
                     false);
         }
 
@@ -97,8 +125,6 @@ public final class HelmPackets {
                     cy,
                     cz,
                     landing,
-                    ShipHost.get().minimumSpeed(),
-                    ShipHost.get().minimumSpeed(),
                     false);
         }
 
@@ -122,9 +148,9 @@ public final class HelmPackets {
                             b.writeEnum(p.landing.aid().status());
                             b.writeDouble(p.landing.aid().right());
                             b.writeDouble(p.landing.aid().forward());
-                            b.writeDouble(p.cruiseCap);
-                            b.writeDouble(p.boostCap);
                             b.writeBoolean(p.boosted);
+                            b.writeDouble(p.fuel);
+                            b.writeDouble(p.deltaV);
                         },
                         b ->
                                 new State(
@@ -145,9 +171,9 @@ public final class HelmPackets {
                                                         b.readEnum(HullLanding.AidStatus.class),
                                                         b.readDouble(),
                                                         b.readDouble())),
+                                        b.readBoolean(),
                                         b.readDouble(),
-                                        b.readDouble(),
-                                        b.readBoolean()));
+                                        b.readDouble()));
 
         @Override
         public Type<State> type() {

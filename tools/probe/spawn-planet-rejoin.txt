@@ -1,0 +1,6 @@
+waitworld
+wait 100
+nav rejoin
+cmd starfold status
+wait 20
+quit

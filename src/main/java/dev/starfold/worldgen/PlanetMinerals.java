@@ -3,30 +3,15 @@ package dev.starfold.worldgen;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import dev.starfold.geometry.BentStripGeometry.Point;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.Optional;
 
-/** What lies under a planet's surface: its strata from the top down and the ores in them. Either list left empty is
- *  what its kind of planet has always had. Depths are written as shares of the planet's depth, 0 at its nominal
- *  surface and 1 at its floor, so that one table suits a planet of any size; they are kept as the layers of the
- *  standard depth (127 down to -64) that every planet's own layers are stretched over. Shallow andesite is an
- *  independent opt-in stone patch policy in actual blocks below local ground; it does not replace either list. */
-public record PlanetMinerals(List<Ore> ores, List<Stratum> strata, boolean shallowAndesite) {
-    /** Missing in saved policies means no patches, including chunks generated later in that world. */
-    public PlanetMinerals(List<Ore> ores, List<Stratum> strata) {
-        this(ores, strata, false);
-    }
-
-    static final int SHALLOW_DEPTH = 43;
-    public static final PlanetMinerals NONE = new PlanetMinerals(List.of(), List.of());
+/** Recipe mineral tables, normalized to the nominal surface and floor. */
+public record PlanetMinerals(List<Ore> ores, List<Stratum> strata) {
     public static final int SURFACE = PlanetTerrain.SEA_LEVEL - 1,
             FLOOR = SURFACE - PlanetGeneration.STANDARD_DEPTH,
             MAX_ORES = 16,
@@ -114,10 +99,7 @@ public record PlanetMinerals(List<Ore> ores, List<Stratum> strata, boolean shall
                                             Stratum.CODEC
                                                     .listOf()
                                                     .optionalFieldOf("strata", List.of())
-                                                    .forGetter(PlanetMinerals::strata),
-                                            Codec.BOOL
-                                                    .optionalFieldOf("shallow_andesite", false)
-                                                    .forGetter(PlanetMinerals::shallowAndesite))
+                                                    .forGetter(PlanetMinerals::strata))
                                     .apply(i, PlanetMinerals::new));
 
     public PlanetMinerals {
@@ -132,87 +114,12 @@ public record PlanetMinerals(List<Ore> ores, List<Stratum> strata, boolean shall
                 throw new IllegalArgumentException("Strata are written from the top down");
     }
 
-    /** Ordinary stone only, after ores/caves/soil have been decided. Actual blocks below local ground, not the
-     *  normalized ore layers: forty stone layers beneath the four-block soil cap, also exposed on bare slopes.
-     *  One smooth 3D field in planet coordinates, with no face, chunk or generation-order salt. */
-    BlockState shallow(
-            PlanetTerrain terrain,
-            PlanetTerrain.Lattice[] cells,
-            Point direction,
-            int ground,
-            int y,
-            BlockState state) {
-        if (!shallowAndesite
-                || !state.is(Blocks.STONE)
-                || y <= terrain.floor()
-                || y > ground
-                || y < ground - SHALLOW_DEPTH) return state;
-        return terrain.noise(
-                                cells,
-                                direction.scale(terrain.shape().half() + y - 128),
-                                1.0 / 16,
-                                231)
-                        > .8
-                ? Blocks.ANDESITE.defaultBlockState()
-                : state;
-    }
-
     private static void solid(Block block) {
         if (block.defaultBlockState().isAir()
                 || !block.defaultBlockState().getFluidState().isEmpty())
             throw new IllegalArgumentException(
                     "A planet is made of solid blocks, not "
                             + BuiltInRegistries.BLOCK.getKey(block));
-    }
-
-    public void write(FriendlyByteBuf buffer) {
-        buffer.writeVarInt(ores.size());
-        for (var ore : ores) {
-            buffer.writeResourceLocation(BuiltInRegistries.BLOCK.getKey(ore.block()));
-            buffer.writeBoolean(ore.deep().isPresent());
-            if (ore.deep().isPresent())
-                buffer.writeResourceLocation(BuiltInRegistries.BLOCK.getKey(ore.deep().get()));
-            buffer.writeVarInt(ore.top() - FLOOR);
-            buffer.writeVarInt(ore.bottom() - FLOOR);
-            buffer.writeDouble(ore.rarity());
-        }
-        buffer.writeVarInt(strata.size());
-        for (var stratum : strata) {
-            buffer.writeResourceLocation(BuiltInRegistries.BLOCK.getKey(stratum.block()));
-            buffer.writeVarInt(stratum.from() - FLOOR);
-        }
-        buffer.writeBoolean(shallowAndesite);
-    }
-
-    public static PlanetMinerals read(FriendlyByteBuf buffer) {
-        int count = buffer.readVarInt();
-        if (count < 0 || count > MAX_ORES) throw new IllegalArgumentException("Planet minerals");
-        var ores = new java.util.ArrayList<Ore>();
-        for (int i = 0; i < count; i++) {
-            var block = block(buffer);
-            Optional<Block> deep =
-                    buffer.readBoolean() ? Optional.of(block(buffer)) : Optional.empty();
-            ores.add(
-                    new Ore(
-                            block,
-                            deep,
-                            buffer.readVarInt() + FLOOR,
-                            buffer.readVarInt() + FLOOR,
-                            buffer.readDouble()));
-        }
-        count = buffer.readVarInt();
-        if (count < 0 || count > MAX_STRATA) throw new IllegalArgumentException("Planet minerals");
-        var strata = new java.util.ArrayList<Stratum>();
-        for (int i = 0; i < count; i++)
-            strata.add(new Stratum(block(buffer), buffer.readVarInt() + FLOOR));
-        return new PlanetMinerals(ores, strata, buffer.readBoolean());
-    }
-
-    private static Block block(FriendlyByteBuf buffer) {
-        var id = buffer.readResourceLocation();
-        return BuiltInRegistries.BLOCK
-                .getOptional(id)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown mineral block " + id));
     }
 
     /** Read by the generators for every block of a column: the tables as arrays of states. */

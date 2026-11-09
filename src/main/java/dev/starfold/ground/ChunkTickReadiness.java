@@ -4,7 +4,7 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -67,7 +67,7 @@ public final class ChunkTickReadiness {
                                                                         ChunkPos.getX(owner),
                                                                         ChunkPos.getZ(owner))
                                                         != null));
-        if (ArrivalProbe.ENABLED) ArrivalProbe.seamHeld(level, chunk, ready);
+        if (DevelopmentHooks.arrival.enabled()) DevelopmentHooks.arrival.seamHeld(level, chunk, ready);
         return ready;
     }
 

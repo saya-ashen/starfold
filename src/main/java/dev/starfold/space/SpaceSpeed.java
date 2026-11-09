@@ -1,37 +1,30 @@
 package dev.starfold.space;
 
-import dev.starfold.ship.Thrusters;
+import dev.starfold.geometry.BentStripGeometry.Point;
 
-/** Pure hardware-to-speed rule. Reference is the shipped, unarmed dev.85 Hauler. */
+import java.util.function.DoubleUnaryOperator;
+
+/** Space velocities are blocks/tick; only the rendering/physics safety ceiling remains. */
 public final class SpaceSpeed {
-    public static final double V_REF = 600,
-            A_REF = 8 * Thrusters.THRUST / 2228,
-            V_MIN = 200,
-            V_MAX = 2400;
-    static final double STOP_TIME = 20;
+    public static final double DEEP_MAX = 20000;
 
-    public record Caps(double cruise, double boost) {
-        double active(boolean boosted) {
-            return boosted ? boost : cruise;
-        }
-
-        double brake() {
-            return Math.max(SpaceServer.BRAKE, boost / STOP_TIME);
-        }
+    /** Inverse of Sable's v / (1 + drag * step), not a vacuum thrust bonus. */
+    static Point undamped(Point velocity, double dragStep) {
+        return velocity.scale(1 + dragStep);
     }
 
-    static double acceleration(double thrust, double mass) {
-        return mass > 0 && Double.isFinite(mass) && thrust > 0 ? thrust / mass : 0;
+    static Point limit(Point velocity) {
+        double speed = velocity.length();
+        return speed > DEEP_MAX / 20 ? velocity.scale(DEEP_MAX / 20 / speed) : velocity;
     }
 
-    static double cap(double acceleration) {
-        return Double.isNaN(acceleration)
-                ? V_MIN
-                : Math.clamp(V_REF * Math.sqrt(Math.max(0, acceleration) / A_REF), V_MIN, V_MAX);
-    }
-
-    static Caps caps(double acceleration) {
-        return new Caps(cap(acceleration), cap(acceleration * Thrusters.BOOST));
+    /** Charge every change of the velocity vector, including sideways guidance and stopping. */
+    static Point maneuver(Point velocity, Point wanted, double step, DoubleUnaryOperator burn) {
+        var change = wanted.sub(velocity);
+        double length = change.length();
+        if (length == 0) return velocity;
+        double available = burn.applyAsDouble(Math.min(length, step) * 20) / 20;
+        return velocity.add(change.scale(Math.min(length, available) / length));
     }
 
     private SpaceSpeed() {}

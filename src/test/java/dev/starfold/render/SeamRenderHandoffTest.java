@@ -7,7 +7,7 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.GroundTopology;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.world.level.block.Blocks;
 
@@ -20,10 +20,10 @@ import java.util.*;
 class SeamRenderHandoffTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
-    private GroundViewCache.Surface surface(long revision) {
+    private GroundSurface surface(long revision) {
         return GroundOwnershipTest.surface(revision, 127, Blocks.WATER);
     }
 
@@ -78,21 +78,6 @@ class SeamRenderHandoffTest {
                                     atlasCode(atlas, f, x, z));
                         }
         }
-    }
-
-    @Test
-    void surfaceSectionAloneCannotReleaseAnUndergroundSnapshot() {
-        var occupied = new BitSet();
-        occupied.set(0, 13);
-        var compiled = new BitSet();
-        compiled.set(12);
-        assertFalse(GroundHandoff.volumeReady(occupied, compiled));
-        compiled.set(0, 12);
-        assertTrue(GroundHandoff.volumeReady(occupied, compiled));
-        compiled.clear(5);
-        assertFalse(GroundHandoff.volumeReady(occupied, compiled));
-        assertEquals(13, occupied.cardinality());
-        assertTrue(GroundHandoff.volumeReady(new BitSet(), new BitSet()));
     }
 
     @Test
@@ -182,15 +167,15 @@ class SeamRenderHandoffTest {
         var renderer = Sources.text("GroundRenderer");
         var prepare =
                 renderer.substring(
-                        renderer.indexOf("private static void prepareDetails"),
+                        renderer.indexOf("private static void prepareSurfaceUpdates"),
                         renderer.indexOf("private static void refreshCoverage"));
         assertFalse(prepare.contains("ownership.rebase"));
         assertFalse(prepare.contains("GroundOwnership.empty()"));
         assertFalse(prepare.contains("detail.remove(key)"));
-        assertTrue(renderer.contains("commitDetails(retained)"));
+        assertFalse(renderer.contains("commitDetails("));
         assertFalse(renderer.contains("nativeVolumeReady"));
-        assertTrue(renderer.contains("GroundStreaming.admit"));
-        assertTrue(renderer.contains("GroundOwnership.atlas(GroundClient.shape(),next,window)"));
+        assertTrue(renderer.contains("GroundViewClient.drainInvalidated()"));
+        assertTrue(Sources.text("GroundCoverage").contains("GroundOwnership.atlas(shape,next,window)"));
         assertFalse(renderer.contains("if(neighbour/16384!=nativeFace)"));
         assertTrue(
                 GroundUndergroundTest.fragment()

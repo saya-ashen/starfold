@@ -1,5 +1,7 @@
 package dev.starfold.ship;
 
+import dev.starfold.space.SpacePackets;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
@@ -159,11 +161,13 @@ class SableCarryTest {
         assertTrue(
                 server.contains(
                         "finally{if(rider instanceof ServerPlayer player)CARRYING.remove(player);}"));
+        var packets = Sources.text("SableObserverPackets");
+        assertTrue(server.contains("SableObserverPackets.register()"));
         var snapshots =
-                server.substring(
-                        server.indexOf(
+                packets.substring(
+                        packets.indexOf(
                                 "PayloadMap.register(ClientboundSableSnapshotDualPacket.class"),
-                        server.indexOf("private record Aboard"));
+                        packets.indexOf("private static int turns"));
         assertTrue(snapshots.contains("new Pose3d(at)"));
         assertFalse(snapshots.contains("entries.add(e)"));
         assertFalse(snapshots.contains(":s;"));

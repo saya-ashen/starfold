@@ -19,6 +19,32 @@ public abstract class GroundFlightNetworkMixin {
         return player.getServer().isSameThread() && GroundFlightServer.controlled(player);
     }
 
+    // Vanilla accepts absMoveTo(packet coordinates) after Entity.move, even in creative mode.
+    // Clip the proposed packet too, so that path cannot bypass the server's sun wall.
+    @ModifyVariable(method = "handleMovePlayer", at = @At("HEAD"), argsOnly = true)
+    private ServerboundMovePlayerPacket starfold$sunPacket(ServerboundMovePlayerPacket packet) {
+        if (!player.getServer().isSameThread()
+                || !dev.starfold.sky.Space.in(player)
+                || player.isPassenger()) return packet;
+        var motion =
+                new net.minecraft.world.phys.Vec3(
+                        packet.getX(player.getX()) - player.getX(),
+                        packet.getY(player.getY()) - player.getY(),
+                        packet.getZ(player.getZ()) - player.getZ());
+        // Let vanilla reject non-finite packets rather than passing them into geometry.
+        if (!Double.isFinite(motion.x) || !Double.isFinite(motion.y) || !Double.isFinite(motion.z))
+            return packet;
+        var limited = dev.starfold.space.SpaceServer.sunMotion(player, motion);
+        if (limited.distanceToSqr(motion) < 1e-16) return packet;
+        return new ServerboundMovePlayerPacket.PosRot(
+                player.getX() + limited.x,
+                player.getY() + limited.y,
+                player.getZ() + limited.z,
+                packet.getYRot(player.getYRot()),
+                packet.getXRot(player.getXRot()),
+                packet.isOnGround());
+    }
+
     @Inject(method = "handleMovePlayer", at = @At("HEAD"), cancellable = true)
     private void starfold$nativeMove(ServerboundMovePlayerPacket packet, CallbackInfo ci) {
         if (starfold$owns()) ci.cancel();

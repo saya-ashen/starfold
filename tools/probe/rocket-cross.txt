@@ -1,4 +1,4 @@
-# On a COPY of the pad world (airship1): the flight that put Saya in the sea. Up from the pad, west over the edge of the
+# On a COPY of the pad world (airship1): the flight that put the tester in the sea. Up from the pad, west over the edge of the
 # platform and over the seam 45 blocks away, stop, and down onto the water.
 waitworld
 wait 200

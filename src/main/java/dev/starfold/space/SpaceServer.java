@@ -1,7 +1,10 @@
 package dev.starfold.space;
 
+import static dev.starfold.space.SpaceFlightMath.*;
+import static dev.starfold.space.SpaceSessions.*;
+
+import dev.starfold.chart.CelestialTarget;
 import dev.starfold.chart.GroundEphemeris;
-import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.ArrivalState;
 import dev.starfold.flight.GroundFlightServer;
@@ -11,13 +14,12 @@ import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.HelmServer;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.ship.ShipParking;
 import dev.starfold.ship.ShipRecords;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
@@ -33,39 +35,6 @@ import org.joml.Quaterniond;
 public final class SpaceServer extends SavedData {
     public static final String FILE = "starfold_native_space_v2";
 
-    /** Cruise has no down; near a planet the deck must be ready before hand-over. Degrees per second. */
-    static final double PILOT_TURN = 45,
-            MOUSE_TURN = 180,
-            ALIGN_TURN = 30,
-            ALIGN_TIME = 12,
-            ASSIST = 1.5;
-
-    static final double VACUUM = 3,
-            SHED = 1,
-            BRAKE = 40,
-            BRAKE_FLOOR = 1,
-            ARRIVE = 150,
-            ARRIVE_TIME = 6,
-            NEAR_TIME = 3;
-    static final double MISS_IN = 500, MISS_OUT = 1000;
-    static final int WISH_TICKS = 5;
-
-    private record Wish(
-            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
-            float pitch,
-            float roll,
-            double mouseYaw,
-            double mousePitch,
-            long tick) {}
-
-    private static final java.util.Map<net.minecraft.server.level.ServerPlayer, Wish> wishes =
-            new java.util.WeakHashMap<>();
-
-    private record Target(
-            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body, int planet) {}
-
-    private static final java.util.Map<net.minecraft.server.level.ServerPlayer, Target> targets =
-            new java.util.WeakHashMap<>();
     private Space.Frame frame;
     private long epoch;
     private Point holdTurn = GroundEphemeris.ZERO;
@@ -74,71 +43,22 @@ public final class SpaceServer extends SavedData {
     private dev.ryanhcode.sable.sublevel.ServerSubLevel inboundBody;
     private int inboundPlanet = -1;
     private boolean inbound, arriving;
-    private static final java.util.Map<net.minecraft.server.level.ServerPlayer, ServerLevel>
-            observers = new java.util.WeakHashMap<>();
-
-    private record View(ServerLevel level, SpacePackets.View packet) {}
-
-    private static final java.util.Map<net.minecraft.server.level.ServerPlayer, View> views =
-            new java.util.WeakHashMap<>();
-    private static final java.util.Map<net.minecraft.world.entity.LivingEntity, ServerLevel>
-            weightless = new java.util.WeakHashMap<>();
     private static final net.minecraft.resources.ResourceLocation WEIGHTLESS =
             net.minecraft.resources.ResourceLocation.parse("starfold:space_weightless");
 
     public static void initialize() {
-        if (ArrivalProbe.ENABLED)
-            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                    (net.neoforged.neoforge.event.RegisterCommandsEvent event) ->
-                            event.getDispatcher()
-                                    .register(
-                                            net.minecraft.commands.Commands.literal("arrivalprobe")
-                                                    .requires(s -> s.hasPermission(2))
-                                                    .then(
-                                                            net.minecraft.commands.Commands
-                                                                    .argument(
-                                                                            "planet",
-                                                                            com.mojang.brigadier
-                                                                                    .arguments
-                                                                                    .IntegerArgumentType
-                                                                                    .integer(0))
-                                                                    .then(
-                                                                            net.minecraft.commands
-                                                                                    .Commands
-                                                                                    .argument(
-                                                                                            "face",
-                                                                                            com
-                                                                                                    .mojang
-                                                                                                    .brigadier
-                                                                                                    .arguments
-                                                                                                    .IntegerArgumentType
-                                                                                                    .integer(
-                                                                                                            0,
-                                                                                                            5))
-                                                                                    .executes(
-                                                                                            c -> {
-                                                                                                probeArrival(
-                                                                                                        c.getSource()
-                                                                                                                .getPlayerOrException(),
-                                                                                                        com
-                                                                                                                .mojang
-                                                                                                                .brigadier
-                                                                                                                .arguments
-                                                                                                                .IntegerArgumentType
-                                                                                                                .getInteger(
-                                                                                                                        c,
-                                                                                                                        "planet"),
-                                                                                                        com
-                                                                                                                .mojang
-                                                                                                                .brigadier
-                                                                                                                .arguments
-                                                                                                                .IntegerArgumentType
-                                                                                                                .getInteger(
-                                                                                                                        c,
-                                                                                                                        "face"));
-                                                                                                return 1;
-                                                                                            })))));
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                net.neoforged.bus.api.EventPriority.LOWEST,
+                (dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent event) ->
+                        sunPhysics(event.getPhysicsSystem(), event.getTimeStep()));
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                net.neoforged.bus.api.EventPriority.LOWEST,
+                (dev.ryanhcode.sable.neoforge.event.ForgeSablePostPhysicsTickEvent event) ->
+                        spacePhysics(event.getPhysicsSystem(), event.getTimeStep()));
         StarfoldNetwork.playS2C(SpacePackets.Frame.TYPE, SpacePackets.Frame.CODEC);
+        StarfoldNetwork.playS2C(
+                dev.starfold.ship.GasPressurePacket.TYPE,
+                dev.starfold.ship.GasPressurePacket.CODEC);
         StarfoldNetwork.playC2S(SpacePackets.Attitude.TYPE, SpacePackets.Attitude.CODEC);
         StarfoldNetwork.serverReceiver(
                 SpacePackets.Attitude.TYPE,
@@ -150,107 +70,14 @@ public final class SpaceServer extends SavedData {
                 (packet, c) ->
                         target(
                                 (net.minecraft.server.level.ServerPlayer) c.player(),
-                                packet.planet()));
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent
-                                event) ->
-                        sync((net.minecraft.server.level.ServerPlayer) event.getEntity()));
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) ->
-                        sync((net.minecraft.server.level.ServerPlayer) event.getEntity()));
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent
-                                event) ->
-                        sync((net.minecraft.server.level.ServerPlayer) event.getEntity()));
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent
-                                event) -> {
-                    observers.remove(event.getEntity());
-                    views.remove(event.getEntity());
-                    wishes.remove(event.getEntity());
-                    targets.remove(event.getEntity());
-                });
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.server.ServerStoppedEvent event) -> {
-                    observers.clear();
-                    views.clear();
-                    wishes.clear();
-                    targets.clear();
-                    weightless.clear();
-                });
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.event.level.LevelEvent.Unload event) -> {
-                    if (event.getLevel() instanceof ServerLevel level) SpaceApproach.release(level);
-                });
+                                packet.bodyIndex()));
+        SpaceSessions.initialize();
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.tick.LevelTickEvent.Pre event) -> {
                     if (event.getLevel() instanceof ServerLevel level) tick(level);
                 });
     }
 
-    /** Development fixture: relocate only the occupied region's far-away reference, never load a chart. */
-    private static void probeArrival(
-            net.minecraft.server.level.ServerPlayer player, int planet, int face) {
-        if (!ArrivalProbe.ENABLED || !Space.in(player))
-            throw new IllegalStateException("Arrival fixture requires region pilot");
-        var level = player.serverLevel();
-        var body = SableFrames.aboard(player);
-        if (body == null) throw new IllegalStateException("No pilot body");
-        var clock = GroundClock.get(level).clock;
-        var shape = PlanetShape.of(planet);
-        var target = clock.model.at(planet, clock.tick() + 500);
-        var offset =
-                target.vector(
-                                shape.direction(
-                                        CubeSurfaceTopology.Face.values()[face],
-                                        face == 1 ? 1700 : shape.size() / 2.0,
-                                        face == 1 ? 900 : shape.size() / 2.0))
-                        .scale(shape.radius() + 7500);
-        var at = body.logicalPose().position();
-        var value = get(level);
-        var old = value.frame;
-        value.frame =
-                new Space.Frame(
-                        old.rotation(),
-                        old.shift(),
-                        planet,
-                        offset.sub(
-                                old.universeVector(new Point(at.x, at.y, at.z).sub(old.shift()))),
-                        new Point(0, 0, 0),
-                        clock.tick());
-        value.epoch = clock.tick();
-        value.setDirty();
-        SpaceApproach.release(level);
-        for (var p : level.players()) if (Space.in(p)) send(p);
-        org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                .info(
-                        "PROBE ARRIVAL_SETUP planet {} face {} height 7500 game {}",
-                        planet,
-                        face,
-                        level.getGameTime());
-    }
-
-    public static void probeSpeed(net.minecraft.server.level.ServerPlayer player, double speed) {
-        if (!Boolean.getBoolean("starfold.helmProbe")
-                || !Space.in(player)
-                || !HelmServer.active(player))
-            throw new IllegalStateException("Speed fixture requires development region pilot");
-        var value = get(player.serverLevel());
-        var f = value.frame.rebased(GroundClock.get(player.serverLevel()).clock.tick());
-        var nose = HelmServer.forward(SableFrames.aboard(player));
-        value.frame =
-                new Space.Frame(
-                        f.rotation(),
-                        f.shift(),
-                        f.planet(),
-                        f.offset(),
-                        f.universeVector(nose).scale(speed / 20),
-                        f.epoch());
-        value.setDirty();
-        send(player);
-    }
-
-    /** End chart ownership without changing position or velocity, then announce passive coordinates. */
     public static void sync(net.minecraft.server.level.ServerPlayer player) {
         targets.remove(player);
         if (Space.in(player)) {
@@ -271,7 +98,7 @@ public final class SpaceServer extends SavedData {
                 Space.in(player) ? get(player.serverLevel()).arrivalState : ArrivalState.empty());
     }
 
-    private static void send(net.minecraft.server.level.ServerPlayer player) {
+    static void send(net.minecraft.server.level.ServerPlayer player) {
         send(player, false);
     }
 
@@ -281,31 +108,14 @@ public final class SpaceServer extends SavedData {
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, packet);
     }
 
-    /** Repeated metadata tolerates packets arriving while a client is between Levels; never captures a flight. */
+    /** Publish current frame and authorize the personal stream without requiring a hull. */
+    public static long exposureView(net.minecraft.server.level.ServerPlayer player) {
+        send(player);
+        return view(player);
+    }
+
     public static long view(net.minecraft.server.level.ServerPlayer player) {
-        if (!Space.in(player)) {
-            views.remove(player);
-            if (player.connection.hasChannel(SpacePackets.View.TYPE))
-                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
-                        player, new SpacePackets.View(0, GroundSpace.DEFAULT_MASK));
-            return 0;
-        }
-        var mask = GroundClock.get(player.serverLevel()).mask;
-        var v = views.get(player);
-        boolean fresh =
-                v == null || v.level() != player.serverLevel() || !v.packet().mask().equals(mask);
-        if (fresh) {
-            long id = java.util.UUID.randomUUID().getMostSignificantBits();
-            v = new View(player.serverLevel(), new SpacePackets.View(id == 0 ? 1 : id, mask));
-            views.put(player, v);
-        }
-        if (fresh) send(player);
-        if (fresh || player.level().getGameTime() % 20 == 0) {
-            if (player.connection.hasChannel(SpacePackets.View.TYPE))
-                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, v.packet());
-            SpaceHost.get().targetSync(player, v.packet().session());
-        }
-        return v.packet().session();
+        return SpaceSessions.view(player);
     }
 
     static void tick(ServerLevel level) {
@@ -403,8 +213,18 @@ public final class SpaceServer extends SavedData {
         } else gravity.removeModifier(WEIGHTLESS);
     }
 
+    private java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> savedModel =
+            () -> dev.starfold.planet.PlanetSystem.model(dev.starfold.chart.PlanetShape.count());
+
     public SpaceServer(Space.Frame frame) {
         this.frame = frame;
+    }
+
+    public SpaceServer(
+            Space.Frame frame,
+            java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> model) {
+        this(frame);
+        this.savedModel = java.util.Objects.requireNonNull(model);
     }
 
     static SpaceServer fresh(boolean exists) {
@@ -417,79 +237,54 @@ public final class SpaceServer extends SavedData {
     }
 
     public static SpaceServer load(CompoundTag tag, HolderLookup.Provider lookup) {
-        for (String key :
-                new String[] {
-                    "qx", "qy", "qz", "qw", "x", "y", "z", "ox", "oy", "oz", "wx", "wy", "wz"
-                })
-            if (!tag.contains(key, 6))
-                throw new IllegalArgumentException("Space frame field: " + key);
-        if (!tag.contains("planet", 3)
-                || !tag.contains("epoch", 4)
-                || !tag.contains("originEpoch", 4)
-                || tag.getLong("epoch") < 0)
-            throw new IllegalArgumentException("Space reference fields");
-        var value =
-                new SpaceServer(
-                        new Space.Frame(
-                                new Quaterniond(
-                                        tag.getDouble("qx"),
-                                        tag.getDouble("qy"),
-                                        tag.getDouble("qz"),
-                                        tag.getDouble("qw")),
-                                new Point(
-                                        tag.getDouble("x"), tag.getDouble("y"), tag.getDouble("z")),
-                                tag.getInt("planet"),
-                                new Point(
-                                        tag.getDouble("ox"),
-                                        tag.getDouble("oy"),
-                                        tag.getDouble("oz")),
-                                new Point(
-                                        tag.getDouble("wx"),
-                                        tag.getDouble("wy"),
-                                        tag.getDouble("wz")),
-                                tag.getLong("originEpoch")));
-        value.epoch = tag.getLong("epoch");
-        if (tag.getBoolean("arrivalLatched")) {
-            value.arrivalState =
-                    new ArrivalState(
-                            ArrivalState.Phase.ARRIVAL,
-                            20,
-                            0,
-                            0,
-                            tag.getDouble("arrivalHeight"),
-                            tag.getInt("arrivalPlanet"),
-                            tag.getString("arrivalLead"));
-            value.arriving = true;
-        }
-        if (tag.contains("departurePlanet", 3) && tag.contains("departureLead", 8)) {
-            var s = value.arrivalState;
-            value.arrivalState =
-                    new ArrivalState(
-                            s.phase(),
-                            s.ticks(),
-                            s.cooldown(),
-                            s.leaving(),
-                            s.entryHeight(),
-                            s.planet(),
-                            s.lead(),
-                            new ArrivalState.Departure(
-                                    tag.getInt("departurePlanet"), tag.getString("departureLead")));
-        }
+        return load(
+                tag,
+                lookup,
+                () ->
+                        dev.starfold.planet.PlanetSystem.model(
+                                dev.starfold.chart.PlanetShape.count()));
+    }
+
+    public static SpaceServer load(
+            CompoundTag tag,
+            HolderLookup.Provider lookup,
+            java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> model) {
+        var decoded = SpaceFrameCodec.read(tag, model);
+        var value = new SpaceServer(decoded.frame(), model);
+        value.epoch = decoded.epoch();
+        value.arrivalState = decoded.arrival();
+        value.arriving = value.arrivalState.latched();
         return value;
     }
 
     private static SpaceServer get(ServerLevel level) {
         var storage = level.getDataStorage();
-        return storage.computeIfAbsent(
-                new Factory<>(
-                        () ->
-                                fresh(
-                                        ((dev.starfold.mixin.SavedDataFileAccess) storage)
-                                                .starfold$spaceDataFile(FILE)
-                                                .exists()),
-                        SpaceServer::load,
-                        null),
-                FILE);
+        var saved =
+                storage.computeIfAbsent(
+                        new Factory<>(
+                                () ->
+                                        fresh(
+                                                ((dev.starfold.mixin.SavedDataFileAccess) storage)
+                                                        .starfold$spaceDataFile(FILE)
+                                                        .exists()),
+                                (tag, lookup) ->
+                                        load(tag, lookup, () -> GroundClock.get(level).clock.model),
+                                null),
+                        FILE);
+        saved.savedModel = () -> GroundClock.get(level).clock.model;
+        return saved;
+    }
+
+    /** Replace a region reference without moving its local hulls. */
+    public static void frame(ServerLevel level, Space.Frame frame, boolean newReference) {
+        var value = get(level);
+        value.frame = frame;
+        value.setDirty();
+        if (newReference) {
+            value.epoch = frame.epoch();
+            SpaceApproach.release(level);
+        }
+        for (var player : level.players()) if (Space.in(player)) send(player);
     }
 
     public static Space.Frame frame(ServerLevel level) {
@@ -555,6 +350,7 @@ public final class SpaceServer extends SavedData {
             ServerLevel level, dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
         var bodies = spaceBodies(container);
         if (bodies.isEmpty()) {
+            dev.starfold.ship.GasShipDamage.release(level);
             clearEmptyRegion(level, container);
             return;
         }
@@ -564,6 +360,125 @@ public final class SpaceServer extends SavedData {
         for (var body : bodies) ShipRecords.binding(level, body);
         advanceLead(level, container, bodies, lead, value, clock);
         settleFollowers(level, container, bodies, lead, value);
+        // Followers retain their own Sable velocity; constrain it after parking/coast forces.
+        var pipeline = container.physicsSystem().getPipeline();
+        for (var body : bodies) {
+            if (body == lead) continue;
+            var at = body.logicalPose().position();
+            var velocity = pipeline.getLinearVelocity(body, new org.joml.Vector3d()).div(20);
+            var motion = new Point(velocity.x, velocity.y, velocity.z);
+            var limited =
+                    dev.starfold.chart.SunBoundary.inFrame(
+                            clock.model,
+                            value.frame,
+                            new Point(at.x, at.y, at.z),
+                            motion,
+                            clock.tick(),
+                            sunPadding(body));
+            var change = limited.sub(motion).scale(20);
+            if (change.length() > 0)
+                pipeline.addLinearAndAngularVelocity(
+                        body,
+                        new org.joml.Vector3d(change.x(), change.y(), change.z()),
+                        new org.joml.Vector3d());
+        }
+        dev.starfold.ship.GasShipDamage.step(
+                level, container, bodies, clock.model, value.frame, clock.tick());
+    }
+
+    /** Actors have already applied thrust when Sable publishes this event, before integration.
+     * Recheck each substep so sustained thrust cannot creep through a tick-end velocity wall. */
+    private static void sunPhysics(
+            dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics, double step) {
+        var level = physics.getLevel();
+        if (!PlanetLevels.is(level) || !(step > 0)) return;
+        var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
+        if (container == null) return;
+        var clock = GroundClock.get(level).clock;
+        var f = frame(level);
+        double span = step * 20;
+        double tick = Math.max(0, clock.tick() - 1 + physics.getPartialPhysicsTick() - span);
+        var pipeline = physics.getPipeline();
+        for (var body : spaceBodies(container)) {
+            var at = body.logicalPose().position();
+            var velocity = pipeline.getLinearVelocity(body, new org.joml.Vector3d());
+            var motion = new Point(velocity.x * step, velocity.y * step, velocity.z * step);
+            var limited =
+                    dev.starfold.chart.SunBoundary.inFrame(
+                            clock.model,
+                            f,
+                            new Point(at.x, at.y, at.z),
+                            motion,
+                            tick,
+                            sunPadding(body),
+                            span);
+            var change = limited.sub(motion).scale(1 / step);
+            if (change.length() > 0)
+                pipeline.addLinearAndAngularVelocity(
+                        body,
+                        new org.joml.Vector3d(change.x(), change.y(), change.z()),
+                        new org.joml.Vector3d());
+        }
+    }
+
+    /** After gravity cancellation, undo native linear damping only in space, including followers. */
+    private static void spacePhysics(
+            dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics, double step) {
+        var level = physics.getLevel();
+        if (!PlanetLevels.is(level)) return;
+        var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
+        if (container == null) return;
+        var f = frame(level);
+        var drift = f.levelVector(f.drift()).scale(20);
+        double drag = dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
+                .getUniversalDrag(level) * step;
+        var pipeline = physics.getPipeline();
+        for (var body : spaceBodies(container)) {
+            var v = pipeline.getLinearVelocity(body, new org.joml.Vector3d());
+            var old = new Point(v.x, v.y, v.z);
+            var restored = SpaceSpeed.undamped(old, drag);
+            var relative = restored.add(drift).scale(1.0 / 20);
+            var limited = SpaceSpeed.limit(relative).scale(20).sub(drift);
+            var change = limited.sub(old);
+            pipeline.addLinearAndAngularVelocity(body,
+                    new org.joml.Vector3d(change.x(), change.y(), change.z()), new org.joml.Vector3d());
+        }
+    }
+
+    /** Bounding sphere about the logical anchor covers the full rotating hull, not just its helm. */
+    private static double sunPadding(dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+        var box = SableFrames.cabinBounds(body);
+        if (box == null) return 0;
+        var at = body.logicalPose().position();
+        double x = Math.max(Math.abs(box.minX - at.x), Math.abs(box.maxX - at.x)),
+                y = Math.max(Math.abs(box.minY - at.y), Math.abs(box.maxY - at.y)),
+                z = Math.max(Math.abs(box.minZ - at.z), Math.abs(box.maxZ - at.z));
+        return Math.sqrt(x * x + y * y + z * z);
+    }
+
+    public static java.util.function.BiFunction<
+                    net.minecraft.world.entity.Entity,
+                    net.minecraft.world.phys.Vec3,
+                    net.minecraft.world.phys.Vec3>
+            clientSunMotion = (entity, motion) -> motion;
+
+    /** Movement is checked on the server even when it came from a vanilla position packet. */
+    public static net.minecraft.world.phys.Vec3 sunMotion(
+            net.minecraft.world.entity.Entity entity, net.minecraft.world.phys.Vec3 motion) {
+        if (!(entity instanceof net.minecraft.world.entity.player.Player) || !Space.in(entity))
+            return motion;
+        if (entity.level().isClientSide) return clientSunMotion.apply(entity, motion);
+        var level = (ServerLevel) entity.level();
+        var clock = GroundClock.get(level).clock;
+        var limited =
+                dev.starfold.chart.SunBoundary.inFrame(
+                        clock.model,
+                        frame(level),
+                        new Point(entity.getX(), entity.getY(), entity.getZ()),
+                        new Point(motion.x, motion.y, motion.z),
+                        clock.tick(),
+                        entity.getBbHeight());
+        return new net.minecraft.world.phys.Vec3(limited.x(), limited.y(), limited.z());
     }
 
     // Arrival, attitude, cruise and probes share more than six locals; keep this allocation-free
@@ -599,11 +514,11 @@ public final class SpaceServer extends SavedData {
                         SpaceNavigation.closing(
                                 towardEntry,
                                 entry.universeVelocity(GroundEphemeris.ZERO, model, tick)
-                                        .add(impulse.scale(piloted ? VACUUM : 1)),
+                                        .add(impulse),
                                 model.at(destination, tick).velocity());
         var entryRelative =
                 entry.universeVelocity(GroundEphemeris.ZERO, model, tick)
-                        .add(impulse.scale(piloted ? VACUUM : 1))
+                        .add(impulse)
                         .sub(model.at(destination, tick).velocity());
         value.inbound =
                 inbound(
@@ -647,7 +562,7 @@ public final class SpaceServer extends SavedData {
         double blend = value.arrivalState.blend();
         push = blendPush(push, towardEntry, blend);
         if (v.length() > 1e-9) {
-            absorbLeadImpulse(value, tick, v, towardEntry, blend, piloted);
+            absorbLeadImpulse(value, tick, v, towardEntry, blend);
             for (var body : bodies)
                 pipeline.addLinearAndAngularVelocity(
                         body,
@@ -672,7 +587,7 @@ public final class SpaceServer extends SavedData {
                 var wish = wishes.get(player);
                 if (wish == null) continue;
                 if (wish.body() != lead
-                        || !fresh(wish.tick(), level.getGameTime())
+                        || !SpaceSessions.fresh(wish.tick(), level.getGameTime())
                         || !helm(player, lead)) {
                     wishes.remove(player);
                     continue;
@@ -716,25 +631,6 @@ public final class SpaceServer extends SavedData {
                                     roll,
                                     mouseYaw,
                                     mousePitch);
-            if (Boolean.getBoolean("starfold.passbyProbe"))
-                org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                        .info(
-                                "PROBE ARRIVE_PHASE game {} phase {} blend {} notice {} remaining {} turn {} entryHeight {} entryClosing {} start {} planet {} departure {}",
-                                level.getGameTime(),
-                                value.arrivalState.phase(),
-                                blend,
-                                value.arrivalState.seconds(),
-                                remaining,
-                                Math.toDegrees(turn.angle()),
-                                entryHeight,
-                                entryClosing,
-                                align(
-                                        model.body(destination),
-                                        entryHeight,
-                                        entryClosing,
-                                        value.inbound),
-                                destination,
-                                value.arrivalState.departure());
             if (turn.x != 0 || turn.y != 0 || turn.z != 0) {
                 var old = value.frame;
                 value.frame = old.turned(turn, point);
@@ -742,50 +638,25 @@ public final class SpaceServer extends SavedData {
                 value.relabelTurn(level, container, bodies, lead, old);
             }
         }
-        Point targetVelocity = null;
+        Point targetVelocity = null, guided = value.frame.drift();
         if (Thrusters.steadied(lead, level.getGameTime()))
             for (var player : level.players())
                 if (helm(player, lead)) {
                     targetVelocity = targetVelocity(player, model, value.frame.planet(), tick);
-                    var shape = PlanetShape.of(nearest);
-                    double height = Space.height(model, nearest, shape, universe, tick),
-                            closing =
-                                    SpaceNavigation.closing(
-                                            model.at(nearest, tick).center().sub(universe),
-                                            value.frame.universeVelocity(
-                                                    GroundEphemeris.ZERO, model, tick),
-                                            model.at(nearest, tick).velocity());
                     if (!arriving) {
                         var f = value.frame.rebased(tick);
                         var forward = HelmServer.forward(lead);
                         var nose = f.universeVector(forward);
-                        value.frame =
-                                new Space.Frame(
-                                        f.rotation(),
-                                        f.shift(),
-                                        f.planet(),
-                                        f.offset(),
-                                        assist(
-                                                f.drift(),
-                                                nose,
-                                                Thrusters.forward(
-                                                        lead, level.getGameTime(), forward),
-                                                targetVelocity),
-                                        tick);
-                        value.setDirty();
+                        guided = assist(f.drift(), nose, Thrusters.forward(
+                                lead, level.getGameTime(), forward), targetVelocity);
                     }
                     break;
                 }
         if (piloted) {
             var f = value.frame.rebased(tick);
             var drift =
-                    cruise(
-                            prior,
-                            f.drift(),
-                            push,
-                            Thrusters.boosted(lead, level.getGameTime()),
-                            targetVelocity,
-                            SpaceSpeedServer.caps(lead));
+                    SpaceSpeedServer.maneuver(
+                            lead, f, f.drift(), brake(prior, guided, push, targetVelocity));
             var shape = PlanetShape.of(nearest);
             double height = Space.height(model, nearest, shape, universe, tick);
             var toward = model.at(nearest, tick).center().sub(universe);
@@ -800,31 +671,37 @@ public final class SpaceServer extends SavedData {
                             value.inbound,
                             SpaceNavigation.closing(toward, relative, GroundEphemeris.ZERO),
                             missHeight(toward.scale(-1), relative, shape.radius()));
-            var ungoverned = drift;
-            double miss = missHeight(toward.scale(-1), relative, shape.radius());
             var limited = govern(model.body(nearest), drift, toward, relative, height, true);
             drift = drift.add(limited.sub(drift).scale(blend));
-            if (Boolean.getBoolean("starfold.passbyProbe"))
-                org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                        .info(
-                                "PROBE PASSBY game {} nearest {} ref {} height {} miss {} inbound {} arriving {} governed {} before {} speed {} delta {} closing {}",
-                                level.getGameTime(),
-                                nearest,
-                                f.planet(),
-                                height,
-                                miss,
-                                value.inbound,
-                                arriving,
-                                blend > 0,
-                                relative.length() * 20,
-                                relative.add(drift.sub(ungoverned)).length() * 20,
-                                drift.sub(ungoverned).length() * 20,
-                                SpaceNavigation.closing(toward, relative, GroundEphemeris.ZERO));
             value.frame =
                     new Space.Frame(f.rotation(), f.shift(), f.planet(), f.offset(), drift, tick);
             value.setDirty();
         }
-        if (ArrivalProbe.ENABLED && level.getGameTime() % 20 == 0) {
+        var bounded = value.frame.rebased(tick);
+        value.frame = new Space.Frame(bounded.rotation(), bounded.shift(), bounded.planet(),
+                bounded.offset(), SpaceSpeed.limit(bounded.drift()), tick);
+        // Sable's lead impulse has already been folded into the moving region. Limit that
+        // region's next displacement here, after cruise/arrival, without relocating the hull.
+        {
+            var f = value.frame.rebased(tick);
+            var world = f.universe(point, model, tick);
+            var carried = f.universe(point, model, tick + 1).sub(world);
+            var limited =
+                    dev.starfold.chart.SunBoundary.clip(
+                            model, world, carried, tick, sunPadding(lead));
+            if (!limited.equals(carried)) {
+                value.frame =
+                        new Space.Frame(
+                                f.rotation(),
+                                f.shift(),
+                                f.planet(),
+                                f.offset(),
+                                f.drift().add(limited.sub(carried)),
+                                tick);
+                value.setDirty();
+            }
+        }
+        if (DevelopmentHooks.arrival.enabled() && level.getGameTime() % 20 == 0) {
             var f = value.frame;
             var toward = model.at(nearest, tick).center().sub(universe);
             double h = Space.height(model, nearest, PlanetShape.of(nearest), universe, tick),
@@ -871,7 +748,11 @@ public final class SpaceServer extends SavedData {
         for (var player : level.players())
             if (helm(player, lead)) {
                 var target = targets.get(player);
-                if (target != null && validTarget(player, target)) lockedPlanet = target.planet();
+                if (target != null && target.celestial() != null && validTarget(player, target))
+                    lockedPlanet =
+                            target.celestial()
+                                    .surfaceSlot(GroundClock.get(level).clock.model)
+                                    .orElse(-1);
                 break;
             }
         return lockedPlanet;
@@ -890,14 +771,6 @@ public final class SpaceServer extends SavedData {
                 if (entity instanceof net.minecraft.server.level.ServerPlayer player)
                     player.hurtMarked = true;
             }
-    }
-
-    private static double dragFactor(ServerLevel level) {
-        return 1
-                / (1
-                        + dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
-                                        .getUniversalDrag(level)
-                                / 20);
     }
 
     public static Point carriedSpin(ServerLevel level, java.util.UUID hull) {
@@ -959,10 +832,10 @@ public final class SpaceServer extends SavedData {
             java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
             dev.ryanhcode.sable.sublevel.ServerSubLevel lead,
             long tick) {
-        // A helm without powered stabilization still uses the ordinary region drag, not body hold.
+        // A helm without powered stabilization coasts rather than capturing a parked pose.
         if (ShipRecords.piloted(level, lead)) {
             value.clearHoldTurn();
-            value.frame = value.frame.dragged(dragFactor(level), tick);
+            value.frame = value.frame.rebased(tick);
             return;
         }
         var model = GroundClock.get(level).clock.model;
@@ -970,7 +843,7 @@ public final class SpaceServer extends SavedData {
         var point = new Point(at.x, at.y, at.z);
         var universe = value.frame.universe(point, model, tick);
         int body = ShipParking.nearestBody(model, universe, tick);
-        double factor = dragFactor(level);
+        double factor = 1;
         var target = ShipParking.coastTarget(model, body, universe, tick);
         value.frame = ShipParking.coastFrame(value.frame, model, body, point, factor, tick);
         if (!lead.getUniqueId().equals(value.turningLead)) value.clearHoldTurn();
@@ -1085,7 +958,7 @@ public final class SpaceServer extends SavedData {
                         ShipParking.coastTarget(clock.model, nearest, universe, clock.tick()),
                         clock.model,
                         clock.tick());
-        double factor = dragFactor(level);
+        double factor = 1;
         var motion = SableFrames.motion(container, body, point);
         var next = target;
         if (target.spin().lengthSquared() != 0) {
@@ -1114,6 +987,7 @@ public final class SpaceServer extends SavedData {
             SpaceServer value,
             Point delta,
             long tick) {
+        long probeStart = Boolean.getBoolean("starfold.chunkPerf") ? System.nanoTime() : 0;
         value.frame = value.frame.shifted(delta);
         value.epoch = tick;
         value.setDirty();
@@ -1132,6 +1006,10 @@ public final class SpaceServer extends SavedData {
                     true);
         }
         for (var player : level.players()) if (Space.in(player)) send(player);
+        if (probeStart != 0)
+            org.slf4j.LoggerFactory.getLogger("starfold-chunk-perf")
+                    .info("PROBE REANCHOR tick {} nanos {} bodies {} delta {}", tick,
+                            System.nanoTime() - probeStart, bodies.size(), delta);
     }
 
     private static java.util.ArrayList<dev.ryanhcode.sable.sublevel.ServerSubLevel> spaceBodies(
@@ -1162,8 +1040,7 @@ public final class SpaceServer extends SavedData {
             long tick,
             Point v,
             Point towardEntry,
-            double blend,
-            boolean piloted) {
+            double blend) {
         var f = value.frame.rebased(tick);
         value.frame =
                 new Space.Frame(
@@ -1171,16 +1048,12 @@ public final class SpaceServer extends SavedData {
                         f.shift(),
                         f.planet(),
                         f.offset(),
-                        gain(
-                                f.drift(),
-                                blendPush(f.universeVector(v), towardEntry, blend),
-                                piloted,
-                                0),
+                        gain(f.drift(), blendPush(f.universeVector(v), towardEntry, blend)),
                         tick);
     }
 
     /** Use the same occupied-body order for accepting a wish and consuming it. */
-    private static dev.ryanhcode.sable.sublevel.ServerSubLevel lead(
+    static dev.ryanhcode.sable.sublevel.ServerSubLevel lead(
             ServerLevel level, dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
         dev.ryanhcode.sable.sublevel.ServerSubLevel first = null;
         for (var player : level.players()) {
@@ -1206,7 +1079,7 @@ public final class SpaceServer extends SavedData {
     }
 
     /** The server's controller session owns pilot identity and forward, not player yaw. */
-    private static boolean helm(
+    static boolean helm(
             net.minecraft.server.level.ServerPlayer player,
             dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
         return Space.in(player) && atHelm(player, body);
@@ -1221,47 +1094,6 @@ public final class SpaceServer extends SavedData {
     public static void releaseHelm(net.minecraft.server.level.ServerPlayer player) {
         wishes.remove(player);
         targets.remove(player);
-    }
-
-    private static void wish(
-            net.minecraft.server.level.ServerPlayer player, SpacePackets.Attitude packet) {
-        if (!Float.isFinite(packet.pitch())
-                || !Float.isFinite(packet.roll())
-                || !Float.isFinite(packet.mouseYaw())
-                || !Float.isFinite(packet.mousePitch())
-                || !Space.in(player)) {
-            wishes.remove(player);
-            return;
-        }
-        var container =
-                dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(
-                        player.serverLevel());
-        if (!(container
-                instanceof dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer server)) {
-            wishes.remove(player);
-            return;
-        }
-        var lead = lead(player.serverLevel(), server);
-        if (lead == null || !helm(player, lead)) {
-            wishes.remove(player);
-            return;
-        }
-        var old = wishes.get(player);
-        boolean pending =
-                old != null
-                        && old.body() == lead
-                        && fresh(old.tick(), player.level().getGameTime());
-        double my = (pending ? old.mouseYaw() : 0) + packet.mouseYaw(),
-                mp = (pending ? old.mousePitch() : 0) + packet.mousePitch();
-        wishes.put(
-                player,
-                new Wish(
-                        lead,
-                        Math.clamp(packet.pitch(), -1, 1),
-                        Math.clamp(packet.roll(), -1, 1),
-                        my,
-                        mp,
-                        player.level().getGameTime()));
     }
 
     /** Gyros keep Level yaw still only while those turning thrusters are used as frame roll. */
@@ -1292,31 +1124,49 @@ public final class SpaceServer extends SavedData {
                 || !Space.in(player)
                 || !helm(player, target.body())
                 || Thrusters.scopeTier(target.body()) < 2
-                || !knownTarget(
-                        target.planet(), GroundClock.get(target.level()).clock.model.count()))
-            return false;
+                || (target.ship() == null
+                        ? !knownTarget(target.celestial().bodyIndex(), GroundClock.get(target.level()).clock.model)
+                        : !dev.starfold.ship.ShipSave.get(target.level()).owns(player.getUUID(), target.ship()))) return false;
         var container =
                 dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(target.level());
         return container instanceof dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer server
                 && lead(target.level(), server) == target.body();
     }
 
+    /** Read projection of the existing server lock; never a second pressure/navigation target. */
+    public static int selectedBodyIndex(
+            net.minecraft.server.level.ServerPlayer player, java.util.UUID hull) {
+        var target = targets.get(player);
+        return target != null
+                        && target.level() == player.serverLevel()
+                        && !target.body().isRemoved()
+                        && target.body().getUniqueId().equals(hull)
+                        && HelmServer.pilot(player, target.body())
+                        && target.celestial() != null
+                ? target.celestial().bodyIndex()
+                : -1;
+    }
+
     public static int markerPlanet(net.minecraft.server.level.ServerPlayer player) {
         var target = targets.get(player);
-        if (target != null && validTarget(player, target)) return target.planet();
+        if (target != null && target.celestial() != null && validTarget(player, target))
+            return target.celestial()
+                    .surfaceSlot(GroundClock.get(target.level()).clock.model)
+                    .orElse(-1);
         var value = get(player.serverLevel());
         return value.arriving ? value.inboundPlanet : -1;
     }
 
-    static boolean knownTarget(int planet, int count) {
-        return planet >= 0 && planet < count;
+    static boolean knownTarget(int bodyIndex, GroundEphemeris.Model model) {
+        return CelestialNavigation.knownTarget(model, bodyIndex);
     }
 
-    private static void target(net.minecraft.server.level.ServerPlayer player, int planet) {
+    public static void target(net.minecraft.server.level.ServerPlayer player, int bodyIndex) {
+        SpaceHost.get().targetCleared(player);
         targets.remove(player);
-        if (!Space.in(player)
-                || !knownTarget(planet, GroundClock.get(player.serverLevel()).clock.model.count()))
-            return;
+        if (!Space.in(player)) return;
+        var model = GroundClock.get(player.serverLevel()).clock.model;
+        if (!knownTarget(bodyIndex, model)) return;
         var container =
                 dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(
                         player.serverLevel());
@@ -1324,9 +1174,12 @@ public final class SpaceServer extends SavedData {
             return;
         var body = lead(player.serverLevel(), server);
         if (body != null && helm(player, body) && Thrusters.scopeTier(body) >= 2) {
-            targets.put(player, new Target(player.serverLevel(), body, planet));
+            var celestial = CelestialTarget.resolve(model, bodyIndex);
+            targets.put(player, new Target(player.serverLevel(), body, celestial, null));
             var value = get(player.serverLevel());
-            value.arrivalState = value.arrivalState.lock(planet, body.getUniqueId().toString());
+            value.arrivalState =
+                    value.arrivalState.lock(
+                            celestial.surfaceSlot(model).orElse(-1), body.getUniqueId().toString());
             value.setDirty();
         }
     }
@@ -1342,337 +1195,26 @@ public final class SpaceServer extends SavedData {
             targets.remove(player);
             return null;
         }
-        return model.at(target.planet(), tick).velocity().sub(model.at(reference, tick).velocity());
+        var record = target.ship() == null ? null : dev.starfold.ship.ShipSave.get(player.serverLevel()).find(target.ship());
+        if (target.ship() != null && record == null) { targets.remove(player); return null; }
+        return (record == null ? target.celestial().frame(model, tick).velocity()
+                : MapNavigation.velocity(model, record, tick)).sub(model.at(reference, tick).velocity());
     }
 
-    static boolean fresh(long sent, long now) {
-        return now >= sent && now - sent <= WISH_TICKS;
-    }
-
-    /** Closing is radial blocks/second; equality leaves attitude free. The floor also covers retreat.
-     * 12v lead leaves about 7v after the 4s notice + 1s blend, before the 6(v-150)
-     * governor boundary. Arrival directly projects velocity onto its envelope (not BRAKE-limited),
-     * so the existing linear lead remains sufficient at 2400; no quadratic lead is needed. */
-    static boolean align(GroundEphemeris.Body body, double height, double closing) {
-        return align(body, height, closing, true);
-    }
-
-    static boolean align(
-            GroundEphemeris.Body body, double height, double closing, boolean inbound) {
-        return height < body.hullIn() + 300
-                || inbound && closing > 0 && height - body.hullIn() < closing * ALIGN_TIME;
-    }
-
-    /** Straight-line closest approach in the nearest planet's velocity frame; recession has no future miss. */
-    static double missHeight(Point position, Point relative, double radius) {
-        double speed2 = relative.dot(relative), dot = position.dot(relative);
-        return speed2 > 0 && dot < 0
-                ? position.add(relative.scale(-dot / speed2)).length() - radius
-                : Double.POSITIVE_INFINITY;
-    }
-
-    static boolean inbound(
-            GroundEphemeris.Body body, boolean previous, double closing, double miss) {
-        return closing > 0
-                && (previous ? miss <= body.hullIn() + MISS_OUT : miss < body.hullIn() + MISS_IN);
-    }
-
-    static boolean governed(GroundEphemeris.Body body, double height, boolean inbound) {
-        return inbound || height < body.hullIn() + 300;
-    }
-
-    static Point govern(
-            GroundEphemeris.Body body,
-            Point drift,
-            Point toward,
-            Point relative,
-            double height,
-            boolean inbound) {
-        if (!governed(body, height, inbound)) return drift;
-        var arrived = arrival(body, drift, toward, relative, height);
-        return near(body, arrived, toward, relative.add(arrived.sub(drift)), height);
-    }
-
-    /** Inverse ship rotation: nose up brings old +Y ahead; roll right brings old right upward. */
-    static Quaterniond attitude(
-            Space.Frame frame,
-            GroundEphemeris.Model model,
-            double tick,
-            Point pivot,
-            double height,
-            double closing,
-            boolean steadied,
-            double yaw,
-            double pitch,
-            double roll) {
-        return attitude(
-                frame, model, tick, pivot, height, closing, steadied, yaw, pitch, roll, 0, 0);
-    }
-
-    static Quaterniond attitude(
-            Space.Frame frame,
-            GroundEphemeris.Model model,
-            double tick,
-            Point pivot,
-            double height,
-            double closing,
-            boolean steadied,
-            double yaw,
-            double pitch,
-            double roll,
-            double mouseYaw,
-            double mousePitch) {
-        return attitude(
-                frame,
-                model,
-                tick,
-                pivot,
-                align(
-                        model.body(Space.nearest(model, frame.universe(pivot, model, tick), tick)),
-                        height,
-                        closing),
-                steadied,
-                yaw,
-                pitch,
-                roll,
-                mouseYaw,
-                mousePitch);
-    }
-
-    public static Quaterniond attitude(
-            Space.Frame frame,
-            GroundEphemeris.Model model,
-            double tick,
-            Point pivot,
-            boolean arriving,
-            boolean steadied,
-            double yaw,
-            double pitch,
-            double roll,
-            double mouseYaw,
-            double mousePitch) {
-        if (!steadied) return new Quaterniond();
-        if (arriving)
-            return Space.Frame.turn(frame, model, tick, pivot, Math.toRadians(ALIGN_TURN) / 20);
-        if (!Double.isFinite(yaw)
-                || !Double.isFinite(pitch)
-                || !Double.isFinite(roll)
-                || !Double.isFinite(mouseYaw)
-                || !Double.isFinite(mousePitch)) return new Quaterniond();
-        double a = Math.toRadians(yaw),
-                p = Math.clamp(pitch, -1, 1),
-                r = Math.clamp(roll, -1, 1),
-                length = Math.max(1, Math.hypot(p, r));
-        p *= PILOT_TURN / 20 / length;
-        r *= PILOT_TURN / 20 / length;
-        // Mouse pitch is vanilla's down-positive angle. R maps universe to Level: inverse nose yaw
-        // is +Y.
-        double scale =
-                Math.min(1, (MOUSE_TURN / 20) / Math.max(1e-300, Math.hypot(mouseYaw, mousePitch)));
-        p -= mousePitch * scale;
-        double x = Math.cos(a) * p + Math.sin(a) * r,
-                y = mouseYaw * scale,
-                z = Math.sin(a) * p - Math.cos(a) * r;
-        length = Math.sqrt(x * x + y * y + z * z);
-        return length == 0
-                ? new Quaterniond()
-                : new Quaterniond()
-                        .rotationAxis(Math.toRadians(length), x / length, y / length, z / length);
-    }
-
-    /** Production axes are the controller bow and hull up carried by the body's pose, never pilot look. */
-    public static Quaterniond attitude(
-            Space.Frame frame,
-            GroundEphemeris.Model model,
-            double tick,
-            Point pivot,
-            boolean arriving,
-            boolean steadied,
-            Point forward,
-            Point up,
-            double pitch,
-            double roll,
-            double mouseYaw,
-            double mousePitch) {
-        if (!steadied) return new Quaterniond();
-        if (arriving)
-            return Space.Frame.turn(frame, model, tick, pivot, Math.toRadians(ALIGN_TURN) / 20);
-        if (!Double.isFinite(pitch)
-                || !Double.isFinite(roll)
-                || !Double.isFinite(mouseYaw)
-                || !Double.isFinite(mousePitch)) return new Quaterniond();
-        double p = Math.clamp(pitch, -1, 1),
-                r = Math.clamp(roll, -1, 1),
-                length = Math.max(1, Math.hypot(p, r));
-        p *= PILOT_TURN / 20 / length;
-        r *= PILOT_TURN / 20 / length;
-        double scale =
-                Math.min(1, (MOUSE_TURN / 20) / Math.max(1e-300, Math.hypot(mouseYaw, mousePitch)));
-        p -= mousePitch * scale;
-        var f = new org.joml.Vector3d(forward.x(), forward.y(), forward.z());
-        var u = new org.joml.Vector3d(up.x(), up.y(), up.z());
-        var axis = new org.joml.Vector3d(f).cross(u).mul(-p).fma(-r, f).fma(mouseYaw * scale, u);
-        length = axis.length();
-        return length == 0
-                ? new Quaterniond()
-                : new Quaterniond()
-                        .rotationAxis(
-                                Math.toRadians(length),
-                                axis.x / length,
-                                axis.y / length,
-                                axis.z / length);
-    }
-
-    /** Only forward thrust steers drift onto the unit nose. Keep speed unless flying sideways or backward. */
-    static Point assist(Point drift, Point nose, boolean forward) {
-        if (!forward) return drift;
-        double along = drift.dot(nose);
-        var parallel = nose.scale(along);
-        var turned = parallel.add(drift.sub(parallel).scale(1 / (1 + ASSIST / 20)));
-        return along > 0 ? turned.scale(drift.length() / turned.length()) : turned;
-    }
-
-    /** Assist and cruise use the lock's centre velocity offset; arrival stays nearest-relative. */
-    static Point assist(Point drift, Point nose, boolean forward, Point targetVelocity) {
-        if (!forward) return drift;
-        if (targetVelocity == null || targetVelocity.length() == 0)
-            return assist(drift, nose, true);
-        return assist(drift.sub(targetVelocity), nose, true).add(targetVelocity);
-    }
-
-    /** Arrival keeps only signed radial thrust; outside it return the exact original vector. */
-    public static Point blendPush(Point impulse, Point toward, double blend) {
-        return impulse.add(arrivalPush(impulse, toward, true).sub(impulse).scale(blend));
-    }
-
-    public static Point arrivalPush(Point impulse, Point toward, boolean arriving) {
-        if (!arriving) return impulse;
-        double length = toward.length();
-        if (length == 0) return GroundEphemeris.ZERO;
-        var radial = toward.scale(1 / length);
-        return radial.scale(impulse.dot(radial));
-    }
-
-    /** Velocities are blocks/tick. Fold gain changes drift only, never the hull's Level relabelling. */
-    static Point gain(Point drift, Point impulse, boolean piloted, double drag) {
-        var next = drift.add(impulse.scale(piloted ? VACUUM : 1));
-        return piloted ? next : next.scale(1 / (1 + drag / 20));
-    }
-
-    /** Assist has already run. Reject new excess; existing excess sheds exponentially at SHED/second. */
-    static Point cruise(
-            Point before, Point drift, Point push, boolean boosted, SpaceSpeed.Caps caps) {
-        double old = before.length(), speed = drift.length();
-        boolean braking = old > BRAKE_FLOOR / 20 && push.dot(before.scale(1 / old)) < -.5;
-        double brake = caps.brake();
-        if (braking) {
-            if (drift.dot(before) <= 0 || speed <= brake / 400) return GroundEphemeris.ZERO;
-            drift = drift.scale((speed - brake / 400) / speed);
-            speed = drift.length();
+    public static void targetShip(net.minecraft.server.level.ServerPlayer player, java.util.UUID ship) {
+        target(player, -1);
+        if (!Space.in(player) || !dev.starfold.ship.ShipSave.get(player.serverLevel()).owns(player.getUUID(), ship)) return;
+        var body = SableFrames.aboard(player);
+        if (body != null && helm(player, body) && Thrusters.scopeTier(body) >= 2) {
+            targets.put(player, new Target(player.serverLevel(), body, null, ship));
+            var value = get(player.serverLevel());
+            value.arrivalState = value.arrivalState.lock(-1, body.getUniqueId().toString());
+            value.setDirty();
         }
-        double limit = caps.active(boosted) / 20,
-                allowed = limit + Math.max(0, old - limit) / (1 + SHED / 20);
-        return speed > allowed ? drift.scale(allowed / speed) : drift;
-    }
-
-    /** Cap, shedding and opposing-thrust braking all use the same target-relative drift. */
-    static Point cruise(
-            Point before,
-            Point drift,
-            Point push,
-            boolean boosted,
-            Point targetVelocity,
-            SpaceSpeed.Caps caps) {
-        if (targetVelocity == null || targetVelocity.length() == 0)
-            return cruise(before, drift, push, boosted, caps);
-        return cruise(before.sub(targetVelocity), drift.sub(targetVelocity), push, boosted, caps)
-                .add(targetVelocity);
-    }
-
-    /** Only nearest-planet closing is governed; reference velocity and tangential drift are untouched.
-     * This is a kinematic safety cap, not the assisted manual brake. Tracking it requires v/6 b/s².
-     * At a discrete crossing the prior cap is at most ARRIVE/(1-1/(20*ARRIVE_TIME)). */
-    static double arrivalLimit(GroundEphemeris.Body body, double height) {
-        return ARRIVE + Math.max(0, height - body.hullIn()) / ARRIVE_TIME;
-    }
-
-    static double nearLimit(GroundEphemeris.Body body, double height) {
-        return ARRIVE + Math.max(0, height - body.hullIn()) / NEAR_TIME;
-    }
-
-    static Point arrival(
-            GroundEphemeris.Body body, Point drift, Point toward, Point relative, double height) {
-        double length = toward.length();
-        if (length == 0) return drift;
-        var radial = toward.scale(1 / length);
-        double closing = relative.dot(radial), limit = arrivalLimit(body, height) / 20;
-        return closing > limit ? drift.sub(radial.scale(closing - limit)) : drift;
-    }
-
-    /** After radial governing, spend the whole-speed budget on radial motion first; trim only tangent. */
-    static Point near(
-            GroundEphemeris.Body body, Point drift, Point toward, Point relative, double height) {
-        double length = toward.length();
-        if (length == 0) return drift;
-        var radial = toward.scale(1 / length);
-        double along = relative.dot(radial), limit = nearLimit(body, height) / 20;
-        var tangent = relative.sub(radial.scale(along));
-        double speed = tangent.length(),
-                allowed = Math.sqrt(Math.max(0, limit * limit - along * along));
-        return speed > allowed ? drift.add(tangent.scale(allowed / speed).sub(tangent)) : drift;
-    }
-
-    static boolean nearer(
-            GroundEphemeris.Model model, Point universe, int current, int nearest, double tick) {
-        return nearest != current
-                && universe.sub(model.at(current, tick).center()).length()
-                                - universe.sub(model.at(nearest, tick).center()).length()
-                        > Space.HYSTERESIS;
-    }
-
-    public static Point anchor(Point point) {
-        var delta = Space.ORIGIN.sub(point);
-        return Math.abs(delta.x()) > Space.ANCHOR_REACH
-                        || Math.abs(delta.y()) > Space.ANCHOR_REACH
-                        || Math.abs(delta.z()) > Space.ANCHOR_REACH
-                ? delta
-                : null;
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider lookup) {
-        var q = frame.rotation();
-        var p = frame.shift();
-        tag.putDouble("qx", q.x);
-        tag.putDouble("qy", q.y);
-        tag.putDouble("qz", q.z);
-        tag.putDouble("qw", q.w);
-        tag.putDouble("x", p.x());
-        tag.putDouble("y", p.y());
-        tag.putDouble("z", p.z());
-        tag.putInt("planet", frame.planet());
-        tag.putLong("epoch", epoch);
-        var o = frame.offset();
-        var w = frame.drift();
-        tag.putDouble("ox", o.x());
-        tag.putDouble("oy", o.y());
-        tag.putDouble("oz", o.z());
-        tag.putDouble("wx", w.x());
-        tag.putDouble("wy", w.y());
-        tag.putDouble("wz", w.z());
-        tag.putLong("originEpoch", frame.epoch());
-        tag.putBoolean("arrivalLatched", arrivalState.latched());
-        tag.putDouble("arrivalHeight", arrivalState.entryHeight());
-        tag.putInt("arrivalPlanet", arrivalState.planet());
-        tag.putString("arrivalLead", arrivalState.lead());
-        var d = arrivalState.departure();
-        tag.remove("departurePlanet");
-        tag.remove("departureLead");
-        tag.remove("departureTicks");
-        if (d != null) {
-            tag.putInt("departurePlanet", d.planet());
-            tag.putString("departureLead", d.lead());
-        }
-        return tag;
+        return SpaceFrameCodec.write(tag, frame, epoch, arrivalState, savedModel);
     }
 }

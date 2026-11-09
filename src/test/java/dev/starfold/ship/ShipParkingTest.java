@@ -33,9 +33,19 @@ class ShipParkingTest {
         var spin = new Spin(true, Y, new Quaterniond().rotationX(.4), .2, 48000, 91);
         return new Model(
                 List.of(
-                        new Body(new Fixed(new Point(10, 20, 30)), 512, true, -1),
-                        new Body(new Orbit(0, Y, X, 20000, 120000, .3, 11, spin), 0, false, 0),
-                        new Body(new Fixed(new Point(-80000, 0, 0)), 256, true, -1),
+                        new Body(new Fixed(new Point(10, 20, 30)), 512, true, -1, Appearance.LIGHT),
+                        new Body(
+                                new Orbit(0, Y, X, 20000, 120000, .3, 11, spin),
+                                0,
+                                false,
+                                0,
+                                Appearance.SURFACE),
+                        new Body(
+                                new Fixed(new Point(-80000, 0, 0)),
+                                256,
+                                true,
+                                -1,
+                                Appearance.LIGHT),
                         new Body(
                                 new Orbit(
                                         1,
@@ -54,7 +64,8 @@ class ShipParkingTest {
                                                 77)),
                                 0,
                                 false,
-                                1)));
+                                1,
+                                Appearance.SURFACE)));
     }
 
     static void close(Point expected, Point actual, double tolerance) {
@@ -161,14 +172,34 @@ class ShipParkingTest {
         var tie =
                 new Model(
                         List.of(
-                                new Body(new Fixed(new Point(-1000, 0, 0)), 512, true, -1),
-                                new Body(new Fixed(new Point(1000, 0, 0)), 512, true, -1)));
+                                new Body(
+                                        new Fixed(new Point(-1000, 0, 0)),
+                                        512,
+                                        true,
+                                        -1,
+                                        Appearance.LIGHT),
+                                new Body(
+                                        new Fixed(new Point(1000, 0, 0)),
+                                        512,
+                                        true,
+                                        -1,
+                                        Appearance.LIGHT)));
         assertEquals(0, ShipParking.nearestBody(tie, GroundEphemeris.ZERO, 0));
         var radii =
                 new Model(
                         List.of(
-                                new Body(new Fixed(GroundEphemeris.ZERO), 32, true, -1),
-                                new Body(new Fixed(new Point(2000, 0, 0)), 0, false, 0)));
+                                new Body(
+                                        new Fixed(GroundEphemeris.ZERO),
+                                        32,
+                                        true,
+                                        -1,
+                                        Appearance.LIGHT),
+                                new Body(
+                                        new Fixed(new Point(2000, 0, 0)),
+                                        0,
+                                        false,
+                                        0,
+                                        Appearance.SURFACE)));
         // The sun is closer by centre, but the planet is closer by nominal surface.
         assertEquals(1, ShipParking.nearestBody(radii, new Point(600, 0, 0), 0));
         PlanetShape.assign(0, new PlanetShape(512));
@@ -187,7 +218,11 @@ class ShipParkingTest {
                 IllegalArgumentException.class,
                 () ->
                         new ShipRecord.Place(
-                                0, ANCHOR, new Point(Double.NaN, 0, 0), new Quaterniond(), 0));
+                                new dev.starfold.chart.BodyId(0, 0),
+                                ANCHOR,
+                                new Point(Double.NaN, 0, 0),
+                                new Quaterniond(),
+                                0));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ShipParking.evaluate(model(), place, GroundEphemeris.MAX_TICK + 1d));

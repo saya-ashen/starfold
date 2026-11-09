@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab_top",
+  "textures": {
+    "bottom": "starfold_materials:block/aluminum_hull_plating",
+    "top": "starfold_materials:block/aluminum_hull_plating",
+    "side": "starfold_materials:block/aluminum_hull_plating"
+  }
+}

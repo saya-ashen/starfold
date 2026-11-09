@@ -1,0 +1,57 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "idle": {
+      "loop": true,
+      "animation_length": 2,
+      "bones": {
+        "sac": {
+          "scale": [
+            "1 + math.sin(query.anim_time * 120) * 0.025",
+            "1 + math.sin(query.anim_time * 120) * 0.025",
+            1
+          ]
+        }
+      }
+    },
+    "rupture": {
+      "loop": false,
+      "animation_length": 1,
+      "bones": {
+        "sac": {
+          "scale": {
+            "0.0": [
+              1,
+              1,
+              1
+            ],
+            "0.4": [
+              1.3,
+              1.1,
+              1.3
+            ],
+            "1.0": [
+              0.2,
+              0.1,
+              0.2
+            ]
+          }
+        },
+        "cap": {
+          "position": {
+            "0.0": [
+              0,
+              0,
+              0
+            ],
+            "1.0": [
+              0,
+              16,
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+}

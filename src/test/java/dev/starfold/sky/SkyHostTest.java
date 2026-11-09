@@ -42,13 +42,6 @@ class SkyHostTest {
         assertTrue(daylight.contains("returnSkyHost.get().sunlight(level,pos,clock)"));
         assertTrue(
                 daylight.contains("if(!PlanetLevels.is(level)||SkyHost.get().underWay())return"));
-        var server = Sources.text("StarfoldServer");
-        assertTrue(server.contains("SkyHost.install(newSkyHost()"));
-        assertTrue(server.contains("returnGroundFlightServer.underWay()"));
-        assertTrue(
-                server.contains(
-                        "SpaceServer.frame(level).universe(newdev.starfold.geometry.BentStripGeometry.Point(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5),clock.model,clock.tick())"));
-        assertTrue(server.contains("returnSpaceView.sunlight(clock.model,eye,clock.tick())"));
         var weather = Sources.text("WeatherClient");
         assertTrue(
                 weather.contains(

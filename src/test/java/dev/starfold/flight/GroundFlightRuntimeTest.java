@@ -41,6 +41,51 @@ class GroundFlightRuntimeTest {
     }
 
     @Test
+    void terrainAndSavedColumnsSetFlightHandoffIndependentlyOfOrbitDisplay() throws Exception {
+        assertEquals(208.9, GroundDynamics.HANDOFF, 1e-9);
+        assertEquals(160, dev.starfold.chart.GroundOrbit.START);
+        assertTrue(Sources.text("GroundFlightClient").contains(
+                "if(!state.space()&&state.local().point().y()<=GroundDynamics.handoff(mask))return;"));
+        var model = GroundSolar.defaults();
+        try {
+            for (int size : new int[] {416, 1024, 2048}) {
+                dev.starfold.chart.PlanetShape.assign(0, new PlanetShape(size));
+                for (int column : new int[] {128, 320}) {
+                    var mask = new GroundSpace.Config(16, column);
+                    double boundary = GroundDynamics.handoff(mask);
+                    assertEquals(column == 128 ? 208.9 : 336.9, boundary, 1e-9);
+                    var terrain = new GroundDynamics.Terrain() {
+                        public boolean clear(PlanetShape.Pose pose) { return true; }
+                        public double clearance(PlanetShape.Pose pose) { return pose.point().y(); }
+                        public double handoff() { return GroundDynamics.handoff(mask); }
+                    };
+                    for (double h : new double[] {192.9, boundary, boundary + .01}) {
+                        var state = GroundDynamics.local(900,
+                                new PlanetShape.Pose(Face.TOP, new Point(size / 2.0, h, size / 2.0)),
+                                new Point(0, 0, 0), new Quaterniond(), true, GroundDynamics.OFF);
+                        boolean flight = h > boundary;
+                        assertEquals(flight, GroundFlightServer.restores(state, mask));
+                        var input = PlanetMotion.Input.idle(1,
+                                GroundDynamics.orientation(model, state, state.tick()));
+                        if (flight) {
+                            assertDoesNotThrow(() -> GroundDynamics.step(model, terrain, state, input, false));
+                            assertDoesNotThrow(() -> new GroundFlightPackets.Setup(42, model, mask, state, true));
+                        } else {
+                            assertThrows(IllegalStateException.class,
+                                    () -> GroundDynamics.step(model, terrain, state, input, false));
+                            assertThrows(IllegalArgumentException.class,
+                                    () -> new GroundFlightPackets.Setup(42, model, mask, state, true));
+                            assertDoesNotThrow(() -> new GroundFlightPackets.Setup(42, model, mask, state, false));
+                        }
+                    }
+                }
+            }
+        } finally {
+            PlanetShape.reset();
+        }
+    }
+
+    @Test
     void farFromEveryPlanetAHeldVesselCruisesAndCanStillStopBeforeTheNext() {
         assertEquals(UniverseMotion.speed(500, true), GroundDynamics.cruise(500, true));
         assertEquals(UniverseMotion.speed(1024, true), GroundDynamics.cruise(1024, true));
@@ -131,22 +176,62 @@ class GroundFlightRuntimeTest {
     }
 
     @Test
-    void boundedOrderedQueueConsumesGOnceAndRejectsReplayBurstAndSkippedSequence() {
+    void boundedOrderedQueueAcceptsStalledTickBurstsWithoutReplayOrSkippedSequence() {
         var q = new GroundFlightPackets.Queue();
         assertFalse(q.offer(input(2, false), 0));
-        assertTrue(q.offer(input(1, true), 0));
+        for (int i = 1; i <= GroundFlightPackets.Queue.CAPACITY; i++)
+            assertTrue(q.offer(input(i, i == 1 || i == 12), 0));
         assertFalse(q.offer(input(1, true), 0));
-        assertTrue(q.offer(input(2, false), 0));
-        assertTrue(q.offer(input(3, false), 0));
-        assertTrue(q.offer(input(4, false), 0));
-        assertFalse(q.offer(input(5, false), 0));
-        assertTrue(q.offer(input(5, false), 1));
-        assertTrue(q.poll().toggle());
-        for (int i = 0; i < 4; i++) assertFalse(q.poll().toggle());
+        assertFalse(q.offer(input(25, false), 0));
+        assertEquals(1, q.poll().motion().sequence());
+        assertTrue(q.offer(input(25, false), 1));
+        assertFalse(q.offer(input(26, false), 0));
+        int toggles = 1;
+        for (int i = 2; i <= 25; i++) {
+            var next = q.poll();
+            assertEquals(i, next.motion().sequence());
+            if (next.toggle()) toggles++;
+        }
+        assertEquals(2, toggles);
         assertNull(q.poll());
-        assertEquals(5, q.ack());
-        for (int i = 6; i < 30; i++) assertTrue(q.offer(input(i, false), i));
-        assertFalse(q.offer(input(30, false), 30));
+        assertEquals(25, q.ack());
+        assertFalse(q.offer(input(27, false), 2));
+        assertTrue(q.offer(input(26, false), 2));
+    }
+
+    @Test
+    void boundedPredictionMakesProgressAtTwoAndFiveServerTicksPerSecond() throws Exception {
+        var field = GroundFlightClient.class.getDeclaredField("MAX_PENDING");
+        field.setAccessible(true);
+        int lead = field.getInt(null);
+        assertEquals(6, lead);
+        assertTrue(lead < GroundFlightPackets.Queue.CAPACITY);
+        for (int period : new int[] {4, 10}) {
+            var q = new GroundFlightPackets.Queue();
+            long sequence = 0, serverTick = 0;
+            int toggles = 0;
+            for (int clientTick = 0; clientTick < 240; clientTick++) {
+                if (sequence - q.ack() < lead) {
+                    long next = sequence + 1;
+                    assertTrue(q.offer(input(next, next == 8 || next == 17), serverTick));
+                    sequence = next;
+                }
+                if (clientTick % period == 0) {
+                    var next = q.poll();
+                    assertNotNull(next);
+                    if (next.toggle()) toggles++;
+                    serverTick++;
+                }
+                assertTrue(sequence - q.ack() <= lead);
+            }
+            assertEquals(240 / period, q.ack());
+            assertEquals(2, toggles);
+            int remaining = 0;
+            while (q.poll() != null) remaining++;
+            assertTrue(remaining <= lead);
+            assertEquals(sequence, q.ack());
+            assertTrue(q.offer(input(sequence + 1, false), serverTick));
+        }
     }
 
     @Test
@@ -155,15 +240,12 @@ class GroundFlightRuntimeTest {
         assertTrue(Sources.text("StarfoldServer").contains("GroundFlightServer.tick(level,saved)"));
         assertTrue(server.contains("GroundFlightServer.entry(player,level,clock)"));
         assertTrue(
-                server.indexOf("GroundFlightServer.entry(player,level,clock)")
+                server.indexOf("arrival=arrival(player,level)")
                         < server.indexOf("WorldSessionSave.get(level).remember(player)"));
-        assertTrue(server.contains("GroundFlightServer.enter(player,clock,saved)"));
+        assertTrue(server.contains("GroundFlightServer.enter(player,arrival.clock,arrival.saved)"));
         assertTrue(server.contains("GroundFlightServer.detach(player)"));
         assertTrue(server.contains("GroundFlightServer.restart(player,clock)"));
-        assertTrue(
-                Sources.text("StarfoldServer")
-                        .contains(
-                                "public int leave(net.minecraft.server.level.ServerPlayer player){return PlanetPlayers.leave(player);}"));
+        // The installed leave adapter is checked in StarfoldHostBindingsTest.
         assertEquals(0, new FlightHost() {}.leave(null));
         var flight = Sources.text("GroundFlightServer");
         assertEquals(
@@ -206,7 +288,7 @@ class GroundFlightRuntimeTest {
                 Sources.text("GroundFlightClientMovementMixin")
                         .contains("GroundFlightClient.controlled()"));
         assertTrue(Sources.text("GroundClient").contains("GroundFlightClient.initialize(modBus)"));
-        assertTrue(Sources.text("GroundFlightClient").contains("pending.size()>=24"));
+        assertTrue(Sources.text("GroundFlightClient").contains("if(pending.size()>=MAX_PENDING)return;"));
         assertTrue(Sources.text("GroundFlightClient").contains("OrbitAttitude.turn"));
     }
 

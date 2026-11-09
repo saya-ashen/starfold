@@ -1,0 +1,7 @@
+{
+  "priority": 1002,
+  "selector": "starfold_materials:osmium_pressure_hull",
+  "properties": {
+    "sable:mass": 4
+  }
+}

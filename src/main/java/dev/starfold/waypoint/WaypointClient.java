@@ -28,6 +28,8 @@ import java.util.Locale;
 /** Read-only target HUD. Uses the moving planet frame, not stored universe coordinates. */
 public final class WaypointClient {
     private static Waypoint marker;
+    private static java.util.List<Waypoint> markers = java.util.List.of();
+    public static java.util.List<Waypoint> markers() { return markers; }
     private static long session;
     private static SpaceNavigation.Marker projected;
 
@@ -56,7 +58,7 @@ public final class WaypointClient {
         var from =
                 GroundTopology.canonical(
                         WaypointClientHost.get().shape(),
-                        CubeSurfaceTopology.Face.values()[frame.root()],
+                        CubeSurfaceTopology.Face.VALUES[frame.root()],
                         access.chart(storage));
         var route =
                 WaypointNavigation.route(
@@ -112,6 +114,7 @@ public final class WaypointClient {
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
+        StarfoldNetwork.clientReceiver(WaypointPackets.Book.TYPE, (packet, context) -> markers = packet.markers());
         StarfoldNetwork.clientReceiver(
                 WaypointPackets.Target.TYPE,
                 (packet, context) -> {
@@ -125,6 +128,7 @@ public final class WaypointClient {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) -> {
                     marker = null;
+                    markers = java.util.List.of();
                     session = 0;
                 });
         modBus.addListener(
@@ -140,6 +144,25 @@ public final class WaypointClient {
                                         com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
                                     }
                                 }));
+    }
+
+    /** Same observer frame as ordinary waypoint bearings, for stars and space hulls. */
+    public static void destination(GuiGraphics graphics, String name, BentStripGeometry.Point destination) {
+        if (!WaypointClientHost.get().ready() || !GroundFlightClient.ready()) return;
+        var client = Minecraft.getInstance();
+        var model = GroundFlightClient.model();
+        var state = GroundFlightClient.state();
+        double tick = state.tick();
+        var delta = destination.sub(GroundDynamics.position(model, state, tick));
+        var orientation = GroundFlightClient.controlled() ? GroundDynamics.orientation(model, state, tick)
+                : model.at(state.planet(), tick).rotation()
+                        .mul(PlanetOrbit.frame(WaypointClientHost.get().shape(), WaypointClientHost.get().pose()).rotation())
+                        .mul(GroundCamera.capture(WaypointClientHost.get().frame().yawToStorage(client.player.getYRot()), client.player.getXRot()));
+        var direction = orientation.conjugate().transform(new Vector3d(delta.x(), delta.y(), delta.z()));
+        double yaw = Math.toDegrees(Math.atan2(direction.x, direction.z)), pitch = Math.toDegrees(Math.atan2(direction.y, Math.hypot(direction.x, direction.z)));
+        int y = HullLandingClient.active() || GroundFlightClient.controlled() ? 80 : 36;
+        graphics.drawString(client.font, net.minecraft.network.chat.Component.translatable("hud.starfold.map_destination", name, GroundFlightClient.distance(delta.length())), 8, y, 0xff88ffff, true);
+        graphics.drawString(client.font, net.minecraft.network.chat.Component.translatable("hud.starfold.map_bearing", String.format(Locale.ROOT, "%+.0f", yaw), String.format(Locale.ROOT, "%+.0f", pitch)), 8, y+11, 0xff88ffff, true);
     }
 
     private static void render(GuiGraphics graphics) {
@@ -184,10 +207,10 @@ public final class WaypointClient {
                         : GroundFlightClient.controlled() ? 56 : 8;
         graphics.drawString(
                 client.font,
-                net.minecraft.client.resources.language.I18n.get(
+                net.minecraft.network.chat.Component.translatable(
                         "hud.starfold.marker",
                         name(marker),
-                        PlanetSystem.name(marker.planet()),
+                        PlanetSystem.label(marker.planet()),
                         GroundFlightClient.distance(target.length())),
                 8,
                 top,

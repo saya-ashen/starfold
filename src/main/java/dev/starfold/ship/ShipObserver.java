@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
 
 /** Live samples update records; losing a live handle does not itself delete an identity. */
@@ -14,11 +15,13 @@ public final class ShipObserver {
             ResourceLocation dimension, Optional<String> name, ShipRecord.State state) {}
 
     private final ShipSave saved;
+    private final IntUnaryOperator surfaceRegion;
     private final Map<UUID, Supplier<Sample>> live = new LinkedHashMap<>();
     private final Map<UUID, ShipRecord.Place> holds = new LinkedHashMap<>();
 
-    public ShipObserver(ShipSave saved) {
+    public ShipObserver(ShipSave saved, IntUnaryOperator surfaceRegion) {
         this.saved = java.util.Objects.requireNonNull(saved);
+        this.surfaceRegion = java.util.Objects.requireNonNull(surfaceRegion);
     }
 
     public void added(UUID uuid, Supplier<Sample> source) {
@@ -61,8 +64,14 @@ public final class ShipObserver {
     private void update(UUID uuid, Sample sample) {
         if (sample.state() instanceof ShipRecord.OnSlot) holds.remove(uuid);
         var record = saved.find(uuid);
-        if (record == null) saved.add(uuid, sample.dimension(), sample.name(), sample.state());
-        else {
+        if (record == null) {
+            int region =
+                    switch (sample.state()) {
+                        case ShipRecord.OnSlot slot -> surfaceRegion.applyAsInt(slot.slot());
+                        case ShipRecord.InSpace space -> space.place().body().region();
+                    };
+            saved.add(region, uuid, sample.dimension(), sample.name(), sample.state());
+        } else {
             if (!record.dimension().equals(sample.dimension()))
                 throw new IllegalArgumentException("Ship dimension changed");
             saved.refresh(uuid, sample.name(), sample.state());

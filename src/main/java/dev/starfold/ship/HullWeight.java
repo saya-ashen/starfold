@@ -29,5 +29,12 @@ public final class HullWeight {
         return at(model.body(planet), access.chart(feet).y());
     }
 
+    /** Actual weight relative to vanilla dimension gravity, including the planet's surface factor. */
+    public static double gravity(Level level, Point feet) {
+        return at(level, feet)
+                * dev.starfold.planet.PlanetConditions.gravity(
+                        level, BlockPos.containing(feet.x(), feet.y(), feet.z()));
+    }
+
     private HullWeight() {}
 }

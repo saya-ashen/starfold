@@ -7,7 +7,9 @@ import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.PlanetOrbit;
 import dev.starfold.chart.PlanetShape;
+import dev.starfold.chart.SunSettings;
 import dev.starfold.geometry.BentStripGeometry.Point;
+import dev.starfold.sky.SunHalo;
 import dev.starfold.space.RenderFrame;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceView;
@@ -34,6 +36,7 @@ public final class GroundSunRenderer {
                                         DefaultVertexFormat.POSITION),
                                 s -> {
                                     shader = s;
+                                    shader.getUniform("DepthFar").set(ReversedDepth.ACTIVE ? 0f : 1f);
                                     clear();
                                 });
                     } catch (java.io.IOException error) {
@@ -84,6 +87,7 @@ public final class GroundSunRenderer {
     }
 
     public static void draw(RenderFrame context) {
+        if (!RendererGuard.pipelineSupported()) return;
         if (SpaceClient.active()) {
             drawRegion(context);
             return;
@@ -94,17 +98,13 @@ public final class GroundSunRenderer {
         var home = GroundClient.planetFrame(GroundClient.planet());
         var frame = PlanetOrbit.frame(GroundClient.shape(), GroundClient.state().pose());
         var eye = GroundClient.universeEye();
-        double blend = GroundOrbit.weight(GroundClient.eye().y());
-        var previous = RenderSystem.getShader();
-        var color = RenderSystem.getShaderColor().clone();
-        boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
-                mask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
-                cull = GL11.glIsEnabled(GL11.GL_CULL_FACE),
-                enabledBlend = GL11.glIsEnabled(GL11.GL_BLEND);
-        int sr = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
-                dr = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
-                sa = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
-                da = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        // Remote meshes and gas spheres use physical celestial depth. Keep the prior shortcut
+        // calculation in no-GAS catalogs, but do not let it paint suns through a new gas globe.
+        double blend =
+                dev.starfold.chart.GasOcclusion.present(GroundClient.model())
+                        ? 1
+                        : GroundOrbit.weight(GroundClient.eye().y());
+        var pass = new RenderPassState(true, true, false);
         var stack = context.matrixStack() == null ? new PoseStack() : context.matrixStack();
         stack.pushPose();
         GroundClient.place(
@@ -115,14 +115,18 @@ public final class GroundSunRenderer {
             RenderSystem.setShaderColor(1, 1, 1, 1);
             RenderSystem.setShader(() -> shader);
             GroundClient.lensUniforms(shader);
+            surface();
+            double air = GroundAtmosphere.enabled() ? GroundAtmosphere.strength() : 0;
             // Every sun is drawn where it is; the far ones are small discs among the stars.
             for (var sun : GroundClient.suns()) {
+                halo(SunHalo.forSun(air, home.center(), eye, sun.position()));
                 var delta = home.inverseVector(sun.position().sub(eye));
+                if (!SpaceView.visible(delta.length(), sun.radius())) continue;
                 double distance = Math.max(1e-6, delta.length());
                 double drawDistance =
                         Math.min(256, Math.max(16, GroundClient.view() * .5)) * (1 - blend)
                                 + distance * blend;
-                double scale = drawDistance / distance;
+                double scale = SpaceView.renderDistance(drawDistance) / distance;
                 var centre = GroundClient.eye().add(frame.local(delta).scale(scale));
                 vector("DrawCenter", centre);
                 vector("ChartU", frame.u());
@@ -154,16 +158,7 @@ public final class GroundSunRenderer {
                 }
             }
         } finally {
-            RenderSystem.depthMask(mask);
-            if (depth) RenderSystem.enableDepthTest();
-            else RenderSystem.disableDepthTest();
-            if (cull) RenderSystem.enableCull();
-            else RenderSystem.disableCull();
-            RenderSystem.blendFuncSeparate(sr, dr, sa, da);
-            if (enabledBlend) RenderSystem.enableBlend();
-            else RenderSystem.disableBlend();
-            RenderSystem.setShaderColor(color[0], color[1], color[2], color[3]);
-            if (previous != null) RenderSystem.setShader(() -> previous);
+            pass.close();
             stack.popPose();
         }
     }
@@ -175,22 +170,15 @@ public final class GroundSunRenderer {
         if (mesh == null) return;
         var eye = SpaceClient.universeEye(context.camera().getPosition());
         var frame = SpaceClient.frame();
-        var previous = RenderSystem.getShader();
-        var color = RenderSystem.getShaderColor().clone();
-        boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
-                mask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
-                cull = GL11.glIsEnabled(GL11.GL_CULL_FACE),
-                blend = GL11.glIsEnabled(GL11.GL_BLEND);
-        int sr = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
-                dr = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
-                sa = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
-                da = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        var pass = new RenderPassState(true, true, false);
         try {
             RenderSystem.enableDepthTest();
             RenderSystem.disableCull();
             RenderSystem.setShaderColor(1, 1, 1, 1);
             RenderSystem.setShader(() -> shader);
             SpaceClient.lens(shader);
+            surface();
+            halo(SunHalo.vacuum());
             vector("ChartU", frame.universeVector(new Point(1, 0, 0)));
             vector("ChartUp", frame.universeVector(new Point(0, 1, 0)));
             vector("ChartV", frame.universeVector(new Point(0, 0, 1)));
@@ -201,10 +189,11 @@ public final class GroundSunRenderer {
             for (var sun : SpaceClient.suns(eye)) {
                 var delta = sun.position().sub(eye);
                 if (!SpaceView.visible(delta.length(), sun.radius() * 1.12)) continue;
-                vector("DrawCenter", SpaceView.relative(frame, eye, sun.position()));
+                double scale = SpaceView.renderScale(delta.length());
+                vector("DrawCenter", SpaceView.relative(frame, eye, sun.position()).scale(scale));
                 vector("SunBody", delta);
                 shader.getUniform("SunRadius").set((float) sun.radius());
-                shader.getUniform("DrawRadius").set((float) sun.radius());
+                shader.getUniform("DrawRadius").set((float) (sun.radius() * scale));
                 mesh.bind();
                 try {
                     RenderSystem.depthMask(false);
@@ -223,17 +212,19 @@ public final class GroundSunRenderer {
                 }
             }
         } finally {
-            RenderSystem.depthMask(mask);
-            if (depth) RenderSystem.enableDepthTest();
-            else RenderSystem.disableDepthTest();
-            if (cull) RenderSystem.enableCull();
-            else RenderSystem.disableCull();
-            RenderSystem.blendFuncSeparate(sr, dr, sa, da);
-            if (blend) RenderSystem.enableBlend();
-            else RenderSystem.disableBlend();
-            RenderSystem.setShaderColor(color[0], color[1], color[2], color[3]);
-            if (previous != null) RenderSystem.setShader(() -> previous);
+            pass.close();
         }
+    }
+
+    private static void surface() {
+        vector("SurfaceLow", SunSettings.SURFACE_LOW);
+        vector("SurfaceHigh", SunSettings.SURFACE_HIGH);
+    }
+
+    private static void halo(SunHalo.Parameters parameters) {
+        shader.getUniform("HaloWidth").set((float) parameters.width());
+        shader.getUniform("HaloStrength").set((float) parameters.strength());
+        vector("HaloColor", parameters.color());
     }
 
     private GroundSunRenderer() {}

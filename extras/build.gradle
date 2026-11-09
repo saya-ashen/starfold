@@ -1,0 +1,17 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_extras' }
+repositories { mavenCentral() }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_extras { sourceSet sourceSets.main } }
+}
+dependencies {
+    testImplementation(testFixtures(project(':worlds'))) { transitive = false }
+    implementation(project(':')) { transitive = false }
+    implementation(project(':worlds')) { transitive = false }
+    compileOnly files(rootProject.configurations.compileClasspath)
+    testCompileOnly files(rootProject.configurations.testCompileClasspath)
+}
+apply from: rootProject.file('gradle/core-test-launcher.gradle')

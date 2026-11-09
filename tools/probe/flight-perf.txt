@@ -1,0 +1,9 @@
+waitworld
+wait 1200
+look -90 0
+flightbench low 60
+shot flight-perf-low
+flightbench high 30
+shot flight-perf-high
+abilities flight-end
+quit

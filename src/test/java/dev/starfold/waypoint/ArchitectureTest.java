@@ -91,7 +91,7 @@ class ArchitectureTest {
     }
 
     @Test
-    void originalSavedBookLoadsAndReencodesWithoutMigration() {
+    void originalSavedBookIsRejectedWithoutMigration() {
         var id = UUID.fromString("11111111-2222-3333-4444-555555555555");
         var points = new ListTag();
         points.add(legacyMarker());
@@ -103,9 +103,7 @@ class ArchitectureTest {
         var original = new CompoundTag();
         original.putInt("format", 1);
         original.put("players", players);
-        var loaded = WaypointSave.load(original, null);
-        assertEquals(marker(), loaded.active(id));
-        assertEquals(original, loaded.save(new CompoundTag(), null));
+        assertThrows(IllegalArgumentException.class, () -> WaypointSave.load(original, null));
     }
 
     @Test

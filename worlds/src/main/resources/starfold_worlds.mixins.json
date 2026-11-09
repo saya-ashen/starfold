@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "package": "dev.starfold.worlds.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": ["ExperienceCreateScreenMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

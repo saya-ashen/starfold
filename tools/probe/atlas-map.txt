@@ -1,0 +1,24 @@
+strict
+waitworld
+wait 200
+cmd gamemode creative
+wait 400
+shot atlas-ground
+press 77 1
+wait 2
+press 77 0
+wait 600
+shot atlas-map-ground
+press 256 1
+wait 2
+press 256 0
+fly on
+cmd tp @s ~ 1150 ~
+wait 400
+shot atlas-high-view
+press 77 1
+wait 2
+press 77 0
+wait 300
+shot atlas-map-high
+quit

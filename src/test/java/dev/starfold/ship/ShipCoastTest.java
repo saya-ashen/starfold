@@ -58,7 +58,7 @@ class ShipCoastTest {
         var model = ShipParkingTest.model();
         var target = ShipParking.coastTarget(model, 0, ZERO, 100);
         var motion = offset(target, ShipParking.CAPTURE_SPEED, ShipParking.CAPTURE_SPIN);
-        var observer = new ShipObserver(ShipSave.fresh(false));
+        var observer = new ShipObserver(ShipSave.fresh(false), slot -> 0);
         var id = UUID.randomUUID();
         var captures = new AtomicInteger();
         var place = ShipParking.capture(model, 0, ZERO, ZERO, new Quaterniond(), 100);
@@ -97,7 +97,7 @@ class ShipCoastTest {
     void coastRefreshAndFinalSerializationSaveCurrentPoseThenWakeUsesItImmediately() {
         var model = ShipParkingTest.model();
         var saved = ShipSave.fresh(false);
-        var observer = new ShipObserver(saved);
+        var observer = new ShipObserver(saved, slot -> 0);
         var id = UUID.randomUUID();
         var current = new AtomicReference<>(sample(model, 0));
         observer.added(id, current::get);
@@ -174,7 +174,7 @@ class ShipCoastTest {
         var oldFrame = frame;
         var oldMotion = motion;
         Point turn = ZERO, oldTurn = ZERO;
-        var observer = new ShipObserver(ShipSave.fresh(false));
+        var observer = new ShipObserver(ShipSave.fresh(false), slot -> 0);
         var id = UUID.randomUUID();
         boolean captured = false;
         for (long tick = start; tick < start + 3000; tick++) {

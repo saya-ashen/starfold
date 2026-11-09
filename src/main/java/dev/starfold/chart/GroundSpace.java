@@ -11,8 +11,7 @@ public final class GroundSpace {
             MIN = -8,
             MAX = 56,
             VOLUME = 6 * SIZE * SIZE * (MAX - MIN),
-            TILE = 16,
-            ACROSS = SIZE / TILE;
+            TILE = 16;
     public static final int MAX_CORE = 1000;
     public static final double REACH = 5, CEILING = GroundOrbit.LIMIT;
     public static final CubeSurfaceTopology TOPOLOGY = new CubeSurfaceTopology(SIZE);
@@ -87,7 +86,7 @@ public final class GroundSpace {
     public static Cell cell(int i) {
         if (i < 0 || i >= VOLUME) throw new IllegalArgumentException("Index");
         return new Cell(
-                Face.values()[i / (SIZE * SIZE) % 6],
+                Face.VALUES[i / (SIZE * SIZE) % 6],
                 i % SIZE,
                 MIN + i / (6 * SIZE * SIZE),
                 i / SIZE % SIZE);

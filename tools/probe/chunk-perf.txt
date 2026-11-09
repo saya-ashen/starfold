@@ -1,0 +1,94 @@
+wait 300
+createworld
+wait 100
+createworld seed 20261009
+createworld go
+waitworld
+log PERF planet-spawn
+cmd gamemode creative
+wait 1200
+shot perf-planet-spawn
+log PERF planet-walk
+look 90 0
+key forward on
+key jump on
+wait 600
+key sprint on
+wait 600
+key forward off
+key jump off
+key sprint off
+shot perf-planet-walk
+log PERF planet-fly
+fly on
+key jump on
+wait 160
+key jump off
+look 90 0
+key forward on
+key sprint on
+wait 1200
+key forward off
+key sprint off
+abilities planet-fly-end
+shot perf-planet-fly
+log PERF planet-flight-flush
+cmd save-all flush
+wait 100
+log PERF planet-flight-pause
+pause on
+wait 100
+pause off
+log PERF planet-settle
+wait 600
+log PERF planet-flush
+cmd save-all flush
+wait 600
+log PERF vanilla-enter
+cmd starfold leave
+wait 1200
+shot perf-vanilla-spawn
+log PERF vanilla-walk
+fly off
+look 90 0
+key forward on
+key jump on
+wait 600
+key sprint on
+wait 600
+key forward off
+key jump off
+key sprint off
+shot perf-vanilla-walk
+log PERF vanilla-fly
+fly on
+key jump on
+wait 160
+key jump off
+look 90 0
+key forward on
+key sprint on
+wait 1200
+key forward off
+key sprint off
+abilities vanilla-fly-end
+shot perf-vanilla-fly
+log PERF vanilla-flight-flush
+cmd save-all flush
+wait 100
+log PERF vanilla-flight-pause
+pause on
+wait 100
+pause off
+log PERF vanilla-settle
+wait 600
+log PERF vanilla-flush
+cmd save-all flush
+wait 600
+log PERF pause
+pause on
+wait 200
+pause off
+wait 100
+log PERF quit
+quit

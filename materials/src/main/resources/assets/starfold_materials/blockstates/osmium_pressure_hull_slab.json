@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "starfold_materials:block/osmium_pressure_hull_slab"
+    },
+    "type=top": {
+      "model": "starfold_materials:block/osmium_pressure_hull_slab_top"
+    },
+    "type=double": {
+      "model": "starfold_materials:block/osmium_pressure_hull"
+    }
+  }
+}

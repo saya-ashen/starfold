@@ -139,7 +139,7 @@ class CommandedDescentTest {
 
     @Test
     void onlyHorizontalDriftIsDamped() {
-        var v = SableFrames.drift(new org.joml.Vector3d(7, -45, -8), 1, 4);
+        var v = HullPhysics.drift(new org.joml.Vector3d(7, -45, -8), 1, 4);
         assertEquals(-1.4, v.x, 1e-12);
         assertEquals(0, v.y, 1e-12);
         assertEquals(1.6, v.z, 1e-12);

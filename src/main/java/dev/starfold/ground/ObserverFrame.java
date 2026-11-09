@@ -7,7 +7,6 @@ import dev.starfold.geometry.ChartOrientation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
 
 /** One observer's continuous client coordinates ("plane") over the cube surface.
  * The client world is the development of the faces along the path actually travelled: the plane
@@ -72,10 +71,6 @@ public record ObserverFrame(int planet, int root, int turns, int tx, int tz) {
 
     public float yawToStorage(float client) {
         return client - turns * 90f;
-    }
-
-    public BlockState stateToClient(BlockState storage) {
-        return ChartOrientation.state(storage, turns);
     }
 
     public Direction directionToStorage(Direction client) {

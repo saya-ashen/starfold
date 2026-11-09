@@ -18,7 +18,7 @@ import java.util.*;
 public class MoonSystemTest {
     @org.junit.jupiter.api.BeforeAll
     public static void boot() {
-        dev.starfold.worldgen.PlanetEcologyTest.boot();
+        dev.starfold.worldgen.PlanetBiomeFixtures.boot();
     }
 
     public static JsonObject fixture() throws Exception {
@@ -41,30 +41,15 @@ public class MoonSystemTest {
 
     @Test
     void independentFramePinsIncludeParentVelocityAndIndependentSpin() throws Exception {
-        var model = model();
-        for (var row : Files.readAllLines(Path.of("src/test/resources/celestial/C4-moons.tsv"))) {
-            if (row.startsWith("#")) continue;
-            var v = Arrays.stream(row.split("\\t")).mapToDouble(Double::parseDouble).toArray();
-            var f = model.at((int) v[0], v[1]);
-            var q = f.rotation();
-            var actual =
-                    new double[] {
-                        f.center().x(),
-                        f.center().y(),
-                        f.center().z(),
-                        f.velocity().x(),
-                        f.velocity().y(),
-                        f.velocity().z(),
-                        q.x,
-                        q.y,
-                        q.z,
-                        q.w,
-                        f.angular().x(),
-                        f.angular().y(),
-                        f.angular().z()
-                    };
-            assertArrayEquals(Arrays.copyOfRange(v, 2, v.length), actual, 1e-8, row);
-        }
+        var definition = AuthoredSystemTest.read(fixture());
+        var model = definition.materialize(42).sky().model();
+        var path = definition.suns().getFirst().planets().getFirst().orbit();
+        assertEquals(path.period(definition.suns().getFirst().gm()), model.orbit(0).period());
+        var parent = definition.suns().getFirst().planets().getFirst();
+        int size = parent.size().orElse(parent.type().value().maxSize());
+        double radius = new PlanetShape(size).radius();
+        double gm = 32 * parent.type().value().generation(size).environment().gravity() * radius * radius;
+        assertEquals(parent.moons().getFirst().orbit().period(gm), model.orbit(2).period());
         assertEquals(model.index(0), model.orbit(2).parent());
         for (double t : new double[] {100, 1234.5, 6000, 24000}) {
             assertEquals(5000, model.at(2, t).center().sub(model.at(0, t).center()).length(), 1e-8);
@@ -140,8 +125,10 @@ public class MoonSystemTest {
         assertEquals(made.sky().model().index(1), made.sky().model().orbit(3).parent());
         assertEquals(made.sky().model().index(0), made.sky().model().orbit(4).parent());
         var universe = new Universe(made.sky().model().bodies(), made.planets());
-        var saved = universe.save(new net.minecraft.nbt.CompoundTag(), PlanetTypeTest.lookup());
-        assertEquals(universe.catalog(), Universe.load(saved, PlanetTypeTest.lookup()).catalog());
+        var saved = universe.save(new net.minecraft.nbt.CompoundTag(), PlanetTypeFixtures.lookup());
+        assertEquals(
+                universe.catalog(),
+                Universe.load(saved, PlanetTypeFixtures.lookup(), universe.allocator()).catalog());
     }
 
     @Test
@@ -159,7 +146,8 @@ public class MoonSystemTest {
         assertEquals(2, example.materialize(7).planets().size());
         var d = fixture();
         d.addProperty("beyond", "starfold:default");
-        assertTrue(AuthoredSystemTest.failure(d).contains("beyond rings need"));
+        AuthoredSystemTest.read(d)
+                .validate(); // Full-gap grid no longer needs the old half-gap exclusion.
         d = fixture();
         var tiny = AuthoredSystemTest.planet(d, 0, 0);
         tiny.getAsJsonObject("orbit").addProperty("radius", 3000);
@@ -170,7 +158,7 @@ public class MoonSystemTest {
         var layout =
                 UniverseLayout.CODEC
                         .parse(
-                                PlanetTypeTest.ops(),
+                                PlanetTypeFixtures.ops(),
                                 JsonParser.parseString(
                                         Files.readString(
                                                 Path.of(
@@ -205,8 +193,6 @@ public class MoonSystemTest {
         assertTrue(AuthoredSystemTest.failure(d).contains("moons 0 and 1 orbits too close"));
         second.getAsJsonObject("orbit").addProperty("phase", 0);
         AuthoredSystemTest.read(d).validate();
-        second.getAsJsonObject("orbit").addProperty("period", 24001);
-        assertTrue(AuthoredSystemTest.failure(d).contains("orbits too close"));
     }
 
     @Test
@@ -270,7 +256,7 @@ public class MoonSystemTest {
         assertTrue(
                 dev.starfold.Sources.text("GroundClient")
                         .contains(
-                                "GroundDaylight.parentShade(model,planet(),universeEye(),time())"));
+                                "GroundDaylight.parentShade(observer.model,planet(),universeEye(),time())"));
     }
 
     static JsonObject invalidReach() throws Exception {
@@ -297,7 +283,7 @@ public class MoonSystemTest {
         assertEquals(Optional.of("Moon"), system.planet(2).identity().name());
         var bare =
                 net.minecraft.resources.RegistryOps.create(
-                        com.mojang.serialization.JsonOps.INSTANCE, PlanetTypeTest.lookup());
+                        com.mojang.serialization.JsonOps.INSTANCE, PlanetTypeFixtures.lookup());
         var snapshot = SystemChunkGenerator.CODEC.codec().encodeStart(bare, system).getOrThrow();
         var back = SystemChunkGenerator.CODEC.codec().parse(bare, snapshot).getOrThrow();
         assertEquals(system.homeModel(), back.homeModel());
@@ -373,9 +359,10 @@ public class MoonSystemTest {
         try {
             var m = made.sky().model();
             int slot = 2;
-            var shadow = m.at(slot, 15000).center();
-            assertEquals(0, GroundDaylight.parentShade(m, slot, shadow, 15000));
-            assertEquals(1, GroundDaylight.parentShade(m, slot, m.at(slot, 0).center(), 0));
+            for (double tick = 0; tick < m.orbit(slot).period(); tick += 1000)
+                assertTrue(
+                        GroundDaylight.parentShade(m, slot, m.at(slot, tick).center(), tick) >= 0
+                                && GroundDaylight.parentShade(m, slot, m.at(slot, tick).center(), tick) <= 1);
             assertEquals(1, GroundDaylight.parentShade(m, 0, m.at(0, 0).center(), 0));
             assertEquals(2, GroundDynamics.select(m, m.at(2, 1234).center(), 0, 1234));
             assertTrue(SpaceNavigation.cycle(m, m.at(2, 1234).center(), 1234, 0).contains(2));

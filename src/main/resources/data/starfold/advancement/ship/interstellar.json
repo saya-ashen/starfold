@@ -1,0 +1,14 @@
+{
+  "display": {
+    "icon": { "id": "starfold:thruster" },
+    "title": { "translate": "advancement.starfold.ship.interstellar.title" },
+    "description": { "translate": "advancement.starfold.ship.interstellar.description" },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": { "earned": { "trigger": "minecraft:impossible" } },
+  "requirements": [["earned"]],
+  "parent": "starfold:ship/skim"
+}

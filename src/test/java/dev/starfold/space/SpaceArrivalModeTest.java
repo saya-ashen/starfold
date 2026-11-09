@@ -18,17 +18,15 @@ class SpaceArrivalModeTest {
         for (double sign : new double[] {-1, 1}) {
             point(
                     GroundEphemeris.ZERO,
-                    SpaceServer.arrivalPush(new Point(3 * sign, 0, 4 * sign), toward, true));
+                    SpaceFlightMath.arrivalPush(new Point(3 * sign, 0, 4 * sign), toward, true));
             point(
                     new Point(0, 2 * sign, 0),
-                    SpaceServer.arrivalPush(new Point(3, 2 * sign, 4), toward, true));
+                    SpaceFlightMath.arrivalPush(new Point(3, 2 * sign, 4), toward, true));
             point(
                     drift,
-                    SpaceServer.gain(
+                    SpaceFlightMath.gain(
                             drift,
-                            SpaceServer.arrivalPush(new Point(3, 0, 4), toward, true),
-                            true,
-                            0));
+                            SpaceFlightMath.arrivalPush(new Point(3, 0, 4), toward, true)));
         }
     }
 
@@ -47,7 +45,7 @@ class SpaceArrivalModeTest {
                             random.nextDouble() - .5,
                             random.nextDouble() - .5,
                             random.nextDouble() - .5);
-            var kept = SpaceServer.arrivalPush(push, toward, true);
+            var kept = SpaceFlightMath.arrivalPush(push, toward, true);
             assertEquals(push.dot(n), kept.dot(n), 1e-12);
             point(GroundEphemeris.ZERO, kept.sub(n.scale(kept.dot(n))));
             assertTrue(kept.length() <= push.length() + 1e-12);
@@ -69,44 +67,31 @@ class SpaceArrivalModeTest {
                             random.nextDouble() - .5,
                             random.nextDouble() - .5);
             var toward = new Point(2, -3, 4);
-            assertSame(impulse, SpaceServer.arrivalPush(impulse, toward, false));
+            assertSame(impulse, SpaceFlightMath.arrivalPush(impulse, toward, false));
             for (boolean boost : new boolean[] {false, true})
                 for (var target : new Point[] {GroundEphemeris.ZERO, new Point(1, 2, 3)}) {
-                    var old = SpaceServer.gain(drift, impulse, true, 0);
+                    var old = SpaceFlightMath.gain(drift, impulse);
                     var next =
-                            SpaceServer.gain(
+                            SpaceFlightMath.gain(
                                     drift,
-                                    SpaceServer.arrivalPush(impulse, toward, false),
-                                    true,
-                                    0);
+                                    SpaceFlightMath.arrivalPush(impulse, toward, false));
                     assertEquals(old, next);
                     assertEquals(
-                            SpaceServer.cruise(
-                                    drift,
-                                    old,
-                                    impulse,
-                                    boost,
-                                    target,
-                                    SpaceSpeed.caps(SpaceSpeed.A_REF)),
-                            SpaceServer.cruise(
-                                    drift,
-                                    next,
-                                    SpaceServer.arrivalPush(impulse, toward, false),
-                                    boost,
-                                    target,
-                                    SpaceSpeed.caps(SpaceSpeed.A_REF)));
+                            SpaceFlightMath.brake(drift, old, impulse, target),
+                            SpaceFlightMath.brake(drift, next,
+                                    SpaceFlightMath.arrivalPush(impulse, toward, false), target));
                 }
         }
     }
 
     @Test
     void tangentialPassAtFiveThousandIsNotArrival() {
-        assertFalse(SpaceServer.align(dev.starfold.chart.GroundSolar.defaults().body(0), 5000, 0));
+        assertFalse(SpaceFlightMath.align(dev.starfold.chart.GroundSolar.defaults().body(0), 5000, 0));
         var v = new Point(40, 0, 0);
-        assertSame(v, SpaceServer.arrivalPush(v, new Point(0, -1, 0), false));
+        assertSame(v, SpaceFlightMath.arrivalPush(v, new Point(0, -1, 0), false));
         assertEquals(
                 v,
-                SpaceServer.near(
+                SpaceFlightMath.near(
                         dev.starfold.chart.GroundSolar.defaults().body(0),
                         v,
                         new Point(0, -1, 0),
@@ -120,7 +105,7 @@ class SpaceArrivalModeTest {
         assertTrue(s.contains("boolean arriving=value.arrivalState.latched()"));
         assertTrue(
                 s.contains(
-                        "gain(f.drift(),blendPush(f.universeVector(v),towardEntry,blend),piloted,0)"));
+                        "gain(f.drift(),blendPush(f.universeVector(v),towardEntry,blend))"));
         assertTrue(s.contains("push=blendPush(push,towardEntry,blend)"));
         assertTrue(s.contains("new org.joml.Vector3d(-v.x()*20,-v.y()*20,-v.z()*20)"));
         assertTrue(s.contains("if(!arriving)"));

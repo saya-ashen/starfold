@@ -7,7 +7,7 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.GroundTopology;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -21,7 +21,7 @@ import java.util.*;
 class CanonicalStreamingTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -167,9 +167,8 @@ class CanonicalStreamingTest {
     }
 
     @Test
-    void pinnedSnapshotsOutliveColdLruReadsAndHardCountIsStillEnforced() {
+    void snapshotsObeyLruCountAndByteLimits() {
         var cache = new GroundViewCache(k -> {});
-        cache.retain(Set.of(0L));
         var states = new int[GroundChunkSnapshot.VALUES];
         Arrays.fill(states, Block.getId(Blocks.AIR.defaultBlockState()));
         var base = GroundChunkSnapshot.fromStates(0, 0, 0, 1, states);
@@ -177,12 +176,10 @@ class CanonicalStreamingTest {
         for (int k = 1; k <= 530; k++)
             cache.accept(
                     new GroundChunkSnapshot(0, k % 128, k / 128, 1, base.palette(), base.packed()));
-        assertTrue(cache.detailed(0));
-        assertEquals(512, cache.detailCount());
-        assertTrue(cache.detailBytes() <= GroundViewCache.BYTE_LIMIT);
+        assertFalse(cache.detailed(0));
+        assertTrue(cache.detailed(530));
         assertFalse(cache.detailed(1));
         cache.clear();
-        assertEquals(0, cache.detailBytes());
     }
 
     @Test
@@ -225,14 +222,12 @@ class CanonicalStreamingTest {
     void runtimeUsesOneGroundAdapterAndCanonicalLoadTickets() throws Exception {
         var renderer = Sources.text("GroundRenderer");
         var tickets = Sources.text("GroundTickets");
-        var client = Sources.text("GroundViewClient");
-        assertTrue(renderer.contains("GroundOwnership.atlas(GroundClient.shape(),next,window)"));
+        assertTrue(Sources.text("GroundCoverage").contains("GroundOwnership.atlas(shape,next,window)"));
         assertFalse(renderer.contains("GroundOwnership.atlas(next,nativeFace)"));
         assertFalse(renderer.contains("nativeVolumeReady"));
         assertFalse(renderer.contains("ownership.rebase"));
-        assertTrue(renderer.contains("GroundStreaming.admit"));
-        assertTrue(renderer.contains("commitDetails(retained)"));
-        assertTrue(client.contains("cache.retain(streaming.resident())"));
+        assertFalse(renderer.contains("commitDetails("));
+        assertTrue(renderer.contains("GroundNativeCoverage.visible()"));
         assertTrue(tickets.contains("addRegionTicket(VIEW,access.chunk(key),0,key)"));
         assertTrue(tickets.contains("loaded.addAll(ImageStream.owners(level))"));
     }

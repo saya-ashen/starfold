@@ -70,14 +70,6 @@ public final class PlanetRoundedGeometry {
                 : Math.copySign(flat + band * 4 / Math.PI * Math.atan(Math.abs(a)), a);
     }
 
-    /** Nearest point on a reference-height shell; used by orbit mode only. */
-    public Point onAltitude(Point p, double h) {
-        Point c = core(p), d = p.sub(c);
-        double r = roundRadius + h;
-        if (r <= 0 || d.length() < 1e-9) return onRay(p, h);
-        return c.add(d.scale(r / d.length()));
-    }
-
     /** Monotone radial intersection, including the empty inner box. Not a mesh raycast. */
     public Point onRay(Point direction, double h) {
         Point n = PlanetSpace.unit(direction);

@@ -1,0 +1,356 @@
+{
+  "file.0000000000000001.title": "Starfold: Escape Velocity",
+  "chapter.1000000000000000.title": "0 · Surface contact",
+  "quest.1000000000000100.title": "Surface contact",
+  "quest.1000000000000100.quest_desc": [
+    "Planet level detected. The experience preset starts on the home planet without a supplied ship."
+  ],
+  "quest.1000000000000200.title": "Local timber",
+  "quest.1000000000000200.quest_desc": [
+    "Timber sample required. Folded faces belong to one continuous planet. Other planets are visible in the sky."
+  ],
+  "quest.1000000000000300.title": "Field bench",
+  "quest.1000000000000300.quest_desc": [
+    "Assembly surface required. Craft a workbench from local timber."
+  ],
+  "quest.1000000000000400.title": "First excavation",
+  "quest.1000000000000400.quest_desc": [
+    "Excavation tool required. Stone and andesite support the first workshop."
+  ],
+  "quest.1000000000000500.title": "Stone reserve",
+  "quest.1000000000000500.quest_desc": [
+    "Stone reserve below target. Mine near the landing area before travelling farther."
+  ],
+  "quest.1000000000000600.title": "Working light",
+  "quest.1000000000000600.quest_desc": [
+    "Lighting stock required. Mark the route between the shelter and the mine."
+  ],
+  "chapter.1000000000010000.title": "1 · Ground survival",
+  "quest.1000000000010100.title": "Smelting station",
+  "quest.1000000000010100.quest_desc": [
+    "Heat processing required. Install a furnace near the workbench."
+  ],
+  "quest.1000000000010200.title": "Solid fuel",
+  "quest.1000000000010200.quest_desc": [
+    "Solid fuel stock required. Reserve coal for smelting and field lighting."
+  ],
+  "quest.1000000000010300.title": "Iron supply",
+  "quest.1000000000010300.quest_desc": [
+    "Iron sample required. Home ore tables include iron, copper, coal, gold, zinc and redstone, but no osmium."
+  ],
+  "quest.1000000000010400.title": "Reliable excavation",
+  "quest.1000000000010400.quest_desc": [
+    "Iron tool required. Collect redstone and gold for later control components."
+  ],
+  "quest.1000000000010500.title": "Copper conductors",
+  "quest.1000000000010500.quest_desc": [
+    "Copper stock required. Fluid handling and electrical connections will use this supply."
+  ],
+  "quest.1000000000010600.title": "Food reserve",
+  "quest.1000000000010600.quest_desc": [
+    "Food reserve required. Establish a renewable crop plot before long flights."
+  ],
+  "quest.1000000000010700.title": "Surface shelter",
+  "quest.1000000000010700.quest_desc": [
+    "Shelter equipment required. Place the bed in a protected ground base."
+  ],
+  "quest.1000000000010800.title": "Field protection",
+  "quest.1000000000010800.quest_desc": [
+    "Shield required. No oxygen or suit progression is imposed by this pack."
+  ],
+  "chapter.1000000000020000.title": "2 · Mechanical power",
+  "quest.1000000000020100.title": "Andesite alloy",
+  "quest.1000000000020100.quest_desc": [
+    "Alloy supply required. Shallow andesite patches remain enabled on the home planet."
+  ],
+  "quest.1000000000020200.title": "Rotational source",
+  "quest.1000000000020200.quest_desc": [
+    "Mechanical power source required. Use flowing water to drive a wheel."
+  ],
+  "quest.1000000000020300.title": "Power transmission",
+  "quest.1000000000020300.quest_desc": [
+    "Shaft stock required. Connect the wheel to the workshop without overstressing the network."
+  ],
+  "quest.1000000000020400.title": "Press line",
+  "quest.1000000000020400.quest_desc": [
+    "Press required. Sheet metal is used in ship components and fuel equipment."
+  ],
+  "quest.1000000000020500.title": "Sheet stock",
+  "quest.1000000000020500.quest_desc": [
+    "Sheet stock required. Process iron ingots under the mechanical press."
+  ],
+  "quest.1000000000020600.title": "Mixing vessel",
+  "quest.1000000000020600.quest_desc": [
+    "Basin required. Leave space for a mixer and a heat source."
+  ],
+  "quest.1000000000020700.title": "Mixing drive",
+  "quest.1000000000020700.quest_desc": [
+    "Mixer required. Check the required rotation speed in JEI before production."
+  ],
+  "quest.1000000000020800.title": "Heat-source stock",
+  "quest.1000000000020800.quest_desc": [
+    "No Nether is available. Craft a Blaze Burner from three iron sheets, a coal block and a copper ingot. Rose Quartz uses glass surrounded by eight redstone dust; polish it for electron tubes."
+  ],
+  "quest.1000000000020900.title": "Captured heat",
+  "quest.1000000000020900.quest_desc": [
+    "Burner required. A burner is also consumed by the provisional thruster recipe."
+  ],
+  "quest.1000000000020A00.title": "Brass production",
+  "quest.1000000000020A00.quest_desc": [
+    "Brass stock required. Mix copper and zinc with the required heat."
+  ],
+  "quest.1000000000020B00.title": "Control electronics",
+  "quest.1000000000020B00.quest_desc": [
+    "Electron tubes required. The initial helm and gyro use Create electronics, not osmium circuits."
+  ],
+  "quest.1000000000020C00.title": "Precision assembly",
+  "quest.1000000000020C00.quest_desc": [
+    "Precision mechanism required. Establish repeatable production before building propulsion."
+  ],
+  "chapter.1000000000030000.title": "3 · Low-altitude flight",
+  "quest.1000000000030100.title": "Aircraft structure",
+  "quest.1000000000030100.quest_desc": [
+    "Aircraft hull required. This is a low-altitude exploration route, separate from the orbital ship."
+  ],
+  "quest.1000000000030200.title": "Aircraft engine",
+  "quest.1000000000030200.quest_desc": [
+    "Engine required. Inspect the aircraft fuel requirements in JEI."
+  ],
+  "quest.1000000000030300.title": "Aircraft propeller",
+  "quest.1000000000030300.quest_desc": [
+    "Propeller required. Clear an open launch and landing area."
+  ],
+  "quest.1000000000030400.title": "Reconnaissance aircraft",
+  "quest.1000000000030400.quest_desc": [
+    "Aircraft ready for a surface survey. Cross a face boundary at safe altitude; this item task does not verify the flight."
+  ],
+  "quest.1000000000030500.title": "Buoyant structure",
+  "quest.1000000000030500.quest_desc": [
+    "Envelope stock required. Aeronautics provides an alternative low-altitude craft route."
+  ],
+  "quest.1000000000030600.title": "Physics assembly",
+  "quest.1000000000030600.quest_desc": [
+    "Physics Assembler required. Study its placement and assembly controls before constructing the orbital hull."
+  ],
+  "quest.1000000000030700.title": "Structural bonds",
+  "quest.1000000000030700.quest_desc": [
+    "Glue required. Join the intended ship blocks and avoid attaching the launch pad."
+  ],
+  "quest.1000000000030800.title": "Surface survey kit",
+  "quest.1000000000030800.quest_desc": [
+    "Survey propulsion component acquired. Observe face boundaries and keep clear of unstable fold points. No automatic fold-point detector is supplied."
+  ],
+  "chapter.1000000000040000.title": "4 · Fuel and orbit",
+  "quest.1000000000040100.title": "Oil prospecting",
+  "quest.1000000000040100.quest_desc": [
+    "Oil scanner required. Oil-field availability in the custom planet generator remains a play-test requirement."
+  ],
+  "quest.1000000000040200.title": "Extraction drive",
+  "quest.1000000000040200.quest_desc": [
+    "Pumpjack bearing required. Follow the mod guide to build the full extraction structure."
+  ],
+  "quest.1000000000040300.title": "Fuel processing",
+  "quest.1000000000040300.quest_desc": [
+    "Fluid tanks and a Distillation Controller required. Convert placed Create tanks into a distillation tower; the distillation-tank block has no separate inventory item. Supply heat for tier-one diesel or gasoline."
+  ],
+  "quest.1000000000040400.title": "First fuel batch",
+  "quest.1000000000040400.quest_desc": [
+    "Diesel sample required for this tutorial route. Gasoline is also accepted by thrusters. Initial ascent budget target: about eight buckets, subject to tuning."
+  ],
+  "quest.1000000000040500.title": "Onboard storage",
+  "quest.1000000000040500.quest_desc": [
+    "Fluid tank stock required. Tanks must belong to the same assembled ship as the thrusters. Leave return fuel in reserve."
+  ],
+  "quest.1000000000040600.title": "Thrust hardware",
+  "quest.1000000000040600.quest_desc": [
+    "Thruster acquired. No fuel means no thrust after the merged fuel system is installed. Thrust and ship mass determine ascent performance."
+  ],
+  "quest.1000000000040700.title": "Attitude control",
+  "quest.1000000000040700.quest_desc": [
+    "Gyro acquired. Mount it on the assembled ship; the gyro does not consume propulsion fuel."
+  ],
+  "quest.1000000000040800.title": "Command station",
+  "quest.1000000000040800.quest_desc": [
+    "Helm acquired. Check ship connections, clearances and reverse thrust before departure."
+  ],
+  "quest.1000000000040900.title": "Visual instruments",
+  "quest.1000000000040900.quest_desc": [
+    "Basic scope acquired. Upgrade with a precision mechanism, an electron tube and two brass sheets before the first trip."
+  ],
+  "quest.1000000000050800.title": "Navigation optics",
+  "quest.1000000000050800.quest_desc": [
+    "Navigation scope acquired through Create only, without osmium. Check target locking and relative approach speed before the first departure."
+  ],
+  "quest.1000000000040A00.title": "Lift-off record",
+  "quest.1000000000040A00.quest_desc": [
+    "Lift-off advancement required. Perform a controlled ascent before committing to orbit."
+  ],
+  "quest.1000000000040B00.title": "Space-region record",
+  "quest.1000000000040B00.quest_desc": [
+    "Space-entry advancement required. Status on completion: currently in the space region. Keep the helm occupied and monitor fuel."
+  ],
+  "quest.1000000000040C00.title": "Boarding route",
+  "quest.1000000000040C00.quest_desc": [
+    "Airstair acquired. Rehearse landing and boarding at home. The existing home-return advancement only certifies a later off-world round trip, not this rehearsal."
+  ],
+  "chapter.1000000000050000.title": "5 · First off-world metals",
+  "quest.1000000000050100.title": "Off-world landing",
+  "quest.1000000000050100.quest_desc": [
+    "Other-planet advancement required. Seek a rocky planet or asteroid for osmium and rare deep diamonds. Diamonds occur in the bottom 35% of mineable depth; abundance is a first guess. These worlds are within the current system."
+  ],
+  "quest.1000000000050200.title": "Osmium cargo",
+  "quest.1000000000050200.quest_desc": [
+    "Osmium sample required. Reserve part of the cargo for circuits and the return logistics line."
+  ],
+  "quest.1000000000050300.title": "Refined osmium",
+  "quest.1000000000050300.quest_desc": [
+    "Osmium ingots required. Mekanism begins after this off-world supply is available."
+  ],
+  "quest.1000000000050400.title": "Home landing record",
+  "quest.1000000000050400.quest_desc": [
+    "Off-world round-trip advancement required. Land back on the home planet after the other-planet and return-to-space records."
+  ],
+  "quest.1000000000050500.title": "Mechanical to electrical",
+  "quest.1000000000050500.quest_desc": [
+    "Alternator required. Connect Create rotation to the electrical production line."
+  ],
+  "quest.1000000000050600.title": "Circuit processing",
+  "quest.1000000000050600.quest_desc": [
+    "Metallurgic Infuser required. Supply power and the specified infusion material."
+  ],
+  "quest.1000000000050700.title": "Basic control circuits",
+  "quest.1000000000050700.quest_desc": [
+    "Control circuits required. Osmium starts Mekanism processing and later advanced circuits for precision optics."
+  ],
+  "quest.1000000000050900.title": "Hydrogen production",
+  "quest.1000000000050900.quest_desc": [
+    "Electrolytic Separator required. Supply water and power; chemical hydrogen is not yet a thruster fluid."
+  ],
+  "quest.1000000000050A00.title": "Fluid conversion",
+  "quest.1000000000050A00.quest_desc": [
+    "Rotary Condensentrator required. Condense hydrogen into its fluid form before filling ship tanks."
+  ],
+  "quest.1000000000050B00.title": "Second-tier sample",
+  "quest.1000000000050B00.quest_desc": [
+    "Liquid hydrogen sample required. Target ascent economy is about three buckets for the reference ship; this is a first guess, not a measured result."
+  ],
+  "chapter.1000000000060000.title": "6 · System expansion",
+  "quest.1000000000060100.title": "Frozen-world tin",
+  "quest.1000000000060100.quest_desc": [
+    "Tin cargo required. Frozen planet ore tables provide tin and lead."
+  ],
+  "quest.1000000000060200.title": "Frozen-world lead",
+  "quest.1000000000060200.quest_desc": [
+    "Lead cargo required. Establish a transport route rather than relying on one small expedition."
+  ],
+  "quest.1000000000060300.title": "Crystal-world fluorite",
+  "quest.1000000000060300.quest_desc": [
+    "Fluorite sample required. Crystal worlds also provide quartz, amethyst and a smaller deep-diamond supply (bottom 35%; first-guess abundance)."
+  ],
+  "quest.1000000000060400.title": "Advanced circuitry",
+  "quest.1000000000060400.quest_desc": [
+    "Advanced circuits required. Prepare the electronics for precision optics."
+  ],
+  "quest.1000000000060500.title": "Precision optics",
+  "quest.1000000000060500.quest_desc": [
+    "Precision scope acquired. This recipe upgrades optics. Leaving the home system requires an interstellar drive and deuterium; boss permission is not enforced."
+  ],
+  "quest.1000000000060600.title": "Dry-world uranium",
+  "quest.1000000000060600.quest_desc": [
+    "Uranium cargo required. Dry-world ore tables provide uranium and gold; plan shielding and processing before reactor work."
+  ],
+  "quest.1000000000060700.title": "Volcanic salvage",
+  "quest.1000000000060700.quest_desc": [
+    "Ancient debris required. Volcanic ore tables include debris, gold and quartz. Avoid lava during excavation."
+  ],
+  "quest.1000000000060800.title": "Heat-resistant stock",
+  "quest.1000000000060800.quest_desc": [
+    "Netherite scrap required. This material is not a pressure-hull certification."
+  ],
+  "quest.1000000000060900.title": "Cargo capacity",
+  "quest.1000000000060900.quest_desc": [
+    "Advanced tank required. Verify fluid transfer between Mekanism storage and ship-compatible tanks."
+  ],
+  "quest.1000000000060A00.title": "Outpost maintenance",
+  "quest.1000000000060A00.quest_desc": [
+    "Steel Paxel acquired. Stock tools and repair materials at established outposts."
+  ],
+  "quest.1000000000060B00.title": "Fabricate aluminum hull plating",
+  "quest.1000000000060B00.quest_desc": [
+    "Lightweight panel stock required. Find bauxite ore on desert planets and smelt it. Eight aluminum ingots yield four panels. Mass 0.5 per full block; default pressure limit 0.5. Values are provisional."
+  ],
+  "chapter.1000000000070000.title": "7 · Anomalies and combat",
+  "quest.1000000000070100.title": "Combat protection",
+  "quest.1000000000070100.quest_desc": [
+    "Armour required. Prepare a safe retreat route before approaching anomalous terrain."
+  ],
+  "quest.1000000000070200.title": "Ranged capability",
+  "quest.1000000000070200.quest_desc": [
+    "Ranged weapon required. Keep clear of unstable fold-point terrain during combat."
+  ],
+  "quest.1000000000070300.title": "Ammunition reserve",
+  "quest.1000000000070300.quest_desc": [
+    "Ammunition required. Supply counts are initial tuning guesses."
+  ],
+  "quest.1000000000070400.title": "Recovery supplies",
+  "quest.1000000000070400.quest_desc": [
+    "Recovery supply required. The Flesh survey requires supplies and a retreat route from the hive crater."
+  ],
+  "quest.1000000000070800.title": "Reach Flesh",
+  "quest.1000000000070800.quest_desc": [
+    "Manual survey record: locate Flesh, the outermost moon of Amber, and confirm landing. The checkmark does not detect the planet."
+  ],
+  "quest.1000000000070900.title": "Enter the hive crater",
+  "quest.1000000000070900.quest_desc": [
+    "Manual survey record: follow the hive ridges into the giant crater. Record a retreat route before approaching the Host. The checkmark does not detect entry."
+  ],
+  "quest.1000000000070A00.title": "Defeat the Host",
+  "quest.1000000000070A00.quest_desc": [
+    "Combat record required: defeat the Host in the hive crater. The encounter yields four Host Ganglia, the biological component required by the mechanical interstellar drive."
+  ],
+  "quest.1000000000070B00.title": "Recover a Host Ganglion",
+  "quest.1000000000070B00.quest_desc": [
+    "Ganglion sample required. Reserve one for mechanical crafting of the interstellar drive; the remaining samples can support later drive construction. Quantity is provisional."
+  ],
+  "chapter.1000000000080000.title": "8 · Gas giants and interstellar flight",
+  "quest.1000000000080100.title": "Hull material reserve",
+  "quest.1000000000080100.quest_desc": [
+    "Steel stock required for ship equipment. Pressure tolerance belongs to each block, not the ship as a whole."
+  ],
+  "quest.1000000000080200.title": "Structural reserve",
+  "quest.1000000000080200.quest_desc": [
+    "Structural stock required. Ordinary iron still fails at pressure 0.5; replace exposed structure with pressure hull before deep collection."
+  ],
+  "quest.1000000000080300.title": "Long-range controls",
+  "quest.1000000000080300.quest_desc": [
+    "Elite circuit stock required. Reserve four elite circuits for the interstellar drive after skimming deuterium."
+  ],
+  "quest.1000000000080400.title": "High-capacity storage",
+  "quest.1000000000080400.quest_desc": [
+    "Storage hardware required. Verify ship fuel extraction support before relying on this tank in flight."
+  ],
+  "quest.1000000000080900.title": "Fabricate osmium pressure hull",
+  "quest.1000000000080900.quest_desc": [
+    "Pressure hull stock required before gas collection. Five osmium ingots and four iron ingots yield four blocks. Provisional mass 4 per full block, pressure limit 0.85. Slabs use half mass, double slabs full mass. Other exposed components retain their own limits; no whole-ship pressure shield."
+  ],
+  "quest.1000000000080500.title": "Build the gas scoop",
+  "quest.1000000000080500.quest_desc": [
+    "Intake required. Assemble a precision mechanism, two advanced circuits, a Create tank and a rotary condensentrator. Hydrogen machinery must be available first. Mount the scoop and an empty compatible tank on the same Sable hull."
+  ],
+  "quest.1000000000080600.title": "Skim deuterium at Amber",
+  "quest.1000000000080600.quest_desc": [
+    "Approach Amber and dip the intake into its pressure field, then take a deuterium bucket sample from the filled tank. Heavy-water separation is disabled; rotary conversion only recycles existing deuterium. Reference rate is 10 mB/tick at pressure 0.5 (first guess); ordinary blocks fail at 0.5, osmium pressure hull at 0.85 (provisional). The bucket detector does not certify location."
+  ],
+  "quest.1000000000080700.title": "Fill the onboard tank",
+  "quest.1000000000080700.quest_desc": [
+    "Manual flight-log confirmation, not automatic telemetry: return the sample and fill a Create tank to 8000 mB of deuterium. Check the actual tank gauge before marking complete. Keep separate return fuel; whole-hull pressure can exceed intake pressure."
+  ],
+  "quest.1000000000080A00.title": "Build the interstellar drive",
+  "quest.1000000000080A00.quest_desc": [
+    "Use mechanical crafting to combine four osmium pressure hull blocks, four elite circuits, a bucket of skimmed deuterium and one Host Ganglion (provisional). Install the drive on the same hull as the thrusters and fuel tank. Leaving the home system requires an interstellar drive and deuterium for thrust; the Host encounter gates drive fabrication. The item detector does not certify installation."
+  ],
+  "quest.1000000000080800.title": "Leave the home system",
+  "quest.1000000000080800.quest_desc": [
+    "Manual flight-log confirmation: install an interstellar drive on the same hull, leave the home system with deuterium available and verify thrust beyond its boundary, then mark complete. Every experience planet orbits the home sun. Outside home, thrust requires both an interstellar drive and deuterium; coasting is not blocked. Impulse starts at 25 times diesel, not a measured one-bucket ascent. Host ganglion is required to fabricate the drive."
+  ]
+}

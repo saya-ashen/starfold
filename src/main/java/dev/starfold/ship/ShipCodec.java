@@ -78,7 +78,7 @@ final class ShipCodec {
 
     static CompoundTag writePlace(ShipRecord.Place place) {
         var tag = new CompoundTag();
-        tag.putInt("body", place.body());
+        tag.put("body", place.body().tag());
         tag.put("anchor_plot", point(place.anchorPlot()));
         tag.put("position", point(place.position()));
         var attitude = point(new Point(place.attitude().x, place.attitude().y, place.attitude().z));
@@ -89,7 +89,7 @@ final class ShipCodec {
     }
 
     static ShipRecord.Place readPlace(CompoundTag tag) {
-        require(tag, "body", Tag.TAG_INT);
+        require(tag, "body", Tag.TAG_COMPOUND);
         require(tag, "anchor_plot", Tag.TAG_COMPOUND);
         require(tag, "position", Tag.TAG_COMPOUND);
         require(tag, "attitude", Tag.TAG_COMPOUND);
@@ -98,7 +98,7 @@ final class ShipCodec {
         var xyz = readPoint(q);
         require(q, "w", Tag.TAG_DOUBLE);
         return new ShipRecord.Place(
-                tag.getInt("body"),
+                dev.starfold.chart.BodyId.read(tag.getCompound("body")),
                 readPoint(tag.getCompound("anchor_plot")),
                 readPoint(tag.getCompound("position")),
                 new Quaterniond(xyz.x(), xyz.y(), xyz.z(), q.getDouble("w")),

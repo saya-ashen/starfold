@@ -1,0 +1,11 @@
+{
+  "jar_sha256": "b11239ce079c86dce5843475bf4893792d34a0ebfe678a26d868cbc3d53fd07c",
+  "class_sha256": {
+    "dev/starfold/worldgen/lod/VoxelMesher.class": "47bc8938cdc485a9acc22d6f8f79d463dc5f91e26143cee053d09b3ca491e774",
+    "dev/starfold/worldgen/lod/VoxelMesher$Job.class": "0ace7093a6f9610cca947c232141ee00e3574a11c3df28ee942cbd4a27ae5a82",
+    "dev/starfold/worldgen/lod/VoxelMesher$Quad.class": "242153c2c1f9e135ee6eff9b1410e9e5789aaf89d3f5c1ae23fa711edd5ce701",
+    "dev/starfold/render/GroundVoxelPrototype.class": "afddb139fe7ebeb92c3f06af1038c89f28e0413c64a5f67a80966fa74791f906",
+    "dev/starfold/render/GroundShaderSource.class": "1479187ad5e40b97c1ec69e854f2b122d5bb467ec5ae124e8142486a12de624e"
+  },
+  "purpose": "Test-only exact b112 negative controls; never a production backend."
+}

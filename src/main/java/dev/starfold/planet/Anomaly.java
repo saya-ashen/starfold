@@ -119,10 +119,6 @@ public final class Anomaly {
         return BEAM_WIDTH * Math.clamp(1 - above / BEAM_HEIGHT, 0, 1);
     }
 
-    /** Angle on the sphere that one block along a face edge covers at a vertex; distances from a vertex are
-     *  counted in these edge-equivalent blocks so that all three faces measure the same circle. */
-    public static final double BLOCK_ANGLE = Math.sqrt(2) / (3 * 1024);
-
     /** Terrain is drawn to a level shelf inside PLATEAU_INNER and is untouched beyond PLATEAU_OUTER. */
     public static final double PLATEAU = 14, PLATEAU_INNER = 40, PLATEAU_OUTER = 88;
 

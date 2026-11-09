@@ -13,6 +13,8 @@ public final class WeatherClient {
         var mc = Minecraft.getInstance();
         if (level != mc.level || mc.player == null || !PlanetLevels.is(level)) return false;
         if (SkyHost.client().present()) return true;
+        if (dev.starfold.planet.PlanetConditions.airless(level, mc.player.blockPosition()))
+            return true;
         var p = SkyHost.client().storage(mc.player.getX(), mc.player.getEyeY(), mc.player.getZ());
         return Weather.absent(level, BlockPos.containing(p.x(), p.y(), p.z()));
     }
@@ -23,6 +25,7 @@ public final class WeatherClient {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Post event) -> {
                     var mc = Minecraft.getInstance();
+                    dev.starfold.planet.PlanetSoundClient.tick();
                     boolean now = absent(mc.level);
                     if (now && !silent)
                         for (String id :

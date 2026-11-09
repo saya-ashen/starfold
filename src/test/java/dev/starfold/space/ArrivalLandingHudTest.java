@@ -25,11 +25,11 @@ class ArrivalLandingHudTest {
         for (double height : new double[] {0, 1536, 2200, 5000, 10000}) {
             var toward = new Point(1, 0, 0);
             var velocity = new Point(10000, 0, 0);
-            var result = SpaceServer.arrival(body, velocity, toward, velocity, height);
-            assertEquals(SpaceServer.arrivalLimit(body, height), result.x() * 20, 1e-8);
+            var result = SpaceFlightMath.arrival(body, velocity, toward, velocity, height);
+            assertEquals(SpaceFlightMath.arrivalLimit(body, height), result.x() * 20, 1e-8);
             var tangent = new Point(0, 10000, 0);
-            var near = SpaceServer.near(body, tangent, toward, tangent, height);
-            assertEquals(SpaceServer.nearLimit(body, height), near.y() * 20, 1e-8);
+            var near = SpaceFlightMath.near(body, tangent, toward, tangent, height);
+            assertEquals(SpaceFlightMath.nearLimit(body, height), near.y() * 20, 1e-8);
         }
     }
 

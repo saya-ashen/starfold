@@ -25,6 +25,11 @@ public interface FlightHost {
         return 0;
     }
 
+    /** A vessel near a hull flies natively so it collides with it; alone there are no hulls. */
+    default boolean nearHull(ServerPlayer player, double distance) {
+        return false;
+    }
+
     static FlightHost get() {
         return Installed.host;
     }

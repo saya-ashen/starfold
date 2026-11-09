@@ -1,0 +1,13 @@
+waitworld
+wait 400
+shot pack-spawn
+cmd recipe give @s escape_velocity:thruster
+cmd recipe give @s escape_velocity:scope_nav
+cmd ftbquests open_book
+wait 100
+shot pack-quests
+press 256 1
+wait 2
+press 256 0
+wait 20
+quit

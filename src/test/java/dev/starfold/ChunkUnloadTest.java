@@ -2,7 +2,7 @@ package dev.starfold;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 
@@ -21,7 +21,7 @@ import java.util.*;
 class ChunkUnloadTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     private static ChunkHolder holder() {

@@ -48,8 +48,8 @@ public final class PacketMap {
                     || access.storagePlanet(x, z) != frame.planet()
                     || access.face(x) == frame.root()) return frame.turns();
             var tile =
-                    new GroundChart(CubeSurfaceTopology.Face.values()[frame.root()])
-                            .tile(CubeSurfaceTopology.Face.values()[access.face(x)]);
+                    new GroundChart(CubeSurfaceTopology.Face.VALUES[frame.root()])
+                            .tile(CubeSurfaceTopology.Face.VALUES[access.face(x)]);
             return tile == null ? frame.turns() : frame.turns() + tile.turn();
         } catch (IllegalArgumentException outside) {
             return frame.turns();

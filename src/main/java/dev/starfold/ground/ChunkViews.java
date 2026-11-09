@@ -11,7 +11,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.IdentityHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Server-side seam topology at the chunk-lookup layer.
@@ -35,9 +35,24 @@ public final class ChunkViews {
     }
 
     private static final int CACHE_LIMIT = 8192;
-    private static final ConcurrentHashMap<Long, Columns> COLUMNS = new ConcurrentHashMap<>();
+    private record CachedColumns(dev.starfold.chart.PlanetShape shape, Columns columns) {}
+
+    private static volatile ConcurrentHashMap<Long, CachedColumns> columns = new ConcurrentHashMap<>();
     private static final Map<ServerLevel, ConcurrentHashMap<Long, GhostChunk>> VIEWS =
-            new WeakHashMap<>();
+            new IdentityHashMap<>();
+
+    public static void resetLayout() {
+        columns = new ConcurrentHashMap<>();
+        synchronized (VIEWS) {
+            VIEWS.clear();
+        }
+    }
+
+    public static void release(ServerLevel level) {
+        synchronized (VIEWS) {
+            VIEWS.remove(level);
+        }
+    }
 
     /** Inside a face chart (owner or halo), mirroring {@link PlanetAccess#inChart}. No exceptions: this runs in
      *  the light engine. */
@@ -51,10 +66,12 @@ public final class ChunkViews {
     }
 
     public static Columns columns(PlanetAccess access, int chunkX, int chunkZ) {
-        var cache = COLUMNS;
+        var cache = columns;
+        int planet = dev.starfold.planet.PlanetStorage.find(chunkX * 16 + 8, chunkZ * 16 + 8);
+        var shape = planet < 0 ? null : dev.starfold.chart.PlanetShape.of(planet);
         long key = ChunkPos.asLong(chunkX, chunkZ);
         var hit = cache.get(key);
-        if (hit != null) return hit;
+        if (hit != null && hit.shape() == shape) return hit.columns();
         int[] xs = new int[256], zs = new int[256], us = new int[256], vs = new int[256];
         byte[] turns = new byte[256];
         var owners = new java.util.LinkedHashSet<Long>();
@@ -65,9 +82,16 @@ public final class ChunkViews {
                             GroundCoordinates.FLOOR,
                             chunkZ * 16 + (i >> 4));
             try {
-                var address = access.address(query);
-                var owner = address.owner();
-                var cell = access.cell(owner);
+                int offsetX = dev.starfold.planet.PlanetStorage.column(planet)
+                        * dev.starfold.planet.PlanetStorage.PLANET_STRIDE;
+                int offsetZ = dev.starfold.planet.PlanetStorage.row(planet)
+                        * dev.starfold.planet.PlanetStorage.ROW_STRIDE;
+                var local = query.offset(-offsetX, 0, -offsetZ);
+                if (!dev.starfold.planet.GroundTopology.inChart(shape, local))
+                    throw new IllegalArgumentException("Outside planet chart halo");
+                var address = dev.starfold.planet.GroundTopology.address(shape, local);
+                var owner = address.owner().offset(offsetX, 0, offsetZ);
+                var cell = dev.starfold.planet.GroundTopology.cell(address.owner());
                 xs[i] = owner.getX();
                 zs[i] = owner.getZ();
                 us[i] = cell.u();
@@ -88,7 +112,7 @@ public final class ChunkViews {
                         turns,
                         owners.stream().mapToLong(Long::longValue).toArray());
         if (cache.size() > CACHE_LIMIT) cache.clear();
-        cache.put(key, columns);
+        cache.put(key, new CachedColumns(shape, columns));
         return columns;
     }
 

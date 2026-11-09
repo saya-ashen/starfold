@@ -24,7 +24,7 @@ public final class GroundPackets {
         }
 
         public static final Type<Sky> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v4_sky"));
+                new Type<>(ResourceLocation.parse("starfold:native_ground_v6_sky"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Sky> CODEC =
                 StreamCodec.of(
                         (b, p) -> {

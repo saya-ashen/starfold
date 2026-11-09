@@ -1,5 +1,7 @@
 package dev.starfold.ship;
 
+import dev.starfold.space.SpacePackets;
+
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.starfold.chart.GroundEphemeris;
@@ -19,23 +21,16 @@ import org.joml.Quaterniond;
  * and send no region snapshot; notices go nowhere.
  */
 public interface ShipHost {
-    /** Hull hardware's cruise and boosted speed limits, in blocks per second. */
-    record SpeedCaps(double cruise, double boost) {}
-
-    /** With no wider flight system, packets use the baseline speed limit. */
-    default double minimumSpeed() {
-        return 200;
-    }
-
-    /** Without a wider flight system, hardware has only baseline speed limits. */
-    default SpeedCaps speedCaps(ServerSubLevel body) {
-        return new SpeedCaps(minimumSpeed(), minimumSpeed());
-    }
-
     /** Whether the hull's turning thrusters are being used to roll its surroundings instead. */
     default boolean externalRoll(Level level, ServerSubLevel body) {
         return false;
     }
+
+    /** A scoop has actually inserted gas into this hull's tanks. */
+    default void gasCollected(ServerSubLevel body) {}
+
+    /** Location records changed; higher-layer maps may publish private snapshots. */
+    default void mapSync(ServerLevel level) {}
 
     /** A pilot has left the helm; any higher-layer steering wish must end. */
     default void pilotReleased(ServerPlayer player) {}
@@ -106,9 +101,10 @@ public interface ShipHost {
         return false;
     }
 
-    /** Space dormancy stays off unless a development experiment enables it. */
+    /** Space hulls left unloaded by a restart wake at their current place. Production never puts
+     *  one to sleep: every loaded hull keeps its ALWAYS ticket. */
     default boolean spaceDormancy() {
-        return Boolean.getBoolean("starfold.shipProbe");
+        return true;
     }
 
     /** An occupied region retains its lead, even with a distant observer. */

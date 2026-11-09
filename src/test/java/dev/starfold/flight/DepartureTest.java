@@ -104,7 +104,8 @@ class DepartureTest {
 
     @Test
     void saveReloadKeepsFlightLongDepartureAndLatchedIdentity() throws Exception {
-        var server = new SpaceServer(Space.Frame.IDENTITY);
+        var model = dev.starfold.planet.PlanetSystem.model(3);
+        var server = new SpaceServer(Space.Frame.IDENTITY, () -> model);
         var field = SpaceServer.class.getDeclaredField("arrivalState");
         field.setAccessible(true);
         var s = depart();
@@ -115,17 +116,13 @@ class DepartureTest {
                 }) {
             field.set(server, state);
             var tag = server.save(new net.minecraft.nbt.CompoundTag(), null);
-            var restored = (ArrivalState) field.get(SpaceServer.load(tag, null));
+            var restored = (ArrivalState) field.get(SpaceServer.load(tag, null, () -> model));
             assertEquals(state.departure(), state.restored().departure());
             assertEquals(state.departure(), restored.departure());
             if (state.latched()) {
                 assertTrue(restored.latched());
                 assertEquals(2, restored.planet());
             } else assertEquals(ArrivalState.Phase.CRUISE, step(restored, 2500, false).phase());
-            tag.putInt(
-                    "departureTicks",
-                    1); // Old dev.79 saves migrate without a remaining-time expiry.
-            assertNotNull(((ArrivalState) field.get(SpaceServer.load(tag, null))).departure());
         }
     }
 
@@ -162,7 +159,7 @@ class DepartureTest {
         var server = Sources.text("SpaceServer");
         assertTrue(
                 server.contains(
-                        "target!=null&&validTarget(player,target))lockedPlanet=target.planet()"));
+                        "target!=null&&target.celestial()!=null&&validTarget(player,target))lockedPlanet=target.celestial().surfaceSlot(GroundClock.get(level).clock.model).orElse(-1)"));
         assertTrue(server.contains("abort,false,remaining<.1,lockedPlanet)"));
         assertTrue(
                 server.contains(
@@ -170,9 +167,9 @@ class DepartureTest {
         var client = Sources.text("SpaceNavigationClient");
         assertTrue(
                 client.contains(
-                        "tier>=2&&t.planet()==locked?SpaceNavigation.blocker(model,pivot,locked,tick):-1"));
+                        "tier>=2&&t.planet()==locked?CelestialNavigation.blocker(model,pivot,celestial,tick).orElse(null):null"));
         var widgets = Sources.text("FlightWidgets");
-        assertTrue(widgets.contains("t.blocker()>=0&&i%4>=2"));
+        assertTrue(widgets.contains("t.blocked()&&i%4>=2"));
     }
 
     @Test

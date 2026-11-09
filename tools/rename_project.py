@@ -6,14 +6,14 @@ hashes tests pin for them.
 
 The current names are read from project-names.json and written back there, so the tool can be run again.
 --id is the mod id: also the resource namespace, the Java package (dev.<id>), the command (/<id>) and the
-jar's base name; lower case letters, digits and underscores. The experience pack's namespace is <id>_pack.
+jar's base name; lower case letters, digits and underscores. The content namespaces are <id>_worlds and <id>_extras.
 Run from a clean working tree; review with git diff --stat, then build and test.
 """
 import argparse, hashlib, json, pathlib, re, subprocess, sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 NAMES = ROOT / 'project-names.json'
-STRUCTURES = [ROOT / 'src/main/resources/data' / '{id}' / 'structure' / n for n in ('starter_ship.nbt', 'starter_ship_weapon.nbt')]
+STRUCTURES = [ROOT / 'extras/src/main/resources/data' / '{id}_extras' / 'structure' / n for n in ('starter_ship.nbt', 'starter_ship_weapon.nbt')]
 BINARY = {'.png', '.ogg', '.jar', '.nbt', '.class', '.zip', '.gz'}
 
 

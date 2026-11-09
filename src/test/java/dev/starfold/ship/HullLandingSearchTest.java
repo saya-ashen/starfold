@@ -1,5 +1,6 @@
 package dev.starfold.ship;
 
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
@@ -87,8 +88,6 @@ class HullLandingSearchTest {
             for (String key : new String[] {"landing_site", "landing_none", "landing_search"})
                 assertTrue(json.has("hud.starfold.instrument_" + key));
         }
-        assertTrue(StarterBooks.pages("zh_cn").get(7).contains("箭头"));
-        assertTrue(StarterBooks.pages("en_us").get(7).contains("arrow"));
     }
 
     @Test

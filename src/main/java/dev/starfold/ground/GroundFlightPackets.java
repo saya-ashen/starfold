@@ -56,12 +56,12 @@ public final class GroundFlightPackets {
                     || state.space() && !controlled
                     || controlled
                             && !state.space()
-                            && state.local().point().y() <= GroundDynamics.HANDOFF)
+                            && state.local().point().y() <= GroundDynamics.handoff(mask))
                 throw new IllegalArgumentException("Native setup");
         }
 
         public static final Type<Setup> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v6_setup"));
+                new Type<>(ResourceLocation.parse("starfold:native_ground_v8_setup"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Setup> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
@@ -208,7 +208,7 @@ public final class GroundFlightPackets {
                             return new Seam(
                                     id,
                                     new PlanetShape.Pose(
-                                            CubeSurfaceTopology.Face.values()[face],
+                                            CubeSurfaceTopology.Face.VALUES[face],
                                             new BentStripGeometry.Point(
                                                     b.readDouble(),
                                                     b.readDouble(),
@@ -269,8 +269,9 @@ public final class GroundFlightPackets {
     }
 
     public static final class Queue {
+        public static final int CAPACITY = 24;
         private final ArrayDeque<Input> queue = new ArrayDeque<>();
-        private long last, ack, arrival = -1, count;
+        private long last, ack, arrival = -1;
 
         public long ack() {
             return ack;
@@ -278,15 +279,11 @@ public final class GroundFlightPackets {
 
         public boolean offer(Input input, long gameTick) {
             long n = input.motion.sequence();
-            if (n != last + 1 || queue.size() >= 24 || gameTick < arrival) return false;
-            if (arrival != gameTick) {
-                arrival = gameTick;
-                count = 0;
-            }
-            if (count >= 4) return false;
+            // A slow server receives legitimate bursts; bound outstanding work instead.
+            if (n != last + 1 || queue.size() >= CAPACITY || gameTick < arrival) return false;
             queue.addLast(input);
             last = n;
-            count++;
+            arrival = gameTick;
             return true;
         }
 

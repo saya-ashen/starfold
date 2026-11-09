@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=north": {"model": "starfold:block/gas_scoop"},
+    "facing=south": {"model": "starfold:block/gas_scoop", "y": 180},
+    "facing=west": {"model": "starfold:block/gas_scoop", "y": 270},
+    "facing=east": {"model": "starfold:block/gas_scoop", "y": 90},
+    "facing=up": {"model": "starfold:block/gas_scoop", "x": 270},
+    "facing=down": {"model": "starfold:block/gas_scoop", "x": 90}
+  }
+}

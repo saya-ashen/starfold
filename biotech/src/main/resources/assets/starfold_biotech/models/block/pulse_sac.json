@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "starfold_biotech:block/pulse_sac"
+  }
+}

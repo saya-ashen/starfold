@@ -212,7 +212,7 @@ class ShipHoldTest {
     @Test
     void bindingSurvivesNewNearestAndRefreshAndSerializationButEndsAtHelmOrUnload() {
         var saved = ShipSave.fresh(false);
-        var observer = new ShipObserver(saved);
+        var observer = new ShipObserver(saved, slot -> 0);
         var uuid = UUID.randomUUID();
         var model = ShipParkingTest.model();
         var release =
@@ -276,7 +276,7 @@ class ShipHoldTest {
 
     @Test
     void pilotedTrajectoriesSkipSettlingEvenWithoutGyro() {
-        var observer = new ShipObserver(ShipSave.fresh(false));
+        var observer = new ShipObserver(ShipSave.fresh(false), slot -> 0);
         var uuid = UUID.randomUUID();
         var model = ShipParkingTest.model();
         var held =
@@ -378,7 +378,7 @@ class ShipHoldTest {
                         source.indexOf("private static Point spinPoint"));
         assertTrue(
                 coast.contains(
-                        "if(ShipRecords.piloted(level,lead)){value.clearHoldTurn();value.frame=value.frame.dragged(dragFactor(level),tick);return;}"));
+                        "if(ShipRecords.piloted(level,lead)){value.clearHoldTurn();value.frame=value.frame.rebased(tick);return;}"));
         assertTrue(
                 coast.indexOf("ShipRecords.piloted(level,lead)")
                         < coast.indexOf("ShipParking.coastFrame"));

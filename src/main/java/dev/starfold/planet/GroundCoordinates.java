@@ -7,6 +7,11 @@ import dev.starfold.geometry.CubeSurfaceTopology.Face;
 /** Six disjoint native upright owners. GroundTopology routes halo queries, never stored copies. */
 public final class GroundCoordinates {
     public static final int STRIDE = 4096, FLOOR = 128;
+    private static final Point[] ORIGINS = {
+        new Point(0, FLOOR, 0), new Point(STRIDE, FLOOR, 0),
+        new Point(2 * STRIDE, FLOOR, 0), new Point(3 * STRIDE, FLOOR, 0),
+        new Point(4 * STRIDE, FLOOR, 0), new Point(5 * STRIDE, FLOOR, 0)
+    };
 
     public static int face(double x) {
         return Math.clamp((int) Math.floor((x + 1024) / STRIDE), 0, 5);
@@ -14,7 +19,7 @@ public final class GroundCoordinates {
 
     public static Point origin(int face) {
         if (face < 0 || face > 5) throw new IllegalArgumentException("Face");
-        return new Point(face * STRIDE, FLOOR, 0);
+        return ORIGINS[face];
     }
 
     public static Point chart(Point world) {

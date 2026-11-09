@@ -1,0 +1,94 @@
+# Correct surface slots; full-depth command samples, not survival mining.
+strict
+waitworld
+wait 180
+pause off
+cmd gamemode creative
+cmd gamerule sendCommandFeedback true
+cmd gamerule commandModificationBlockLimit 1000000
+cmd packprobe visit 0
+wait 300
+nav r3-home
+cmd data get entity @s Pos
+cmd tellraw @s "SAMPLE home slot=0 y=-524..112"
+cmd tellraw @s "ORE mekanism:osmium_ore"
+cmd execute at @s run fill ~-15 -524 ~-15 ~15 112 ~15 minecraft:air replace mekanism:osmium_ore
+wait 10
+cmd tellraw @s "ORE mekanism:deepslate_osmium_ore"
+cmd execute at @s run fill ~-15 -524 ~-15 ~15 112 ~15 minecraft:air replace mekanism:deepslate_osmium_ore
+wait 10
+cmd tellraw @s "ORE minecraft:diamond_ore"
+cmd execute at @s run fill ~-15 -524 ~-15 ~15 112 ~15 minecraft:air replace minecraft:diamond_ore
+wait 10
+cmd tellraw @s "ORE minecraft:deepslate_diamond_ore"
+cmd execute at @s run fill ~-15 -524 ~-15 ~15 112 ~15 minecraft:air replace minecraft:deepslate_diamond_ore
+wait 10
+shot r3-resources-home
+cmd packprobe visit 3
+wait 300
+nav r3-anvil
+cmd data get entity @s Pos
+cmd tellraw @s "SAMPLE anvil slot=3 y=-197..112"
+cmd tellraw @s "ORE mekanism:osmium_ore"
+cmd execute at @s run fill ~-15 -197 ~-15 ~15 112 ~15 minecraft:air replace mekanism:osmium_ore
+wait 10
+cmd tellraw @s "ORE mekanism:deepslate_osmium_ore"
+cmd execute at @s run fill ~-15 -197 ~-15 ~15 112 ~15 minecraft:air replace mekanism:deepslate_osmium_ore
+wait 10
+cmd tellraw @s "ORE minecraft:diamond_ore"
+cmd execute at @s run fill ~-15 -197 ~-15 ~15 112 ~15 minecraft:air replace minecraft:diamond_ore
+wait 10
+cmd tellraw @s "ORE minecraft:deepslate_diamond_ore"
+cmd execute at @s run fill ~-15 -197 ~-15 ~15 112 ~15 minecraft:air replace minecraft:deepslate_diamond_ore
+wait 10
+shot r3-resources-anvil
+cmd packprobe visit 4
+wait 300
+nav r3-ice
+cmd data get entity @s Pos
+cmd tellraw @s "SAMPLE ice slot=4 y=-115..112"
+cmd tellraw @s "ORE mekanism:tin_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace mekanism:tin_ore
+wait 10
+cmd tellraw @s "ORE mekanism:deepslate_tin_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace mekanism:deepslate_tin_ore
+wait 10
+cmd tellraw @s "ORE mekanism:lead_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace mekanism:lead_ore
+wait 10
+cmd tellraw @s "ORE mekanism:deepslate_lead_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace mekanism:deepslate_lead_ore
+wait 10
+shot r3-resources-ice
+cmd packprobe visit 5
+wait 300
+nav r3-desert
+cmd data get entity @s Pos
+cmd tellraw @s "SAMPLE desert slot=5 y=-197..112"
+cmd tellraw @s "ORE mekanism:uranium_ore"
+cmd execute at @s run fill ~-15 -197 ~-15 ~15 112 ~15 minecraft:air replace mekanism:uranium_ore
+wait 10
+cmd tellraw @s "ORE mekanism:deepslate_uranium_ore"
+cmd execute at @s run fill ~-15 -197 ~-15 ~15 112 ~15 minecraft:air replace mekanism:deepslate_uranium_ore
+wait 10
+shot r3-resources-desert
+cmd packprobe visit 10
+wait 300
+nav r3-crystal
+cmd data get entity @s Pos
+cmd tellraw @s "SAMPLE crystal slot=10 y=-115..112"
+cmd tellraw @s "ORE mekanism:fluorite_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace mekanism:fluorite_ore
+wait 10
+cmd tellraw @s "ORE mekanism:deepslate_fluorite_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace mekanism:deepslate_fluorite_ore
+wait 10
+cmd tellraw @s "ORE minecraft:diamond_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace minecraft:diamond_ore
+wait 10
+cmd tellraw @s "ORE minecraft:deepslate_diamond_ore"
+cmd execute at @s run fill ~-15 -115 ~-15 ~15 112 ~15 minecraft:air replace minecraft:deepslate_diamond_ore
+wait 10
+shot r3-resources-crystal
+shot r3-resources-final
+quit

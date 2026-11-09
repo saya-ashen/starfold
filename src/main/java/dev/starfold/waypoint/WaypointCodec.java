@@ -29,14 +29,30 @@ public final class WaypointCodec {
         require(tag, "h", Tag.TAG_DOUBLE);
         require(tag, "v", Tag.TAG_DOUBLE);
         int face = tag.getInt("face");
-        if (face < 0 || face >= Face.values().length) {
+        if (face < 0 || face >= Face.VALUES.length) {
             throw new IllegalArgumentException("Waypoint face");
         }
         var point = new Point(tag.getDouble("u"), tag.getDouble("h"), tag.getDouble("v"));
         return new Waypoint(
                 tag.getString("name"),
                 tag.getInt("planet"),
-                new PlanetShape.Pose(Face.values()[face], point));
+                new PlanetShape.Pose(Face.VALUES[face], point));
+    }
+
+    /** Disk boundary; wire markers continue to use the local surface index. */
+    public static CompoundTag encode(
+            Waypoint marker, dev.starfold.chart.GroundEphemeris.Model model) {
+        var tag = encode(marker);
+        tag.put("planet", model.id(marker.planet()).tag());
+        return tag;
+    }
+
+    public static Waypoint decode(CompoundTag tag, dev.starfold.chart.GroundEphemeris.Model model) {
+        require(tag, "planet", Tag.TAG_COMPOUND);
+        var wire = tag.copy();
+        wire.putInt(
+                "planet", model.slot(dev.starfold.chart.BodyId.read(tag.getCompound("planet"))));
+        return decode(wire);
     }
 
     static void require(CompoundTag tag, String key, int type) {

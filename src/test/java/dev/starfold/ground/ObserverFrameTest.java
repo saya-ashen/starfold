@@ -10,7 +10,7 @@ import dev.starfold.geometry.ChartOrientation;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.GroundTopology;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,7 +27,7 @@ import java.util.*;
 class ObserverFrameTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     private static final int[][] EDGES = {
@@ -100,14 +100,6 @@ class ObserverFrameTest {
                 assertEquals(image.getStepX(), v.x(), 1e-9);
                 assertEquals(image.getStepZ(), v.z(), 1e-9);
                 assertEquals(direction, frame.directionToStorage(image));
-                // Block states turn with the same rotation as vectors and headings.
-                assertEquals(
-                        image,
-                        frame.stateToClient(
-                                        Blocks.OAK_STAIRS
-                                                .defaultBlockState()
-                                                .setValue(StairBlock.FACING, direction))
-                                .getValue(StairBlock.FACING));
                 assertEquals(
                         direction.toYRot(),
                         Math.floorMod(

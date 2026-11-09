@@ -28,17 +28,8 @@ class AnomalyClosureTest {
         for (int size : new int[] {512, 1024, 2048}) {
             int depth = Math.max(191, (int) Math.round(size / Math.PI));
             var generation =
-                    new PlanetGeneration(
-                            "temperate",
-                            "mining",
-                            1,
-                            1,
-                            0,
-                            .115,
-                            size,
-                            depth,
-                            PlanetGeneration.CORE_SHELL);
-            var terrain = new PlanetTerrain(7, 3, generation);
+                    new PlanetGeneration("temperate",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION).recipe(),size,depth,PlanetGeneration.CORE_SHELL,true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(true,size));
+            var terrain = new PlanetTerrain(7,dev.starfold.worldgen.PlanetTerrain.VERSION,generation);
             var mask = GroundSpace.DEFAULT_MASK;
             for (var face : CubeSurfaceTopology.Face.values())
                 for (int x : new int[] {0, 15, 16, size - 17, size - 16, size - 1})
@@ -86,8 +77,9 @@ class AnomalyClosureTest {
                                 net.minecraft.world.level.biome.Biomes.PLAINS),
                         java.util.List.of());
         settings.updateLayers();
-        for (int version : new int[] {2, 3}) {
-            var generator = new PlanetChunkGenerator(settings, 7, version);
+        for (int version : new int[] {PlanetTerrain.VERSION}) {
+            var generator = new PlanetChunkGenerator(settings, 7, version, java.util.Optional.empty(),
+                    java.util.Optional.of(PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION)));
             var height = LevelHeightAccessor.create(-64, 384);
             for (var face : CubeSurfaceTopology.Face.values()) {
                 int x = face.ordinal() * 4096;
@@ -98,7 +90,7 @@ class AnomalyClosureTest {
                                 height,
                                 PlanetTerrainTest.biomes,
                                 null);
-                generator.fillFromNoise(null, null, null, chunk).join();
+                dev.starfold.worldgen.SystemGeneration.fill(generator, chunk).join();
                 var column = generator.getBaseColumn(x, 0, height, null);
                 for (int y = -64; y <= 255; y++) {
                     var state =

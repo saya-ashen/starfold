@@ -1,0 +1,181 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000000000",
+  "group": "",
+  "order_index": 0,
+  "quests": [
+    {
+      "id": "1000000000000100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000000101",
+          "type": "dimension",
+          "dimension": "starfold:native_planet"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000000102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bread",
+            "count": 1
+          },
+          "count": 2
+        }
+      ]
+    },
+    {
+      "id": "1000000000000200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000000201",
+          "type": "item",
+          "item": {
+            "id": "minecraft:oak_log",
+            "count": 1
+          },
+          "count": 4
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000000202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bread",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000000100"
+      ]
+    },
+    {
+      "id": "1000000000000300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000000301",
+          "type": "item",
+          "item": {
+            "id": "minecraft:crafting_table",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000000302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bread",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000000200"
+      ]
+    },
+    {
+      "id": "1000000000000400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000000401",
+          "type": "item",
+          "item": {
+            "id": "minecraft:wooden_pickaxe",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000000402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bread",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000000300"
+      ]
+    },
+    {
+      "id": "1000000000000500",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000000501",
+          "type": "item",
+          "item": {
+            "id": "minecraft:cobblestone",
+            "count": 1
+          },
+          "count": 16
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000000502",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bread",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000000400"
+      ]
+    },
+    {
+      "id": "1000000000000600",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000000601",
+          "type": "item",
+          "item": {
+            "id": "minecraft:torch",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000000602",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bread",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000000500"
+      ]
+    }
+  ]
+}

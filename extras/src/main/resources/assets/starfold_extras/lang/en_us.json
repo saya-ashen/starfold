@@ -1,0 +1,4 @@
+{
+  "screen.starfold.experience_unavailable": "Experience preset unavailable",
+  "screen.starfold.experience_dependencies": "This preset needs Create and Simulated (Create Aeronautics). Install both, or go back and choose \"Starfold: Generated Universe\". No world has been created."
+}

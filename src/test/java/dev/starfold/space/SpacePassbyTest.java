@@ -19,25 +19,25 @@ class SpacePassbyTest {
             for (double miss : new double[] {-radius, 1536 + 200, 5000}) {
                 var p = new Point(-20000, radius + miss, 0);
                 var v = new Point(speed, 0, 0);
-                assertEquals(miss, SpaceServer.missHeight(p, v, radius), 1e-8);
+                assertEquals(miss, SpaceFlightMath.missHeight(p, v, radius), 1e-8);
                 assertEquals(
-                        Double.POSITIVE_INFINITY, SpaceServer.missHeight(p, v.scale(-1), radius));
+                        Double.POSITIVE_INFINITY, SpaceFlightMath.missHeight(p, v.scale(-1), radius));
             }
         assertEquals(
                 Double.POSITIVE_INFINITY,
-                SpaceServer.missHeight(new Point(1, 2, 3), GroundEphemeris.ZERO, radius));
+                SpaceFlightMath.missHeight(new Point(1, 2, 3), GroundEphemeris.ZERO, radius));
     }
 
     @Test
     void hysteresisUsesStrictEntryInclusiveExitAndRecessionClears() {
         double in = 1536 + 500, out = 1536 + 1000;
-        assertFalse(SpaceServer.inbound(BODY, false, 1, in));
-        assertTrue(SpaceServer.inbound(BODY, false, 1, Math.nextDown(in)));
-        assertTrue(SpaceServer.inbound(BODY, true, 1, in));
-        assertTrue(SpaceServer.inbound(BODY, true, 1, out));
-        assertFalse(SpaceServer.inbound(BODY, true, 1, Math.nextUp(out)));
+        assertFalse(SpaceFlightMath.inbound(BODY, false, 1, in));
+        assertTrue(SpaceFlightMath.inbound(BODY, false, 1, Math.nextDown(in)));
+        assertTrue(SpaceFlightMath.inbound(BODY, true, 1, in));
+        assertTrue(SpaceFlightMath.inbound(BODY, true, 1, out));
+        assertFalse(SpaceFlightMath.inbound(BODY, true, 1, Math.nextUp(out)));
         for (double closing : new double[] {0, -1})
-            assertFalse(SpaceServer.inbound(BODY, true, closing, -4000));
+            assertFalse(SpaceFlightMath.inbound(BODY, true, closing, -4000));
     }
 
     @Test
@@ -49,12 +49,12 @@ class SpacePassbyTest {
                 double h = p.length() - 4096,
                         closing = SpaceNavigation.closing(p.scale(-1), v, GroundEphemeris.ZERO);
                 boolean inbound =
-                        SpaceServer.inbound(
-                                BODY, false, closing, SpaceServer.missHeight(p, v, 4096));
+                        SpaceFlightMath.inbound(
+                                BODY, false, closing, SpaceFlightMath.missHeight(p, v, 4096));
                 assertFalse(inbound);
-                assertFalse(SpaceServer.align(BODY, h, closing, inbound));
-                assertFalse(SpaceServer.governed(BODY, h, inbound));
-                assertSame(v, SpaceServer.govern(BODY, v, p.scale(-1), v, h, inbound));
+                assertFalse(SpaceFlightMath.align(BODY, h, closing, inbound));
+                assertFalse(SpaceFlightMath.governed(BODY, h, inbound));
+                assertSame(v, SpaceFlightMath.govern(BODY, v, p.scale(-1), v, h, inbound));
             }
     }
 
@@ -66,31 +66,31 @@ class SpacePassbyTest {
                 var v = new Point(0, -speed / 20, 0);
                 var toward = p.scale(-1);
                 boolean inbound =
-                        SpaceServer.inbound(BODY, false, speed, SpaceServer.missHeight(p, v, 4096));
+                        SpaceFlightMath.inbound(BODY, false, speed, SpaceFlightMath.missHeight(p, v, 4096));
                 assertTrue(inbound);
                 assertEquals(
-                        SpaceServer.align(BODY, h, speed),
-                        SpaceServer.align(BODY, h, speed, inbound));
-                var radial = SpaceServer.arrival(BODY, v, toward, v, h);
+                        SpaceFlightMath.align(BODY, h, speed),
+                        SpaceFlightMath.align(BODY, h, speed, inbound));
+                var radial = SpaceFlightMath.arrival(BODY, v, toward, v, h);
                 assertEquals(
-                        SpaceServer.near(BODY, radial, toward, radial, h),
-                        SpaceServer.govern(BODY, v, toward, v, h, inbound));
+                        SpaceFlightMath.near(BODY, radial, toward, radial, h),
+                        SpaceFlightMath.govern(BODY, v, toward, v, h, inbound));
             }
     }
 
     @Test
     void floorAndLateSwingAreImmediate() {
-        assertFalse(SpaceServer.governed(BODY, 1536 + 300, false));
-        assertTrue(SpaceServer.governed(BODY, Math.nextDown(1536 + 300), false));
-        assertTrue(SpaceServer.align(BODY, Math.nextDown(1536 + 300), -1, false));
+        assertFalse(SpaceFlightMath.governed(BODY, 1536 + 300, false));
+        assertTrue(SpaceFlightMath.governed(BODY, Math.nextDown(1536 + 300), false));
+        assertTrue(SpaceFlightMath.align(BODY, Math.nextDown(1536 + 300), -1, false));
         var v = new Point(40, 0, 0);
         assertEquals(
                 150 + 500.0 / 3,
-                SpaceServer.govern(BODY, v, new Point(0, -1, 0), v, 1536 + 500, true).length() * 20,
+                SpaceFlightMath.govern(BODY, v, new Point(0, -1, 0), v, 1536 + 500, true).length() * 20,
                 1e-10);
         assertEquals(
                 150 + 500.0 / 6,
-                SpaceServer.govern(
+                SpaceFlightMath.govern(
                                         BODY,
                                         new Point(0, -40, 0),
                                         new Point(0, -1, 0),
@@ -104,18 +104,14 @@ class SpacePassbyTest {
 
     @Test
     void lockDoesNotEnterArrivalGeometryAndClientsUseServerFlag() throws Exception {
-        var s = Sources.text("SpaceServer");
-        var entry =
-                s.substring(s.indexOf("var entry=value.frame"), s.indexOf("if(v.length()>1e-9)"));
-        assertTrue(entry.contains("Space.nearest(model,position,tick)"));
-        assertFalse(entry.contains("targetVelocity"));
-        assertTrue(entry.contains("value.inboundPlanet==destination"));
-        assertFalse(
-                s.substring(s.indexOf("@Override public CompoundTag save")).contains("inbound"));
-        for (String file : new String[] {"SpaceAttitudeClient.java", "SpaceNavigationClient.java"})
-            assertTrue(
-                    Sources.text(file.substring(0, file.length() - 5))
-                            .contains("SpaceClient.arriving()"));
+        var advance = SpaceBytecode.calls("space/SpaceServer", "advanceLead");
+        SpaceBytecode.before(advance, "Space.nearest", "ArrivalState.step");
+        SpaceBytecode.before(advance, "ArrivalState.step", "SpaceServer.targetVelocity");
+        var save = new SpaceServer(dev.starfold.sky.Space.Frame.IDENTITY).save(new net.minecraft.nbt.CompoundTag(), null);
+        assertFalse(save.contains("inbound"));
+        assertFalse(save.contains("targets"));
+        for (String client : new String[] {"SpaceAttitudeClient", "SpaceNavigationClient"})
+            assertTrue(Sources.text(client).contains("SpaceClient.arriving()"));
         assertTrue(Sources.text("SpaceClient").contains("arriving=packet.turning()"));
     }
 }

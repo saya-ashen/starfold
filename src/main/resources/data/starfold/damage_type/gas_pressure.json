@@ -1,0 +1,5 @@
+{
+  "message_id": "starfold.gas_pressure",
+  "scaling": "never",
+  "exhaustion": 0.1
+}

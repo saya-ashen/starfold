@@ -7,12 +7,12 @@ import com.mojang.serialization.JsonOps;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.PlanetType;
-import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.PlanetTypeFixtures;
 import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.universe.SystemDefinition;
 import dev.starfold.universe.Universe;
 import dev.starfold.universe.UniverseLayout;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -23,7 +23,7 @@ import java.util.*;
 class PlanetIdentityTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -31,11 +31,11 @@ class PlanetIdentityTest {
         var json =
                 com.google.gson.JsonParser.parseString(
                         "{\"planet_type\":\"starfold:rocky\",\"terrain_seed\":42}");
-        var entry = PlanetType.PLANET.parse(PlanetTypeTest.ops(), json).getOrThrow();
-        var saved = PlanetType.PLANET.encodeStart(PlanetTypeTest.ops(), entry).getOrThrow();
+        var entry = PlanetType.PLANET.parse(PlanetTypeFixtures.ops(), json).getOrThrow();
+        var saved = PlanetType.PLANET.encodeStart(PlanetTypeFixtures.ops(), entry).getOrThrow();
         var bare =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         var copy = PlanetType.PLANET.parse(bare, saved).getOrThrow();
         assertEquals(Optional.of(ResourceLocation.parse("starfold:rocky")), copy.get().typeId());
         assertEquals(saved, PlanetType.PLANET.encodeStart(bare, copy).getOrThrow());
@@ -46,7 +46,7 @@ class PlanetIdentityTest {
         var definition = AuthoredSystemTest.read(AuthoredSystemTest.definition());
         var bare =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         var saved =
                 SystemDefinition.CODEC
                         .encodeStart(AuthoredSystemTest.ops(), definition)
@@ -75,14 +75,14 @@ class PlanetIdentityTest {
 
     @Test
     void savedUniverseAndLayoutKeepTypeOrigins() throws Exception {
-        var ops = PlanetTypeTest.ops();
+        var ops = PlanetTypeFixtures.ops();
         var source =
                 com.google.gson.JsonParser.parseString(
                         "{\"stars\":{\"min\":1,\"max\":1},\"planets\":{\"min\":2,\"max\":2},\"star_gap\":100000,\"types\":[{\"type\":\"starfold:rocky\"}]}");
         var layout = UniverseLayout.CODEC.parse(ops, source).getOrThrow();
         var bare =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         var copy =
                 UniverseLayout.CODEC
                         .parse(bare, UniverseLayout.CODEC.encodeStart(ops, layout).getOrThrow())
@@ -91,8 +91,9 @@ class PlanetIdentityTest {
         var loaded =
                 Universe.load(
                         universe.save(
-                                new net.minecraft.nbt.CompoundTag(), PlanetEcologyTest.lookup),
-                        PlanetEcologyTest.lookup);
+                                new net.minecraft.nbt.CompoundTag(), PlanetBiomeFixtures.lookup),
+                        PlanetBiomeFixtures.lookup,
+                        universe.allocator());
         for (var planet : loaded.planets())
             assertEquals(Optional.of(ResourceLocation.parse("starfold:rocky")), planet.typeId());
     }
@@ -102,7 +103,7 @@ class PlanetIdentityTest {
         var system =
                 SystemChunkGenerator.CODEC
                         .codec()
-                        .parse(PlanetTypeTest.ops(), PlanetTypeTest.preset("native_universe"))
+                        .parse(PlanetTypeFixtures.ops(), PlanetTypeFixtures.preset("native_universe"))
                         .getOrThrow();
         for (int i = 0; i < 2; i++) {
             var id = system.planet(i).identity();
@@ -145,15 +146,36 @@ class PlanetIdentityTest {
     }
 
     @Test
+    void planetLabelsKeepTranslationKeysAndFallBackToLiteralNames() {
+        var saved = PlanetSystem.names();
+        try {
+            PlanetSystem.names(
+                    List.of("planet.starfold_worlds.hearth", "Amber", "planet.example.unknown"));
+            var label = PlanetSystem.label(0);
+            var contents =
+                    assertInstanceOf(
+                            net.minecraft.network.chat.contents.TranslatableContents.class,
+                            label.getContents());
+            assertEquals("planet.starfold_worlds.hearth", contents.getKey());
+            assertEquals("planet.starfold_worlds.hearth", PlanetSystem.name(0));
+            assertEquals("Amber", PlanetSystem.label(1).getString());
+            assertEquals("planet.example.unknown", PlanetSystem.label(2).getString());
+            assertEquals("D", PlanetSystem.label(3).getString());
+        } finally {
+            PlanetSystem.names(saved);
+        }
+    }
+
+    @Test
     void formatterUsesNameThenLocalizedTypeThenPathAndKeepsRank() {
         var id =
                 new PlanetIdentity(
-                        Optional.of(ResourceLocation.parse("starfold_pack:asteroid")),
+                        Optional.of(ResourceLocation.parse("starfold_worlds:asteroid")),
                         "rocky",
                         Optional.empty());
         assertEquals("asteroid", id.label(k -> k));
         assertEquals(
-                "小行星", id.label(k -> k.equals("planet_type.starfold_pack.asteroid") ? "小行星" : k));
+                "小行星", id.label(k -> k.equals("planet_type.starfold_worlds.asteroid") ? "小行星" : k));
         assertEquals(
                 "H · 小行星 · 9/12", PlanetIdentity.caption(7, "小行星", 9, 12, 240, String::length));
         assertEquals(

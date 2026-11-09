@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "starfold_materials:block/aluminum_block"
+    }
+  }
+}

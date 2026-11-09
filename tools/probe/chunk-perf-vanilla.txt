@@ -1,0 +1,45 @@
+waitworld
+cmd gamemode creative
+wait 40
+log PERF vanilla-spawn
+wait 1200
+shot perf-vanilla-valid-spawn
+log PERF vanilla-walk
+fly off
+look 90 0
+key forward on
+key jump on
+wait 600
+key sprint on
+wait 600
+key forward off
+key jump off
+key sprint off
+shot perf-vanilla-valid-walk
+log PERF vanilla-fly
+fly on
+key jump on
+wait 160
+key jump off
+look 90 0
+key forward on
+key sprint on
+wait 1200
+key forward off
+key sprint off
+abilities vanilla-valid-fly-end
+shot perf-vanilla-valid-fly
+log PERF vanilla-flight-flush
+cmd save-all flush
+wait 100
+log PERF vanilla-flight-pause
+pause on
+wait 100
+pause off
+log PERF vanilla-settle
+wait 600
+log PERF vanilla-flush
+cmd save-all flush
+wait 600
+log PERF vanilla-quit
+quit

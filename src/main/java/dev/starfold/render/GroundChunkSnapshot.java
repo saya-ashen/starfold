@@ -1,6 +1,7 @@
 package dev.starfold.render;
 
 import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.storage.ChunkKeys;
 import dev.starfold.planet.PlanetAccess;
 
 import net.minecraft.core.BlockPos;
@@ -127,7 +128,7 @@ public final class GroundChunkSnapshot implements dev.starfold.worldgen.PlanetTe
     }
 
     public long key() {
-        return u + 128L * (v + 128L * face);
+        return ChunkKeys.faceLocal(face, u, v);
     }
 
     /** Highest non-air layer (MIN_Y-1 if empty): meshing an unedited image never scans the sky above it. */
@@ -149,24 +150,6 @@ public final class GroundChunkSnapshot implements dev.starfold.worldgen.PlanetTe
 
     public long[] packed() {
         return data.getRaw().clone();
-    }
-
-    public boolean baseline() {
-        for (int y = MIN_Y; y < MIN_Y + HEIGHT; y++) {
-            var expected =
-                    y == -64
-                            ? Blocks.BEDROCK.defaultBlockState()
-                            : y < 124
-                                    ? Blocks.STONE.defaultBlockState()
-                                    : y < 127
-                                            ? Blocks.DIRT.defaultBlockState()
-                                            : y == 127
-                                                    ? Blocks.GRASS_BLOCK.defaultBlockState()
-                                                    : Blocks.AIR.defaultBlockState();
-            for (int z = 0; z < 16; z++)
-                for (int x = 0; x < 16; x++) if (state(x, y, z) != expected) return false;
-        }
-        return true;
     }
 
     public byte[] lights() {

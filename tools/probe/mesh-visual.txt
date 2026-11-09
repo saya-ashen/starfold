@@ -1,0 +1,35 @@
+waitworld
+wait 1200
+cmd gamemode spectator
+wait 20
+cmd execute in minecraft:overworld run tp @s 8.5 207 25.5 180 35
+wait 200
+cmd gamerule doDaylightCycle false
+cmd gamerule doWeatherCycle false
+cmd gamerule randomTickSpeed 0
+cmd time set 6000
+cmd weather clear
+cmd fill -16 199 -16 31 211 31 air
+cmd fill -16 199 -16 31 199 31 stone
+cmd fill -16 200 -16 31 200 31 grass_block
+cmd fill -16 201 -16 31 204 31 air
+cmd fill 0 200 0 7 200 7 water
+cmd fill 12 201 0 16 204 4 oak_leaves[persistent=true]
+cmd fill 20 201 0 24 204 4 birch_leaves[persistent=true]
+cmd fillbiome -16 190 -16 7 215 31 minecraft:plains
+cmd fillbiome 8 190 -16 31 215 31 minecraft:swamp
+cmd gamemode spectator
+wait 400
+look 180 35
+wait 40
+shot mesh-water-grass-leaves
+cmd tp @s 3.5 204 11.5 180 35
+wait 100
+shot mesh-water
+cmd tp @s -5.5 203 11.5 180 35
+wait 100
+shot mesh-grass
+cmd tp @s 18.5 205 11.5 180 20
+wait 100
+shot mesh-leaves
+quit

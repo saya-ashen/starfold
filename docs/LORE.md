@@ -46,6 +46,24 @@ Some are large and some small. Some are bare, some covered in forest, some drown
 
 None of them is different from the rest. Neither is the one under your feet.
 
+## Flesh
+
+Every planet has the same origin, but not every planet has stayed as it was.
+
+There is one planet whose surface is covered in flesh. From space it is dark red, and at night it glows, brightening and dimming.
+
+On the ground there is no soil and no stone underfoot, only a layer of living tissue. Walls of chitin divide it into hexagonal cells of warm flesh, and blood gathers in the low places. Swarms of flying things move overhead.
+
+All of it comes from a **Host**.
+
+Long ago it fell onto this planet out of the sea of stars. The great crater at the planet's centre is where it struck. It stayed at the bottom, drove roots into the ground and began to digest the land, turning it piece by piece into its nest. The hexagonal cells are where it breeds, the blood is the nest's fluid, and the flying things are its workers and guards.
+
+Under the flesh, the old land is still there.
+
+The Host's back is covered by a heavy carapace, blackened and cracked, as if it had passed through fire. Beneath the carapace are glowing organs; once it crossed the sea of stars with them. It has lain in the crater too long, its body packed with eggs, and it rarely moves now.
+
+In this star system there is only one such planet. In other systems, other Hosts may have fallen too.
+
 ## The core
 
 Deep inside every planet is its **core**, wrapped in a shell that cannot be broken. Dig down from the surface as far as you like; you will not reach it.
@@ -59,6 +77,7 @@ Some guess that the stabilizers are the only road to the core. Nobody has shown 
 - How large the old world was, how many planets it became, and whether the sea of stars has an end.
 - When the Fold happened.
 - What is inside a core.
+- Where the Host came from, and how many of its kind there are.
 - Whether every planet is as quiet as it looks.
 
 ## You
@@ -78,4 +97,6 @@ If you want to know what the others are like, there is one way: build a ship you
 | fold point | 折点 | one of a planet's eight corners |
 | stabilizer | 稳定器 | the device in a fold point, eight to a planet |
 | anomaly zone | 异常区 | the unstable region around a stabilizer |
+| Flesh | 血肉 | the planet a Host turned into its nest |
+| the Host | 宿主 | the creature that fell from the stars and made a planet its nest |
 | core | 星核 | the centre of a planet |

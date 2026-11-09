@@ -26,11 +26,34 @@ class SurfaceBodiesTest {
         assertEquals(terrain.m11(), sky.m11());
         assertEquals(terrain.m20(), sky.m20());
         assertEquals(terrain.m21(), sky.m21());
-        assertEquals(.05f, sky.m32() / (sky.m22() - 1), 1e-7);
+        assertEquals(SpaceView.SKY_NEAR, sky.m32() / (sky.m22() - 1), 1e-3);
         var moon = sky.transform(new Vector4f(20, 40, -8000, 1));
         assertTrue(Math.abs(moon.z) <= moon.w);
         assertTrue(SpaceView.visible(8000, 512));
-        assertFalse(SpaceView.visible(SpaceView.FAR, 512));
+        assertTrue(SpaceView.visible(SpaceView.FAR, 512));
+    }
+
+    @Test
+    void viewBobbingNeverPushesFarBodiesPastTheSkyFarPlane() {
+        var plain = new Matrix4f().perspective((float) Math.toRadians(70), 16f / 9, .05f, 224);
+        // As GameRenderer.bobView: P * translate * roll * pitch.
+        var bobbed =
+                new Matrix4f(plain)
+                        .translate(.04f, -.06f, 0)
+                        .rotateZ((float) Math.toRadians(2.5))
+                        .rotateX((float) Math.toRadians(1.8));
+        var sky = SpaceView.skyProjection(bobbed);
+        var unbobbed = SpaceView.skyProjection(plain);
+        for (float x : new float[] {-60000, 0, 60000})
+            for (float y : new float[] {-60000, 0, 60000}) {
+                var far = new Vector4f(x, y, -.9f * SpaceView.FAR, 1);
+                var clip = sky.transform(new Vector4f(far));
+                assertTrue(Math.abs(clip.z) <= clip.w, "bobbed body at " + x + "," + y);
+                var view = new Matrix4f().translate(.04f, -.06f, 0).rotateZ((float) Math.toRadians(2.5))
+                        .rotateX((float) Math.toRadians(1.8)).transform(new Vector4f(far));
+                var reference = unbobbed.transform(view);
+                assertEquals(reference.z / reference.w, clip.z / clip.w, 1e-6);
+            }
     }
 
     @Test
@@ -77,12 +100,14 @@ class SurfaceBodiesTest {
                         < sky.indexOf(
                                 "PlanetRemoteRenderer.draw(c);",
                                 sky.indexOf("private static void drawSky")));
-        assertTrue(sky.contains("FogType.NONE"));
+        assertTrue(sky.contains("!RendererGuard.submerged(c.camera())"));
         var remote = Sources.text("PlanetRemoteRenderer");
         assertTrue(remote.contains("sky==(snapshot.planet()!=GroundClient.planet())"));
-        assertTrue(remote.contains("if(remote&&!SpaceView.visible("));
-        assertTrue(remote.contains("fallback=resident;fallbackMask=mask;"));
-        assertTrue(remote.contains("mask=null;view=new PlanetRemoteView()"));
+        assertTrue(remote.contains("groundCenter(target.center(),scale)"));
+        assertTrue(remote.contains("SpaceView.renderScale("));
+        var meshes = Sources.text("RemotePlanetMeshes");
+        assertTrue(meshes.contains("fallback=resident;fallbackMask=mask;"));
+        assertTrue(meshes.contains("mask=null;view=new PlanetRemoteView()"));
         assertTrue(remote.contains("body.fallback,body.fallbackMeshes,body.fallbackMask"));
         assertTrue(remote.contains("SpaceView.bodyFade("));
         var shader =
@@ -92,6 +117,7 @@ class SurfaceBodiesTest {
         assertTrue(shader.contains("occulted(BodyEye,bodyPosition,Occluder,OccluderRadius)"));
         assertTrue(shader.contains("occulted(bodyPosition,SunBody,ShadeCenter,ShadeRadius)"));
         assertFalse(shader.contains("FogEnd"));
-        assertTrue(shader.contains("mix(SkyColor,surfaceColor.rgb*light,BodyFade)"));
+        assertTrue(
+                shader.contains("mix(SkyColor,surfaceColor.rgb*light*AtmosphereGrade,BodyFade)"));
     }
 }

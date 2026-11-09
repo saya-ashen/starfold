@@ -1,0 +1,20 @@
+{
+  "baseMain": "ed1cb3f4306c3a263884816d617b8f3822abcdb8",
+  "sourceJarSHA256": "ad6cdde5d0dc80f6334ab3d551ec62d9f6af6c585e9a4c2f99ff02163bc74d8f",
+  "source": "accepted G-G2-surface-rocks-new-02 server world; copied before D1 source edits",
+  "scope": "Celestial clock, body counters and universe metadata only. No player, ship inventory or region files.",
+  "files": [
+    {
+      "file": "starfold_native_ground_clock_v1.dat",
+      "sha256": "2ce9a5c36dd667f34214ae98bbb12dce90cd01ba1d3b0d9a03edbd540392dc3f"
+    },
+    {
+      "file": "starfold_native_universe_v1.dat",
+      "sha256": "64765aee0c6f8610a698f52c0507102c4fe921ab8977cad344a612f8e60f4817"
+    },
+    {
+      "file": "starfold_body_ids.dat",
+      "sha256": "65235a6165772149c53ca149e66fc5534434c4393f3d30732d6418ad08afed9d"
+    }
+  ]
+}

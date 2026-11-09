@@ -110,7 +110,7 @@ public final class GroundEphemeris {
                     || radius < 0
                     || radius > 1e7
                     || !Double.isFinite(period)
-                    || period < 12000
+                    || period <= 0
                     || period > 1e9
                     || epoch < 0
                     || epoch > MAX_TICK
@@ -133,24 +133,145 @@ public final class GroundEphemeris {
         }
     }
 
+    /** How a body is drawn, independent of its lighting and surface-storage capabilities. */
+    public enum Appearance {
+        SURFACE,
+        LIGHT,
+        GAS
+    }
+
     /** A surface's slot is its storage address, not its position in the catalog. */
-    public record Body(Motion motion, double radius, boolean light, int slot, double reach) {
+    public record Body(
+            Motion motion,
+            double radius,
+            boolean light,
+            int slot,
+            double reach,
+            Appearance appearance,
+            BodyId id,
+            dev.starfold.worldgen.PlanetAtmosphere atmosphere,
+            double temperatureOffset,
+            java.util.Optional<GasGiant> gas) {
+        public Body(
+                Motion motion,
+                double radius,
+                boolean light,
+                int slot,
+                double reach,
+                Appearance appearance,
+                BodyId id,
+                dev.starfold.worldgen.PlanetAtmosphere atmosphere) {
+            this(
+                    motion,
+                    radius,
+                    light,
+                    slot,
+                    reach,
+                    appearance,
+                    id,
+                    atmosphere,
+                    0,
+                    java.util.Optional.empty());
+        }
+
+        public Body(
+                Motion motion,
+                double radius,
+                boolean light,
+                int slot,
+                double reach,
+                Appearance appearance,
+                BodyId id) {
+            this(
+                    motion,
+                    radius,
+                    light,
+                    slot,
+                    reach,
+                    appearance,
+                    id,
+                    dev.starfold.worldgen.PlanetAtmosphere.NONE);
+        }
+
+        public Body withAtmosphere(dev.starfold.worldgen.PlanetAtmosphere atmosphere) {
+            return new Body(
+                    motion, radius, light, slot, reach, appearance, id, atmosphere, temperatureOffset, gas);
+        }
+
+        public Body withEnvironment(dev.starfold.worldgen.PlanetEnvironment environment) {
+            return new Body(
+                    motion, radius, light, slot, reach, appearance, id,
+                    environment.atmosphere(), environment.temperatureOffset(), gas);
+        }
+
+        public static Body gas(Motion motion, double radius, GasGiant policy) {
+            return new Body(
+                    motion,
+                    radius,
+                    false,
+                    -1,
+                    0,
+                    Appearance.GAS,
+                    null,
+                    dev.starfold.worldgen.PlanetAtmosphere.NONE,
+                    0,
+                    java.util.Optional.of(policy));
+        }
+
+        /** Unassigned templates receive home identities when first made into a catalog. */
+        public Body(
+                Motion motion,
+                double radius,
+                boolean light,
+                int slot,
+                double reach,
+                Appearance appearance) {
+            this(motion, radius, light, slot, reach, appearance, null);
+        }
+
+        public Body identified(BodyId id) {
+            return new Body(
+                    motion,
+                    radius,
+                    light,
+                    slot,
+                    reach,
+                    appearance,
+                    java.util.Objects.requireNonNull(id),
+                    atmosphere,
+                    temperatureOffset,
+                    gas);
+        }
+
         public static final double DEFAULT_REACH = 2048;
 
         /** Generated surfaces use the standard departure height; lights have no surface band. */
-        public Body(Motion motion, double radius, boolean light, int slot) {
-            this(motion, radius, light, slot, slot < 0 ? 0 : DEFAULT_REACH);
+        public Body(Motion motion, double radius, boolean light, int slot, Appearance appearance) {
+            this(motion, radius, light, slot, slot < 0 ? 0 : DEFAULT_REACH, appearance);
         }
 
         public Body {
-            if (motion == null
+            if (atmosphere == null
+                    || gas == null
+                    || motion == null
+                    || appearance == null
+                    || (appearance == Appearance.SURFACE && slot < 0)
+                    || (appearance == Appearance.LIGHT && !light)
+                    || (appearance == Appearance.GAS
+                            && (light
+                                    || slot != -1
+                                    || !atmosphere.equals(
+                                            dev.starfold.worldgen.PlanetAtmosphere.NONE)))
+                    || (appearance == Appearance.GAS) != gas.isPresent()
                     || !Double.isFinite(radius)
                     || radius < 0
-                    || (light && (radius < 32 || radius > 4096))
+                    || (light && (radius < 32 || radius > 16384))
                     || slot < -1
                     || !Double.isFinite(reach)
                     || (slot < 0 ? reach != 0 : reach < 512 || reach > DEFAULT_REACH)
-                    || (!light && slot < 0)) throw new IllegalArgumentException("Body parameters");
+                    || (!light && slot < 0 && appearance != Appearance.GAS))
+                throw new IllegalArgumentException("Body parameters");
+            gas.ifPresent(policy -> policy.validateRadius(radius));
         }
 
         /** Heights above the nominal surface sphere, for handover and hull weight. */
@@ -183,7 +304,7 @@ public final class GroundEphemeris {
     public record Star(Point position, double radius) {
         public Star {
             point(position);
-            if (!Double.isFinite(radius) || radius < 32 || radius > 4096 || position.length() > 1e9)
+            if (!Double.isFinite(radius) || radius < 32 || radius > 16384 || position.length() > 1e9)
                 throw new IllegalArgumentException("Star parameters");
         }
     }
@@ -194,15 +315,37 @@ public final class GroundEphemeris {
     public static final class Model {
         private final java.util.List<Body> bodies;
         private final int[] slots;
+        private final java.util.Map<BodyId, Integer> identities = new java.util.HashMap<>();
         private final Point[] anchors;
-        private final double[] reaches;
+        private final double[] reaches, speeds;
         private final double drift, turn, extent;
 
         /** The lights when none of them moves, so that asking for them every frame builds nothing. */
         private final java.util.List<Star> still;
 
+        private final java.util.List<Star> visibleStars;
+
         public Model(java.util.List<Body> bodies) {
-            this.bodies = java.util.List.copyOf(bodies);
+            if (bodies.size() > 3264
+                    || bodies.stream().filter(b -> b.appearance() == Appearance.GAS).count()
+                            > GasGiant.MAX_COUNT)
+                throw new IllegalArgumentException("Celestial catalog capacity");
+            var assigned = new java.util.ArrayList<Body>(bodies.size());
+            int next =
+                    bodies.stream()
+                            .filter(b -> b.id() != null && b.id().region() == 0)
+                            .mapToInt(b -> b.id().index())
+                            .max()
+                            .orElse(-1);
+            for (var body : bodies) {
+                if (body.id() == null)
+                    body = body.identified(new BodyId(0, Math.incrementExact(next)));
+                if (body.id().region() == 0) next = Math.max(next, body.id().index());
+                if (identities.putIfAbsent(body.id(), assigned.size()) != null)
+                    throw new IllegalArgumentException("Duplicate body identity");
+                assigned.add(body);
+            }
+            this.bodies = java.util.List.copyOf(assigned);
             bodies = this.bodies;
             if (bodies.stream().noneMatch(Body::light))
                 throw new IllegalArgumentException("A celestial model requires a light");
@@ -210,7 +353,7 @@ public final class GroundEphemeris {
             java.util.Arrays.fill(slots, -1);
             anchors = new Point[bodies.size()];
             reaches = new double[bodies.size()];
-            double[] speeds = new double[bodies.size()];
+            speeds = new double[bodies.size()];
             double fastest = 0, turning = 0;
             for (int i = 0; i < bodies.size(); i++) {
                 var body = bodies.get(i);
@@ -230,32 +373,80 @@ public final class GroundEphemeris {
                     speeds[i] = speeds[o.parent()] + o.radius() / o.period();
                     if (body.slot() >= 0) turning = Math.max(turning, o.spin().angular().length());
                 }
+                if (body.gas().isPresent()
+                        && anchors[i].length()
+                                        + reaches[i]
+                                        + body.radius()
+                                        + body.gas().orElseThrow().outerHeight()
+                                > 1e9)
+                    throw new IllegalArgumentException(
+                            "Gas body envelope outside celestial bounds");
                 if (body.slot() >= 0) fastest = Math.max(fastest, speeds[i]);
             }
             drift = 4 * Math.PI * fastest;
             turn = turning;
             double boundary = GroundTransit.SPACE_RADIUS;
-            for (int i = 0; i < bodies.size(); i++)
+            for (int i = 0; i < bodies.size(); i++) {
+                var body = bodies.get(i);
+                double shell = body.gas().map(g -> body.radius() + g.outerHeight()).orElse(0.0);
                 boundary =
-                        Math.max(boundary, anchors[i].sub(origin()).length() + reaches[i] + 8192);
+                        Math.max(
+                                boundary,
+                                anchors[i].sub(origin()).length()
+                                        + reaches[i]
+                                        + Math.max(8192, shell));
+            }
             extent = boundary;
             still =
                     bodies.stream().allMatch(b -> !b.light() || b.motion() instanceof Fixed)
                             ? lights(0)
                             : null;
+            var drawn = new java.util.ArrayList<Star>();
+            for (int i = 0; i < bodies.size(); i++)
+                if (bodies.get(i).appearance() == Appearance.LIGHT)
+                    drawn.add(new Star(frame(i, 0).center(), bodies.get(i).radius()));
+            visibleStars = java.util.List.copyOf(drawn);
         }
 
         public java.util.List<Body> bodies() {
             return bodies;
         }
 
+        /** Surface-storage count, NOT the number of catalog bodies. */
         public int count() {
             return slots.length;
+        }
+
+        /** Catalog-index-only traversal; never pass these indices to body(slot) or at(slot). */
+        public java.util.List<Integer> catalogIndices() {
+            return java.util.stream.IntStream.range(0, bodies.size()).boxed().toList();
+        }
+
+        public Body catalogBody(int index) {
+            if (index < 0 || index >= bodies.size())
+                throw new IllegalArgumentException("Catalog body index");
+            return bodies.get(index);
         }
 
         public int index(int slot) {
             if (slot < 0 || slot >= slots.length) throw new IllegalArgumentException("Planet");
             return slots[slot];
+        }
+
+        public int index(BodyId id) {
+            var index = identities.get(id);
+            if (index == null) throw new IllegalArgumentException("Unknown body identity " + id);
+            return index;
+        }
+
+        public int slot(BodyId id) {
+            int slot = bodies.get(index(id)).slot();
+            if (slot < 0) throw new IllegalArgumentException("Body has no surface " + id);
+            return slot;
+        }
+
+        public BodyId id(int slot) {
+            return body(slot).id();
         }
 
         public Body body(int slot) {
@@ -302,6 +493,11 @@ public final class GroundEphemeris {
             return extent;
         }
 
+        /** Maximum centre travel per tick, including every ancestor orbit. */
+        public double speed(int slot) {
+            return 2 * Math.PI * speeds[index(slot)];
+        }
+
         public double drift() {
             return drift;
         }
@@ -324,6 +520,11 @@ public final class GroundEphemeris {
                 if (bodies.get(i).light())
                     stars.add(new Star(frame(i, tick).center(), bodies.get(i).radius()));
             return java.util.List.copyOf(stars);
+        }
+
+        /** Spheres selected for drawing, at the same reference tick as everyStar(). */
+        public java.util.List<Star> visibleStars() {
+            return visibleStars;
         }
 
         /** The first light is the primary source; equal nearest distances retain catalog order. */
@@ -410,7 +611,9 @@ public final class GroundEphemeris {
                 model.bodies().stream()
                         .map(
                                 body -> {
-                                    if (!(body.motion() instanceof Orbit o) || body.slot() < 0)
+                                    if (!(body.motion() instanceof Orbit o)
+                                            || (body.slot() < 0
+                                                    && body.appearance() != Appearance.GAS))
                                         return body;
                                     var motion =
                                             new Orbit(
@@ -425,15 +628,24 @@ public final class GroundEphemeris {
                                                             .toggle(
                                                                     on,
                                                                     tick,
-                                                                    body.slot() == 0
-                                                                            ? 48000
-                                                                            : 72000));
+                                                                    body.appearance()
+                                                                                    == Appearance
+                                                                                            .GAS
+                                                                            ? o.spin().period()
+                                                                            : body.slot() == 0
+                                                                                    ? 48000
+                                                                                    : 72000));
                                     return new Body(
                                             motion,
                                             body.radius(),
                                             body.light(),
                                             body.slot(),
-                                            body.reach());
+                                            body.reach(),
+                                            body.appearance(),
+                                            body.id(),
+                                            body.atmosphere(),
+                                            body.temperatureOffset(),
+                                            body.gas());
                                 })
                         .toList());
     }

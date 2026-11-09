@@ -1,54 +1,35 @@
 package dev.starfold.space;
 
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
+import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ship.HelmServer;
+import dev.starfold.ship.ThrusterFuel;
 import dev.starfold.ship.Thrusters;
+import dev.starfold.sky.Space;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-/** Hull-local full-command hardware cache. Never uses current redstone/throttle or VACUUM gain. */
+/** Guidance uses only the unused nozzle force in the requested direction, not extra arcade thrust. */
 public final class SpaceSpeedServer {
-    private record Hardware(int[] jets) {}
-
-    private record Reading(Hardware hardware, Direction bow, double mass, SpaceSpeed.Caps caps) {}
-
-    private static final java.util.Map<ServerSubLevel, Reading> cache =
-            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
-
-    /** Called after successful chunk writes, including edits made without Level.setBlock. */
-    public static void changed(ServerLevel level, BlockPos pos) {
-        if (dev.ryanhcode.sable.Sable.HELPER.getContaining(level, pos)
-                instanceof ServerSubLevel body) cache.remove(body);
-    }
-
-    public static SpaceSpeed.Caps caps(ServerSubLevel body) {
-        var bow = HelmServer.facing(body);
-        double mass = body.getMassTracker().getMass();
-        var actors = body.getPlot().getBlockEntityActors();
-        var old = cache.get(body);
-        var hardware = old == null || old.mass != mass ? null : old.hardware;
-        if (hardware == null) {
-            int[] jets = new int[Direction.values().length];
-            for (var actor : actors)
-                if (actor instanceof Thrusters.Thruster jet && !jet.isRemoved())
-                    jets[
-                            jet.getBlockState()
-                                    .getValue(BlockStateProperties.FACING)
-                                    .getOpposite()
-                                    .ordinal()]++;
-            hardware = new Hardware(jets);
-        }
-        if (old != null && hardware == old.hardware && old.bow == bow && old.mass == mass)
-            return old.caps;
-        var caps =
-                SpaceSpeed.caps(
-                        SpaceSpeed.acceleration(
-                                hardware.jets[bow.ordinal()] * Thrusters.THRUST, mass));
-        cache.put(body, new Reading(hardware, bow, mass, caps));
-        return caps;
+    static Point maneuver(ServerSubLevel body, Space.Frame frame, Point velocity, Point wanted) {
+        var change = wanted.sub(velocity);
+        double length = change.length();
+        if (length == 0) return velocity;
+        var direction = frame.levelVector(change.scale(1 / length));
+        var local = body.logicalPose().orientation().transformInverse(
+                new org.joml.Vector3d(direction.x(), direction.y(), direction.z()));
+        double thrust = 0;
+        for (var actor : body.getPlot().getBlockEntityActors())
+            if (actor instanceof Thrusters.Thruster jet && !jet.isRemoved()) {
+                var state = jet.getBlockState();
+                var axis = state.getValue(BlockStateProperties.FACING).getOpposite().getNormal();
+                double along = local.x * axis.getX() + local.y * axis.getY() + local.z * axis.getZ();
+                double spare = 1 - HelmServer.power(body, jet.getBlockPos(), state) / 15.0;
+                thrust += Math.max(0, along) * spare * Thrusters.THRUST;
+            }
+        if (Thrusters.boosted(body, body.getLevel().getGameTime())) thrust *= Thrusters.BOOST;
+        return SpaceSpeed.maneuver(velocity, wanted, thrust / ThrusterFuel.mass(body) / 400,
+                dv -> ThrusterFuel.change(body, dv));
     }
 
     private SpaceSpeedServer() {}

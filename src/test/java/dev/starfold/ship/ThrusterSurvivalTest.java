@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.mojang.serialization.JsonOps;
 
 import dev.starfold.flight.FlightPermitTest;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -23,7 +23,7 @@ import java.util.List;
 class ThrusterSurvivalTest {
     @org.junit.jupiter.api.BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     private static com.google.gson.JsonObject json(String path) throws Exception {
@@ -32,9 +32,9 @@ class ThrusterSurvivalTest {
 
     @Test
     void allRecipesParseAndCraftOneRegisteredBlockFromVanillaOnly() throws Exception {
-        var lookup = PlanetEcologyTest.lookup;
+        var lookup = PlanetBiomeFixtures.lookup;
         var ops = net.minecraft.resources.RegistryOps.create(JsonOps.INSTANCE, lookup);
-        for (var name : List.of("thruster", "gyro", "booster", "scope")) {
+        for (var name : List.of("thruster", "gyro", "booster", "scope", "interstellar_drive")) {
             var data = json("starfold/recipe/" + name);
             var recipe =
                     assertInstanceOf(
@@ -161,7 +161,9 @@ class ThrusterSurvivalTest {
                         "thruster_nozzle",
                         "thruster_nozzle_low",
                         "thruster_nozzle_high",
-                        "booster_on")) {
+                        "booster_on",
+                        "interstellar_drive_side",
+                        "interstellar_drive_core")) {
             var image =
                     javax.imageio.ImageIO.read(
                             java.nio.file.Path.of(
@@ -221,6 +223,29 @@ class ThrusterSurvivalTest {
     }
 
     @Test
+    void interstellarDriveIsPlainSuperHeavyHardwareWithLinkedModels() throws Exception {
+        var block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse("starfold:interstellar_drive"));
+        assertEquals(net.minecraft.world.level.block.Block.class, block.getClass());
+        assertFalse(block instanceof net.minecraft.world.level.block.EntityBlock);
+        var tag = json("sable/tags/block/super_heavy");
+        assertFalse(tag.get("replace").getAsBoolean());
+        assertTrue(tag.getAsJsonArray("values").asList().stream()
+                .anyMatch(value -> value.getAsString().equals("starfold:interstellar_drive")));
+        var state = FlightPermitTest.json("assets/starfold/blockstates/interstellar_drive.json");
+        assertEquals("starfold:block/interstellar_drive",
+                state.getAsJsonObject("variants").getAsJsonObject("").get("model").getAsString());
+        var model = FlightPermitTest.json("assets/starfold/models/block/interstellar_drive.json");
+        assertEquals("minecraft:block/cube_column", model.get("parent").getAsString());
+        assertEquals("starfold:block/interstellar_drive_side",
+                model.getAsJsonObject("textures").get("side").getAsString());
+        assertEquals("starfold:block/interstellar_drive_core",
+                model.getAsJsonObject("textures").get("end").getAsString());
+        assertEquals("starfold:block/interstellar_drive",
+                FlightPermitTest.json("assets/starfold/models/item/interstellar_drive.json")
+                        .get("parent").getAsString());
+    }
+
+    @Test
     void boosterQuadruplesImpulseWithoutChangingSignalOrStep() {
         for (int power = 0; power <= 15; power++)
             for (double step : new double[] {0, .01, .05}) {
@@ -257,8 +282,8 @@ class ThrusterSurvivalTest {
     void allBlocksHaveSelfLootAndRequireAnIronPickaxe() throws Exception {
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
-        for (var name : List.of("thruster", "gyro", "booster", "scope")) {
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
+        for (var name : List.of("thruster", "gyro", "booster", "scope", "interstellar_drive")) {
             var id = ResourceLocation.parse("starfold:" + name);
             var block = BuiltInRegistries.BLOCK.get(id);
             assertEquals(id, BuiltInRegistries.BLOCK.getKey(block));

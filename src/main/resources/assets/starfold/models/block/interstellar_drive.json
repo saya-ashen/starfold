@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "side": "starfold:block/interstellar_drive_side",
+    "end": "starfold:block/interstellar_drive_core"
+  }
+}

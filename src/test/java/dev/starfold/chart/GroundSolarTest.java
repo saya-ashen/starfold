@@ -31,7 +31,11 @@ class GroundSolarTest {
         assertEquals(1, model.count());
         assertTrue(model.bodies().stream().anyMatch(GroundEphemeris.Body::light));
         assertEquals(model.origin(), model.primary().position());
-        assertEquals(512, model.primary().radius());
+        assertEquals(768, model.primary().radius());
+        assertEquals(new Point(0, 0, 17800), model.primary().position());
+        assertEquals(17800, model.orbit(0).radius());
+        assertEquals(24000, model.orbit(0).period());
+        assertEquals(Math.PI, model.orbit(0).phase());
         for (double t : new double[] {0, 6000, 12000, 24000, 99999999})
             assertEquals(
                     model.orbit(0).radius(),
@@ -46,7 +50,7 @@ class GroundSolarTest {
         assertTrue(s.model.bodies().stream().anyMatch(GroundEphemeris.Body::light));
         for (int i = 0; i < 300; i++) s.advance();
         var tag = s.save(new CompoundTag(), null);
-        assertEquals(5, tag.getInt("format"));
+        assertEquals(9, tag.getInt("format"));
         var copy = GroundEphemerisSave.load(tag, null);
         assertEquals(s.model, copy.model);
         assertEquals(s.tick(), copy.tick());
@@ -63,12 +67,17 @@ class GroundSolarTest {
                                 new GroundEphemeris.Fixed(new Point(Double.NaN, 0, 0)),
                                 512,
                                 true,
-                                -1));
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         new GroundEphemeris.Body(
-                                new GroundEphemeris.Fixed(model.origin()), 0, true, -1));
+                                new GroundEphemeris.Fixed(model.origin()),
+                                0,
+                                true,
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT));
         var t = GroundEphemerisSave.fresh(false).save(new CompoundTag(), null);
         t.getCompound("motion").remove("bodies");
         assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(t, null));

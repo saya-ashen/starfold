@@ -1,0 +1,15 @@
+name = "Sable"
+filename = "sable-neoforge-1.21.1-2.0.5.jar"
+side = "both"
+
+pin = true
+
+[download]
+hash-format = "sha1"
+hash = "05f666e973d32baaaf405acb9bbed6615b909971"
+mode = "metadata:curseforge"
+
+[update]
+[update.curseforge]
+file-id = 8673825
+project-id = 1312371

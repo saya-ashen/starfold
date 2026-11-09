@@ -1,5 +1,6 @@
 package dev.starfold.waypoint;
 
+import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
@@ -7,9 +8,11 @@ import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.HelmServer;
 import dev.starfold.ship.HullLanding;
 import dev.starfold.ship.SableFrames;
+import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.Space;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import org.joml.Vector3d;
@@ -23,6 +26,7 @@ public final class ShipGuide {
         Object body;
         boolean grounded;
         int settled;
+        boolean observed, outside;
     }
 
     public static void initialize() {
@@ -51,10 +55,20 @@ public final class ShipGuide {
         return WaypointNavigation.grounded(clearance, speed) ? Math.min(20, previous + 1) : 0;
     }
 
+    static boolean crossed(boolean observed, boolean wasOutside, boolean outside, boolean powered) {
+        return observed && !wasOutside && outside && powered;
+    }
+
+    /** Called only after the scoop has actually inserted fluid into this hull's tanks. */
+    public static void skim(ServerSubLevel body) {
+        for (var player : ((ServerLevel) body.getLevel()).players())
+            if (player.isAlive() && !player.isSpectator() && SableFrames.aboard(player) == body)
+                award(player, "skim");
+    }
+
     private static void flight(ServerPlayer player) {
         var body = SableFrames.aboard(player);
         if (body == null
-                || !HelmServer.pilot(player, body)
                 || !player.isAlive()
                 || player.isSpectator()) {
             flights.remove(player);
@@ -65,6 +79,18 @@ public final class ShipGuide {
             state.body = body;
             state.grounded = false;
             state.settled = 0;
+            state.observed = false;
+        }
+        boolean outside = Thrusters.outsideHome(body);
+        if (crossed(state.observed, state.outside, outside,
+                Thrusters.push(body, player.level().getGameTime()).length() > .5))
+            award(player, "interstellar");
+        state.outside = outside;
+        state.observed = true;
+        if (!HelmServer.pilot(player, body)) {
+            state.grounded = false;
+            state.settled = 0;
+            return;
         }
         if (Space.in(player)) {
             state.settled = 0;
@@ -115,6 +141,8 @@ public final class ShipGuide {
                                 "starfold:"
                                         + ((step.equals("root")
                                                         || step.equals("andesite")
+                                                        || step.equals("skim")
+                                                        || step.equals("interstellar")
                                                         || net.neoforged.fml.ModList.get()
                                                                         .isLoaded("create")
                                                                 && net.neoforged.fml.ModList.get()

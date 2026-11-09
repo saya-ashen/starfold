@@ -12,7 +12,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 
 /** Day and night on a planet are where its sun stands over a place, not the hour of the level's clock: one face has
- *  noon while the opposite has midnight. What the server decides by daylight asks here. */
+ *  noon while the opposite has midnight. What the server decides by daylight asks here.
+ *  Solar motion modulates brightness only; sky/block nibbles and ImageStream relights are structural. */
 public final class GroundDaylight {
     /** Biomes whose monsters do not wait for night and do not burn by day, whatever their sky shows. */
     public static final net.minecraft.tags.TagKey<net.minecraft.world.level.biome.Biome> SUNLESS =
@@ -65,7 +66,9 @@ public final class GroundDaylight {
         var sun = clock.model.star(world).position().sub(world);
         double elevation = sun.length() < 1e-9 ? 1 : up.dot(sun.scale(1 / sun.length()));
         return shade
-                ? GroundSolar.daylight(elevation) * parentShade(clock.model, planet, world, tick)
+                ? GroundSolar.daylight(elevation)
+                        * parentShade(clock.model, planet, world, tick)
+                        * dev.starfold.chart.GasOcclusion.sunlight(clock.model, world, tick)
                 : elevation;
     }
 
@@ -77,14 +80,20 @@ public final class GroundDaylight {
             double tick) {
         if (!(model.body(planet).motion() instanceof GroundEphemeris.Orbit orbit)) return 1;
         int parent = orbit.parent();
-        int slot = model.bodies().get(parent).slot();
-        return slot < 0
+        var parentBody = model.bodies().get(parent);
+        double radius =
+                parentBody.slot() >= 0
+                        ? PlanetShape.of(parentBody.slot()).radius()
+                        : parentBody.appearance() == GroundEphemeris.Appearance.GAS
+                                ? parentBody.radius()
+                                : 0;
+        return radius == 0
                 ? 1
                 : sunlight(
                         world,
                         model.frame(parent, tick).center(),
                         model.star(world).position(),
-                        PlanetShape.of(slot).radius());
+                        radius);
     }
 
     /** The face of the home planet a world begins on: the one whose middle has the most daylight in the world's first
@@ -95,7 +104,7 @@ public final class GroundDaylight {
     public static int homeFace(GroundEphemeris.Model model, PlanetShape shape) {
         int best = 0;
         double most = -1;
-        for (var face : CubeSurfaceTopology.Face.values()) {
+        for (var face : CubeSurfaceTopology.Face.VALUES) {
             double light = 0;
             for (int tick = 0; tick <= FIRST_DAY; tick += 600)
                 light += GroundSolar.daylight(elevation(model, shape, face, tick));
@@ -109,7 +118,7 @@ public final class GroundDaylight {
 
     /** The first moment the sun is clear of the horizon over the middle of the home face: when a world's clock begins. */
     public static long sunrise(GroundEphemeris.Model model, PlanetShape shape) {
-        var face = CubeSurfaceTopology.Face.values()[homeFace(model, shape)];
+        var face = CubeSurfaceTopology.Face.VALUES[homeFace(model, shape)];
         for (int tick = 0; tick <= FIRST_DAY; tick += 100)
             if (elevation(model, shape, face, tick) >= .15) return tick;
         return 0;
@@ -117,7 +126,7 @@ public final class GroundDaylight {
 
     /** First rising sun at 45 degrees over the home face: experience starts mid-morning, not vanilla /time. */
     public static long midMorning(GroundEphemeris.Model model, PlanetShape shape) {
-        var face = CubeSurfaceTopology.Face.values()[homeFace(model, shape)];
+        var face = CubeSurfaceTopology.Face.VALUES[homeFace(model, shape)];
         for (long tick = sunrise(model, shape); tick <= LONGEST; tick += 100)
             if (elevation(model, shape, face, tick) >= Math.sqrt(.5)
                     && elevation(model, shape, face, tick + 100)

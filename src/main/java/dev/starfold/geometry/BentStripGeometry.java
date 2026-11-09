@@ -46,10 +46,6 @@ public final class BentStripGeometry {
         public boolean rightOwner() {
             return u >= StripTopology.WIDTH;
         }
-
-        public int ownerLocalX() {
-            return rightOwner() ? u - StripTopology.WIDTH : u;
-        }
     }
 
     public enum Face {
@@ -99,23 +95,6 @@ public final class BentStripGeometry {
         double theta = (u - start) / radius;
         return new Point(
                 start + (radius + h) * Math.sin(theta), (radius + h) * Math.cos(theta) - radius, z);
-    }
-
-    /** Position on the SAME piecewise-linear surface as mesh(), for projected feet and camera. */
-    public Point facetedProject(Point logical, int subdivisions) {
-        if (subdivisions < 1 || subdivisions > 128)
-            throw new IllegalArgumentException("Invalid tessellation");
-        check(logical);
-        double a = Math.floor(logical.x * subdivisions) / subdivisions, b = a + 1.0 / subdivisions;
-        for (double cut : new double[] {start, end})
-            if (cut > a && cut < b) {
-                if (logical.x < cut) b = cut;
-                else a = cut;
-            }
-        double t = (logical.x - a) / (b - a);
-        return project(new Point(a, logical.y, logical.z))
-                .scale(1 - t)
-                .add(project(new Point(b, logical.y, logical.z)).scale(t));
     }
 
     public Point inverse(Point world) {
@@ -230,92 +209,6 @@ public final class BentStripGeometry {
                     new Point(u + 1, h + height, z + 1),
                     new Point(u + 1, h, z + 1));
         return List.copyOf(triangles);
-    }
-
-    /** A source-owned partial box; shape and camera share the same global tessellation grid. */
-    public List<Triangle> meshBox(Cell cell, int subdivisions, Point min, Point max) {
-        if (subdivisions < 1
-                || subdivisions > 128
-                || !min.finite()
-                || !max.finite()
-                || min.x < 0
-                || min.y < 0
-                || min.z < 0
-                || max.x > 1
-                || max.y > 1.5
-                || max.z > 1
-                || min.x >= max.x
-                || min.y >= max.y
-                || min.z >= max.z) throw new IllegalArgumentException("Invalid box");
-        double x = cell.u + min.x,
-                X = cell.u + max.x,
-                y = cell.h + min.y,
-                Y = cell.h + max.y,
-                z = cell.z + min.z,
-                Z = cell.z + max.z;
-        var cuts = new TreeSet<Double>();
-        cuts.add(x);
-        cuts.add(X);
-        if (X > start && x < end) {
-            for (int i = (int) Math.floor(x * subdivisions) + 1; i < X * subdivisions; i++)
-                cuts.add(i / (double) subdivisions);
-            if (start > x && start < X) cuts.add(start);
-            if (end > x && end < X) cuts.add(end);
-        }
-        var xs = new ArrayList<>(cuts);
-        var out = new ArrayList<Triangle>();
-        for (int i = 1; i < xs.size(); i++) {
-            double a = xs.get(i - 1), b = xs.get(i);
-            quad(
-                    out,
-                    cell,
-                    Face.DOWN,
-                    new Point(a, y, z),
-                    new Point(b, y, z),
-                    new Point(b, y, Z),
-                    new Point(a, y, Z));
-            quad(
-                    out,
-                    cell,
-                    Face.UP,
-                    new Point(a, Y, Z),
-                    new Point(b, Y, Z),
-                    new Point(b, Y, z),
-                    new Point(a, Y, z));
-            quad(
-                    out,
-                    cell,
-                    Face.NORTH,
-                    new Point(a, y, z),
-                    new Point(a, Y, z),
-                    new Point(b, Y, z),
-                    new Point(b, y, z));
-            quad(
-                    out,
-                    cell,
-                    Face.SOUTH,
-                    new Point(a, y, Z),
-                    new Point(b, y, Z),
-                    new Point(b, Y, Z),
-                    new Point(a, Y, Z));
-        }
-        quad(
-                out,
-                cell,
-                Face.WEST,
-                new Point(x, y, Z),
-                new Point(x, Y, Z),
-                new Point(x, Y, z),
-                new Point(x, y, z));
-        quad(
-                out,
-                cell,
-                Face.EAST,
-                new Point(X, y, z),
-                new Point(X, Y, z),
-                new Point(X, Y, Z),
-                new Point(X, y, Z));
-        return List.copyOf(out);
     }
 
     private void quad(

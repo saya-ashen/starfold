@@ -5,8 +5,21 @@
 数据包可以给星海折越增加新的星球类型，改变母星系之外的宇宙如何排布，也可以手写一整个恒星系：每颗太阳在哪里、
 有哪些行星绕它运行、行星多大、如何自转。本页是这些文件的参考，适用于 Minecraft 1.21.1（NeoForge）。
 
-数据包设定的是星球如何**生成**。它不能增加新的地形算法，也不会把新星球放进已有的世界：一个世界生成什么，在创建时
+数据包设定的是星球如何**生成**。它可引用 Java 注册的地形步骤和规则，但不能安装新的 Java 实现，也不会把新星球放进已有的世界：一个世界生成什么，在创建时
 就随世界保存了（见[已保存的世界保留什么](#已保存的世界保留什么)）。更换世界使用的数据包之前请先备份。
+
+## 气态巨行星实验分支（D1）
+
+气态巨行星是没有地形生成器和着陆编号的目录天体。开发分支支持可选的 `suns[].gas_giants`；已有世界不会仅因
+重新加载数据包就新增天体。体验预设仍**未启用**气态巨行星：最大下潜深度限制和有界实机验收尚未完成。
+
+气压是包括已加载挂载运动结构范围在内的**整舰保守估计**，不依赖导航锁定。仪表显示服务器采样值，而非相机气压；
+未知或过期样本不能当作安全零值。40 tick 接收保鲜预算会扣除服务器报告的样本年龄，但不能测量网络传输延迟。
+达到 50% 气压后，已加载飞船可能通过普通服务端方块修改丢失合格结构方块。v1 有意保护方块实体/库存、复杂机械/
+自定义子类、流体、不可破坏或非完整方块，以及挂载运动结构内部方块；只有精确匹配的普通方块、柱体和玻璃类可受损。
+缺少同一 plot 内已加载的邻区块时会跳过移除，而不是暗中分配区块。成功移除后的间隔会跨舰船休眠及保存重载保留，
+不引入 HP/累计暴露计数，也不模拟离线损坏。直接移除最多每舰每间隔一次、每服务器 tick 两次；原生分裂/悬浮后续
+反应不属于总方块损失上限。此未完成特性只应用一次性世界/舰船副本测试，本段不代表实机或发布验收通过。
 
 ## 文件放在哪里
 
@@ -26,87 +39,259 @@
 
 ## 星球类型
 
-所有范围都包含两端。“必填”表示没有默认值。群系和方块都用 ID 填写。
+类型由 `shape`、`terrain`、`life` 和 `environment` 组成。全部 13 种类型使用同一个固定规划与逐点求值流程；类型差异只来自配方。旧 `algorithm`、标量 `relief`、`ocean`、旧气候字段、`life.biomes`、`life.regions`、`palette` 和 `minerals` 格式已删除，需要新世界。
 
-| 字段 | 类型与范围 | 省略时 | 含义与限制 |
-|---|---|---|---|
-| `biome` | 群系 ID | 必填 | 星球的基础群系。岩石星球全球使用它；生态星球另外使用 `biomes` 里的四个角色 |
-| `size` | 对象 | 必填 | 一个面的边长范围（格）。不是直径，也不是半径 |
-| `size.min` / `size.max` | 整数，16 的倍数，min ≤ max | 均必填 | **416–2048**。（形状本身接受 256 起，但小于 416 的星球装不下最小的 191 格深度） |
-| `depth_ratio` | 数字，0–0.75 | `0.5` | 深度占半径的比例；结果会取整并限制范围，见下文 |
-| `algorithm` | `rocky`、`rocky_craters` 或 `ecology` | `rocky_craters` | 两种岩石算法或生态算法。列表是固定的，数据包不能增加算法 |
-| `relief` | 数字，0.25–2 | `1` | 岩石地形的起伏程度。`ecology` 必须为 1 |
-| `ore_bias` | 数字，-0.1–0.1 | 岩石 `0.035`，生态 `0` | 越大，岩石星球的矿脉越丰富。`ecology` 必须为 0 |
-| `cave_width` | 数字，0.03–0.2 | 岩石 `0.085`，生态 `0.115` | 洞穴宽度。`ecology` 必须为 0.115 |
-| `shell` | `bedrock` 或 `core_shell` | `core_shell` | 最底一层的方块：基岩或模组的星核外壳 |
-| `palette` | 对象，见下文 | 石头、玄武岩、安山岩、深板岩 | 只有 `rocky_craters` 可以使用非默认的材料表 |
-| `biomes` | 含四个角色的对象 | 无 | **`ecology` 必须提供，其他算法不允许提供** |
-| `biomes.forest` | 群系 ID | 提供 `biomes` 时必填 | 必须是 `minecraft:forest` |
-| `biomes.plains` | 群系 ID | 提供 `biomes` 时必填 | 必须是 `minecraft:plains` |
-| `biomes.desert` | 群系 ID | 提供 `biomes` 时必填 | 必须是 `minecraft:desert` |
-| `biomes.ocean` | 群系 ID | 提供 `biomes` 时必填 | 必须是 `minecraft:ocean` |
-| `minerals` | 对象，见下文 | 两个空列表 | `rocky_craters` 和 `ecology` 可以设置；`rocky` 必须留空 |
-| `climate` | 对象，见下文 | 温和 | 只有 `ecology` 可以使用非默认气候 |
-| `ocean` | 数字，0–0.95 | 不指定 | 海洋占地表的比例。仅限 `ecology`，且此时 `climate.land` 必须为 0。比例按星球种子采样一次并换算成陆地抬升量；它是目标值，不是逐格精确的占比 |
-| `creatures` | 布尔 | 生态 `true`，岩石 `false` | 群系的动物和怪物是否出现。它不是自定义生物列表 |
-| `features` | 布尔 | 生态 `true`，岩石 `false` | 是否放置群系的原版地物。模组自己的地形、洞穴和树木不受它影响 |
-| `structures` | 布尔 | 生态 `true`，岩石 `false` | 星球上是否生成结构，仍受结构集标签和群系限制 |
+`shape.size.min/max` 是每面宽度，416–2048、16 的倍数；`depth_ratio` 为 0–0.75，深度按 `round(size × 2 / π × depth_ratio)` 限在 `[191, floor(radius × .75)]`。`shell` 为 `bedrock` 或 `core_shell`。`life.biome` 为图表外回退群系；`creatures/features/structures` 分别控制生物、BiomeScatter 植被、固定结构，省略均为 true。干燥类型应显式关闭不需要的开关。
 
-**生态的四个角色不能换成别的群系。** 每个都必须正好是表中的原版 ID；自定义的森林、或者把沙漠填到森林的位置，都会被
-拒绝。`biome` 字段没有这个限制。修改这些原版群系的内容和换成别的群系是两回事，前者是允许的。
+`environment` 提供大气、重力及温度偏移；省略时大气为类地，重力按尺寸求值。类型配方在物化时固定，规划保存完整配方和节点/要素；reload 只影响之后创建的星球。
 
-**尺寸与深度。** 星球的面宽按它的种子在 `min` 与 `max` 之间以 16 格为步长选定。半径为 `size × 2 / π`。深度为
-`round(半径 × depth_ratio)`，并限制在 `[191, floor(半径 × 0.75)]` 之内：比例为 0 也有 191 格深，512 格的岩石星球深度
-是 191，而不是半径的一半。最底一层在 Y `127 - 深度`，再往下不生成任何星球方块。
+### 地形配方（terrain，version=2）
 
-维度必须够高，才装得下这个深度。内置的维度类型 `starfold:native_deep` 的范围是 Y -528 到 320，所有内置类型和本页的
-示例都装得下。更深的星球需要你自己提供能覆盖其最底层的维度类型，并在预设里引用。这种组合没有在游戏里试过。
+所有下列字段必填；拒绝未知字段、未注册类型、越界参数和不支持的版本。参数单位为格、摄氏度或 0–1 比例。
 
-### 材料表（palette）
+| 字段 | 含义与范围 |
+|---|---|
+| `planner.stages` | 顺序执行的已注册步骤 ID；内置 plates、landforms、erosion、climate、biomes、volumes，命名空间均为 starfold |
+| `land_fraction` | 0–1，大尺度大陆比例 |
+| `relief` | mountains 0–175、hills 0–64、roughness 0–8；母星初稿 160/24/1 |
+| `landforms[]` | type + parameters，最多 64 组；内置 crater、volcano、canyon、glacial_rift、hive、dunes、plateau |
+| `volumes[]` | 最多64组，注册的overhang、arch、undercut、cave_mouth、sinkhole、floating_rock类型及参数 |
+| `erosion` | rivers 布尔、strength 0–2、river_threshold 2–4096（汇流节点数） |
+| `climate` | temperature -200–200、latitude_gradient 0–100、humidity -1–1、lapse_rate 0–0.1 |
+| `biomes[]` | 注册的群系规则，最多 64 项，按顺序首个匹配；每个节点必须显式匹配一条规则 |
+| `materials[]` | 注册的材质规则，最多 64 项，首个匹配；无匹配则用地层 |
+| `strata[]` / `ores[]` | 地层最多 8，矿物最多 16；from/to 为 nominal 表面到底部的 0–1 比例，rarity .5–.999 |
+| `caves` | width 0–.2、scale 4–128；全球三维噪声 |
+| `water` | block 为液体方块或 air、sea_level -1024–300、freeze 布尔 |
+| `preferences` | desolation、damage、burial、overlap、road_continuity、density，均0–1；候选概率、固定效果、空间安排、道路决策和地貌/体积密度 |
 
-提供 `palette` 时，前四个字段都必填。方块用 ID 填写，使用其默认状态。空气和含流体的方块会被拒绝。
+hive 另有 spacing（32–256）与 wall_slope（.1–4）；其几何邻居保存在规划内。群系扩展实现通过 `BiomeRule.biome(parameters)` 声明输出ID，无须使用内置参数名。地貌参数为 density（0–8）、radius_min/max（16–256）、amplitude（0–128）与 operation（raise/lower）。群系规则 `starfold:climate` 参数：biome、temperature_min/max、humidity_min/max、height_min/max、river、coast。群系规则 `starfold:terrain` 参数：biome、height_min/max（-1024–320）、slope_min/max（0–200，每物理格的高度变化）、landform_min/max（-2048–2048，全部地貌的有符号高度贡献），以及可选 region_min/max（0–1）。region 是192格低频球面噪声结合海拔、坡度、地貌贡献后的全球排名；阈值直接控制成片区域的面积。例如沙漠 scrub 使用0–.35，最后一条 barren 不限制。已发布区域配方的次要分区取25–35%。群系海拔使用实际可生成表面上限318；坡度和地貌贡献保留原规划几何。干类型可直接按坑底、坑缘、裂谷和火山坡分区，无需依赖湿度。前面的规则未覆盖所有表面时，需显式写入无限制的末条规则；没有规则匹配会令规划失败。材质规则 `starfold:surface` 参数：block、depth_min/max、temperature_min/max、slope_min、shore、biome（空字符串匹配全部）。
 
-| 字段 | 类型 | 默认材料表 | 含义 |
-|---|---|---|---|
-| `rock` | 方块 ID | `minecraft:stone` | 主体岩石 |
-| `dark` | 方块 ID | `minecraft:basalt` | 暗色区域的岩石 |
-| `light` | 方块 ID | `minecraft:andesite` | 亮色区域的岩石 |
-| `deep` | 方块 ID | `minecraft:deepslate` | 深处的岩石 |
-| `cover` | 方块 ID，可选 | 无 | 覆盖地表的一层 |
+体积参数：density（0–8，乘preferences.density）、radius/height（2–64）、offset（-64–96）、operation（fill/carve）、slope_min/max（0–200）、cave_connection。悬挑和下凹必须找到形状内部的上坡锚点，并朝较低的地面伸出；放置回调生成并保存切向单位方向 wall_x/wall_z。浮岩是单独的配方类型，仅声明它的类型生成。洞口与天坑先搜索实际地下双噪声洞穴，再保存连接形状；只在有界范围内依序叠加fill/carve，再以该列已有water_level回填最终空气隙，保留FILL实体；不做与水面的全局连通性模拟。冰雪按最终暴露顶面处理，随后道路和结构覆盖。群系图和真实区块、表面查询、LOD使用同一最终列，空气隙不会被远景补实。
 
-### 矿物与地层（minerals）
+结构组合顺序保存在规划中，允许重叠；后站点覆盖前站点。bury真实下移结构，并把地下AIR回填为地面材质；回填可覆盖先前站点的同位置方块。damage保存确定的移除量，cut保存明确的类型化引用；每个站点的cut约束自己的地形适配，后站点再按顺序执行。原始模板和recipes保留，重放按最终列与最终owner恢复方块及块实体。关系引用使用kind+列表索引，结构使用稳定site.id；道路的两端村庄各有connects关系。
 
-`ores` 和 `strata` 都可以省略。**空列表表示“沿用算法自带的”，不表示“没有矿物”或“没有地层”。** 空气和含流体的方块会被
-拒绝。
+道路在共享网格上使用8邻域、按物理坡度代价求最短路，保存控制节点、整平高度及逐段GROUND/BRIDGE/CUT。统一球面三次曲线让拐弯切线连续；跨越检测、实际道路方块与离线叠图都读取该曲线。跨越检测沿段以至多1格、且至多最窄河宽一半的物理间距采样，读取河流、湖海、峡谷剖面与挖空体积；bridge使用木板桥面，cut段不铺路。road_continuity只在规划时决定桥或断路。选址读取最终有体积的表面与群系；`starfold:river_settlements`结构标签偏好河岸平地，`starfold:highland_ruins`偏好高处，脱离地面的浮岩面有支持惩罚。desolation、burial、damage、overlap、density分别控制候选概率、埋深概率、破损量、候选间距与地貌/体积密度。
 
-| 字段 | 类型与范围 | 默认 | 含义 |
-|---|---|---|---|
-| `ores` | 0–16 个对象的列表 | `[]` | 星球的矿物。两种重叠时，靠前的优先 |
-| `ores[].block` | 方块 ID | 必填 | 矿物 |
-| `ores[].deep` | 方块 ID | 与 `block` 相同 | 它在深处的形态：有至少两层地层时，在第二层起点以下使用；否则在大约三分之二深度以下使用 |
-| `ores[].from` | 数字，0–1 | `0` | 矿物从哪里开始，以深度的比例表示 |
-| `ores[].to` | 数字，0–1 | `1` | 到哪里结束 |
-| `ores[].rarity` | 数字，0.5–0.999 | 必填 | 越接近 1 越稀少 |
-| `strata` | 0–8 个对象的列表 | `[]` | 从地表向下的岩层 |
-| `strata[].block` | 方块 ID | 必填 | 该层的岩石 |
-| `strata[].from` | 数字，0–1 | `0` | 该层从哪里开始，一直延续到下一层。第一层同时覆盖名义地表以上的部分 |
+扩展 API 为 `TerrainRegistries.LANDFORMS/VOLUMES/MATERIALS/BIOMES.register(id, codec, implementation)` 与 `registerStage(id, stage)`。内置实现用同一接口；地貌实现提供剖面与放置，规则提供匹配/材质与规划回调。求值按固定操作执行。体积实现提供规范盒[-1,1]内的形状、参数Codec和放置回调。求值使用确定的球面切向基与完整包围盒，支持接缝上的非圆形状。
 
-比例 0 是名义地表，1 是最底层。比例会先取整到一个 191 格标尺上的整数层，再拉伸到星球的实际深度，所以并不精确。取整
-之后，矿物的 `from` 不能大于 `to`。第一层地层必须从 0 开始，之后每层必须严格更深；两层取整到同一层会被拒绝。比例之间
-请留出明显的间隔。
+粗表面采样（16/32/64格）固定读四个网格/要素摘要。每个PlanetTerrain首次构造SurfaceFunction时建立并共享摘要，重绑terrain/plan时失效；按每16格单元固定四点求积，再建立mip，并把体积与结构包围范围栅格化，保证离开中心的屋顶和岩体仍计入覆盖。一次性建立成本及内存与每次O(1)采样、规划压缩大小分别计量；粗覆盖是近似，细LOD和区块保留精确多段列。核心季节API通过近景和外景渲染上下文提供已同步的TerrainPlan。可选季节外观模块的第三方来源审查尚未完成，因此本次公开源码未包含该模块。
 
-### 气候（climate）
+节点间距16，几何面边与角共享节点；height双三次插值、地貌、细节、河道后由现有结构适配合成。水系使用priority-flood湖泊与汇流图，植被仅来自BiomeScatter并乘湿度。完整母星配方示例：
 
-每个字段都可以省略。
-
-| 字段 | 类型与范围 | 默认 | 含义 |
-|---|---|---|---|
-| `humidity` | 数字，-0.5–0.5 | `0` | 大于 0 偏向森林，小于 0 偏向干旱 |
-| `temperature` | 数字，-0.5–0.5 | `0` | 大于 0 让更多干旱地区变成沙漠 |
-| `latitude` | 数字，0–1 | `0.15` | 两极比赤道冷多少；0 表示不考虑纬度 |
-| `land` | 数字，-40–40 | `0` | 陆地相对海面抬升的格数；大于 0 海洋更少 |
-
-设置了 `ocean` 时，陆地抬升量由它算出并保存；`ocean: 0` 得到最大的抬升量 40。
+```json
+{
+  "version": 2,
+  "planner": {
+    "stages": [
+      "starfold:plates",
+      "starfold:landforms",
+      "starfold:erosion",
+      "starfold:climate",
+      "starfold:biomes",
+      "starfold:volumes"
+    ]
+  },
+  "land_fraction": 0.4,
+  "relief": {
+    "mountains": 160,
+    "hills": 24,
+    "roughness": 1
+  },
+  "landforms": [],
+  "erosion": {
+    "rivers": true,
+    "strength": 1,
+    "river_threshold": 48
+  },
+  "climate": {
+    "temperature": 27,
+    "latitude_gradient": 47,
+    "humidity": 0,
+    "lapse_rate": 0.0065
+  },
+  "biomes": [
+    {
+      "type": "starfold:climate",
+      "parameters": {
+        "biome": "minecraft:ocean",
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "humidity_min": 0,
+        "humidity_max": 1,
+        "height_min": -1024,
+        "height_max": 127,
+        "river": false,
+        "coast": false
+      }
+    },
+    {
+      "type": "starfold:climate",
+      "parameters": {
+        "biome": "minecraft:desert",
+        "temperature_min": 20,
+        "temperature_max": 300,
+        "humidity_min": 0,
+        "humidity_max": 0.4,
+        "height_min": -1024,
+        "height_max": 320,
+        "river": false,
+        "coast": false
+      }
+    },
+    {
+      "type": "starfold:climate",
+      "parameters": {
+        "biome": "minecraft:forest",
+        "temperature_min": -15,
+        "temperature_max": 30,
+        "humidity_min": 0.5,
+        "humidity_max": 1,
+        "height_min": -1024,
+        "height_max": 320,
+        "river": false,
+        "coast": false
+      }
+    },
+    {
+      "type": "starfold:climate",
+      "parameters": {
+        "biome": "minecraft:plains",
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "humidity_min": 0,
+        "humidity_max": 1,
+        "height_min": -1024,
+        "height_max": 320,
+        "river": false,
+        "coast": false
+      }
+    }
+  ],
+  "materials": [
+    {
+      "type": "starfold:surface",
+      "parameters": {
+        "block": "minecraft:gravel",
+        "depth_min": 0,
+        "depth_max": 3,
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "slope_min": 0,
+        "shore": true,
+        "biome": ""
+      }
+    },
+    {
+      "type": "starfold:surface",
+      "parameters": {
+        "block": "minecraft:stone",
+        "depth_min": 0,
+        "depth_max": 3,
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "slope_min": 3,
+        "shore": false,
+        "biome": ""
+      }
+    },
+    {
+      "type": "starfold:surface",
+      "parameters": {
+        "block": "minecraft:sand",
+        "depth_min": 0,
+        "depth_max": 3,
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "slope_min": 0,
+        "shore": false,
+        "biome": "minecraft:desert"
+      }
+    },
+    {
+      "type": "starfold:surface",
+      "parameters": {
+        "block": "minecraft:grass_block",
+        "depth_min": 0,
+        "depth_max": 0,
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "slope_min": 0,
+        "shore": false,
+        "biome": ""
+      }
+    },
+    {
+      "type": "starfold:surface",
+      "parameters": {
+        "block": "minecraft:dirt",
+        "depth_min": 1,
+        "depth_max": 3,
+        "temperature_min": -300,
+        "temperature_max": 300,
+        "slope_min": 0,
+        "shore": false,
+        "biome": ""
+      }
+    }
+  ],
+  "strata": [
+    {
+      "block": "minecraft:stone"
+    }
+  ],
+  "ores": [
+    {
+      "block": "minecraft:coal_ore",
+      "from": 0,
+      "to": 0.6,
+      "rarity": 0.82
+    },
+    {
+      "block": "minecraft:iron_ore",
+      "from": 0.15,
+      "to": 1,
+      "rarity": 0.84
+    },
+    {
+      "block": "minecraft:diamond_ore",
+      "from": 0.8,
+      "to": 1,
+      "rarity": 0.94
+    },
+    {
+      "block": "minecraft:copper_ore",
+      "from": 0,
+      "to": 0.65,
+      "rarity": 0.82
+    },
+    {
+      "block": "minecraft:redstone_ore",
+      "from": 0.55,
+      "to": 1,
+      "rarity": 0.84
+    }
+  ],
+  "caves": {
+    "width": 0.085,
+    "scale": 36
+  },
+  "water": {
+    "block": "minecraft:water",
+    "sea_level": 128,
+    "freeze": false
+  },
+  "preferences": {
+    "desolation": 0.3,
+    "damage": 0.2,
+    "burial": 0.1,
+    "overlap": 0.2,
+    "road_continuity": 0.8,
+    "density": 1
+  },
+  "volumes": []
+}
+```
 
 ## 宇宙布局
 
@@ -118,15 +303,16 @@
 | `stars.min` / `stars.max` | 整数，0 ≤ min ≤ max ≤ 64 | 提供 `stars` 时均必填 | 不包含母太阳 |
 | `planets` | 对象 | 必填 | 每颗额外太阳有几颗行星 |
 | `planets.min` / `planets.max` | 整数，1 ≤ min ≤ max ≤ 8 | 均必填 | 一颗太阳的行星要么一起出现，要么都不出现 |
-| `star_gap` | 数字，见下方规则，最大 1000000 | `49152` | 放置太阳的网格间距；不是两颗太阳之间的精确距离 |
-| `ring` | 数字，至少 8192 | `12288` | 同一颗太阳相邻行星的轨道间距 |
+| `star_gap` | 数字，见下方规则，最大 1000000 | `137900` | 网格间距；轴向相邻单元的太阳恰好相距此值，对角单元更远 |
+| `ring` | 数字，至少 8192 | `12288` | 程序生成三颗及以上行星时的轨道间距；双行星共用一圈 |
 | `types` | 至少一个对象的列表 | 必填 | 从中抽取的星球类型 |
 | `types[].type` | 星球类型 ID，或就地写出的完整类型 | 必填 | |
 | `types[].weight` | 整数，1–1000 | `1` | 被抽中的相对机会，不是数量 |
 | `density` | 数字，0–1 | `0` | 大于 0 时宇宙在旅行中逐步发现，每个网格单元以此概率有一颗太阳；此时 `stars.max` 必须为 0 |
 
-**距离规则。** `star_gap ≥ 4 × (8192 + (planets.max - 1) × ring) + 16384`。`planets.max` 为 2、`ring` 为 12288 时，间距
-至少要 98304：**默认间距并不适用于所有的行星数量范围。**
+**距离规则。** `star_gap ≥ 2 × (17800 + (planets.max - 1) × ring) + 8192`。双行星、`ring` 为 12288 时至少为 68368。
+手写恒星系使用自身母星的轨道半径代替 17800。此保守包络也容纳旧的分圈回退布局。太阳现放在网格中心，不再随机偏移。
+程序生成双行星共用内圈及周期、相位固定相差 120°；三颗及以上仍分圈。数量、类型、地形种子及初始轨道相位仍由种子决定。
 
 **两种模式。** `density` 为 0 时宇宙是有限的：所有额外太阳在创建世界时就定下来，从最近的网格单元开始。`density`
 大于 0 时，创建世界时先检查母星系周围的八个单元，之后旅行者靠近哪里就检查哪里；母星系所在的单元不会再有额外的太阳。
@@ -147,7 +333,8 @@
 
 另外还有三个字段，不是给数据包作者用的：`a` 和 `b` 是恰好写两颗星球的旧写法，`celestial` 是游戏保存世界时写出的内容。
 
-使用 `planets` 时，太阳排成一行、相距 49152 格，轨道相距 12288 格，这限制了一颗太阳能带多少行星。想自己安排太阳和
+使用 `planets` 时，太阳排成一行、相距 137900 格，轨道相距 12288 格（母系双星共用半径 17800 的一圈、相差 120°），
+这限制了一颗太阳能带多少行星。想自己安排太阳和
 轨道，请改写恒星系。
 
 **按类型写的星球条目**（除第一颗以外都可以这样写）：
@@ -160,55 +347,39 @@
 
 **完整写出的星球条目**（第一颗必须这样写）：
 
-| 字段 | 类型与范围 | 默认 | 含义 |
-|---|---|---|---|
-| `settings` | 原版的超平坦世界设置 | 必填 | 提供基础群系。星球的地形并不是这些平坦层 |
-| `terrain_seed` | 64 位整数 | 必填 | 星球的种子 |
-| `terrain_version` | `4` 或 `5` | 必填 | 4 是有生命的（生态）星球，5 是岩石星球 |
-| `planet_biomes` | 对象 | 无 | 版本 4 必填，其他版本不允许：`terrain_seed`（与上面相同）和四个角色 `forest`、`plains`、`desert`、`ocean` |
-| `planet_generation` | 对象，见下文 | 按版本取默认 | 版本 5 必填 |
-
-`settings` 是原版格式：`biome`（省略时为平原）、`layers`（必填，每项有 `height` 和 `block`）、`features` 和 `lakes`
-（省略时为 false）以及 `structure_overrides`。下面的示例把它们都写了出来。它们不能代替 `planet_generation` 里的
-`features` 和 `structures` 开关。
-
-`planet_generation` 用具体数值保存与星球类型相同的那些选择，**但它的默认值与类型不同**：
-
-| 字段 | 类型与范围 | 默认 |
-|---|---|---|
-| `type` | `rocky` 或 `temperate` | 必填 |
-| `algorithm` | `rocky` 下为 `rocky` 或 `rocky_craters`；`temperate` 下为 `ecology` | 必填 |
-| `algorithm_version` | `1` | 必填 |
-| `relief` / `ore_bias` / `cave_width` | 同类型；`temperate` 取 1 / 0 / 0.115 | 均必填 |
-| `size` | 整数，同类型 | `2048` |
-| `depth` | 整数，191 到 `floor(半径 × 0.75)` | `191`；不按比例计算 |
-| `shell` | `bedrock` 或 `core_shell` | **`bedrock`** |
-| `palette` / `minerals` / `climate` | 同类型 | 各自的默认值 |
-| `creatures` | 布尔 | **`true`**，与算法无关 |
-| `features` / `structures` | 布尔 | **`false`**，与算法无关 |
-
-能按类型写的星球尽量按类型写：类型的默认值才是为游玩准备的。
+完整生成器采用 `planet_format: 3`、`terrain_version: 14`。`planet_generation` 必须包含 type、surface_version=10、recipe（上述完整 terrain）、size、depth、shell、creatures、features、structures 和 environment。`planet_biomes` 为 terrain_seed 与 palette（配方涉及的群系ID列表）。旧格式一律拒绝。网络协议18，Profile为 `starfold:native_planet_v17_profile`；FORMAT=4的PlanetPlan同时保存地形和结构，并复用有界分包与摘要缓存。每颗星球即使关闭structures也持久化/同步地形规划。TerrainPlan FORMAT=3 使用定点场：高度、温度、水面和地层位移为 1/8 单位，粗糙度为 1/1024，湿度为 1/16384；规划内也采用相同量化，保存前后求值一致。旧格式拒绝，需要新世界。
 
 ## 内置类型与预设
 
 所有 ID 都以 `starfold:` 开头。
 
-| 类型 | 面宽 | `depth_ratio` | 算法 | 特点 |
-|---|---:|---:|---|---|
-| `rocky` | 512–1536 | 0.5 | `rocky_craters` | 裸岩山峰；起伏 1.2，矿物偏置 0.04，洞穴宽度 0.09 |
-| `desert` | 512–2048 | 0.5 | `rocky_craters` | 沙漠；0.8 / 0.03 / 0.08；沙子覆盖，下面依次是砂岩、陶瓦、石头、深板岩；五种自己的矿物 |
-| `ice` | 448–1024 | **0.4** | `rocky_craters` | 雪原；1.4 / 0.02 / 0.1；浮冰、蓝冰和雪；四层地层，含青金石、铁、钻石和绿宝石 |
-| `temperate` | 1024–2048 | 0.5 | `ecology` | 四个原版角色，温和气候，不指定海洋比例 |
-| `lush` | 1024–2048 | 0.5 | `ecology` | humidity 0.22，temperature -0.1，latitude 0.1，ocean 0.55 |
-| `arid` | 1024–2048 | 0.5 | `ecology` | humidity -0.35，temperature 0.05，latitude 0.5，ocean 0.2 |
-| `archipelago` | 1024–2048 | 0.5 | `ecology` | humidity 0.15，temperature 0，latitude 0.15，ocean 0.88 |
-| `steppe` | 1024–2048 | 0.5 | `ecology` | humidity -0.3，temperature 0.1，latitude 0.4，ocean 0 |
+| 类型 | 面宽 | 陆地比例 | 山脉/丘陵 | 地貌 | 水体 |
+|---|---:|---:|---:|---|---|
+| `rocky` | 512–1536 | 1 | 50/12 | crater | air |
+| `desert` | 512–2048 | 1 | 50/12 | canyon, dunes | air |
+| `ice` | 448–1024 | 1 | 50/12 | glacial_rift | water |
+| `temperate` | 1024–2048 | 0.4 | 160/24 | — | water |
+| `lush` | 1024–2048 | 0.6 | 24/12 | — | water |
+| `arid` | 1024–2048 | 0.4 | 24/12 | — | water |
+| `archipelago` | 1024–2048 | 0.12 | 24/12 | volcano | water |
+| `steppe` | 1024–2048 | 0.4 | 24/12 | — | water |
 
-五种生态类型的基础群系都是平原。八种类型都使用星核外壳。三种岩石类型的生物、地物、结构都关闭；五种生态类型都
-开启。
+体验包提供12种类型（home、archipelago、lush、desert、ice、rocky、asteroid、basalt、crystal、end、mushroom、warden）；biotech 的 `starfold_biotech:flesh` 是第13种，使用血液和球面Voronoi巢穴格壁。类型各自显式声明大气；配方和已解析模板随星球固定。
 
-布局 `starfold:default` 按上表顺序以权重 3、2、2、2、1、1、1、1 抽取这些类型，`density` 0.7，`star_gap` 98304，
-`ring` 12288，每颗太阳一到两颗行星。`starfold:small` 使用相同的类型和权重，是一个有二到四颗额外太阳的有限宇宙。
+布局 `starfold:default` 按上表顺序以权重 3、2、2、2、1、1、1、1 抽取这些类型，`density` 1，`star_gap` 137900，
+`ring` 12288，每颗太阳一到两颗行星。`starfold:small` 使用相同的类型和权重，是一个有二到四颗额外太阳的有限宇宙，显式间距仍为 98304。
+
+### 体验包航行尺度
+
+两个体验预设现在都选择已有手写恒星系格式 `starfold_worlds:experience`，无须扩展 codec。四颗太阳组成边长约 137900 格的四面体，
+每系三颗行星共用半径 17800、周期 24000 tick 的轨道，相差 120°。保留存储顺序、类型、尺寸和地形种子，分组为：
+炉心/苍翠/寂痕；砧星/霜原/赭沙；群澜/菌港/砾星；烬岩/晶棱/象牙。正式预设仍有出生船。
+炉心由匿名完整生成器改为引用 `starfold_worlds:home` 类型。同系任意两行星的直线在 epoch 0 以及后续相位都不会穿日。
+
+按未武装 Hauler 的 P1 加速加巡航估算，同系约 60.1 秒；体验包跨系约 188–292 秒，加力约减半。
+默认轴向相邻系的行星中心航线包络为 102300–173500 格，约 180.1–299.7 秒。不是实测起飞/抵达/着陆时间；对角和跨多格航线更长。
+自定义稀疏布局仍可能因空单元而使最近实际恒星更远。未改变船速。仍选择最近 24 颗太阳，太空绘制远面为 1000000 格，足够覆盖新航线。
+旧非手写存档重建轨道及之后发现的新单元会受新布局影响，建议新建世界；已保存手写 celestial 保持其写明的几何。
 
 世界预设 `starfold:native_universe`（“星海折越：随机宇宙”）把两颗母星完整写出：A 是面宽 2048、深度 652 的生态星球，B 是
 面宽 1024、深度 326 的岩石星球。在它们之外使用 `starfold:default`。
@@ -236,16 +407,113 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 
 ```json
 {
-  "biome": "minecraft:stony_peaks",
-  "size": {"min": 512, "max": 1024},
-  "algorithm": "rocky_craters",
-  "relief": 0.7,
-  "palette": {
-    "rock": "minecraft:tuff",
-    "dark": "minecraft:basalt",
-    "light": "minecraft:andesite",
-    "deep": "minecraft:deepslate"
-  }
+  "shape": {
+    "size": {
+      "min": 512,
+      "max": 1024
+    }
+  },
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 1,
+    "relief": {
+      "mountains": 50,
+      "hills": 12,
+      "roughness": 1
+    },
+    "landforms": [
+      {
+        "type": "starfold:crater",
+        "parameters": {
+          "density": 0.25,
+          "radius_min": 24,
+          "radius_max": 128,
+          "amplitude": 24,
+          "operation": "raise"
+        }
+      }
+    ],
+    "erosion": {
+      "rivers": false,
+      "strength": 1,
+      "river_threshold": 48
+    },
+    "climate": {
+      "temperature": 27,
+      "latitude_gradient": 47,
+      "humidity": -0.8,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:climate",
+        "parameters": {
+          "biome": "minecraft:stony_peaks",
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "humidity_min": 0,
+          "humidity_max": 1,
+          "height_min": -1024,
+          "height_max": 320,
+          "river": false,
+          "coast": false
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:tuff",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:deepslate"
+      }
+    ],
+    "ores": [],
+    "caves": {
+      "width": 0.085,
+      "scale": 36
+    },
+    "water": {
+      "block": "minecraft:air",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": []
+  },
+  "life": {
+    "biome": "minecraft:stony_peaks"
+  },
+  "environment": {}
 }
 ```
 
@@ -254,86 +522,24 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 ```json
 {
   "density": 1.0,
-  "planets": {"min": 1, "max": 1},
+  "planets": {
+    "min": 1,
+    "max": 1
+  },
   "star_gap": 49152,
   "ring": 12288,
-  "types": [{"type": "demo:ash", "weight": 1}]
+  "types": [
+    {
+      "type": "demo:ash",
+      "weight": 1
+    }
+  ]
 }
 ```
 
 ### `data/starfold/worldgen/world_preset/native_universe.json`
 
-```json
-{
-  "dimensions": {
-    "minecraft:overworld": {
-      "type": "minecraft:overworld",
-      "generator": {
-        "type": "minecraft:noise",
-        "settings": "minecraft:overworld",
-        "biome_source": {"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}
-      }
-    },
-    "minecraft:the_nether": {
-      "type": "minecraft:the_nether",
-      "generator": {
-        "type": "minecraft:noise",
-        "settings": "minecraft:nether",
-        "biome_source": {"type": "minecraft:multi_noise", "preset": "minecraft:nether"}
-      }
-    },
-    "minecraft:the_end": {
-      "type": "minecraft:the_end",
-      "generator": {
-        "type": "minecraft:noise",
-        "settings": "minecraft:end",
-        "biome_source": {"type": "minecraft:the_end"}
-      }
-    },
-    "starfold:native_planet": {
-      "type": "starfold:native_deep",
-      "generator": {
-        "type": "starfold:native_system",
-        "storage_layout": "six_face_square_v2",
-        "planets": [
-          {
-            "settings": {
-              "biome": "minecraft:plains",
-              "features": false,
-              "lakes": false,
-              "layers": [{"height": 1, "block": "minecraft:bedrock"}],
-              "structure_overrides": []
-            },
-            "terrain_seed": 20261001,
-            "terrain_version": 4,
-            "planet_generation": {
-              "type": "temperate",
-              "algorithm": "ecology",
-              "algorithm_version": 1,
-              "relief": 1,
-              "ore_bias": 0,
-              "cave_width": 0.115,
-              "depth": 652,
-              "shell": "core_shell",
-              "features": true,
-              "structures": true
-            },
-            "planet_biomes": {
-              "terrain_seed": 20261001,
-              "forest": "minecraft:forest",
-              "plains": "minecraft:plains",
-              "desert": "minecraft:desert",
-              "ocean": "minecraft:ocean"
-            }
-          },
-          {"planet_type": "demo:ash", "terrain_seed": 20261003, "size": 768}
-        ],
-        "universe": "demo:ash_universe"
-      }
-    }
-  }
-}
-```
+[完整当前格式预设](../src/main/resources/data/starfold/worldgen/world_preset/native_universe.json)
 
 ## 恒星系
 
@@ -349,7 +555,7 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 |---|---|---|
 | `suns` | 至少一颗太阳的列表；行星总数 1–1600 | 必填 |
 | `suns[].position` | 三个数字 `[x, y, z]`，单位格；最远能放到哪里见规则 5 | 必填 |
-| `suns[].radius` | 数字，32–4096 格；母太阳最大 1024 | 必填 |
+| `suns[].radius` | 数字，32–16384 格 | 必填 |
 | `suns[].planets` | 至少一颗行星的列表 | 必填 |
 | `suns[].planets[].type` | 星球类型 ID，或就地写出的完整类型 | 必填；未知 ID 会让世界无法加载 |
 | `…size` | 面宽（格）：在类型范围内，16 的倍数 | 由类型和星球种子选定 |
@@ -358,7 +564,6 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 | `…name` | 1–64 个字符，不能全是空白，不能有控制字符 | 按存储顺序为 A、B、… Z、P26、P27 … |
 | `…orbit` | 对象 | 必填 |
 | `…orbit.radius` | 数字，1–10000000 格，并满足下面的规则 | 必填 |
-| `…orbit.period` | 数字，12000–1000000000 tick（每秒 20 tick） | 必填 |
 | `…orbit.phase` | 数字，弧度 | `0` |
 | `…spin` | 对象 | **星球不自转** |
 | `…spin.period` | 数字，24000–1000000000 tick | 提供 `spin` 时必填 |
@@ -368,8 +573,9 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 | `home.sun` / `home.planet` | 文件里的某颗太阳和它的某颗行星 | 各为 `0` |
 | `beyond` | 布局 ID，或就地写出的完整布局 | **星系之外什么都没有**：只存在这里写下的行星 |
 
-**轨道**是太阳所在水平面上的圆：在第 `t` 个 tick，角度为 `phase + 2π × t / period`，行星位于
-`太阳位置 + [radius × sin(角度), 0, radius × cos(角度)]`。不支持偏心轨道和倾斜轨道。**自转**绕轴
+**轨道**是母天体所在水平面上的圆：周期按开普勒定律计算，单位 tick：`20 × 2π × sqrt(radius³ / 母天体 GM)`。
+在第 `t` 个 tick，角度为 `phase + 2π × t / period`，天体位于`母天体位置 + [radius × sin(角度), 0, radius × cos(角度)]`。
+不支持偏心轨道和倾斜轨道。**自转**绕轴
 `[sin(tilt), cos(tilt), 0]` 进行，在第 0 个 tick 处于未转动的姿态。使用手写恒星系的新世界，时钟从第 0 个 tick 开始。
 
 **种子。** 没有写 `seed` 的行星，种子由世界种子和它在文件里的序号得出；序号按太阳的顺序、再按每颗太阳的行星顺序
@@ -382,19 +588,17 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
    默认名字按这些编号生成。卫星排在所有行星之后，按太阳、行星、卫星列表的书写顺序；添加卫星不会改变行星的存储编号。
 3. **行星之间保持距离。** 取 `r = size × 2 / π`（省略 `size` 时按类型的最大面宽计算），同一颗太阳的两颗行星，球心
    距离在任何时刻都不能小于 `r1 + r2 + reach1 + reach2 + 256`（默认 reach 时为 `r1 + r2 + 4352`）。
-   周期不同时，这意味着两条轨道的半径至少相差这么多。周期相同时，距离
-   恒为 `sqrt((R1 - R2)² + 4 × R1 × R2 × sin²(Δphase / 2))`。同一条轨道上周期不同的两颗行星一定会被拒绝。
+   周期根据轨道半径和母天体 GM 按开普勒定律计算；同一轨道半径的行星周期相同，距离恒为
+   `sqrt((R1 - R2)² + 4 × R1 × R2 × sin²(Δphase / 2))`。
 4. **太阳之间保持距离。** 轨道半径必须大于 `太阳半径 + r + reach + 128`（默认 reach 时为 `太阳半径 + r + 2176`）。
    一颗太阳的势力范围是它的行星中最大的 `轨道半径 + r + reach + 128`；两颗太阳的距离不能小于两者势力范围之和，
    无论相位如何。
-5. **一切都要到得了。** 母太阳距原点不超过 100000 格。每颗太阳到原点的距离加上它的势力范围不超过 200000 格，这样
-   不会有行星落在飞行到不了的地方。
+5. **坐标保持有界。** 太阳的位置及其轨道包络距原点不能超过 1000000000 格。
 6. **最多 1600 颗行星**，包括 `beyond` 增加的。`beyond` 生成的太阳会避开每颗手写太阳的势力范围，放不下时就少生成。
-   使用 `beyond` 时，它可能生成的最外圈轨道的周期不能超过 1000000000 tick：
-   `母星周期 × ((母星轨道半径 + (beyond.planets.max - 1) × beyond.ring) / 母星轨道半径)^1.5`。超过时，请缩短母星
-   周期，或减小环距或行星数量。最内圈还必须避开生成的太阳和最大面宽、默认 reach 的地表：
+   使用 `beyond` 时，它可能生成的最外圈轨道周期不能超过 1000000000 tick，按开普勒公式和母天体 GM 计算。
+   最内圈还必须避开生成的太阳和最大面宽、默认 reach 的地表：
    `母星轨道半径 > 640 + 2048 × 2 / π + 2048 + 128`。`star_gap` 必须至少为
-   `4 × (母星轨道半径 + (beyond.planets.max - 1) × beyond.ring) + 16384`。
+   `2 × (母星轨道半径 + (beyond.planets.max - 1) × beyond.ring) + 8192`。
 7. 面宽必须满足类型的范围和深度规则，维度类型也必须装得下这个深度。
 
 ### 卫星
@@ -413,18 +617,38 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 
 ```json
 {
-  "suns": [{
-    "position": [0, 0, 0],
-    "radius": 512,
-    "planets": [{
-      "type": "starfold:temperate", "size": 1024, "reach": 512,
-      "orbit": {"radius": 30000, "period": 120000},
-      "moons": [{
-        "type": "starfold:rocky", "size": 512, "reach": 512, "name": "Moon",
-        "orbit": {"radius": 5000, "period": 24000, "phase": 3.141592653589793}
-      }]
-    }]
-  }]
+  "suns": [
+    {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "radius": 512,
+      "planets": [
+        {
+          "type": "starfold:temperate",
+          "size": 1024,
+          "reach": 512,
+          "orbit": {
+            "radius": 30000
+          },
+          "moons": [
+            {
+              "type": "starfold:rocky",
+              "size": 512,
+              "reach": 512,
+              "name": "Moon",
+              "orbit": {
+                "radius": 5000,
+                "phase": 3.141592653589793
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -451,16 +675,117 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 
 ```json
 {
-  "biome": "minecraft:stony_peaks",
-  "size": {"min": 512, "max": 1024},
-  "algorithm": "rocky_craters",
-  "relief": 0.7,
-  "palette": {
-    "rock": "minecraft:tuff",
-    "dark": "minecraft:basalt",
-    "light": "minecraft:andesite",
-    "deep": "minecraft:deepslate"
-  }
+  "shape": {
+    "size": {
+      "min": 512,
+      "max": 1024
+    }
+  },
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 1,
+    "relief": {
+      "mountains": 50,
+      "hills": 12,
+      "roughness": 1
+    },
+    "landforms": [
+      {
+        "type": "starfold:crater",
+        "parameters": {
+          "density": 0.25,
+          "radius_min": 24,
+          "radius_max": 128,
+          "amplitude": 24,
+          "operation": "raise"
+        }
+      }
+    ],
+    "erosion": {
+      "rivers": false,
+      "strength": 1,
+      "river_threshold": 48
+    },
+    "climate": {
+      "temperature": 27,
+      "latitude_gradient": 47,
+      "humidity": -0.8,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:climate",
+        "parameters": {
+          "biome": "minecraft:stony_peaks",
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "humidity_min": 0,
+          "humidity_max": 1,
+          "height_min": -1024,
+          "height_max": 320,
+          "river": false,
+          "coast": false
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:tuff",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:tuff"
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.65
+      }
+    ],
+    "ores": [],
+    "caves": {
+      "width": 0.085,
+      "scale": 36
+    },
+    "water": {
+      "block": "minecraft:air",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": []
+  },
+  "life": {
+    "biome": "minecraft:stony_peaks"
+  },
+  "environment": {}
 }
 ```
 
@@ -470,24 +795,82 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 {
   "suns": [
     {
-      "position": [0, 0, 0],
+      "position": [
+        0,
+        0,
+        0
+      ],
       "radius": 512,
       "planets": [
-        {"type": "starfold:temperate", "size": 2048, "seed": 20261001, "name": "Aster", "orbit": {"radius": 8192, "period": 24000, "phase": 0}, "spin": {"period": 48000, "tilt": 23.5}},
-        {"type": "handwritten:ash", "size": 768, "name": "Cinder", "orbit": {"radius": 8192, "period": 24000, "phase": 3.141592653589793}},
-        {"type": "starfold:ice", "name": "Rime", "orbit": {"radius": 17000, "period": 90000, "phase": 1.2}, "spin": {"period": 72000, "tilt": -12}}
+        {
+          "type": "starfold:temperate",
+          "size": 2048,
+          "seed": 20261001,
+          "name": "Aster",
+          "orbit": {
+            "radius": 8192,
+            "phase": 0
+          },
+          "spin": {
+            "period": 48000,
+            "tilt": 23.5
+          }
+        },
+        {
+          "type": "handwritten:ash",
+          "size": 768,
+          "name": "Cinder",
+          "orbit": {
+            "radius": 8192,
+            "phase": 3.141592653589793
+          }
+        },
+        {
+          "type": "starfold:ice",
+          "name": "Rime",
+          "orbit": {
+            "radius": 17000,
+            "phase": 1.2
+          },
+          "spin": {
+            "period": 72000,
+            "tilt": -12
+          }
+        }
       ]
     },
     {
-      "position": [60000, 4000, -20000],
+      "position": [
+        60000,
+        4000,
+        -20000
+      ],
       "radius": 420,
       "planets": [
-        {"type": "handwritten:ash", "size": 512, "orbit": {"radius": 9000, "period": 36000, "phase": 0.7}},
-        {"type": "starfold:desert", "size": 1024, "name": "Dune", "orbit": {"radius": 18000, "period": 110000, "phase": 2.4}}
+        {
+          "type": "handwritten:ash",
+          "size": 512,
+          "orbit": {
+            "radius": 9000,
+            "phase": 0.7
+          }
+        },
+        {
+          "type": "starfold:desert",
+          "size": 1024,
+          "name": "Dune",
+          "orbit": {
+            "radius": 18000,
+            "phase": 2.4
+          }
+        }
       ]
     }
   ],
-  "home": {"sun": 0, "planet": 0}
+  "home": {
+    "sun": 0,
+    "planet": 0
+  }
 }
 ```
 
@@ -496,9 +879,38 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 ```json
 {
   "dimensions": {
-    "minecraft:overworld": {"type": "minecraft:overworld", "generator": {"type": "minecraft:noise", "settings": "minecraft:overworld", "biome_source": {"type": "minecraft:multi_noise", "preset": "minecraft:overworld"}}},
-    "minecraft:the_nether": {"type": "minecraft:the_nether", "generator": {"type": "minecraft:noise", "settings": "minecraft:nether", "biome_source": {"type": "minecraft:multi_noise", "preset": "minecraft:nether"}}},
-    "minecraft:the_end": {"type": "minecraft:the_end", "generator": {"type": "minecraft:noise", "settings": "minecraft:end", "biome_source": {"type": "minecraft:the_end"}}},
+    "minecraft:overworld": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "minecraft:noise",
+        "settings": "minecraft:overworld",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:overworld"
+        }
+      }
+    },
+    "minecraft:the_nether": {
+      "type": "minecraft:the_nether",
+      "generator": {
+        "type": "minecraft:noise",
+        "settings": "minecraft:nether",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:nether"
+        }
+      }
+    },
+    "minecraft:the_end": {
+      "type": "minecraft:the_end",
+      "generator": {
+        "type": "minecraft:noise",
+        "settings": "minecraft:end",
+        "biome_source": {
+          "type": "minecraft:the_end"
+        }
+      }
+    },
     "starfold:native_planet": {
       "type": "starfold:native_deep",
       "generator": {
@@ -514,7 +926,12 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 #### `data/minecraft/tags/worldgen/world_preset/normal.json`
 
 ```json
-{"replace": false, "values": ["handwritten:twin_lanterns"]}
+{
+  "replace": false,
+  "values": [
+    "handwritten:twin_lanterns"
+  ]
+}
 ```
 
 ### 在新世界里使用它
@@ -536,17 +953,25 @@ A 星保持不变，B 星变成灰岩星球，之后每颗额外的太阳都带�
 2. **尚未发现的部分，其规则也被保存。** 布局及其每个类型都随世界保存。改布局文件不会改变已有世界将来发现什么。
 3. **手写恒星系同样如此**：太阳、轨道、自转、名字和母星。修改或删除星系文件，不会移动已有世界里的任何东西。
 4. **已经发现的太阳和行星保持不变**，包括编号和位置；世界不会给它们重新编号。
-5. **方块、群系和结构仍然按 ID 查找。** 如果删掉的包定义了世界用到的群系、方块或维度类型，世界可能无法加载。修改
-   群系的地物或结构集标签，会改变此后生成的内容。
+5. **方块、群系和结构仍然按 ID 查找。** 如果删掉的包定义了世界用到的群系、方块或维度类型，世界可能无法加载。
+   群系地物提供地表散布策略；结构集标签与群系适用性影响尚未建立结构规划的星球，每颗星球保留首次保存的规划。
 6. **已经生成的区块不会被重写。**
 7. **预设只在创建世界时起作用。** 它不是更新已有世界的办法。
 
 ## 代码里固定的限制
 
-- **地形。** 噪声、洞穴、生态和模组自己的树木都由代码决定；类型只是选择算法及其参数。海平面是固定的，海是水，岩石
-  星球没有海。
-- **原版地物会被过滤。** 所有星球都跳过湖泊和原版矿物地物；生态星球还跳过放置树木的地物，因为模组自己种树。结构的
-  起点离面的边缘至少 8 个区块。
+- **地形。** 噪声、洞穴和生态由代码决定，树木遵循受支持的群系模板；13类共用配方与逐点求值。海平面与液体来自water配方，允许水、熔岩、血或air。
+- **结构读取固定规划。** 候选沿用 `life.structures`、`starfold:planets` 结构集标签和结构自身的群系限制。
+  标签内 11 集均参与：村庄／前哨、程序神殿／小屋、完整雪屋／废墟、含地下变体的传送门、沉船、宝藏和矿井。
+  原版 jigsaw 读取有体积的最终地形表面拼装，保存所有部件及 NBT 配方；按部件 bbox 和 `terrain_adaptation` 适配地形，取代圆形 pad。
+  刚性部件下填上挖到地基，外围 12 格平滑衔接；`terrain_matching` 道路贴 L1；`none` 不改变高度。结构允许跨面接缝，
+  避开角异常区，占地排除植被。AIR 能挖出内腔并覆盖洞穴／矿物；碰星核外壳的候选整座拒绝。不支持的 placement、
+  群系不符及录制预算拒绝均记录原因。规划首次需要时在后台生成，每颗星球独立保存于 `data/planet-plans/`。
+  可见状态随 Profile 同步，大计划另发每块最多 256 KiB 的分包，校验总长及 SHA-256，保留 1,000,000 B 单包上限，
+  全部到齐后才发布。原版模板、战利品／方块实体配方只留在服务端；存档发布前逐部件重录核对可见结果，
+  替换已引用的模板会拒绝规划。结构实体配方（女巫／猫、溺尸、箱子矿车等）确定性录制，在其所属区块重放；
+  普通箱子、刷怪笼、考古方块的方块实体保留。数据包给非 pool 部件改成非默认适配时，目前明确拒绝并报告需要 L1 动态高度定位；
+  原版非 pool 结构均为 `none`，不受此限。地表组合版本为 9，需要新世界。
 - **随机生成的宇宙没有逐个天体的字段。** 在布局里，太阳半径在 384–640 之间抽取，位置在所属网格单元内抖动；行星沿用
   母星的轨道平面，周期随轨道半径增长。想自己设定这些，请写恒星系。
 - **一个世界里最多能发现 1600 颗行星**，包含母星系。当一颗太阳的行星放不下时，这颗太阳不会被加入，游戏也不会给出

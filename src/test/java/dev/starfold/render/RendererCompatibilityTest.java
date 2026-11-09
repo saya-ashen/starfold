@@ -26,6 +26,8 @@ class RendererCompatibilityTest {
                     "SableShipWriteMixin",
                     "SableShipStorageMixin",
                     "SableShipSerializationMixin",
+                    "SableShipSplitMixin",
+                    "SableFuelMassMixin",
                     "SableShipReadinessMixin",
                     "DevPortCameraMixin",
                     "DevPortClockMixin");
@@ -175,7 +177,7 @@ class RendererCompatibilityTest {
         assertTrue(
                 Sources.text("GroundRenderer")
                         .contains(
-                                "if(GroundClient.ready()&&RendererGuard.pipelineSupported()&&level==Minecraft.getInstance().level)prepareDetails();"));
+                                "if(GroundClient.ready()&&RendererGuard.pipelineSupported()&&level==Minecraft.getInstance().level)prepareSurfaceUpdates();"));
         assertTrue(
                 Sources.text("GroundRenderer")
                         .contains(

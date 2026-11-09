@@ -1,0 +1,261 @@
+hash-format = "sha256"
+
+[[files]]
+file = "config/ftbquests/quests/chapter_groups.snbt"
+hash = "e9e0daacf0a4fe587c0231cea95dc56f1aae62c5e8b1d3371829360a50f1b332"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/00.snbt"
+hash = "5f6ef62722f2a2e4a31aefb79aedee441736a60b080a3e99fc5e2b26b7f4ec19"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/01.snbt"
+hash = "27ac04beadeb026addf2fbb61b6f46eda2c4eff6ddbf1188430ce71d392a5b78"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/02.snbt"
+hash = "48f92c6842dbfaf84bcc263a55e804f58e1ed06778e97a40d59192bcdca9d8c4"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/03.snbt"
+hash = "21478b9e1ac5069703cb59e9a8a38c524a190d6828bdb3b2703845749fee3f7b"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/04.snbt"
+hash = "ad1513f909c6270e5c254e70be66b499055094b8cffab10f46664d4276e3c811"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/05.snbt"
+hash = "c068f3e45e89c2a100d393770fcb1272bb1267b18aea8b8b4134f9e04e3bdc5b"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/06.snbt"
+hash = "e0471dbcbcf50f718f759795615c58a2f755ff881cabd31c30cf852095232423"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/07.snbt"
+hash = "fd3726a160a7cef46c6b84ba92df43f0b25e129cafece30c07483daca4286e4c"
+
+[[files]]
+file = "config/ftbquests/quests/chapters/08.snbt"
+hash = "fe68e628cd9d509a3797261d33a295f60bfa0d8ec41688b94e4dccf25a21cdd5"
+
+[[files]]
+file = "config/ftbquests/quests/data.snbt"
+hash = "57c3ef422b94cc77bdeb326f7920202cc39144bc2cedb3816f7d27a24560d4d4"
+
+[[files]]
+file = "config/ftbquests/quests/lang/en_us.snbt"
+hash = "5a6b9c0299e33a24a19f063d3c4ca7e1875364dd8fe2e58b8df17ceb1bb26a87"
+
+[[files]]
+file = "config/ftbquests/quests/lang/zh_cn.snbt"
+hash = "cb37ee84a9386eb149608be594e24ccaf4ba2bd7a4f8819c4a21adab9236f820"
+
+[[files]]
+file = "kubejs/BALANCE.md"
+hash = "cdb1e5b8c7d507a3d384d1815d43a3ae6eabfdc3f9e28b8a3c4ae4b38909064e"
+
+[[files]]
+file = "kubejs/data/createdieselgenerators/tags/block/oil_deposit.json"
+hash = "8c335de3c458de0859f80aea80593ac3f79f42f79c555efcc0b4e25f4a1274e6"
+
+[[files]]
+file = "kubejs/data/escape_velocity/starfold/gas_skim/deuterium.json"
+hash = "d522b99da15465888c2fdb0752551d464f246077c7aa164d87b6a0643405b0c1"
+
+[[files]]
+file = "kubejs/data/escape_velocity/starfold/thruster_fuel/deuterium.json"
+hash = "03f1d1d8b82d7b72dd425c2fda1f00dd92412724cde202c54e5a66465ba89993"
+
+[[files]]
+file = "kubejs/data/escape_velocity/starfold/thruster_fuel/diesel.json"
+hash = "a65a0bb4a1af6631a5fc0e82fcfbd247309a18a3c01fb00dcfa395d6a3935a99"
+
+[[files]]
+file = "kubejs/data/escape_velocity/starfold/thruster_fuel/gasoline.json"
+hash = "6ce2203f3f7f3410c9bde03b16d50ae4b6af1ce1170147a1bb85127a6a9918d3"
+
+[[files]]
+file = "kubejs/data/escape_velocity/starfold/thruster_fuel/hydrogen.json"
+hash = "c8dc21a2271dccea04a62562be4015eff2fb91635912f54c491ad73080e9cb9b"
+
+[[files]]
+file = "kubejs/data/minecraft/tags/worldgen/world_preset/normal.json"
+hash = "07e3404ef903c3a14c58ebeb7a39f96e8cfc3a8937b6a613f14caac9f862baec"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/archipelago.json"
+hash = "4e824fc1f41adf1daa1c67ebeaf296e19470f7bf9071c95d17cba45cf39a28a4"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/asteroid.json"
+hash = "10053d189e1e112c2b8c4a57ed06fd55783d86a61e59ca9cd4b393a11993458e"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/basalt.json"
+hash = "817d7a1e833c8b4889bb88717e9cb0937ccc64c1985bbf561fb0d7b3d4c45fb6"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/crystal.json"
+hash = "ca38c79e2e0c3222fdb6fe034ca6aa3d14ae1a3fbc5c5d55e90f4321be5d813d"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/desert.json"
+hash = "c3ba01d98a723cf80993ca5fc23ad1fa8c2c4ea506ff88c54b9011edb2f16a3d"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/end.json"
+hash = "4587767eb790c96a967658d1178b6af9218e91c2376b1cbb27e9a0e5c1932bd3"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/home.json"
+hash = "a90ca46e36596baa5a7241d22b17137ec5c621503a1e4fb10b547588a70858ad"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/ice.json"
+hash = "528c6bfdc31dda7a4d41acf89243cf706e76dc7732020b0218868745fdb0d87c"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/lush.json"
+hash = "39404c11e6c897d0ebacf16b516c3a4ab53ebb082a69ed15313f95b6fe2ebfb2"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/mushroom.json"
+hash = "5eeee547a0b641d21d691e2c4fda40fe2e65b1c4a6480deea91cd6fde9ec4556"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/rocky.json"
+hash = "3e2a5e50ff1a0e202c832a6586c558e0ae68c8aa31a24ab9ca90196eb7784b64"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/starfold/planet_type/warden.json"
+hash = "1d4dbdf6ef6db6ec3b2cdd8ca1319ec79c59e85e9b2fbe590ba66b130b21a286"
+
+[[files]]
+file = "kubejs/data/starfold_worlds/worldgen/world_preset/experience.json"
+hash = "ba34e8231f7e38feaeb6b388467f8c52b0ba63c2e21c552da88a9d9a268daf69"
+
+[[files]]
+file = "kubejs/server_scripts/progression.js"
+hash = "d4db945ef223bfcc08b4d620a57572d5b61b699efc69f0c718bf118e4d12d33c"
+
+[[files]]
+file = "mods/architectury-api.pw.toml"
+hash = "da6f1e534783444588fb68d345a3671216974d61746ef172b98a431301541b53"
+metafile = true
+
+[[files]]
+file = "mods/better-advanced-tooltips.pw.toml"
+hash = "793a5b7f5afe3c1cebafd84196d35009e47e120f5a6875719bc96bceb6f92a74"
+metafile = true
+
+[[files]]
+file = "mods/cerbons-api.pw.toml"
+hash = "e5d2cf29aafaf6ba4bec9afad35d98a0fb384ba2643341e3336e9508365e77fd"
+metafile = true
+
+[[files]]
+file = "mods/cloth-config.pw.toml"
+hash = "8445da70da370fade3d2de16cf0888910631963ec5b2abb17d18d0e2b86854e2"
+metafile = true
+
+[[files]]
+file = "mods/create-aeronautics.pw.toml"
+hash = "c2c8a544dc7bcc6d15c71cdaf4a10d2a2e62de2a33025d658babab7fce4c41f1"
+metafile = true
+
+[[files]]
+file = "mods/create-diesel-generators.pw.toml"
+hash = "2db8f641553058cfce28ddba2eb3bff4a070c273bd0faea47d37a0d2262b17ec"
+metafile = true
+
+[[files]]
+file = "mods/create.pw.toml"
+hash = "9384a0992af72c435a1fcc0c525948f5b16f627fa8119b6bb68e1214e9b3568a"
+metafile = true
+
+[[files]]
+file = "mods/createaddition.pw.toml"
+hash = "5134712c177843cd47bab384e63a900ffa6f129d29ae3cff705e3f682cf813ea"
+metafile = true
+
+[[files]]
+file = "mods/ferritecore.pw.toml"
+hash = "8e9a80baabb2a21a5d1d91070dd6775023a74f39c5fa55da88697149a84f8701"
+metafile = true
+
+[[files]]
+file = "mods/ftb-library-forge.pw.toml"
+hash = "667e756ffd85ae9ab9b97b5e1b43768cf2adc901ddf6f5bbcd80e6a451aa77c9"
+metafile = true
+
+[[files]]
+file = "mods/ftb-quests-forge.pw.toml"
+hash = "af094cc064f5ef2768862d9324b09a2160be123934728af9bf798ed35682e31e"
+metafile = true
+
+[[files]]
+file = "mods/ftb-teams-forge.pw.toml"
+hash = "ddcee408deec0c57623f6ae144e2bd683c91068a5d63deb56a92c3c92d883e9b"
+metafile = true
+
+[[files]]
+file = "mods/geckolib.pw.toml"
+hash = "52351515467aea04e23b0d91730f929ca8c7bd53806f590160f0d56d28d96e9d"
+metafile = true
+
+[[files]]
+file = "mods/immersive-aircraft.pw.toml"
+hash = "8cd403a5889488857f72e82051b1af87f6c5cb47a363c83f7a9b54b544856d09"
+metafile = true
+
+[[files]]
+file = "mods/jade.pw.toml"
+hash = "1c7d0e34f63633e534155e4a285836f7a690bb44979a8894633cb3dc0b1e83ae"
+metafile = true
+
+[[files]]
+file = "mods/jei.pw.toml"
+hash = "de2fd13fe5ddb2359757ca6848a734a9c202ec910e0ed51888579d07f04b1857"
+metafile = true
+
+[[files]]
+file = "mods/kubejs.pw.toml"
+hash = "ea03c637241e8f0363013bd252a89add336d38ce7f031f43e1c5bac8d80d0e51"
+metafile = true
+
+[[files]]
+file = "mods/mekanism-generators.pw.toml"
+hash = "62602ed3486f8d59d8f93027d463cd850149192465e2fa9b827fe5f577fd2ba3"
+metafile = true
+
+[[files]]
+file = "mods/mekanism-tools.pw.toml"
+hash = "2fabd7a0cef4a0c5f57d7338e3ecfd736e02d0eca3fb3e61a9c516965325bae5"
+metafile = true
+
+[[files]]
+file = "mods/mekanism.pw.toml"
+hash = "2b8e27749f5d6b7f9f60472a2173fd3897ecf82088af82225b38ece96b63cf55"
+metafile = true
+
+[[files]]
+file = "mods/mezzconfig.pw.toml"
+hash = "3d5278d367f054a96979d80374da55f5b12225b73bdca0becb360d62659fd28d"
+metafile = true
+
+[[files]]
+file = "mods/modernfix.pw.toml"
+hash = "c1ca477068d85f09e18f811a6c8023286e1f8a061e14510718cbf5d1d192196b"
+metafile = true
+
+[[files]]
+file = "mods/rhino.pw.toml"
+hash = "ed068b50f4f56c4e214f573e52925fa46afa1b9fc3e593b7f01be0f8b2d96890"
+metafile = true
+
+[[files]]
+file = "mods/sable.pw.toml"
+hash = "dd26eb7fdc743b18513e5cb4dabeb6c6754ac21327cdad742f54a59d5bbd3e71"
+metafile = true

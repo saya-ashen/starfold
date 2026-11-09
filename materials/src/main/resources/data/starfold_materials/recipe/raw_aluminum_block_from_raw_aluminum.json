@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AAA",
+    "AAA",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:raw_materials/aluminum"
+    }
+  },
+  "result": {
+    "id": "starfold_materials:raw_aluminum_block",
+    "count": 1
+  }
+}

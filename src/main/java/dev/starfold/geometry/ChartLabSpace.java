@@ -18,12 +18,6 @@ public final class ChartLabSpace {
             GUARD_START = 115,
             GUARD_END = 125,
             MAX_HEIGHT = 10;
-    public static final int WALL_TOP =
-            11; // Covers the entire permitted body envelope, not an infinite sky wall.
-    public static final int CORE_MATERIAL = 21,
-            BORDER_MATERIAL = 22,
-            LIMIT_MATERIAL = 23,
-            GUARD_MATERIAL = 24;
 
     private ChartLabSpace() {}
 

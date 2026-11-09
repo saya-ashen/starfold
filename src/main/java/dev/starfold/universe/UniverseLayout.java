@@ -160,13 +160,12 @@ public record UniverseLayout(
                 || types.isEmpty()) throw new IllegalArgumentException("Universe counts");
         // Planets of neighbouring suns must stay clear of each other, and neighbours on one sun's
         // rings of one another.
-        // Suns are never nearer than half a gap: that must hold both their outermost rings and room
-        // between them.
+        // Suns occupy grid centres: a full gap holds both outermost rings and room between them.
         if (!Double.isFinite(ring)
                 || ring < 8192
                 || !Double.isFinite(gap)
                 || gap < minimumGap(maxPlanets, ring)
-                || gap > 1e6)
+                || gap > 1e7)
             throw new IllegalArgumentException(
                     "Universe distances: suns "
                             + gap
@@ -177,7 +176,11 @@ public record UniverseLayout(
     }
 
     public static double minimumGap(int planets, double ring) {
-        return 4 * (GroundSolar.defaults().orbit(0).radius() + (planets - 1) * ring) + 16384;
+        return minimumGap(GroundSolar.defaults().orbit(0).radius(), planets, ring);
+    }
+
+    public static double minimumGap(double inner, int planets, double ring) {
+        return 2 * (inner + (planets - 1) * ring) + 8192;
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {

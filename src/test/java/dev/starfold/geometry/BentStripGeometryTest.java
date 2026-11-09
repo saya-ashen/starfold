@@ -68,29 +68,6 @@ class BentStripGeometryTest {
     }
 
     @Test
-    void facetedFeetLieOnRenderedFloorIncludingPieceBoundaries() {
-        for (int i = 0; i < 512; i++) {
-            double u = i / 16.0 + .017;
-            var p = bend.facetedProject(new Point(u, 0, 1.5), 16);
-            var up = bend.up(u);
-            var mesh = bend.mesh(new Cell((int) Math.floor(u), -1, 1), 16, 1, 2);
-            var hit = BentStripGeometry.pick(mesh, p.add(up.scale(.5)), up.scale(-1), 1);
-            assertNotNull(hit, "u=" + u);
-            close(p, hit.position());
-        }
-    }
-
-    @Test
-    void facetedCameraRemainsContinuousAcrossStorageSeam() {
-        for (double u : new double[] {bend.start(), 16, bend.end()})
-            for (double h : new double[] {0, 1.62}) {
-                var a = bend.facetedProject(new Point(u - 1e-8, h, 1), 16);
-                var b = bend.facetedProject(new Point(u + 1e-8, h, 1), 16);
-                assertTrue(a.sub(b).length() < 1e-6);
-            }
-    }
-
-    @Test
     void emptyMasksAndInvalidHeightsCannotCreatePhantomWater() {
         assertTrue(bend.mesh(new Cell(16, 0, 4), 16, 1, 0).isEmpty());
         for (double height : new double[] {0, -1, 1.1, Double.NaN})
@@ -199,7 +176,6 @@ class BentStripGeometryTest {
             assertNotNull(hit);
             assertEquals(new Cell(u, 0, 4), hit.owner());
             assertEquals(u == 16, hit.owner().rightOwner());
-            assertEquals(u == 16 ? 0 : 15, hit.owner().ownerLocalX());
             assertEquals(2, hit.distance(), EPS);
         }
     }

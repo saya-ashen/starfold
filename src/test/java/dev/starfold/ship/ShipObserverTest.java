@@ -26,7 +26,7 @@ class ShipObserverTest {
     @Test
     void addedRefreshUnloadedAndRemovedPreserveTheCorrectIdentity() {
         var saved = ShipSave.fresh(false);
-        var observer = new ShipObserver(saved);
+        var observer = new ShipObserver(saved, slot -> 0);
         var hull = new FakeHull();
         observer.added(hull.uuid, hull::sample);
         var first = saved.find(hull.uuid).id();
@@ -49,7 +49,7 @@ class ShipObserverTest {
         assertEquals(reads, hull.reads);
         assertEquals(first, saved.find(hull.uuid).id());
         var reloaded = ShipSave.load(ShipSaveTest.tag(saved), null);
-        var nextObserver = new ShipObserver(reloaded);
+        var nextObserver = new ShipObserver(reloaded, slot -> 0);
         hull.sample =
                 new ShipObserver.Sample(
                         ShipSaveTest.DIMENSION, Optional.empty(), new ShipRecord.OnSlot(1));
@@ -65,7 +65,7 @@ class ShipObserverTest {
     @Test
     void onlyLiveSourcesAreRefreshedAndSnapshotsDoNotAlias() {
         var saved = ShipSave.fresh(false);
-        var observer = new ShipObserver(saved);
+        var observer = new ShipObserver(saved, slot -> 0);
         var a = new FakeHull();
         var b = new FakeHull();
         observer.added(a.uuid, a::sample);
@@ -80,11 +80,51 @@ class ShipObserverTest {
     }
 
     @Test
+    void surfaceRegistrationUsesTheSurfaceBodyRegionNotTheSlot() {
+        var model =
+                new dev.starfold.chart.GroundEphemeris.Model(
+                        ShipParkingTest.model().bodies().stream()
+                                .map(
+                                        body ->
+                                                body.slot() == 0
+                                                        ? body.identified(
+                                                                new dev.starfold.chart.BodyId(9, 4))
+                                                        : body)
+                                .toList());
+        var saved = ShipSave.fresh(false);
+        var observer = new ShipObserver(saved, slot -> model.id(slot).region());
+        var hull = new FakeHull();
+        observer.added(hull.uuid, hull::sample);
+        assertEquals(new ShipId(9, 0), saved.find(hull.uuid).id());
+    }
+
+    @Test
+    void spaceRegistrationUsesPlaceBodyRegionWithoutLookingUpASurface() {
+        var saved = ShipSave.fresh(false);
+        var observer =
+                new ShipObserver(
+                        saved,
+                        slot -> {
+                            throw new AssertionError("Surface lookup");
+                        });
+        var uuid = UUID.randomUUID();
+        observer.serialized(
+                uuid,
+                new ShipObserver.Sample(
+                        ShipSaveTest.DIMENSION,
+                        Optional.empty(),
+                        new ShipRecord.InSpace(ShipSaveTest.place())));
+        assertEquals(new ShipId(7, 0), saved.find(uuid).id());
+    }
+
+    @Test
     void publicObserverWiringIsReadOnlyAndRefreshIsOncePerSecondAfterHandovers() throws Exception {
         var adapter = Sources.text("ShipRecords");
         assertTrue(adapter.contains("container.addObserver(new SubLevelObserver()"));
         assertTrue(adapter.contains("reason == SubLevelRemovalReason.REMOVED"));
         assertTrue(adapter.contains("container.getAllSubLevels()"));
+        assertTrue(
+                adapter.contains("slot -> GroundClock.get(level).clock.model.id(slot).region()"));
         assertTrue(adapter.contains("ShipHost.get().surroundingsFrame(level)"));
         assertTrue(adapter.contains("frame.universe(position, clock.model, clock.tick())"));
         for (String forbidden :

@@ -14,16 +14,17 @@ public final class GroundPipeline {
         return (color >> shift & 255) / 255f * 2 - 1;
     }
 
-    public static boolean complete(Object[] resident) {
-        return Arrays.stream(resident).allMatch(Objects::nonNull);
-    }
-
     public static boolean publish(
             int pending, boolean building, Object[] resident, Object[] staging) {
+        return publish(pending,building,resident,staging,i->true);
+    }
+
+    public static boolean publish(int pending,boolean building,Object[] resident,Object[] staging,
+            java.util.function.IntPredicate exists) {
         if (pending != 0 || building || Arrays.stream(staging).allMatch(Objects::isNull))
             return false;
         for (int i = 0; i < resident.length; i++)
-            if (resident[i] == null && staging[i] == null) return false;
+            if (exists.test(i) && resident[i] == null && staging[i] == null) return false;
         return true;
     }
 

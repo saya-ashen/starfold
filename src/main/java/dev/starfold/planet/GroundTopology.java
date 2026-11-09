@@ -69,7 +69,7 @@ public final class GroundTopology {
         int face = GroundCoordinates.face(feet.x());
         return canonical(
                         shape,
-                        Face.values()[face],
+                        Face.VALUES[face],
                         feet.sub(GroundCoordinates.origin(face)).add(new Point(0, .9, 0)))
                 .pose();
     }
@@ -81,7 +81,7 @@ public final class GroundTopology {
     public static Cell cell(BlockPos position) {
         int face = GroundCoordinates.face(position.getX());
         return new Cell(
-                Face.values()[face],
+                Face.VALUES[face],
                 position.getX() - face * GroundCoordinates.STRIDE,
                 position.getY() - GroundCoordinates.FLOOR,
                 position.getZ());

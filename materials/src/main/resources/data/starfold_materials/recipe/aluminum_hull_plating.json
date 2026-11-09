@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "AAA",
+    "A A",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:ingots/aluminum"
+    }
+  },
+  "result": {
+    "id": "starfold_materials:aluminum_hull_plating",
+    "count": 4
+  }
+}

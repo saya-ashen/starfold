@@ -75,7 +75,7 @@ public final class GroundOrbit {
                 || p.length() > RADIUS + LIMIT)
             throw new IllegalArgumentException("Outside flight shell");
         Face f = Face.TOP;
-        for (var a : Face.values()) if (p.dot(a.normal) > p.dot(f.normal)) f = a;
+        for (var a : Face.VALUES) if (p.dot(a.normal) > p.dot(f.normal)) f = a;
         double scale = GroundAir.HALF / p.dot(f.normal);
         return new GroundSpace.Pose(
                 f,

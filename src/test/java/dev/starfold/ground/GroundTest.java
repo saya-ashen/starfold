@@ -121,7 +121,7 @@ class GroundTest {
             GroundPackets.Sky.CODEC.encode(b, p);
             assertEquals(p, GroundPackets.Sky.CODEC.decode(b));
             assertEquals(0, b.readableBytes());
-            assertEquals("native_ground_v4_sky", p.type().id().getPath());
+            assertEquals("native_ground_v6_sky", p.type().id().getPath());
             assertThrows(
                     IllegalArgumentException.class,
                     () ->
@@ -131,7 +131,8 @@ class GroundTest {
                                                     new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
                                                     0,
                                                     false,
-                                                    0))));
+                                                    0,
+                                                    GroundEphemeris.Appearance.SURFACE))));
         } finally {
             raw.release();
         }
@@ -164,7 +165,7 @@ class GroundTest {
         var dim =
                 com.google.gson.JsonParser.parseString(
                                 Files.readString(
-                                        root.resolve("worldgen/world_preset/native_system.json")))
+                                        Path.of("probes/src/main/resources/data/starfold/worldgen/world_preset/native_system.json")))
                         .getAsJsonObject();
         var generator =
                 dim.getAsJsonObject("dimensions")
@@ -319,7 +320,7 @@ class GroundTest {
         assertTrue(
                 Sources.text("GroundClient")
                         .contains(
-                                "GroundSolar.daylight(elevation())*GroundDaylight.parentShade(model,planet(),universeEye(),time())"));
+                                "GroundSolar.daylight(elevation())*GroundDaylight.parentShade(observer.model,planet(),universeEye(),time())"));
         assertTrue(Sources.text("GroundFogMixin").contains("GroundSolar.sky"));
         assertTrue(Sources.text("GroundClient").contains("SkyType.NONE"));
     }

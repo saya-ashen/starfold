@@ -114,12 +114,11 @@ class GroundExteriorTest {
     }
 
     @Test
-    void selectionHysteresisCannotFlickerAroundTheEntryHeight() {
-        assertFalse(GroundExteriorMesh.select(false, true, 1080));
-        assertTrue(GroundExteriorMesh.select(false, true, 1088));
-        assertTrue(GroundExteriorMesh.select(true, true, 1040));
-        assertFalse(GroundExteriorMesh.select(true, true, 1023));
-        assertFalse(GroundExteriorMesh.select(true, false, 2000));
+    void groundViewNeverHandsTheNearPlanetToTheCoarseExterior() throws Exception {
+        // The exterior's 16-block cells are only for remote views; near the planet the voxel
+        // view coarsens continuously with height instead of switching at one altitude.
+        assertFalse(Sources.text("GroundRenderer").contains("GroundExterior.draw("));
+        assertFalse(Sources.text("GroundClient").contains("replaceNative"));
     }
 
     @Test
@@ -128,7 +127,11 @@ class GroundExteriorTest {
         var out = Path.of("build/native-exterior/shaders");
         Files.createDirectories(out);
         for (String ext : List.of("vsh", "fsh")) {
-            String text = Files.readString(root.resolve("native_ground_exterior." + ext));
+            String text =
+                    Files.readString(root.resolve("native_ground_exterior." + ext))
+                            .replace(
+                                    "#moj_import <starfold:ground_light.glsl>",
+                                    GroundShaderSource.SOLAR_LIGHT);
             String suffix = ext.equals("vsh") ? "vert" : "frag";
             Files.writeString(out.resolve("exterior." + suffix), text);
             var parsed =
@@ -155,12 +158,11 @@ class GroundExteriorTest {
     void onlyCompleteExteriorTakesOverAndOldPatchStaysUntilReplacement() throws Exception {
         var s = Sources.text("GroundRenderer");
         assertTrue(s.contains("ready&&GroundExterior.ready()"));
-        assertTrue(
-                s.contains("if(replacesNative()){if(!translucent)GroundExterior.draw(c);return;}"));
-        assertTrue(s.contains("tile==256&&exterior.done()"));
+        assertTrue(s.contains("returnfill!=null&&fill.isDone()"));
+        assertTrue(s.contains("exterior.emit(q,rgb,old)"));
         assertTrue(s.contains("dirtyHalo(key)"));
         assertTrue(
-                s.contains("GroundPipeline.publish(dirty.count(),coverJob!=null,patches,staging)"));
+                s.contains("GroundPipeline.publish(dirty.count(),!coverJobs.isEmpty(),patches,staging,p->GroundViewPolicy.exists(shape,p))"));
         var exterior = Sources.text("GroundExterior");
         assertTrue(exterior.contains("staging[patch]=mesh"));
         assertTrue(exterior.contains("patches[i]=staging[i]"));

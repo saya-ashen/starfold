@@ -109,13 +109,11 @@ public final class HelmServer {
         sessions.put(body, session);
         ShipRecords.binding(player.serverLevel(), body);
         send(session, true);
-        var caps = ShipHost.get().speedCaps(body);
-        player.displayClientMessage(
-                net.minecraft.network.chat.Component.translatable(
-                        "message.starfold.space_caps",
-                        Math.round(caps.cruise()),
-                        Math.round(caps.boost())),
-                true);
+        double deltaV = ThrusterFuel.deltaV(body);
+        if (deltaV >= 0)
+            player.displayClientMessage(
+                    net.minecraft.network.chat.Component.translatable(
+                            "hud.starfold.instrument_delta_v", Math.round(deltaV)), true);
     }
 
     private static boolean valid(Session s) {
@@ -286,7 +284,11 @@ public final class HelmServer {
         if (active)
             landing = s.landingSearch.update(s.player.serverLevel(), s.body, s.facing, landing);
         else s.landingSearch.clear();
-        var caps = ShipHost.get().speedCaps(s.body);
+        double fuel = active ? ThrusterFuel.remaining(s.body) : -1;
+        double deltaV = active ? ThrusterFuel.deltaV(s.body) : -1;
+        if (active && ThrusterFuel.missingDrive(s.body))
+            s.player.displayClientMessage(
+                    net.minecraft.network.chat.Component.translatable("message.starfold.interstellar_drive_missing"), true);
         for (var player : s.body.getLevel().players())
             if (player == s.player || s.body.getTrackingPlayers().contains(player.getUUID()))
                 if (player.connection.hasChannel(HelmPackets.State.TYPE))
@@ -304,9 +306,9 @@ public final class HelmServer {
                                     center.y(),
                                     center.z(),
                                     landing,
-                                    caps.cruise(),
-                                    caps.boost(),
-                                    Thrusters.boosted(s.body, s.body.getLevel().getGameTime())));
+                                    Thrusters.boosted(s.body, s.body.getLevel().getGameTime()),
+                                    fuel,
+                                    deltaV));
     }
 
     private HelmServer() {}

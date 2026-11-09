@@ -41,7 +41,7 @@ class ShipCheckpointTest {
                                 .distance(decoded.transformPosition(new Vector3d(point)))
                         < 1e-8);
         var saved = ShipSave.fresh(false);
-        var observer = new ShipObserver(saved);
+        var observer = new ShipObserver(saved, slot -> 0);
         observer.added(
                 uuid,
                 () ->
@@ -80,7 +80,8 @@ class ShipCheckpointTest {
     void failedPointerPublicationKeepsOldAddressAndSuccessfulMovesRoundtrip() {
         var saved = ShipSave.fresh(false);
         var uuid = UUID.randomUUID();
-        saved.add(uuid, ShipSaveTest.DIMENSION, Optional.of("Starter"), new ShipRecord.OnSlot(0));
+        saved.add(
+                0, uuid, ShipSaveTest.DIMENSION, Optional.of("Starter"), new ShipRecord.OnSlot(0));
         saved.pointerSaved(uuid, null);
         assertTrue(saved.find(uuid).locator().isEmpty());
         var old = new ShipRecord.Locator(1, 2, (short) 3, (short) 4);

@@ -8,7 +8,6 @@ import dev.starfold.space.SpaceView;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.world.level.material.FogType;
 
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -16,7 +15,9 @@ import org.lwjgl.opengl.GL11;
 /** Chart sky depth is discarded before terrain; region bodies retain physical depth. */
 public final class GroundCelestials {
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
+        GroundAtmosphere.initialize(modBus);
         GroundSunRenderer.initialize(modBus);
+        GasGiantRenderer.initialize(modBus);
         GroundStars.initialize(modBus);
         PlanetRemoteRenderer.initialize();
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -40,6 +41,7 @@ public final class GroundCelestials {
                     PlanetRemoteRenderer.draw(c);
                     if (SpaceClient.active()) {
                         GroundStars.draw(c);
+                        GasGiantRenderer.draw(c);
                         GroundSunRenderer.draw(c);
                     }
                 });
@@ -60,14 +62,19 @@ public final class GroundCelestials {
     }
 
     private static void drawSky(RenderFrame c) {
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.SKY);
+        try {
         var projection = new Matrix4f(RenderSystem.getProjectionMatrix());
         var sorting = RenderSystem.getVertexSorting();
         boolean write = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         try {
-            RenderSystem.setProjectionMatrix(SpaceView.skyProjection(projection), sorting);
+            if (!ReversedDepth.ACTIVE)
+                RenderSystem.setProjectionMatrix(SpaceView.skyProjection(projection), sorting);
+            GroundAtmosphere.drawSky(c);
             GroundStars.draw(c);
-            if (c.camera().getFluidInCamera() == FogType.NONE) {
+            if (!RendererGuard.submerged(c.camera())) {
                 PlanetRemoteRenderer.draw(c);
+                GasGiantRenderer.draw(c);
                 if (Minecraft.getInstance()
                                 .level
                                 .getRainLevel(c.tickCounter().getGameTimeDeltaPartialTick(false))
@@ -77,12 +84,17 @@ public final class GroundCelestials {
             RenderSystem.depthMask(true);
             RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
             RenderSystem.depthMask(write);
-            RenderSystem.setProjectionMatrix(projection, sorting);
+            if (!ReversedDepth.ACTIVE) RenderSystem.setProjectionMatrix(projection, sorting);
+        }
+        } finally {
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.SKY);
         }
     }
 
     private static void clear() {
+        GroundAtmosphere.clear();
         GroundSunRenderer.clear();
+        GasGiantRenderer.clear();
         GroundStars.clear();
         PlanetRemoteRenderer.clear();
     }

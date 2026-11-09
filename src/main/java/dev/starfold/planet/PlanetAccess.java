@@ -99,11 +99,11 @@ public final class PlanetAccess {
     /** Where a place of another face is drawn in the chart of the face an observer is on, or null. */
     public Point image(double observerX, double observerZ, Point target) {
         if (!samePlanet(observerX, observerZ, target.x(), target.z())) return null;
-        var root = dev.starfold.geometry.CubeSurfaceTopology.Face.values()[face(observerX)];
+        var root = dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[face(observerX)];
         var tile =
                 new PlanetChart(shape(observerX, observerZ), root)
                         .tile(
-                                dev.starfold.geometry.CubeSurfaceTopology.Face.values()[
+                                dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[
                                         face(target.x())]);
         return tile == null ? null : originAt(observerX, observerZ).add(tile.point(chart(target)));
     }

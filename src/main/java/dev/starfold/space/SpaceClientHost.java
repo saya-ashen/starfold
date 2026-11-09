@@ -39,6 +39,9 @@ public interface SpaceClientHost {
         return -1;
     }
 
+    /** Draw a non-surface map destination using the chart observer's instrument frame. */
+    default void groundTarget(net.minecraft.client.gui.GuiGraphics graphics, String name, dev.starfold.geometry.BentStripGeometry.Point destination) {}
+
     /** Chart guidance towards the active bookmark; absent without saved targets. */
     default FlightSnapshot.Home home() {
         return null;

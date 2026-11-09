@@ -22,9 +22,10 @@ public abstract class GroundInboundMixin {
     @ModifyVariable(method = "handleMovePlayer", at = @At("HEAD"), argsOnly = true)
     private ServerboundMovePlayerPacket starfold$nativeMoveFrame(
             ServerboundMovePlayerPacket packet) {
-        return starfold$server()
-                ? (ServerboundMovePlayerPacket) PacketMap.inbound(player, packet)
-                : packet;
+        if (!starfold$server()) return packet;
+        var mapped = (ServerboundMovePlayerPacket) PacketMap.inbound(player, packet);
+        dev.starfold.DevelopmentHooks.mappedMove.accept(player, packet, mapped);
+        return mapped;
     }
 
     @ModifyVariable(method = "handleMoveVehicle", at = @At("HEAD"), argsOnly = true)

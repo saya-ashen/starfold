@@ -1,0 +1,18 @@
+plugins { id 'net.neoforged.moddev'; id 'java-test-fixtures' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_worlds' }
+repositories { mavenCentral() }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_worlds { sourceSet sourceSets.main } }
+}
+sourceSets.testFixtures.compileClasspath += sourceSets.main.compileClasspath
+dependencies {
+    testFixturesImplementation(testFixtures(project(':'))) { transitive = false }
+    testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    implementation(project(':')) { transitive = false }
+    compileOnly files(rootProject.configurations.compileClasspath)
+    testCompileOnly files(rootProject.configurations.testCompileClasspath)
+}
+apply from: rootProject.file('gradle/core-test-launcher.gradle')

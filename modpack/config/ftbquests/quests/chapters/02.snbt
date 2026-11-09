@@ -1,0 +1,368 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000020000",
+  "group": "",
+  "order_index": 2,
+  "quests": [
+    {
+      "id": "1000000000020100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000020101",
+          "type": "item",
+          "item": {
+            "id": "create:andesite_alloy",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000010800"
+      ]
+    },
+    {
+      "id": "1000000000020200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000020201",
+          "type": "item",
+          "item": {
+            "id": "create:water_wheel",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020100"
+      ]
+    },
+    {
+      "id": "1000000000020300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000020301",
+          "type": "item",
+          "item": {
+            "id": "create:shaft",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020200"
+      ]
+    },
+    {
+      "id": "1000000000020400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000020401",
+          "type": "item",
+          "item": {
+            "id": "create:mechanical_press",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020300"
+      ]
+    },
+    {
+      "id": "1000000000020500",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000020501",
+          "type": "item",
+          "item": {
+            "id": "create:iron_sheet",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020502",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020400"
+      ]
+    },
+    {
+      "id": "1000000000020600",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000020601",
+          "type": "item",
+          "item": {
+            "id": "create:basin",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020602",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020500"
+      ]
+    },
+    {
+      "id": "1000000000020700",
+      "x": 4.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000020701",
+          "type": "item",
+          "item": {
+            "id": "create:mechanical_mixer",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020702",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020600"
+      ]
+    },
+    {
+      "id": "1000000000020800",
+      "x": 6.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000020801",
+          "type": "item",
+          "item": {
+            "id": "minecraft:coal_block",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020802",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020700"
+      ]
+    },
+    {
+      "id": "1000000000020900",
+      "x": 0.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000020901",
+          "type": "item",
+          "item": {
+            "id": "create:blaze_burner",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020902",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020800"
+      ]
+    },
+    {
+      "id": "1000000000020A00",
+      "x": 2.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000020A01",
+          "type": "item",
+          "item": {
+            "id": "create:brass_ingot",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020A02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020900"
+      ]
+    },
+    {
+      "id": "1000000000020B00",
+      "x": 4.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000020B01",
+          "type": "item",
+          "item": {
+            "id": "create:electron_tube",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020B02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020A00"
+      ]
+    },
+    {
+      "id": "1000000000020C00",
+      "x": 6.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000020C01",
+          "type": "item",
+          "item": {
+            "id": "create:precision_mechanism",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000020C02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000020B00"
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 /** Motion exposure in seconds, not a speed-dependent billboard size. */
 public final class SpaceDust {
-    static final double STREAK_TIME = .06, MAX_LENGTH = SpaceSpeed.V_MAX * STREAK_TIME, WIDTH = .10;
+    static final double STREAK_TIME = .06, MAX_LENGTH = 2400 * STREAK_TIME, WIDTH = .10;
     static final double MIN_SPEED = 60,
             CRUISE_SPEED = 300,
             BOOST_SPEED = 800,
@@ -43,19 +43,10 @@ public final class SpaceDust {
                 : 0;
     }
 
-    /** Keep absolute exposure/opacity thresholds; only saturate emission earlier for slower hulls. */
-    static double rate(double speed, double boostCap) {
-        double top =
-                Double.isFinite(boostCap)
-                        ? Math.clamp(boostCap, SpaceSpeed.V_MIN, BOOST_SPEED)
-                        : BOOST_SPEED;
-        return Math.min(MAX_RATE, rate(speed) * MAX_RATE / rate(top));
-    }
-
     /** The shell recedes with speed; past the old cap the streak thickens with it, so it does not thin out of sight. */
     static double width(double speed) {
         return speed > MIN_SPEED && Double.isFinite(speed)
-                ? WIDTH * Math.max(1, speed / BOOST_SPEED)
+                ? WIDTH * Math.max(1, Math.min(speed, 2400) / BOOST_SPEED)
                 : 0;
     }
 

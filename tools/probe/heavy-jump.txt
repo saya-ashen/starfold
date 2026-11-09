@@ -1,0 +1,30 @@
+wait 300
+createworld
+wait 100
+createworld go
+waitworld
+wait 100
+cmd gamemode survival
+cmd tp @s ~60 ~3 ~-40
+wait 60
+cmd fill ~-3 ~-1 ~-3 ~3 ~-1 ~8 minecraft:stone
+cmd fill ~-3 ~ ~-3 ~3 ~4 ~8 minecraft:air
+cmd fill ~-3 ~ ~3 ~3 ~ ~8 minecraft:stone
+cmd tp @s ~ ~ ~
+wait 40
+cmd attribute @s minecraft:generic.gravity get
+cmd attribute @s minecraft:generic.jump_strength get
+cmd summon minecraft:rabbit ~2 ~ ~-2
+wait 20
+cmd attribute @e[type=minecraft:rabbit,limit=1,sort=nearest] minecraft:generic.jump_strength get
+look 0 0
+nav before
+key forward on
+key jump on
+wait 40
+key jump off
+key forward off
+wait 20
+nav after
+shot heavy-jump
+quit

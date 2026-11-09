@@ -77,20 +77,16 @@ class ObserverReadyTest {
         for (String rule :
                 List.of(
                         "chartFrame==null",
-                        "planet()!=f.planet()",
-                        "inFrame(b,f)",
-                        "inFrame(storage(mc.player.getEyePosition(partial)),f)",
-                        "PlanetAir.canSample(shape(),eye())",
-                        "access.storagePlanet(p.x(),p.z())==f.planet()",
-                        "access.face(p.x())==f.root()",
-                        "shape().topology().inHalo")) assertTrue(client.contains(rule), rule);
+                        "planet()!=observer.chartFrame.planet()",
+                        "PlanetAir.canSample(shape(),eye())")) assertTrue(client.contains(rule), rule);
         var begin =
                 client.substring(
                         client.indexOf("public static void begin"),
                         client.indexOf("public static void end"));
         assertTrue(begin.indexOf("partial=delta") < begin.indexOf("!ready()"));
-        assertTrue(client.contains("boolean projected=frame&&ready();"));
-        assertTrue(client.contains("if(!projected)return;"));
+        var uniforms = Sources.text("GroundProjectionUniforms");
+        assertTrue(uniforms.contains("boolean projected=renderFrame.active&&ready();"));
+        assertTrue(uniforms.contains("if(!projected)return;"));
         assertTrue(Sources.text("CubeSurfaceTopology").contains("if(!inHalo(query.u,query.v))"));
     }
 
@@ -116,7 +112,7 @@ class ObserverReadyTest {
         assertTrue(
                 Sources.text("StarfoldClient")
                         .contains("boolean ready(){return GroundClient.ready();}"));
-        var probe = Sources.text("DevProbe");
+        var probe = Sources.textPaths("probes/src/main/java/dev/starfold/dev/ProbeSession.java", "probes/src/main/java/dev/starfold/dev/ProbeSamples.java");
         assertTrue(probe.contains("case \"solarplan\"->commandSolarplan(mc,arg)"));
         assertTrue(probe.contains("case \"solarjump\"->commandSolarjump(mc,arg)"));
         assertTrue(
@@ -137,7 +133,7 @@ class ObserverReadyTest {
         assertTrue(
                 Sources.text("GroundFlightRenderMixin")
                         .contains(
-                                "SpaceView.chartFar(GroundClient.ready()?GroundClient.eye().y():0,GroundClient.view())"));
+                                "SpaceView.chartFar(GroundClient.ready()?GroundClient.eye().y():0,dev.starfold.render.GroundTransition.surfaceView(GroundClient.view()))"));
         assertTrue(
                 Sources.text("GroundCelestials")
                         .contains("!SpaceClient.active()&&!GroundClient.ready()"));

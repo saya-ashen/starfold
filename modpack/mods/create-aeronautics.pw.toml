@@ -1,0 +1,15 @@
+name = "Create Aeronautics"
+filename = "create-aeronautics-bundled-1.21.1-1.3.2.jar"
+side = "both"
+
+pin = true
+
+[download]
+hash-format = "sha1"
+hash = "ddbe9cbc25e8f663218aa1e9fdfc4b99f0e11e4b"
+mode = "metadata:curseforge"
+
+[update]
+[update.curseforge]
+file-id = 8763471
+project-id = 676721

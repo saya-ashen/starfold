@@ -1,4 +1,4 @@
-# The world handed to Saya: a platform on the sea 60 blocks east of the west seam of face 1 (x=4096), the starter
+# The world handed to Reported symptom: a platform on the sea 60 blocks east of the west seam of face 1 (x=4096), the starter
 # airship (tools/ship/airship.py) on it with every lever up, a bed and four signs. The design was flown in ship-levers.txt
 # and ship-speed.txt; this script only builds. Run once on the fresh world airship1.
 waitworld

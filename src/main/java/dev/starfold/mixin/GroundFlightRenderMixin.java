@@ -29,13 +29,19 @@ public abstract class GroundFlightRenderMixin {
             ci.setReturnValue(Math.max(ci.getReturnValue(), SpaceView.FAR));
             return;
         }
-        if (GroundClient.active())
+        if (GroundClient.active()) {
             ci.setReturnValue(
                     Math.max(
                             ci.getReturnValue(),
                             SpaceView.chartFar(
                                     GroundClient.ready() ? GroundClient.eye().y() : 0,
-                                    GroundClient.view())));
+                                    dev.starfold.render.GroundTransition.surfaceView(GroundClient.view()))));
+            if (GroundClient.ready())
+                ci.setReturnValue(Math.max(ci.getReturnValue(), dev.starfold.render.GroundTransition.depthFar(
+                        GroundClient.eye().y(),
+                        dev.starfold.render.GroundTransition.surfaceView(GroundClient.view()),
+                        GroundClient.shape().radius())));
+        }
     }
 
     @Inject(method = "pick(F)V", at = @At("HEAD"), cancellable = true)

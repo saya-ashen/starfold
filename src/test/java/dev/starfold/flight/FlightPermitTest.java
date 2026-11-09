@@ -6,7 +6,7 @@ import dev.starfold.Sources;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.ImageStream;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetTerrain;
 
@@ -23,7 +23,7 @@ import java.nio.file.Path;
 public class FlightPermitTest {
     @org.junit.jupiter.api.BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     public static com.google.gson.JsonObject json(String path) throws Exception {
@@ -73,7 +73,7 @@ public class FlightPermitTest {
                         "minecraft:redstone_block",
                         "minecraft:copper_ingot"),
                 made);
-        var home = new PlanetTerrain(20261001, 4, PlanetGeneration.defaults(4));
+        var home = new PlanetTerrain(20261001,dev.starfold.worldgen.PlanetTerrain.VERSION,PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION));
         var found = new java.util.HashSet<net.minecraft.world.level.block.Block>();
         for (var f : dev.starfold.geometry.CubeSurfaceTopology.Face.values())
             for (int u = 64; u < 2048; u += 96)
@@ -139,7 +139,7 @@ public class FlightPermitTest {
         var server = Sources.text("GroundFlightServer");
         assertTrue(server.contains("FlightPermit.sync(player)"));
         // On foot above the handoff is still ground; a vessel without the permit has no thrust.
-        assertTrue(server.contains("y()>GroundDynamics.HANDOFF&&s.state.flying()"));
+        assertTrue(server.contains("y()>GroundDynamics.handoff(clock.mask)&&s.state.flying()"));
         assertTrue(server.contains("if(!permit){motion=PlanetMotion.Input.idle("));
         assertTrue(Sources.text("PlanetPlayers").contains("FlightPermit.revoke(player)"));
         assertTrue(Sources.text("GroundFlightClient").contains("getAbilities().mayfly"));
@@ -277,7 +277,7 @@ public class FlightPermitTest {
                                 "NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post cpEvent)->{var server=cpEvent.getServer();if(server.getTickCount()%20==0)PlanetPlayers.arrive(server);});"));
         assertTrue(
                 server.contains(
-                        "player.getTags().contains(STAY)||!GroundServer.arrivalAttempted(player.getUUID())"),
+                        "player.getTags().contains(STAY)||!GroundFlightServer.entryReady(player,planet)||!GroundServer.arrivalAttempted(player.getUUID())"),
                 "once for each time someone appears in the overworld, unless they chose to stay");
         assertTrue(
                 server.contains("player.addTag(STAY)")
@@ -296,10 +296,15 @@ public class FlightPermitTest {
         assertTrue(death.contains("@Mixin(ServerPlayer.class)"));
         assertTrue(death.contains("@Inject(method=\"die\",at=@At(\"TAIL\"))"));
         assertTrue(death.contains("GroundHost.get().afterDeath((ServerPlayer)(Object)this)"));
-        assertTrue(
-                Sources.text("StarfoldServer")
-                        .contains(
-                                "public void afterDeath(net.minecraft.server.level.ServerPlayer player){PlanetPlayers.afterDeath(player);}"));
+        // The installed adapter's death order is checked in StarfoldHostBindingsTest.
+        var exposure = Sources.text("GasPlayerExposureServer");
+        assertTrue(exposure.contains(
+                "public static void completedDeath(ServerPlayer player){if(player.isAlive())return;"),
+                "canceled death or a living totem survivor must not interrupt personal recovery");
+        assertTrue(exposure.contains("if(owner!=caller||alive)return false;"),
+                "a delayed old-player death callback cannot clear the replacement player's state");
+        assertFalse(exposure.contains("LivingDeathEvent"),
+                "pressure recovery observes completed death, not a cancellable death proposal");
         assertTrue(
                 json("starfold.mixins.json").getAsJsonArray("mixins").asList().stream()
                         .anyMatch(e -> e.getAsString().equals("GroundDeathMixin")));
@@ -309,7 +314,7 @@ public class FlightPermitTest {
                 flight.contains(
                         "GroundNavigationSave.get(player.serverLevel()).remove(player.getUUID())"));
         // Going, steering and marking need no permission; setting up and looking into a world does.
-        var commands = Sources.text("StarfoldServer");
+        var commands = Sources.text("StarfoldCommands");
         assertFalse(commands.contains("Commands.literal(\"starfold\").requires("));
         for (var open : java.util.List.of("terrain", "leave", "status", "universe", "nav"))
             assertFalse(commands.contains("Commands.literal(\"" + open + "\").requires("), open);
@@ -348,7 +353,7 @@ public class FlightPermitTest {
         var flight = Sources.text("GroundFlightClient");
         assertTrue(
                 flight.contains(
-                        "if(FlightClientHost.get().diagnosticHud()){debugHud(g,mc);return;}"));
+                        "if(FlightClientHost.get().diagnosticHud()){if(mc.getDebugOverlay().showDebugScreen())return;debugHud(g,mc);return;}"));
         assertTrue(
                 Sources.text("StarfoldClient")
                         .contains("boolean diagnosticHud(){return GroundClient.DEBUG_HUD;}"));
@@ -386,15 +391,6 @@ public class FlightPermitTest {
                     zh.has(
                             "message.starfold.face."
                                     + face.name().toLowerCase(java.util.Locale.ROOT)));
-        for (var preset : java.util.List.of("experience", "experience_named_preview")) {
-            assertTrue(
-                    Files.exists(
-                            Path.of(
-                                    "src/main/resources/data/starfold_pack/worldgen/world_preset/"
-                                            + preset
-                                            + ".json")));
-            assertTrue(zh.has("generator.starfold_pack." + preset));
-        }
         for (var entry : en.entrySet())
             assertFalse(
                     java.util.regex.Pattern.compile("\\p{IsHan}")

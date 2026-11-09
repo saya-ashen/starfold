@@ -20,7 +20,7 @@ class ShipSaveTest {
 
     static ShipRecord.Place place() {
         return new ShipRecord.Place(
-                3,
+                new dev.starfold.chart.BodyId(7, 3),
                 new Point(20_480_021, 20, 20_480_045),
                 new Point(321, 54, -90),
                 new Quaterniond().rotationXYZ(.1, .2, .3),
@@ -33,8 +33,9 @@ class ShipSaveTest {
 
     static ShipSave fixture() {
         var save = ShipSave.fresh(false);
-        save.add(UUID.randomUUID(), DIMENSION, Optional.empty(), new ShipRecord.OnSlot(1));
+        save.add(0, UUID.randomUUID(), DIMENSION, Optional.empty(), new ShipRecord.OnSlot(1));
         save.add(
+                0,
                 UUID.randomUUID(),
                 DIMENSION,
                 Optional.of("Moon ship"),
@@ -78,26 +79,31 @@ class ShipSaveTest {
         UUID uuid = saved.list().get(1).uuid();
         assertThrows(
                 IllegalArgumentException.class,
-                () -> saved.add(uuid, DIMENSION, Optional.empty(), new ShipRecord.OnSlot(0)));
+                () -> saved.add(0, uuid, DIMENSION, Optional.empty(), new ShipRecord.OnSlot(0)));
         for (var record : saved.list()) saved.remove(record.uuid());
         var loaded = ShipSave.load(tag(saved), null);
         assertEquals(
                 new ShipId(0, 2),
-                loaded.add(UUID.randomUUID(), DIMENSION, Optional.empty(), new ShipRecord.OnSlot(0))
+                loaded.add(
+                                0,
+                                UUID.randomUUID(),
+                                DIMENSION,
+                                Optional.empty(),
+                                new ShipRecord.OnSlot(0))
                         .id());
     }
 
     @Test
     void unknownVersionsUnreadableFilesAndMalformedTypesAreRefused() {
         var valid = tag(fixture());
-        for (int version : new int[] {-1, 0, 1, 99}) {
+        for (int version : new int[] {-1, 0, 1, 2, 3, 99}) {
             var bad = valid.copy();
             bad.putInt("format", version);
             assertThrows(IllegalArgumentException.class, () -> ShipSave.load(bad, null));
         }
         assertThrows(IllegalStateException.class, () -> ShipSave.fresh(true));
         var bad = valid.copy();
-        bad.putLong("next_index", 2);
+        bad.getList("next_indices", 10).getCompound(0).putLong("next_index", 2);
         assertThrows(IllegalArgumentException.class, () -> ShipSave.load(bad, null));
         var badList = valid.copy();
         var list = new ListTag();
@@ -123,9 +129,123 @@ class ShipSaveTest {
         duplicateId.getList("records", 10).getCompound(1).putInt("index", 0);
         assertThrows(IllegalArgumentException.class, () -> ShipSave.load(duplicateId, null));
         var rewind = valid.copy();
-        rewind.putInt("next_index", 1);
+        rewind.getList("next_indices", 10).getCompound(0).putInt("next_index", 1);
         assertThrows(IllegalArgumentException.class, () -> ShipSave.load(rewind, null));
-        assertThrows(IllegalArgumentException.class, () -> new ShipId(1, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ShipId(-1, 0));
+    }
+
+    @Test
+    void regionalCountersAreIndependentAndSurviveRemovalAndReload() {
+        var saved = ShipSave.fresh(false);
+        for (int region : new int[] {0, 7, 19}) {
+            for (int index = 0; index < 2; index++) {
+                var record =
+                        saved.add(
+                                region,
+                                UUID.randomUUID(),
+                                DIMENSION,
+                                Optional.empty(),
+                                new ShipRecord.OnSlot(0));
+                assertEquals(new ShipId(region, index), record.id());
+                saved.remove(record.uuid());
+            }
+        }
+        var loaded = ShipSave.load(tag(saved), null);
+        for (int region : new int[] {19, 0, 7, 42}) {
+            assertEquals(
+                    new ShipId(region, region == 42 ? 0 : 2),
+                    loaded.add(
+                                    region,
+                                    UUID.randomUUID(),
+                                    DIMENSION,
+                                    Optional.empty(),
+                                    new ShipRecord.OnSlot(0))
+                            .id());
+        }
+        assertEquals(loaded.list(), ShipSave.load(tag(loaded), null).list());
+    }
+
+    @Test
+    void nonzeroRegionIdRoundTripsThroughCodec() {
+        var record =
+                ShipSave.fresh(false)
+                        .add(
+                                7,
+                                UUID.randomUUID(),
+                                DIMENSION,
+                                Optional.empty(),
+                                new ShipRecord.InSpace(place()));
+        assertEquals(new ShipId(7, 0), record.id());
+        assertEquals(record, ShipCodec.read(ShipCodec.write(record)));
+        assertThrows(IllegalArgumentException.class, () -> new ShipId(7, -1));
+    }
+
+    @Test
+    void movingToAnotherRegionKeepsLifetimeIdAcrossReload() {
+        var saved = ShipSave.fresh(false);
+        var record =
+                saved.add(
+                        19,
+                        UUID.randomUUID(),
+                        DIMENSION,
+                        Optional.empty(),
+                        new ShipRecord.OnSlot(0));
+        saved.refresh(record.uuid(), Optional.empty(), new ShipRecord.InSpace(place()));
+        var loaded = ShipSave.load(tag(saved), null);
+        assertEquals(new ShipId(19, 0), loaded.find(record.uuid()).id());
+        assertEquals(
+                7,
+                ((ShipRecord.InSpace) loaded.find(record.uuid()).state()).place().body().region());
+        assertEquals(
+                new ShipId(7, 0),
+                loaded.add(
+                                7,
+                                UUID.randomUUID(),
+                                DIMENSION,
+                                Optional.empty(),
+                                new ShipRecord.InSpace(place()))
+                        .id());
+    }
+
+    @Test
+    void missingDuplicateNegativeAndExhaustedRegionalCountersAreRefused() {
+        var valid = tag(fixture());
+        var missing = valid.copy();
+        missing.put("next_indices", new ListTag());
+        assertThrows(IllegalArgumentException.class, () -> ShipSave.load(missing, null));
+        var duplicate = valid.copy();
+        var counters = duplicate.getList("next_indices", 10);
+        counters.add(counters.getCompound(0).copy());
+        assertThrows(IllegalArgumentException.class, () -> ShipSave.load(duplicate, null));
+        for (String field : new String[] {"region", "next_index"}) {
+            var negative = valid.copy();
+            negative.getList("next_indices", 10).getCompound(0).putInt(field, -1);
+            assertThrows(IllegalArgumentException.class, () -> ShipSave.load(negative, null));
+        }
+        var exhausted = valid.copy();
+        exhausted
+                .getList("next_indices", 10)
+                .getCompound(0)
+                .putInt("next_index", Integer.MAX_VALUE);
+        var saved = ShipSave.load(exhausted, null);
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        saved.add(
+                                0,
+                                UUID.randomUUID(),
+                                DIMENSION,
+                                Optional.empty(),
+                                new ShipRecord.OnSlot(0)));
+        assertEquals(
+                new ShipId(7, 0),
+                saved.add(
+                                7,
+                                UUID.randomUUID(),
+                                DIMENSION,
+                                Optional.empty(),
+                                new ShipRecord.InSpace(place()))
+                        .id());
     }
 
     @Test
@@ -138,6 +258,10 @@ class ShipSaveTest {
         assertEquals(
                 Set.of("body", "anchor_plot", "position", "attitude", "tick"), place.getAllKeys());
         assertEquals(321, place.getCompound("position").getDouble("x"));
+        assertEquals(
+                new dev.starfold.chart.BodyId(7, 3),
+                dev.starfold.chart.BodyId.read(place.getCompound("body")));
+        assertEquals(place(), ShipCodec.readPlace(place));
         assertFalse(entry.toString().contains("level_pose"));
         assertFalse(entry.toString().contains("saved_frame"));
     }

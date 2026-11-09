@@ -1,0 +1,13 @@
+{
+  "block.starfold_materials.aluminum_hull_plating": "铝合金外壳板",
+  "block.starfold_materials.aluminum_hull_plating_slab": "铝合金外壳板半砖",
+  "block.starfold_materials.osmium_pressure_hull": "锇合金耐压壳",
+  "block.starfold_materials.osmium_pressure_hull_slab": "锇合金耐压壳半砖",
+  "block.starfold_materials.bauxite_ore": "铝土矿石",
+  "block.starfold_materials.deepslate_bauxite_ore": "深层铝土矿石",
+  "block.starfold_materials.raw_aluminum_block": "粗铝块",
+  "block.starfold_materials.aluminum_block": "铝块",
+  "item.starfold_materials.raw_aluminum": "粗铝",
+  "item.starfold_materials.aluminum_ingot": "铝锭",
+  "item.starfold_materials.aluminum_nugget": "铝粒"
+}

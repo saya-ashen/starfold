@@ -33,7 +33,7 @@ import org.joml.Vector3d;
  *  damps horizontal drift. Lift nozzles, not the gyro, carry the ship's weight.
  *  A booster hastens every thruster on the body. Thrusters accept controller commands or redstone; gyros need
  *  redstone. None pushes anything off a Sable body.
- *  Crafted from vanilla materials; no fuel. */
+ *  Crafted from vanilla materials; fuel is opt-in through datapacks. */
 public final class Thrusters {
     /** Full nozzle force; ten lifts support the material-mass Hauler at approximately 55% throttle. */
     public static final double THRUST = 3350, BOOST = 4;
@@ -97,6 +97,21 @@ public final class Thrusters {
                 : GroundEphemeris.ZERO;
     }
 
+    /** Fuel mass must reach Sable before its merged mass upload and actor forces. */
+    public static void updateFuelMass(ServerSubLevel body) {
+        ThrusterFuel.updateMass(body);
+    }
+
+    /** Successful hull edits invalidate the cached tank and optional drive census. */
+    public static void changed(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
+        ThrusterFuel.changed(level, pos);
+    }
+
+    /** The same fixed home boundary used by fuel eligibility, not the expanded universe. */
+    public static boolean outsideHome(ServerSubLevel body) {
+        return ThrusterFuel.outside(body);
+    }
+
     public static boolean forward(
             ServerSubLevel body, long tick, dev.starfold.geometry.BentStripGeometry.Point nose) {
         var push = PUSHING.get(body);
@@ -115,7 +130,8 @@ public final class Thrusters {
     private static BlockEntityType<Helm> helmType;
     private static Block scope, scopeNav, scopePrecise;
     private static BlockEntityType<Scope> scopeType;
-    private static Block thruster, gyro, booster;
+    private static Block thruster, gyro, booster, scoop, drive;
+    static BlockEntityType<GasScoop> scoopType;
     private static BlockEntityType<Thruster> thrusterType;
     private static BlockEntityType<Gyro> gyroType;
     private static BlockEntityType<Booster> boosterType;
@@ -150,6 +166,8 @@ public final class Thrusters {
         ITEMS.register("thruster", () -> new BlockItem(thruster, new Item.Properties()));
         ITEMS.register("gyro", () -> new BlockItem(gyro, new Item.Properties()));
         ITEMS.register("booster", () -> new BlockItem(booster, new Item.Properties()));
+        BLOCKS.register("interstellar_drive", () -> drive = new Block(properties));
+        ITEMS.register("interstellar_drive", () -> new BlockItem(drive, new Item.Properties()));
         ENTITIES.register(
                 "thruster",
                 () ->
@@ -177,6 +195,13 @@ public final class Thrusters {
         ITEMS.register("helm", () -> new BlockItem(helm, new Item.Properties()));
         ENTITIES.register(
                 "helm", () -> helmType = BlockEntityType.Builder.of(Helm::new, helm).build(null));
+        BLOCKS.register("gas_scoop", () -> scoop = new ScoopBlock(properties));
+        ITEMS.register("gas_scoop", () -> new BlockItem(scoop, new Item.Properties()));
+        ENTITIES.register("gas_scoop",
+                () -> scoopType = BlockEntityType.Builder.of(GasScoop::new, scoop).build(null));
+        GasScoop.initialize();
+        ThrusterFuel.initialize();
+        HullPressure.initialize();
         HelmServer.initialize();
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
@@ -187,10 +212,12 @@ public final class Thrusters {
                         event.accept(thruster);
                         event.accept(gyro);
                         event.accept(booster);
+                        event.accept(drive);
                         event.accept(scope);
                         event.accept(scopeNav);
                         event.accept(scopePrecise);
                         event.accept(helm);
+                        event.accept(scoop);
                     }
                 });
     }
@@ -244,7 +271,27 @@ public final class Thrusters {
         }
     }
 
-    public static final class ScopeBlock extends Block implements EntityBlock {
+    static final class ScoopBlock extends ScopeBlock {
+        ScoopBlock(Properties properties) {
+            super(properties, 0);
+        }
+
+        @Override
+        public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+            return new GasScoop(pos, state);
+        }
+
+        @Override
+        public <T extends BlockEntity>
+                net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
+                        Level level, BlockState state, BlockEntityType<T> type) {
+            return !level.isClientSide && type == scoopType
+                    ? (world, pos, block, entity) -> GasScoop.tick(world, pos, block, (GasScoop) entity)
+                    : null;
+        }
+    }
+
+    public static class ScopeBlock extends Block implements EntityBlock {
         final int tier;
 
         ScopeBlock(Properties properties, int tier) {
@@ -383,6 +430,8 @@ public final class Thrusters {
                             power,
                             step,
                             getLevel() != null && boosted(body, getLevel().getGameTime()));
+            impulse = ThrusterFuel.draw(body, impulse);
+            if (impulse == 0) return;
             var at = getBlockPos();
             if (getLevel() != null) {
                 long tick = getLevel().getGameTime();

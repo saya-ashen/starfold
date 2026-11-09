@@ -3,9 +3,8 @@ package dev.starfold.space;
 import com.mojang.blaze3d.platform.InputConstants;
 
 import dev.starfold.flight.OrbitFlightControls;
-import dev.starfold.probe.ProbeState;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.ship.HelmClient;
-import dev.starfold.ship.SpacePackets;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -56,7 +55,7 @@ public final class SpaceAttitudeClient {
 
     static Pointer drawnPointer(float partial) {
         var drawn = draw(pointer, plannedStep, partial);
-        if (Boolean.getBoolean("starfold.carryProbe") && ProbeState.active())
+        if (Boolean.getBoolean("starfold.carryProbe") && DevelopmentHooks.driving.getAsBoolean())
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
                             "PROBE AIM FRAME wall {} partial {} raw {} {} drawn {} {}",
@@ -106,7 +105,7 @@ public final class SpaceAttitudeClient {
         if (!SpaceClient.active()
                 || HelmClient.body() == null
                 || mc.screen != null
-                || !(mc.isWindowActive() || ProbeState.active())
+                || !(mc.isWindowActive() || DevelopmentHooks.driving.getAsBoolean())
                 || mc.options.getCameraType() == net.minecraft.client.CameraType.THIRD_PERSON_FRONT
                 || OrbitFlightControls.freeLook()) return false;
         return !SpaceClient.arriving();
@@ -167,7 +166,7 @@ public final class SpaceAttitudeClient {
             recenter();
             return;
         }
-        boolean active = mc.screen == null && (mc.isWindowActive() || ProbeState.active());
+        boolean active = mc.screen == null && (mc.isWindowActive() || DevelopmentHooks.driving.getAsBoolean());
         float pitch = active ? (up.isDown() ? 1 : 0) - (down.isDown() ? 1 : 0) : 0,
                 roll = active ? (right.isDown() ? 1 : 0) - (left.isDown() ? 1 : 0) : 0;
         prepare();
@@ -177,7 +176,7 @@ public final class SpaceAttitudeClient {
         if (pitch != 0 || roll != 0 || sent || mouseYaw != 0 || mousePitch != 0) {
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
                     new SpacePackets.Attitude(pitch, roll, (float) mouseYaw, (float) mousePitch));
-            if (ProbeState.active() && (mouseYaw != 0 || mousePitch != 0))
+            if (DevelopmentHooks.driving.getAsBoolean() && (mouseYaw != 0 || mousePitch != 0))
                 org.slf4j.LoggerFactory.getLogger("starfold-probe")
                         .info(
                                 "PROBE MOUSE SEND game {} angles {} {}",

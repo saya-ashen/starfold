@@ -1,0 +1,12 @@
+waitworld
+wait 100
+createworld
+wait 200
+createworld
+wait 20
+shot createworld-default
+press 256 1
+wait 2
+press 256 0
+wait 20
+quit

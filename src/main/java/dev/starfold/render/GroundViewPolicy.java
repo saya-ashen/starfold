@@ -6,11 +6,7 @@ import java.util.*;
 
 /** Work/LOD policy only. Never changes canonical world state, picking or collision. */
 public final class GroundViewPolicy {
-    public static final int PATCH_BLOCKS = 256,
-            PATCH_CHUNKS = 16,
-            PATCHES_PER_FACE = 64,
-            PATCH_COUNT = 384,
-            COARSE_STEP = GroundSurfaceMesh.GRID;
+    public static final int PATCH_COUNT = 384;
     public static final long FRAME_BUDGET_NS = 2_000_000,
             NEAR_BUDGET_NS = 6_000_000,
             DETAIL_BYTES = 96L * 1024 * 1024,
@@ -43,6 +39,14 @@ public final class GroundViewPolicy {
     /** Does this patch lie on a planet of this shape? A smaller planet fills only the first patches of each face. */
     public static boolean exists(PlanetShape shape, int patch) {
         return x(patch) < shape.size() && z(patch) < shape.size();
+    }
+
+    static List<Integer> nearestPatches(
+            PlanetShape shape, dev.starfold.geometry.BentStripGeometry.Point camera) {
+        var order = new ArrayList<Integer>();
+        for (int p = 0; p < PATCH_COUNT; p++) if (exists(shape, p)) order.add(p);
+        order.sort(Comparator.comparingDouble(p -> GroundFarMesh.distance(shape, camera, p, 0)));
+        return order;
     }
 
     public static Set<Long> details(PlanetShape.Pose pose, boolean controlled) {
@@ -100,20 +104,71 @@ public final class GroundViewPolicy {
         return GroundStreaming.request(details(shape, pose, controlled), cursor, detailed);
     }
 
-    public static boolean coverageChanged(BitSet before, BitSet after, int patch) {
-        var delta = (BitSet) before.clone();
-        delta.xor(after);
-        for (int k = delta.nextSetBit(0); k >= 0; k = delta.nextSetBit(k + 1))
-            if (patch(k) == patch) return true;
-        return false;
-    }
-
     public static boolean captureNeeded(
             boolean resident, long currentVersion, long priorVersion, long now, long sampledAt) {
         return !resident
                 || currentVersion != priorVersion
                 || now < sampledAt
                 || now - sampledAt >= LIGHT_REFRESH_TICKS;
+    }
+
+    /** Two bounded dirty queues keep arriving edits out of an immutable cover build. */
+    public static final class CohortPatches {
+        private final java.util.function.Supplier<PlanetShape> shape;
+        private DirtyPatches active;
+        private DirtyPatches deferred;
+        private boolean latched;
+
+        public CohortPatches(java.util.function.Supplier<PlanetShape> shape) {
+            this.shape = shape;
+            active = new DirtyPatches(shape);
+            deferred = empty();
+        }
+
+        private DirtyPatches empty() {
+            var result = new DirtyPatches(shape);
+            result.clear();
+            return result;
+        }
+
+        public void all() {
+            active.all();
+            deferred.clear();
+            latched = false;
+        }
+
+        public void latch() {
+            if (active.count() == 0) throw new IllegalStateException("Empty cover cohort");
+            latched = true;
+        }
+
+        public void promote() {
+            if (!latched) throw new IllegalStateException("No cover cohort");
+            active = deferred;
+            deferred = empty();
+            latched = false;
+        }
+
+        public void tile(long key) {
+            (latched ? deferred : active).tile(key);
+        }
+
+        /** Far-mesh readiness only; no tile capture or native/detail invalidation. */
+        public void patch(int patch) {
+            (latched ? deferred : active).patch(patch);
+        }
+
+        public void coverage(BitSet before, BitSet after) {
+            (latched ? deferred : active).coverage(before, after);
+        }
+
+        public int poll() {
+            return active.poll();
+        }
+
+        public int count() {
+            return active.count();
+        }
     }
 
     public static final class DirtyPatches {
@@ -139,18 +194,20 @@ public final class GroundViewPolicy {
             urgent.clear();
         }
 
-        public void tile(long key) {
-            if (key >= 0 && key < 98304) {
-                int p = patch(key);
-                if (!exists(shape.get(), p)) return;
-                dirty.set(p);
-                urgent.add(p);
-            }
+        public void clear() {
+            dirty.clear();
+            urgent.clear();
+            cursor = 0;
         }
 
-        /** Coalesces a stale resident tile without promoting it ahead of new edits each frame. */
-        public void ensureTile(long key) {
-            if (key >= 0 && key < 98304 && exists(shape.get(), patch(key))) dirty.set(patch(key));
+        public void tile(long key) {
+            if (key >= 0 && key < 98304) patch(GroundViewPolicy.patch(key));
+        }
+
+        public void patch(int patch) {
+            if (!exists(shape.get(), patch)) return;
+            dirty.set(patch);
+            urgent.add(patch);
         }
 
         public int poll() {

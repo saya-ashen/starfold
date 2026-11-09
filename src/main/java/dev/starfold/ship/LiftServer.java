@@ -112,6 +112,7 @@ final class LiftServer {
         for (var jet : jets) {
             var nozzle = jet.getBlockState().getValue(BlockStateProperties.FACING);
             double throttle = nozzle == Direction.DOWN ? state.output.lift() : state.output.down();
+            double applied = ThrusterFuel.draw(body, force * throttle * step);
             var world =
                     body.logicalPose()
                             .orientation()
@@ -119,10 +120,10 @@ final class LiftServer {
                                     new Vector3d(
                                             0,
                                             nozzle == Direction.DOWN
-                                                    ? force * throttle
-                                                    : -force * throttle,
+                                                    ? applied / step
+                                                    : -applied / step,
                                             0));
-            var pair = SableFrames.weighPair(world.negate(new Vector3d()), 1, 1, step, drag);
+            var pair = HullPhysics.weighPair(world.negate(new Vector3d()), 1, 1, step, drag);
             var pos = jet.getBlockPos();
             handle.applyImpulseAtPoint(
                     new Vector3d(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5),
@@ -173,7 +174,7 @@ final class LiftServer {
                         -dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
                                 .getGravity(body.getLevel())
                                 .y)
-                * HullWeight.at(body.getLevel(), new BentStripGeometry.Point(at.x, at.y, at.z))
+                * HullWeight.gravity(body.getLevel(), new BentStripGeometry.Point(at.x, at.y, at.z))
                 * LiftControl.HULL_GRAVITY;
     }
 

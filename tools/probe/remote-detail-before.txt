@@ -1,0 +1,33 @@
+# Authored Hearth system without the starter ship; no Create/Simulated required.
+wait 300
+createworld
+wait 100
+createworld starfold_worlds:experience_named_preview
+createworld go
+waitworld
+wait 200
+cmd gamemode creative
+cmd packprobe visit 0 4
+wait 700
+look free
+cmd gamerule doDaylightCycle false
+cmd starfold universe
+wait 100
+skylook 1
+wait 1
+nav before-normal
+shot remote-detail-before-normal
+frames before-normal 600
+wait 400
+cmd item replace entity @s weapon.mainhand with minecraft:spyglass
+wait 20
+scope on
+wait 400
+skylook 1
+wait 1
+nav before-zoom
+shot remote-detail-before-zoom
+frames before-zoom 600
+wait 400
+scope off
+quit

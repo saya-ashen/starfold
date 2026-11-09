@@ -46,87 +46,92 @@ import org.joml.Vector3f;
 
 /** Native movement/inventory remain untouched. This adapter only supplies render coordinates. */
 public final class GroundClient {
+    static final GroundRenderFrame renderFrame = new GroundRenderFrame();
     private static ClientLevel level;
-    private static GroundEphemeris.Model model;
-    private static long tick, received;
-    private static GroundAir.Config air = GroundAir.DEFAULT;
-    private static boolean repair = true, heldF8;
+    private static final GroundObserverState observer = new GroundObserverState();
 
     public static void air(GroundAir.Config config) {
-        air = config;
+        observer.air = config;
     }
 
     public static PlanetGap gap() {
-        return new PlanetGap(shape(), Face.values()[face()], eye(), view(), repair, air, true);
+        if (renderFrame.active) return renderFrame.frameGap;
+        return new PlanetGap(shape(), Face.VALUES[face()], eye(), view(), observer.repair, observer.air, true);
     }
 
     /** The curved view of the observed planet from where the observer is. */
     public static PlanetOrbit orbit() {
+        if (renderFrame.active) return renderFrame.frameOrbit;
         return new PlanetOrbit(shape(), pose(), eye(), view());
     }
 
-    private static int source = -1;
-    private static boolean derived, coarse, cover, stitch;
+    static void patchFade(float fade) {
+        renderFrame.patchFade = fade;
+    }
+
+    static void lod(long key, float fade) {
+        renderFrame.lodKey = key;
+        renderFrame.lodFade = fade;
+    }
 
     public static void source(int face, boolean mesh) {
         source(face, mesh, false);
     }
 
     public static void source(int face, boolean mesh, boolean sky) {
-        source = face;
-        derived = mesh;
-        coarse = sky;
-        cover = false;
-        stitch = false;
+        renderFrame.source = face;
+        renderFrame.derived = mesh;
+        renderFrame.coarse = sky;
+        renderFrame.patchFade = 1;
+        renderFrame.cover = false;
+        renderFrame.stitch = false;
+        renderFrame.lodKey = -1;
+        renderFrame.lodFade = 1;
     }
 
     public static void cover(boolean value) {
-        cover = value;
+        renderFrame.cover = value;
     }
 
     public static void stitch(boolean value) {
-        stitch = value;
+        renderFrame.stitch = value;
     }
 
     public static void sourceEnd() {
-        source = -1;
-        derived = false;
-        coarse = false;
-        cover = false;
-        stitch = false;
+        renderFrame.source = -1;
+        renderFrame.patchFade = 1;
+        renderFrame.derived = false;
+        renderFrame.coarse = false;
+        renderFrame.cover = false;
+        renderFrame.stitch = false;
+        renderFrame.lodKey = -1;
+        renderFrame.lodFade = 1;
     }
-
-    private static int savedCoverage, savedCoverageSampler;
-    private static boolean savedSamplerObjects;
-    private static Point viewOffset = new Point(0, 0, 0);
-    private static float partial;
-    private static boolean frame, replaceNative, exteriorChosen;
-    private static final Vector3f X = new Vector3f(), Y = new Vector3f(), Z = new Vector3f();
 
     public static boolean projectedFrame() {
-        return frame;
-    }
-
-    public static boolean replacesNative() {
-        return frame && replaceNative;
+        return renderFrame.active;
     }
 
     public static boolean active() {
         return PlanetLevels.is(Minecraft.getInstance().level);
     }
 
-    private static ObserverFrame chartFrame;
-
-    /** The lines a developer reads off the screen: shown only when asked for with -Dstarfold.debug=true. */
+    /**
+     * The lines a developer reads off the screen: shown only when asked for with
+     * -Dstarfold.debug=true.
+     */
     public static final boolean DEBUG_HUD = Boolean.getBoolean("starfold.debug");
 
-    /** The server's labelling of this client's continuous coordinates; storage==client until told otherwise. */
+    /**
+     * The server's labelling of this client's continuous coordinates; storage==client until told
+     * otherwise.
+     */
     public static void frame(ObserverFrame value) {
-        chartFrame = value;
+        observer.chartFrame = value;
     }
 
     public static ObserverFrame frame() {
-        if (chartFrame != null) return chartFrame;
+        if (observer.chartFrame != null) return observer.chartFrame;
         var p = Minecraft.getInstance().player;
         try {
             return p == null
@@ -138,7 +143,10 @@ public final class GroundClient {
         }
     }
 
-    /** Client position -> the root face's storage chart (the coordinates all planet math is written in). */
+    /**
+     * Client position -> the root face's storage chart (the coordinates all planet math is written
+     * in).
+     */
     public static Point storage(double x, double y, double z) {
         return frame().toStorage(new Point(x, y, z));
     }
@@ -152,12 +160,18 @@ public final class GroundClient {
         return storage(p.getX(), p.getY(), p.getZ());
     }
 
-    /** A canonical pose's feet in client coordinates, or null when that place is not drawn in this chart. */
+    /**
+     * A canonical pose's feet in client coordinates, or null when that place is not drawn in this
+     * chart.
+     */
     public static Point plane(int planet, PlanetShape.Pose pose) {
         return planePoint(planet, pose.face(), pose.point().sub(new Point(0, .9, 0)));
     }
 
-    /** A point of a face's chart (y relative to the chart floor) in client coordinates, or null if not drawn. */
+    /**
+     * A point of a face's chart (y relative to the chart floor) in client coordinates, or null if
+     * not drawn.
+     */
     public static Point planePoint(int planet, Face face, Point chart) {
         var f = frame();
         if (planet != f.planet()) return null;
@@ -172,11 +186,14 @@ public final class GroundClient {
     public static int planeTurns(Face face) {
         var f = frame();
         if (face.ordinal() == f.root()) return f.turns();
-        var tile = new PlanetChart(shape(), Face.values()[f.root()]).tile(face);
+        var tile = new PlanetChart(shape(), Face.VALUES[f.root()]).tile(face);
         return tile == null ? f.turns() : f.turns() + tile.turn();
     }
 
-    /** Model matrix of a mesh authored in a face's chart: storage origin relabelled into client coordinates. */
+    /**
+     * Model matrix of a mesh authored in a face's chart: storage origin relabelled into client
+     * coordinates.
+     */
     public static Matrix4f place(Matrix4f base, int face, net.minecraft.world.phys.Vec3 camera) {
         var f = frame();
         var o = f.toClient(origin(face));
@@ -191,9 +208,12 @@ public final class GroundClient {
         return (float) (-frame().turns() * Math.PI / 2);
     }
 
-    /** Solid corner closure in client coordinates. It is not made of real blocks, so the client world cannot contain it.
-     *  Decided on the plane itself: the three faces' squares and the wedge the unfolding leaves between them are one
-     *  closed column, whichever face the observer's frame is rooted in. */
+    /**
+     * Solid corner closure in client coordinates. It is not made of real blocks, so the client
+     * world cannot contain it. Decided on the plane itself: the three faces' squares and the wedge
+     * the unfolding leaves between them are one closed column, whichever face the observer's frame
+     * is rooted in.
+     */
     static boolean masked(net.minecraft.world.level.Level world, net.minecraft.core.BlockPos pos) {
         var mc = Minecraft.getInstance();
         if (world != mc.level
@@ -212,37 +232,31 @@ public final class GroundClient {
                         PlanetShape.of(f.planet()), storage.getZ() - (int) o.z(), config.core());
     }
 
-    /** A frame packet alone is not an observer: teleport position, flight owner and interpolated eye must agree. */
+    /**
+     * A frame packet alone is not an observer: teleport position, flight owner and interpolated eye
+     * must agree.
+     */
     public static boolean ready() {
+        if (renderFrame.active) return true;
         var mc = Minecraft.getInstance();
         if (!active()
                 || level != mc.level
-                || model == null
+                || observer.model == null
                 || mc.player == null
-                || chartFrame == null) return false;
-        var f = chartFrame;
-        if (planet() != f.planet() || f.planet() >= model.count()) return false;
-        var b = body();
-        if (!inFrame(b, f) || !inFrame(storage(mc.player.getEyePosition(partial)), f)) return false;
+                || observer.chartFrame == null) return false;
+        if (planet() != observer.chartFrame.planet()
+                || observer.chartFrame.planet() >= observer.model.count()) return false;
+        if (!observer.accepts(storage(mc.player.getPosition(renderFrame.partial)),
+                storage(mc.player.getEyePosition(renderFrame.partial)), GroundFlightClient.controlled())) return false;
         return PlanetAir.canSample(shape(), eye());
     }
 
-    private static boolean inFrame(Point p, ObserverFrame f) {
-        var access = access();
-        return p.finite()
-                && access.inChart(net.minecraft.core.BlockPos.containing(p.x(), p.y(), p.z()))
-                && access.storagePlanet(p.x(), p.z()) == f.planet()
-                && access.face(p.x()) == f.root()
-                && shape().topology()
-                        .inHalo(p.x() - origin(f.root()).x(), p.z() - origin(f.root()).z());
-    }
-
     public static GroundEphemeris.Model model() {
-        return model;
+        return observer.model;
     }
 
     public static GroundEphemeris.Model ephemeris() {
-        return level == Minecraft.getInstance().level ? model : null;
+        return level == Minecraft.getInstance().level ? observer.model : null;
     }
 
     public static boolean solar() {
@@ -287,7 +301,7 @@ public final class GroundClient {
     }
 
     public static GroundEphemeris.Frame planetFrame(int id) {
-        return model.at(id, time());
+        return observer.model.at(id, time());
     }
 
     public static double sunElevation() {
@@ -315,21 +329,21 @@ public final class GroundClient {
 
     public static void metadata(GroundEphemeris.Model value, long epoch) {
         level = Minecraft.getInstance().level;
-        model = value;
-        tick = epoch;
-        received = level.getGameTime();
+        observer.model = value;
+        observer.tick = epoch;
+        observer.received = level.getGameTime();
     }
 
     public static double skyTime(float delta) {
-        return level == Minecraft.getInstance().level && model != null
-                ? tick + Math.max(0, level.getGameTime() - received) + delta
+        return level == Minecraft.getInstance().level && observer.model != null
+                ? observer.tick + Math.max(0, level.getGameTime() - observer.received) + delta
                 : 0;
     }
 
     public static double time() {
         return GroundFlightClient.controlled()
                 ? GroundFlightClient.time()
-                : tick + Math.max(0, level.getGameTime() - received) + partial;
+                : observer.tick + Math.max(0, level.getGameTime() - observer.received) + renderFrame.partial;
     }
 
     public static int face() {
@@ -343,73 +357,81 @@ public final class GroundClient {
     }
 
     public static Point eye() {
+        if (renderFrame.active) return renderFrame.frameEye;
         if (GroundFlightClient.controlled()) return GroundFlightClient.eye();
-        var v = Minecraft.getInstance().player.getEyePosition(partial);
+        var v = Minecraft.getInstance().player.getEyePosition(renderFrame.partial);
         return access().chart(storage(v));
     }
 
     public static GroundSpace.Pose pose() {
+        if (renderFrame.active) return renderFrame.framePose;
         if (GroundFlightClient.controlled()) return GroundFlightClient.pose().renderPose();
-        var p = Minecraft.getInstance().player.getPosition(partial);
+        var p = Minecraft.getInstance().player.getPosition(renderFrame.partial);
         return access().body(storage(p)).renderPose();
     }
 
     public static GroundEphemeris.Frame home() {
-        return model.at(planet(), time());
+        if (renderFrame.active) return renderFrame.frameHome;
+        return observer.model.at(planet(), time());
     }
 
     public static Point universeEye() {
+        if (renderFrame.active) return renderFrame.frameUniverseEye;
         var p = eye();
-        var n = shape().direction(Face.values()[face()], p.x(), p.z());
+        var n = shape().direction(Face.VALUES[face()], p.x(), p.z());
         return home().world(n.scale(shape().radius() + p.y()));
     }
 
-    /** The suns drawn: the nearest SUNS of them. Beyond that a sun is a point among the stars, and a universe has one
-     *  for most of the cells a traveller has passed. Chosen again every second. */
+    /**
+     * The suns drawn: the nearest SUNS of them. Beyond that a sun is a point among the stars, and a
+     * universe has one for most of the cells a traveller has passed. Chosen again every second.
+     */
     public static final int SUNS = 24;
-
-    private static java.util.List<GroundEphemeris.Star> suns = java.util.List.of();
-    private static long sunsChosen = Long.MIN_VALUE;
-    private static GroundEphemeris.Model sunsOf;
 
     public static java.util.List<GroundEphemeris.Star> suns() {
         long now = level == null ? 0 : level.getGameTime();
-        if (sunsOf == model && now - sunsChosen < 20) return suns;
-        var all = new java.util.ArrayList<>(model.everyStar());
+        if (observer.sunsOf == observer.model && now - observer.sunsChosen < 20) return observer.suns;
+        var all = new java.util.ArrayList<>(observer.model.visibleStars());
         if (all.size() > SUNS) {
             var eye = universeEye();
             all.sort(java.util.Comparator.comparingDouble(s -> s.position().sub(eye).length()));
             all.subList(SUNS, all.size()).clear();
         }
-        suns = java.util.List.copyOf(all);
-        sunsOf = model;
-        sunsChosen = now;
-        return suns;
+        observer.suns = java.util.List.copyOf(all);
+        observer.sunsOf = observer.model;
+        observer.sunsChosen = now;
+        return observer.suns;
     }
 
     /** The sun that lights the observer: the nearest. */
     public static GroundEphemeris.Star star() {
-        return model.star(universeEye());
+        if (renderFrame.active) return renderFrame.frameStar;
+        return observer.model.star(universeEye());
     }
 
-    /** How much of the sun reaches the observer past the planet they are reckoned from: a vessel above the night side is still in sunlight. */
+    /**
+     * How much of the sun reaches the observer past the planet they are reckoned from: a vessel
+     * above the night side is still in sunlight.
+     */
     public static double sunlight() {
         return GroundDaylight.sunlight(
                         universeEye(),
-                        model.at(planet(), time()).center(),
+                        observer.model.at(planet(), time()).center(),
                         star().position(),
                         shape().radius())
-                * GroundDaylight.parentShade(model, planet(), universeEye(), time());
+                * GroundDaylight.parentShade(observer.model, planet(), universeEye(), time())
+                * dev.starfold.chart.GasOcclusion.sunlight(observer.model, universeEye(), time());
     }
 
     public static double daylight() {
         return GroundSolar.daylight(elevation())
-                * GroundDaylight.parentShade(model, planet(), universeEye(), time());
+                * GroundDaylight.parentShade(observer.model, planet(), universeEye(), time())
+                * dev.starfold.chart.GasOcclusion.sunlight(observer.model, universeEye(), time());
     }
 
     public static double elevation() {
         var eye = universeEye();
-        var up = PlanetSpace.unit(eye.sub(model.at(planet(), time()).center()));
+        var up = PlanetSpace.unit(eye.sub(observer.model.at(planet(), time()).center()));
         var d = star().position().sub(eye);
         return up.dot(d.length() < 1e-9 ? GroundEphemeris.Y : d.scale(1 / d.length()));
     }
@@ -418,8 +440,11 @@ public final class GroundClient {
         return GroundOrbit.weight(eye().y());
     }
 
-    /** Distances over which real blocks dissolve into the far terrain: {horizontal start, end, vertical start, end}.
-     *  Horizontally they end inside the loaded square; vertically before vanilla's terrain fog would paint them in sky colour. */
+    /**
+     * Distances over which real blocks dissolve into the far terrain: {horizontal start, end,
+     * vertical start, end}. Horizontally they end inside the loaded square; vertically before
+     * vanilla's terrain fog would paint them in sky colour.
+     */
     public static float[] fade(int far) {
         float edge = far - 20, fog = far - Math.clamp(far / 10f, 4f, 64f);
         return new float[] {Math.max(edge / 2, edge - 40), edge, Math.max(fog / 2, fog - 24), fog};
@@ -451,18 +476,15 @@ public final class GroundClient {
         }
         SpaceNavigationClient.initialize(modBus);
         WaypointClient.initialize(modBus);
+        dev.starfold.ship.ShipMapClient.initialize();
         GroundSeams.clientMask(GroundClient::masked);
         GroundSeams.clientPlane(GroundClient::plane);
     }
 
     private static void registerChartFrame() {
         StarfoldNetwork.clientReceiver(
-                GroundFlightPackets.Frame.TYPE, (packet, context) -> chartFrame = packet.frame());
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) -> {
-                    chartFrame = null;
-                    PlanetSystem.identities(java.util.List.of());
-                });
+                GroundFlightPackets.Frame.TYPE, (packet, context) -> observer.chartFrame = packet.frame());
+
     }
 
     private static void registerDebugText() {
@@ -472,6 +494,7 @@ public final class GroundClient {
                 (net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent.DebugText event) -> {
                     if (ready() && GroundFlightClient.ready()) {
                         event.getLeft().add("");
+                        event.getLeft().add("[Starfold] " + GroundRenderer.performance());
                         event.getLeft().add("[Starfold] " + GroundFlightClient.probeReading());
                         event.getLeft()
                                 .add(
@@ -481,6 +504,8 @@ public final class GroundClient {
                                                         java.util.Locale.ROOT,
                                                         " sunlight %.2f",
                                                         sunlight()));
+                        if(GroundViewClient.terrain()!=null)event.getLeft().add("[Starfold] " + dev.starfold.PlanetPlayers.climate(
+                                dev.starfold.api.PlanetSeasons.reading(observer.model, planet(), universeEye(), time(), GroundViewClient.terrain().terrainPlan())).getString());
                     }
                 });
     }
@@ -501,12 +526,12 @@ public final class GroundClient {
                     // model has come there is nothing to time.
                     if (packet.model() != null) {
                         level = net.minecraft.client.Minecraft.getInstance().level;
-                        model = packet.model();
+                        observer.model = packet.model();
                     }
-                    if (model == null
+                    if (observer.model == null
                             || level != net.minecraft.client.Minecraft.getInstance().level) return;
-                    tick = packet.tick();
-                    received = level.getGameTime();
+                    observer.tick = packet.tick();
+                    observer.received = level.getGameTime();
                 });
     }
 
@@ -516,16 +541,15 @@ public final class GroundClient {
                     var mc = net.minecraft.client.Minecraft.getInstance();
                     if (!active()) {
                         level = null;
-                        model = null;
-                        exteriorChosen = false;
-                        heldF8 = false;
-                        repair = true;
-                        air = GroundAir.DEFAULT;
+                        observer.model = null;
+                        observer.heldF8 = false;
+                        observer.repair = true;
+                        observer.air = GroundAir.DEFAULT;
                         return;
                     }
                     if (level != mc.level) {
                         level = mc.level;
-                        model = null;
+                        observer.model = null;
                     }
                     boolean f8 =
                             mc.screen == null
@@ -534,8 +558,8 @@ public final class GroundClient {
                                                     mc.getWindow().getWindow(),
                                                     org.lwjgl.glfw.GLFW.GLFW_KEY_F8)
                                             == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-                    if (f8 && !heldF8) repair = !repair;
-                    heldF8 = f8;
+                    if (f8 && !observer.heldF8) observer.repair = !observer.repair;
+                    observer.heldF8 = f8;
                 });
     }
 
@@ -610,20 +634,23 @@ public final class GroundClient {
                                 (g, d) -> {
                                     com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
                                     try {
-                                        if (DEBUG_HUD && ready()) {
+                                        if (DEBUG_HUD && ready()
+                                                && !Minecraft.getInstance().getDebugOverlay().showDebugScreen()) {
                                             var mc = Minecraft.getInstance();
                                             g.drawString(
                                                     mc.font,
                                                     "Native chunk projection | face "
                                                             + face()
-                                                            + " | native models/collision/interaction",
+                                                            + " | native"
+                                                            + " models/collision/interaction",
                                                     8,
                                                     8,
                                                     0xffffff,
                                                     true);
                                             g.drawString(
                                                     mc.font,
-                                                    "Six-face adjacency / shared exterior / flight integration",
+                                                    "Six-face adjacency / shared exterior / flight"
+                                                        + " integration",
                                                     8,
                                                     21,
                                                     0xffcc66,
@@ -643,8 +670,9 @@ public final class GroundClient {
     }
 
     public static void begin(Camera camera, float delta, Matrix4f view) {
-        frame = false;
-        partial = delta;
+        GroundAtmosphere.beginFrame();
+        renderFrame.active = false;
+        renderFrame.partial = delta;
         if (SpaceClient.present()) return;
         if (!ready()
                 || !RendererGuard.pipelineSupported()
@@ -652,7 +680,7 @@ public final class GroundClient {
         // Move only the view, not the chart observer used for topology and coverage.
         var p = Minecraft.getInstance().player.getEyePosition(delta);
         var d = camera.getPosition().subtract(p);
-        viewOffset =
+        renderFrame.viewOffset =
                 GroundFlightClient.controlled()
                         ? new Point(0, 0, 0)
                         : frame().vectorToStorage(new Point(d.x, d.y, d.z));
@@ -660,188 +688,54 @@ public final class GroundClient {
         // space.
         var u = frame().vectorToClient(new Point(1, 0, 0));
         var w = frame().vectorToClient(new Point(0, 0, 1));
-        X.set((float) u.x(), 0, (float) u.z()).mulDirection(view);
-        Y.set(0, 1, 0).mulDirection(view);
-        Z.set((float) w.x(), 0, (float) w.z()).mulDirection(view);
-        frame = true;
+        renderFrame.X.set((float) u.x(), 0, (float) u.z()).mulDirection(view);
+        renderFrame.Y.set(0, 1, 0).mulDirection(view);
+        renderFrame.Z.set((float) w.x(), 0, (float) w.z()).mulDirection(view);
+        renderFrame.framePose = pose();
+        renderFrame.frameEye = eye();
+        renderFrame.frameHome = home();
+        var shape = shape();
+        var face = Face.VALUES[face()];
+        renderFrame.frameUniverseEye = renderFrame.frameHome.world(
+                shape.direction(face, renderFrame.frameEye.x(), renderFrame.frameEye.z()).scale(shape.radius() + renderFrame.frameEye.y()));
+        renderFrame.frameStar = observer.model.star(renderFrame.frameUniverseEye);
+        renderFrame.frameOrbit = new PlanetOrbit(shape, renderFrame.framePose, renderFrame.frameEye, view());
+        renderFrame.frameGap = new PlanetGap(shape, face, renderFrame.frameEye, view(), observer.repair, observer.air, true);
+        renderFrame.active = true;
         saveCoverageBinding();
-        replaceNative = GroundSurfaceMesh.replaceNative(eye().y(), GroundRenderer.covered());
-        exteriorChosen = GroundExteriorMesh.select(exteriorChosen, replaceNative, eye().y());
-        replaceNative = exteriorChosen;
+    }
+
+    public static void resetWorld() {
+        end();
+        observer.clear();
+        level = null;
+        renderFrame.clear();
     }
 
     public static void end() {
-        if (frame) restoreCoverageBinding();
-        frame = false;
-        replaceNative = false;
+        if (renderFrame.active) restoreCoverageBinding();
+        renderFrame.active = false;
         sourceEnd();
     }
 
     private static void saveCoverageBinding() {
-        int active = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL13.GL_ACTIVE_TEXTURE);
-        org.lwjgl.opengl.GL13.glActiveTexture(org.lwjgl.opengl.GL13.GL_TEXTURE3);
-        savedCoverage =
-                org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_TEXTURE_BINDING_2D);
-        savedSamplerObjects =
-                org.lwjgl.opengl.GL.getCapabilities().OpenGL33
-                        || org.lwjgl.opengl.GL.getCapabilities().GL_ARB_sampler_objects;
-        savedCoverageSampler =
-                savedSamplerObjects
-                        ? org.lwjgl.opengl.GL30.glGetIntegeri(
-                                org.lwjgl.opengl.ARBSamplerObjects.GL_SAMPLER_BINDING, 3)
-                        : 0;
-        org.lwjgl.opengl.GL13.glActiveTexture(active);
+        renderFrame.coverageBinding = new CoverageBinding();
     }
 
     private static void restoreCoverageBinding() {
-        int active = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL13.GL_ACTIVE_TEXTURE);
-        org.lwjgl.opengl.GL13.glActiveTexture(org.lwjgl.opengl.GL13.GL_TEXTURE3);
-        org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, savedCoverage);
-        if (savedSamplerObjects)
-            org.lwjgl.opengl.ARBSamplerObjects.glBindSampler(3, savedCoverageSampler);
-        org.lwjgl.opengl.GL13.glActiveTexture(active);
+        try { renderFrame.coverageBinding.close(); }
+        finally { renderFrame.coverageBinding = null; }
     }
 
     public static void apply(ShaderInstance shader) {
-        if (!GroundShaderSource.supported(shader.getVertexProgram().getName())) return;
-        boolean projected = frame && ready();
-        ShaderUniforms.set(shader, "CPNativeActive", projected ? 1 : 0);
-        if (!projected) return;
-        var e = eye();
-        var gap = gap();
-        ShaderUniforms.set(
-                shader, "CPNativeGapCorner", (float) gap.corner.x(), (float) gap.corner.z());
-        ShaderUniforms.set(shader, "CPNativeGapSigns", (float) gap.sx, (float) gap.sz);
-        ShaderUniforms.set(
-                shader,
-                "CPNativeGapLimits",
-                (float) gap.strength,
-                (float) gap.outer,
-                (float) GroundTransition.clip(e.y(), gap.clip, view()));
-        var observer = Face.values()[face()];
-        var owner = Face.values()[source < 0 ? face() : source];
-        var tile = gap.chart.tile(owner);
-        set(shader, "CPNativeSourcePlot", origin(owner.ordinal()).sub(origin()));
-        set(shader, "CPNativeSun", faceLocal(observer, home().local(star().position())));
-        set(shader, "CPNativeSourceNormal", faceLocal(observer, owner.normal));
-        set(shader, "CPNativeSourceU", faceLocal(observer, owner.u));
-        set(shader, "CPNativeSourceV", faceLocal(observer, owner.v));
-        var flat = tile == null ? new Point(0, 0, 0) : tile.point(new Point(0, 0, 0));
-        set(shader, "CPNativeFlatOrigin", flat);
-        set(
-                shader,
-                "CPNativeFlatU",
-                tile == null ? new Point(1, 0, 0) : tile.point(new Point(1, 0, 0)).sub(flat));
-        set(
-                shader,
-                "CPNativeFlatV",
-                tile == null ? new Point(0, 0, 1) : tile.point(new Point(0, 0, 1)).sub(flat));
-        String name = shader.getVertexProgram().getName().replace("minecraft:", "");
-        boolean terrain =
-                name.equals("rendertype_solid")
-                        || name.equals("rendertype_cutout")
-                        || name.equals("rendertype_cutout_mipped")
-                        || name.equals("rendertype_translucent")
-                        || name.equals("rendertype_translucent_moving_block")
-                        || name.equals("rendertype_tripwire");
-        ShaderUniforms.set(shader, "CPNativeTerrain", terrain ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeDerived", derived ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeCoarse", coarse ? 1 : 0);
-        var mask = GroundFlightServer.mask(Minecraft.getInstance().level);
-        ShaderUniforms.set(
-                shader,
-                "CPNativeMask",
-                mask.core(),
-                mask.height(),
-                GroundRenderer.replacesNative() ? 1 : 0);
-        int corners = GroundRenderer.realCorners(owner.ordinal());
-        ShaderUniforms.set(
-                shader,
-                "CPNativeClosure",
-                (corners & 1) != 0 ? 1 : 0,
-                (corners & 2) != 0 ? 1 : 0,
-                (corners & 4) != 0 ? 1 : 0,
-                (corners & 8) != 0 ? 1 : 0);
-        ShaderUniforms.set(
-                shader, "CPNativeLowFrequency", (float) GroundPipeline.lowFrequency(e.y()));
-        ShaderUniforms.set(shader, "CPNativeCover", cover ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeFace", owner.ordinal());
-        // Below the range extension the view edge is still vanilla fog, so only the vertical
-        // handover applies there.
-        var fade = fade(view());
-        ShaderUniforms.set(shader, "CPNativeFade", fade[0], fade[1], fade[2], fade[3]);
-        ShaderUniforms.set(shader, "CPNativeFadeMix", (float) GroundTransition.fade(e.y()));
-        ShaderUniforms.set(
-                shader, "CPNativeVolume", GroundRenderer.nativeVolume(owner.ordinal()) ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeSelection", GroundRenderer.selectionReady() ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeStitch", stitch ? 1 : 0);
-        if (cover || stitch || terrain && GroundRenderer.selectionReady()) {
-            int active =
-                    org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL13.GL_ACTIVE_TEXTURE);
-            org.lwjgl.opengl.GL13.glActiveTexture(org.lwjgl.opengl.GL13.GL_TEXTURE3);
-            org.lwjgl.opengl.GL11.glBindTexture(
-                    org.lwjgl.opengl.GL11.GL_TEXTURE_2D, GroundRenderer.coverageTexture());
-            if (org.lwjgl.opengl.GL.getCapabilities().OpenGL33
-                    || org.lwjgl.opengl.GL.getCapabilities().GL_ARB_sampler_objects)
-                org.lwjgl.opengl.ARBSamplerObjects.glBindSampler(3, 0);
-            org.lwjgl.opengl.GL13.glActiveTexture(active);
-            ShaderUniforms.setInt(shader, "CPNativeCoverage", 3);
-        }
-        applyViewUniforms(shader, e, gap);
+        GroundProjectionUniforms.apply(shader);
     }
 
-    private static void applyViewUniforms(ShaderInstance shader, Point e, PlanetGap gap) {
-        set(shader, "CPNativeEye", e);
-        set(shader, "CPNativeViewOffset", viewOffset);
-        set(shader, "CPNativeWorldX", X);
-        set(shader, "CPNativeWorldY", Y);
-        set(shader, "CPNativeWorldZ", Z);
-        ShaderUniforms.set(shader, "CPNativeSize", shape().size());
-        ShaderUniforms.set(
-                shader,
-                "CPNativeAirLimits",
-                (float) gap.air.weight,
-                (float) shape().radius(),
-                (float) gap.air.offset.x(),
-                (float) gap.air.offset.z());
-        set(shader, "CPNativeAirNormal", gap.air.normal);
-        set(shader, "CPNativeAirU", gap.air.basisU);
-        set(shader, "CPNativeAirV", gap.air.basisV);
-        var orbit = orbit();
-        var face = Face.values()[face()];
-        set(shader, "CPNativeOrbitNormal", faceLocal(face, orbit.normal));
-        set(shader, "CPNativeOrbitU", faceLocal(face, orbit.basisU));
-        set(shader, "CPNativeOrbitV", faceLocal(face, orbit.basisV));
-        set(shader, "CPNativeOrbitOffset", orbit.offset);
-        ShaderUniforms.set(
-                shader,
-                "CPNativeOrbitLimits",
-                (float) orbit.weight,
-                (float) shape().radius(),
-                (float) GroundTransition.clip(e.y(), orbit.clip, view()),
-                (float) orbit.minimumFacing);
-        double range =
-                e.y() > GroundOrbit.START
-                        ? GroundTransition.clip(e.y(), orbit.clip, view())
-                        : GroundTransition.clip(e.y(), gap.clip, view());
-        ShaderUniforms.set(shader, "CPNativeRange", (float) (range * .75), (float) range);
-        var lens =
-                GroundSpaceOptics.lens(
-                        com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrix(), e.y());
-        ShaderUniforms.set(
-                shader, "CPNativeLens", (float) lens.weight(), (float) lens.x(), (float) lens.y());
-    }
-
-    private static Point faceLocal(Face face, Point p) {
-        return new Point(p.dot(face.u), p.dot(face.normal), p.dot(face.v));
-    }
-
-    private static void set(ShaderInstance s, String n, Point p) {
-        ShaderUniforms.set(s, n, (float) p.x(), (float) p.y(), (float) p.z());
-    }
-
-    private static void set(ShaderInstance s, String n, Vector3f p) {
-        ShaderUniforms.set(s, n, p.x, p.y, p.z);
+    /** Horizontal reach of the drawn terrain disk; the shader clips there. */
+    public static double range(Point e, PlanetOrbit orbit, PlanetGap gap) {
+        return e.y() > GroundOrbit.START
+                ? GroundTransition.clip(e.y(), orbit.clip, view(), shape().radius())
+                : GroundTransition.clip(e.y(), gap.clip, view(), shape().radius());
     }
 
     private GroundClient() {}

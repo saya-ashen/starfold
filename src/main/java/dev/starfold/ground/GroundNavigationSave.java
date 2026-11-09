@@ -20,6 +20,8 @@ import java.util.*;
 public final class GroundNavigationSave extends SavedData {
     public static final String FILE = "starfold_native_ground_navigation_v1";
     private final Map<UUID, GroundDynamics.State> players = new HashMap<>();
+    private java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> model =
+            () -> dev.starfold.planet.PlanetSystem.model(PlanetShape.count());
 
     static GroundNavigationSave fresh(boolean exists) {
         if (exists)
@@ -31,16 +33,26 @@ public final class GroundNavigationSave extends SavedData {
     public static GroundNavigationSave get(ServerLevel level) {
         if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Native dimension");
         var storage = level.getDataStorage();
-        return storage.computeIfAbsent(
-                new Factory<>(
-                        () ->
-                                fresh(
-                                        ((dev.starfold.mixin.SavedDataFileAccess) storage)
-                                                .starfold$spaceDataFile(FILE)
-                                                .exists()),
-                        GroundNavigationSave::load,
-                        null),
-                FILE);
+        var saved =
+                storage.computeIfAbsent(
+                        new Factory<>(
+                                () ->
+                                        fresh(
+                                                ((dev.starfold.mixin.SavedDataFileAccess) storage)
+                                                        .starfold$spaceDataFile(FILE)
+                                                        .exists()),
+                                (tag, lookup) ->
+                                        load(
+                                                tag,
+                                                lookup,
+                                                () ->
+                                                        dev.starfold.sky.GroundClock.get(level)
+                                                                .clock
+                                                                .model),
+                                null),
+                        FILE);
+        saved.model = () -> dev.starfold.sky.GroundClock.get(level).clock.model;
+        return saved;
     }
 
     public GroundDynamics.State find(UUID id) {
@@ -132,7 +144,7 @@ public final class GroundNavigationSave extends SavedData {
             require(p, "face", 3);
             int face = p.getInt("face");
             if (face < 0 || face >= 6) throw new IllegalArgumentException("Native navigation face");
-            pose = new PlanetShape.Pose(Face.values()[face], point(tag(p, "point")));
+            pose = new PlanetShape.Pose(Face.VALUES[face], point(tag(p, "point")));
         }
         var q = tag(t, "orientation");
         var g = tag(t, "guidance");
@@ -154,28 +166,58 @@ public final class GroundNavigationSave extends SavedData {
                 t.getInt("planet"));
     }
 
+    public static CompoundTag encode(
+            GroundDynamics.State state, dev.starfold.chart.GroundEphemeris.Model model) {
+        var tag = encode(state);
+        tag.put("planet", model.id(state.planet()).tag());
+        tag.getCompound("guidance").put("target", model.id(state.guidance().target()).tag());
+        return tag;
+    }
+
+    public static GroundDynamics.State decode(
+            CompoundTag tag, dev.starfold.chart.GroundEphemeris.Model model) {
+        var wire = tag.copy();
+        wire.putInt("planet", model.slot(dev.starfold.chart.BodyId.read(tag(tag, "planet"))));
+        wire.getCompound("guidance")
+                .putInt(
+                        "target",
+                        model.slot(
+                                dev.starfold.chart.BodyId.read(
+                                        tag(tag(tag, "guidance"), "target"))));
+        return decode(wire);
+    }
+
     public static GroundNavigationSave load(CompoundTag tag, HolderLookup.Provider lookup) {
+        return load(tag, lookup, () -> dev.starfold.planet.PlanetSystem.model(PlanetShape.count()));
+    }
+
+    public static GroundNavigationSave load(
+            CompoundTag tag,
+            HolderLookup.Provider lookup,
+            java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> model) {
         require(tag, "format", 3);
-        if (tag.getInt("format") != 1)
-            throw new IllegalArgumentException("Native navigation format");
+        if (tag.getInt("format") != 2)
+            throw new IllegalArgumentException(
+                    "Native navigation format; old saves are not supported");
         var all = tag(tag, "players");
         if (all.getAllKeys().size() > 1024)
             throw new IllegalArgumentException("Native navigation capacity");
         var saved = new GroundNavigationSave();
+        saved.model = model;
         for (String key : all.getAllKeys()) {
             var id = UUID.fromString(key);
             if (!id.toString().equals(key))
                 throw new IllegalArgumentException("Noncanonical native UUID");
-            saved.players.put(id, decode(tag(all, key)));
+            saved.players.put(id, decode(tag(all, key), model.get()));
         }
         return saved;
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider lookup) {
-        tag.putInt("format", 1);
+        tag.putInt("format", 2);
         var all = new CompoundTag();
-        players.forEach((id, state) -> all.put(id.toString(), encode(state)));
+        players.forEach((id, state) -> all.put(id.toString(), encode(state, model.get())));
         tag.put("players", all);
         return tag;
     }

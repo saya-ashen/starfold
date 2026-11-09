@@ -1,4 +1,4 @@
-# Hold read: fresh starfold_pack:experience world, home spin enabled, starter is 0:0.
+# Hold read: fresh starfold_worlds:experience world, home spin enabled, starter is 0:0.
 # Enable -Dstarfold.shipProbe=true on the server (client JVM too for integrated play).
 # Only one player/hull; no other forces or redstone-latched thrust. Do not disable its gyro.
 # Client waits only give a budget; server audits gate exact 100/400/1200-tick hold readings.

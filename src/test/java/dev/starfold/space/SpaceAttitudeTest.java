@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.Space;
 
 import org.joml.Quaterniond;
@@ -16,7 +15,7 @@ import org.junit.jupiter.api.Test;
 class SpaceAttitudeTest {
     @Test
     void fortyTicksPitchUpBringsOldAboveAheadAtEveryYaw() {
-        assertEquals(45, SpaceServer.PILOT_TURN);
+        assertEquals(45, SpaceFlightMath.PILOT_TURN);
         var model = tilted();
         var pivot = Space.ORIGIN.add(new Point(12, 34, 56));
         for (double yaw : new double[] {0, 90, 180, -90, 37}) {
@@ -34,7 +33,7 @@ class SpaceAttitudeTest {
             for (int i = 0; i < 40; i++) {
                 var next =
                         frame.turned(
-                                SpaceServer.attitude(
+                                SpaceFlightMath.attitude(
                                         frame, model, 1234, pivot, 2048, -100, true, yaw, 1, 0),
                                 pivot);
                 assertEquals(frame.drift(), next.drift());
@@ -62,7 +61,7 @@ class SpaceAttitudeTest {
             var q = new Quaterniond();
             for (int i = 0; i < 40; i++)
                 q.premul(
-                        SpaceServer.attitude(
+                        SpaceFlightMath.attitude(
                                 f, tilted(), 0, Space.ORIGIN, 2500, 0, true, yaw, 0, 1));
             double a = Math.toRadians(yaw);
             var right = new Vector3d(-Math.cos(a), 0, -Math.sin(a));
@@ -84,41 +83,41 @@ class SpaceAttitudeTest {
         for (double height : new double[] {2048, 3000, 4096, 5000})
             assertEquals(
                     new Quaterniond(),
-                    SpaceServer.attitude(f, model, 0, pivot, height, 0, true, 90, 0, 0));
+                    SpaceFlightMath.attitude(f, model, 0, pivot, height, 0, true, 90, 0, 0));
         for (double height : new double[] {1536, 1835.999, 6000}) {
             var expected = Space.Frame.turn(f, model, 0, pivot, Math.toRadians(30) / 20);
-            aim(expected, SpaceServer.attitude(f, model, 0, pivot, height, 400, true, 90, 1, -1));
+            aim(expected, SpaceFlightMath.attitude(f, model, 0, pivot, height, 400, true, 90, 1, -1));
             assertEquals(
                     new Quaterniond(),
-                    SpaceServer.attitude(f, model, 0, pivot, height, 400, false, 90, 1, -1));
+                    SpaceFlightMath.attitude(f, model, 0, pivot, height, 400, false, 90, 1, -1));
         }
         assertEquals(
                 new Quaterniond(),
-                SpaceServer.attitude(f, model, 0, pivot, 5000, 0, false, 90, 1, -1));
+                SpaceFlightMath.attitude(f, model, 0, pivot, 5000, 0, false, 90, 1, -1));
     }
 
     @Test
     void alignmentUsesStrictTimeAndHeightBoundaries() {
         var body = dev.starfold.chart.GroundSolar.defaults().body(0);
-        assertEquals(12, SpaceServer.ALIGN_TIME);
+        assertEquals(12, SpaceFlightMath.ALIGN_TIME);
         for (double closing : new double[] {-400, 0, 25}) {
-            assertTrue(SpaceServer.align(body, Math.nextDown(1536 + 300.0), closing));
-            assertFalse(SpaceServer.align(body, 1536 + 300, closing));
-            assertFalse(SpaceServer.align(body, Math.nextUp(1536 + 300.0), closing));
+            assertTrue(SpaceFlightMath.align(body, Math.nextDown(1536 + 300.0), closing));
+            assertFalse(SpaceFlightMath.align(body, 1536 + 300, closing));
+            assertFalse(SpaceFlightMath.align(body, Math.nextUp(1536 + 300.0), closing));
         }
         for (double closing : new double[] {50, 100, 400}) {
             double boundary = 1536 + closing * 12;
-            assertTrue(SpaceServer.align(body, Math.nextDown(boundary), closing));
-            assertFalse(SpaceServer.align(body, boundary, closing));
-            assertFalse(SpaceServer.align(body, Math.nextUp(boundary), closing));
+            assertTrue(SpaceFlightMath.align(body, Math.nextDown(boundary), closing));
+            assertFalse(SpaceFlightMath.align(body, boundary, closing));
+            assertFalse(SpaceFlightMath.align(body, Math.nextUp(boundary), closing));
         }
-        assertFalse(SpaceServer.align(body, 2048, -400));
-        assertFalse(SpaceServer.align(body, 3000, 0));
-        assertFalse(SpaceServer.align(body, 3000, -400));
-        assertTrue(SpaceServer.align(body, 6000, 400));
-        assertTrue(SpaceServer.align(body, 1536, -400));
-        assertFalse(SpaceServer.align(body, 1536 + 300, 0));
-        assertTrue(SpaceServer.align(body, 1536 + 300, Math.nextUp(25.0)));
+        assertFalse(SpaceFlightMath.align(body, 2048, -400));
+        assertFalse(SpaceFlightMath.align(body, 3000, 0));
+        assertFalse(SpaceFlightMath.align(body, 3000, -400));
+        assertTrue(SpaceFlightMath.align(body, 6000, 400));
+        assertTrue(SpaceFlightMath.align(body, 1536, -400));
+        assertFalse(SpaceFlightMath.align(body, 1536 + 300, 0));
+        assertTrue(SpaceFlightMath.align(body, 1536 + 300, Math.nextUp(25.0)));
     }
 
     @Test
@@ -128,37 +127,36 @@ class SpaceAttitudeTest {
         for (double p : new double[] {-20, -1, 0, 1, 20})
             for (double r : new double[] {-20, -1, 0, 1, 20})
                 assertTrue(
-                        SpaceServer.attitude(f, m, 0, Space.ORIGIN, 5000, 0, true, 90, p, r).angle()
+                        SpaceFlightMath.attitude(f, m, 0, Space.ORIGIN, 5000, 0, true, 90, p, r).angle()
                                 <= Math.toRadians(45) / 20 + 1e-10);
         for (double invalid : new double[] {Double.NaN, Double.POSITIVE_INFINITY})
             assertEquals(
                     new Quaterniond(),
-                    SpaceServer.attitude(f, m, 0, Space.ORIGIN, 5000, 0, true, 0, invalid, 1));
-        assertTrue(SpaceServer.fresh(100, 105));
-        assertFalse(SpaceServer.fresh(100, 106));
-        assertFalse(SpaceServer.fresh(100, 99));
+                    SpaceFlightMath.attitude(f, m, 0, Space.ORIGIN, 5000, 0, true, 0, invalid, 1));
+        assertTrue(SpaceSessions.fresh(100, 105));
+        assertFalse(SpaceSessions.fresh(100, 106));
+        assertFalse(SpaceSessions.fresh(100, 99));
     }
 
     @Test
     void inputIsHelmScopedValidatedAndNeverSaved() throws Exception {
-        var server = Sources.text("SpaceServer");
+        var server = Sources.text("SpaceServer").plus(Sources.text("SpaceSessions"));
         var client = Sources.text("SpaceAttitudeClient");
         for (String guard :
                 new String[] {
-                    "!Float.isFinite(packet.pitch())",
-                    "!Float.isFinite(packet.roll())",
+                    "!packet.finite()",
                     "!Space.in(player)",
                     "lead==null||!helm(player,lead)",
                     "HelmServer.pilot(player,body)",
                     "wish.body()!=lead",
-                    "!fresh(wish.tick(),level.getGameTime())",
+                    "!SpaceSessions.fresh(wish.tick(),level.getGameTime())",
                     "Math.clamp(packet.pitch(),-1,1)",
                     "Math.clamp(packet.roll(),-1,1)"
                 }) assertTrue(server.contains(guard), guard);
         assertTrue(client.contains("!SpaceClient.active()||HelmClient.body()==null"));
         assertTrue(client.contains("pitch!=0||roll!=0||sent"));
         assertFalse(
-                server.substring(server.indexOf("@Override public CompoundTag save"))
+                Sources.text("SpaceServer").substring(Sources.text("SpaceServer").indexOf("@Override public CompoundTag save"))
                         .contains("wish"));
         for (String code :
                 new String[] {"GLFW_KEY_UP", "GLFW_KEY_DOWN", "GLFW_KEY_LEFT", "GLFW_KEY_RIGHT"})
@@ -179,7 +177,7 @@ class SpaceAttitudeTest {
 
     @Test
     void mouseAxesAndSignsPreserveTheLeadAtSeveralPilotYaws() {
-        assertEquals(180, SpaceServer.MOUSE_TURN);
+        assertEquals(180, SpaceFlightMath.MOUSE_TURN);
         var model = tilted();
         var pivot = Space.ORIGIN.add(new Point(12, 34, 56));
         for (double yaw : new double[] {0, 90, 180, -90, 37})
@@ -201,7 +199,7 @@ class SpaceAttitudeTest {
                 for (int i = 0; i < 20; i++) {
                     var next =
                             frame.turned(
-                                    SpaceServer.attitude(
+                                    SpaceFlightMath.attitude(
                                             frame,
                                             model,
                                             1234,
@@ -241,31 +239,30 @@ class SpaceAttitudeTest {
         for (double x : new double[] {-1000, 0, 1000})
             for (double y : new double[] {-1000, 0, 1000})
                 assertTrue(
-                        SpaceServer.attitude(f, m, 0, pivot, 2500, 0, true, 37, 0, 0, x, y).angle()
+                        SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, true, 37, 0, 0, x, y).angle()
                                 <= Math.toRadians(9) + 1e-10);
         assertEquals(
                 Math.toRadians(6.75),
-                SpaceServer.attitude(f, m, 0, pivot, 2500, 0, true, 37, 1, 0, 0, -4.5).angle(),
+                SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, true, 37, 1, 0, 0, -4.5).angle(),
                 1e-10);
         for (double invalid : new double[] {Double.NaN, Double.POSITIVE_INFINITY})
             assertEquals(
                     new Quaterniond(),
-                    SpaceServer.attitude(f, m, 0, pivot, 2500, 0, true, 0, 0, 0, invalid, 1));
+                    SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, true, 0, 0, 0, invalid, 1));
         aim(
-                SpaceServer.attitude(f, m, 0, pivot, 1700, 0, true, 90, 0, 0),
-                SpaceServer.attitude(f, m, 0, pivot, 1700, 0, true, 90, 1, 1, 90, 90));
+                SpaceFlightMath.attitude(f, m, 0, pivot, 1700, 0, true, 90, 0, 0),
+                SpaceFlightMath.attitude(f, m, 0, pivot, 1700, 0, true, 90, 1, 1, 90, 90));
         assertEquals(
                 new Quaterniond(),
-                SpaceServer.attitude(f, m, 0, pivot, 2500, 0, false, 90, 1, 1, 90, 90));
+                SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, false, 90, 1, 1, 90, 90));
     }
 
     @Test
     void mouseIsOneShotHelmValidatedAndUsesVanillaHook() throws Exception {
-        var s = Sources.text("SpaceServer");
+        var s = Sources.text("SpaceServer").plus(Sources.text("SpaceSessions"));
         for (String guard :
                 new String[] {
-                    "!Float.isFinite(packet.mouseYaw())",
-                    "!Float.isFinite(packet.mousePitch())",
+                    "!packet.finite()",
                     "lead==null||!helm(player,lead)",
                     "new Wish(lead,pitch,roll,0,0,wish.tick())"
                 }) assertTrue(s.contains(guard), guard);

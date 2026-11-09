@@ -154,7 +154,7 @@ public final class HullLanding {
         return safeExit(clearance, deployed, Kind.LAND);
     }
 
-    static boolean safeExit(double clearance, boolean deployed, Kind kind) {
+    public static boolean safeExit(double clearance, boolean deployed, Kind kind) {
         return deployed
                 && Double.isFinite(clearance)
                 && clearance <= 1
@@ -225,7 +225,7 @@ public final class HullLanding {
         if (!eligible(level, body)) return Site.UNKNOWN;
         var site = candidate(level, body, 0, 0);
         return new Site(
-                site.kind() == Kind.LAND && StarterShip.overPad(level, body)
+                site.kind() == Kind.LAND && dev.starfold.api.PlanetContent.get().overPad(level, body)
                         ? Kind.PAD
                         : site.kind(),
                 site.deployable());

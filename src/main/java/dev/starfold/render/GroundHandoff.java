@@ -1,15 +1,7 @@
 package dev.starfold.render;
 
-import java.util.BitSet;
-
 /** Readiness for handing a complete snapshot volume to Minecraft, never just a heightfield. */
 public final class GroundHandoff {
-    public static boolean volumeReady(BitSet occupied, BitSet compiled) {
-        var missing = (BitSet) occupied.clone();
-        missing.andNot(compiled);
-        return missing.isEmpty();
-    }
-
     /** Reject a stale batch that would temporarily withdraw an already displayed fine tile. */
     public static boolean preservesSelected(
             GroundOwnership.Snapshot current,

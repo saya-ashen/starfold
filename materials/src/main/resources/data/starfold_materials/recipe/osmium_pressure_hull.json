@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "OIO",
+    "IOI",
+    "OIO"
+  ],
+  "key": {
+    "O": {
+      "tag": "c:ingots/osmium"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    }
+  },
+  "result": {
+    "id": "starfold_materials:osmium_pressure_hull",
+    "count": 4
+  }
+}

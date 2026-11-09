@@ -44,11 +44,7 @@ class GroundSpinNavigationTest {
         for (int id = 0; id < 2; id++)
             for (double t : new double[] {100, 1234.5, 6000, 24000}) {
                 var p = new Point(2000, 700, -900);
-                var numeric =
-                        model.at(id, t + .05)
-                                .world(p)
-                                .sub(model.at(id, t - .05).world(p))
-                                .scale(10);
+                var numeric = model.at(id, t + .5).world(p).sub(model.at(id, t - .5).world(p));
                 close(model.at(id, t).worldVelocity(p, GroundEphemeris.ZERO), numeric);
                 close(p, model.at(id, t).local(model.at(id, t).world(p)));
                 var v = new Point(3, 4, -2);
@@ -100,11 +96,16 @@ class GroundSpinNavigationTest {
                                 dev.starfold.planet.PlanetSystem.model(), false, 0),
                         123);
         var saved = clock.save(new CompoundTag(), null);
-        for (int format : new int[] {0, 1, 2, 3, 4, 6}) {
+        for (int format : new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 10}) {
             var old = saved.copy();
             old.putInt("format", format);
+            old.getCompound("motion").putInt("format", format);
             assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.load(old, null));
         }
+        var mismatched = saved.copy();
+        mismatched.getCompound("motion").putInt("format", 8);
+        assertThrows(
+                IllegalArgumentException.class, () -> GroundEphemerisSave.load(mismatched, null));
         var loaded = GroundEphemerisSave.load(saved, null);
         assertFalse(loaded.model.spin(0).enabled());
         assertEquals(clock.model.at(0, 200).rotation(), loaded.model.at(0, 200).rotation());

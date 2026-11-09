@@ -1,0 +1,42 @@
+// Keep this list aligned with settings.gradle; core defines APIs, optional modules implement them.
+def modules = ['atlas', 'devtools', 'probes', 'worlds', 'extras', 'materials', 'biotech']
+def forbiddenModules = modules + ['monsoon']
+def packages = forbiddenModules.collect { "dev/starfold/${it}/" } + ['dev/starfold/dev/', 'dev/starfold/probe/']
+ext.auditCoreEntry = { String name, byte[] bytes ->
+    if (name.endsWith('.jar') || name == 'META-INF/jarjar/metadata.json' || packages.any { name.startsWith(it) }
+            || forbiddenModules.any { name.startsWith("data/starfold_${it}/") || name.startsWith("assets/starfold_${it}/") }
+            || name.startsWith('data/starfold/structure/starter_ship'))
+        throw new GradleException("Optional module content in core: ${name}")
+    def text = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+    if (name.endsWith('.class') && packages.any { text.contains(it) || text.contains(it.replace('/', '.')) })
+        throw new GradleException("Core bytecode depends on optional module: ${name}")
+    if (name.endsWith('.json') && forbiddenModules.any { text.contains("starfold_${it}:") })
+        throw new GradleException("Core data depends on optional module: ${name}")
+}
+tasks.register('packagingBoundaryTest') {
+    group = 'verification'
+    doLast {
+        assert subprojects*.name.toSet() == modules.toSet()
+        def check = project.auditCoreEntry
+        check('dev/starfold/api/PlanetContent.class', 'dev/starfold/worldgen/PlanetTerrain'.bytes)
+        check('data/starfold/test.json', '{"type":"minecraft:stone"}'.bytes)
+        for (String module : forbiddenModules) {
+            for (def bad : [
+                    ["dev/starfold/${module}/Example.class", ''],
+                    ['dev/starfold/Example.class', "dev/starfold/${module}/Example"],
+                    ['dev/starfold/Example.class', "dev.starfold.${module}.Example"],
+                    ["data/starfold_${module}/test.json", '{}'],
+                    ['data/starfold/test.json', "{\"id\":\"starfold_${module}:test\"}"]]) {
+                boolean rejected = false
+                try { check(bad[0].toString(), bad[1].toString().bytes) }
+                catch (GradleException expected) { rejected = true }
+                assert rejected : bad
+            }
+        }
+        for (String name : ['META-INF/jars/optional.jar', 'META-INF/jarjar/metadata.json']) {
+            boolean rejected = false
+            try { check(name, new byte[0]) } catch (GradleException expected) { rejected = true }
+            assert rejected : name
+        }
+    }
+}

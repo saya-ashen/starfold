@@ -14,8 +14,9 @@ import dev.starfold.render.GroundExteriorMesh;
 import dev.starfold.render.GroundOwnership;
 import dev.starfold.render.GroundStreaming;
 import dev.starfold.render.GroundViewCache;
+import dev.starfold.render.GroundSurface;
 import dev.starfold.render.GroundViewPolicy;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetTerrain;
 
@@ -24,18 +25,7 @@ import org.junit.jupiter.api.Test;
 class PlanetShapeTest {
     @org.junit.jupiter.api.BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
-    }
-
-    /** The shape keeps two limits that other classes derive: they must agree with where they come from. */
-    @Test
-    void limitsAgreeWithStorageAndTheVanillaHeightRange() {
-        assertEquals(PlanetStorage.MAX_PLANETS, PlanetShape.MAX_PLANETS);
-        assertEquals(
-                dev.starfold.worldgen.PlanetTerrain.SEA_LEVEL
-                        - 1
-                        - dev.starfold.worldgen.PlanetTerrain.MIN_Y,
-                PlanetShape.STANDARD_DEPTH);
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -45,7 +35,7 @@ class PlanetShapeTest {
         assertEquals(GroundOrbit.RADIUS, shape.radius());
         assertEquals(128, shape.chunks());
         assertEquals(shape, PlanetShape.STANDARD);
-        assertEquals(shape, PlanetGeneration.defaults(5).shape());
+        assertEquals(shape, PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION).shape());
         for (var f : Face.values())
             for (double u : new double[] {0, .5, 300.25, 1024, 2047.5, 2048, -40.5, 2100.5})
                 for (double v : new double[] {0, 17.5, 1024, 2048, -3.5, 2060.5}) {
@@ -136,13 +126,10 @@ class PlanetShapeTest {
 
     @Test
     void aSmallerPlanetsTerrainIsItsOwnClosedSurfaceWithFeaturesOfTheSameSizeInBlocks() {
-        var policy = new PlanetGeneration("rocky", "rocky_craters", 1, 1.2, .04, .09, 1024);
-        var small = new PlanetTerrain(20261002, 5, policy);
+        var policy = new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1024,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1024));
+        var small = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,policy);
         var big =
-                new PlanetTerrain(
-                        20261002,
-                        5,
-                        new PlanetGeneration("rocky", "rocky_craters", 1, 1.2, .04, .09));
+                new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),2048,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,2048)));
         assertEquals(1024, small.shape().size());
         assertEquals(2048, big.shape().size());
         // Across an edge the neighbouring face continues the same ground: the column just beyond is
@@ -191,7 +178,7 @@ class PlanetShapeTest {
                         .getOrThrow());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PlanetGeneration("rocky", "rocky", 1, 1, .035, .085, 1000));
+                () -> new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1000,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1000)));
     }
 
     @Test
@@ -319,7 +306,7 @@ class PlanetShapeTest {
         assertTrue(GroundViewPolicy.nearSeam(small, pose));
         assertFalse(GroundViewPolicy.nearSeam(PlanetShape.STANDARD, pose));
         // The ownership atlas puts the halo ring right beyond the planet's last tile.
-        var surface = new GroundViewCache.Surface(1, new int[256], new int[256]);
+        var surface = new GroundSurface(1, new int[256], new int[256]);
         long edge = GroundOwnership.key(small, 0, 1024 + 8, 8);
         assertNotEquals(0, edge / 16384);
         var atlas =

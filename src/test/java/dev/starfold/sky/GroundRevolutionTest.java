@@ -53,7 +53,10 @@ class GroundRevolutionTest {
                                 .sub(model.at(id, t - .05).center())
                                 .scale(10);
                 close(model.at(id, t).velocity(), numerical);
-                assertEquals(8192 * 2 * Math.PI / 24000, model.at(id, t).velocity().length(), 1e-9);
+                assertEquals(
+                        model.orbit(id).radius() * 2 * Math.PI / model.orbit(id).period(),
+                        model.at(id, t).velocity().length(),
+                        1e-9);
             }
     }
 
@@ -124,7 +127,8 @@ class GroundRevolutionTest {
                                 spin),
                         0,
                         false,
-                        0));
+                        0,
+                        GroundEphemeris.Appearance.SURFACE));
         var m = new GroundEphemeris.Model(bodies);
         var clock = new GroundEphemerisSave(m, 1234);
         for (int i = 0; i < 17; i++) clock.advance();

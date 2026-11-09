@@ -1,0 +1,171 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_biotech' }
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content { includeGroup 'software.bernie.geckolib' }
+    }
+}
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_biotech { sourceSet sourceSets.main } }
+    unitTest { enable(); testedMod = mods.starfold_biotech }
+}
+configurations { hostAnimationRuntime }
+configurations.implementation.extendsFrom(configurations.hostAnimationRuntime)
+dependencies {
+    implementation(project(':worlds')) { transitive = false }
+    implementation(project(':')) { transitive = false }
+    hostAnimationRuntime 'software.bernie.geckolib:geckolib-neoforge-1.21.1:4.8.2'
+    compileOnly files(rootProject.configurations.compileClasspath)
+    testRuntimeOnly files(rootProject.configurations.sableBundle)
+}
+// The root dev runs load this source set too; forward its external runtime, never bundle it.
+rootProject.dependencies.add('runtimeOnly', files(configurations.hostAnimationRuntime))
+
+tasks.register('packagingContract') {
+    group = 'verification'
+    dependsOn tasks.named('jar'), rootProject.tasks.named('jar'), ':worlds:jar'
+    doLast {
+        def gecko = configurations.implementation.allDependencies.findAll { it.group == 'software.bernie.geckolib' }
+        if (gecko.size() != 1 || gecko[0].name != 'geckolib-neoforge-1.21.1' || gecko[0].version != '4.8.2')
+            throw new GradleException('Expected pinned NeoForge GeckoLib 4.8.2')
+        for (def other : rootProject.allprojects.findAll { it != project })
+            if (other.configurations.any { configuration -> configuration.dependencies.any { it.group == 'software.bernie.geckolib' } })
+                throw new GradleException("GeckoLib dependency declared outside Biotech: ${other.path}")
+        def json = { zip, String path ->
+            def entry = zip.getEntry(path)
+            if (entry == null) throw new GradleException("Missing Biotech resource: ${path}")
+            zip.getInputStream(entry).withCloseable { new groovy.json.JsonSlurper().parse(it) }
+        }
+        new java.util.zip.ZipFile(tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            for (String name : ['chitin', 'hive_flesh', 'resin', 'pulse_sac']) {
+                for (String path : ["assets/starfold_biotech/blockstates/${name}.json",
+                        "assets/starfold_biotech/models/block/${name}.json",
+                        "assets/starfold_biotech/models/item/${name}.json",
+                        "data/starfold_biotech/loot_table/blocks/${name}.json"])
+                    json(zip, path)
+                def image = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry("assets/starfold_biotech/textures/block/${name}.png")))
+                // Animated blocks stack 16x16 frames vertically and carry a .mcmeta next to the texture.
+                if (image.width != 16 || image.height % 16 != 0) throw new GradleException('Expected 16x16 organic texture frames')
+                if (image.height > 16 && zip.getEntry("assets/starfold_biotech/textures/block/${name}.png.mcmeta") == null)
+                    throw new GradleException("Animated texture without mcmeta: ${name}")
+                def tag = name == 'hive_flesh' || name == 'pulse_sac' ? 'hoe' : 'pickaxe'
+                if (!("starfold_biotech:${name}".toString() in json(zip, "data/minecraft/tags/block/mineable/${tag}.json").values))
+                    throw new GradleException("Missing mining tool tag: ${name}")
+            }
+            for (def fluidTexture : [blood_still: 16, blood_flow: 32]) {
+                def path = "assets/starfold_biotech/textures/block/${fluidTexture.key}.png"
+                def entry = zip.getEntry(path)
+                if (entry == null) throw new GradleException("Missing blood texture: ${path}")
+                def image = zip.getInputStream(entry).withCloseable { javax.imageio.ImageIO.read(it) }
+                if (image == null || image.width != fluidTexture.value || image.height < fluidTexture.value
+                        || image.height % fluidTexture.value != 0)
+                    throw new GradleException("Invalid blood animation dimensions: ${path}")
+                def animation = json(zip, path + '.mcmeta').animation
+                if (!animation || animation.frametime <= 0)
+                    throw new GradleException("Missing blood animation: ${path}")
+            }
+            if (json(zip, 'assets/starfold_biotech/models/item/blood_bucket.json').textures.layer0 != 'starfold_biotech:item/blood_bucket')
+                throw new GradleException('Missing blood bucket model texture')
+            def bucketImage = zip.getInputStream(zip.getEntry('assets/starfold_biotech/textures/item/blood_bucket.png')).withCloseable { javax.imageio.ImageIO.read(it) }
+            if (bucketImage.width != 16 || bucketImage.height != 16) throw new GradleException('Expected 16x16 blood bucket')
+            if (json(zip, 'assets/starfold_biotech/blockstates/blood.json').variants[''].model != 'starfold_biotech:block/blood'
+                    || json(zip, 'assets/starfold_biotech/models/block/blood.json').textures.particle != 'starfold_biotech:block/blood_still'
+                    || json(zip, 'data/starfold_biotech/loot_table/blocks/blood.json').pools != [])
+                throw new GradleException('Blood must use an empty fluid model and drop nothing')
+            def chitin = json(zip, 'data/starfold_biotech/loot_table/blocks/chitin.json').pools[0].entries[0]
+            if (chitin.name != 'starfold_biotech:chitin_plate' || chitin.functions[0].count != [type: 'minecraft:uniform', min: 1, max: 2])
+                throw new GradleException('Chitin must drop 1–2 plates')
+            if (json(zip, 'data/starfold_biotech/loot_table/blocks/resin.json').pools[0].entries[0].name != 'starfold_biotech:resin_lump')
+                throw new GradleException('Resin must drop a lump')
+            for (String item : ['chitin_plate', 'resin_lump']) {
+                json(zip, "assets/starfold_biotech/models/item/${item}.json")
+                def image = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry("assets/starfold_biotech/textures/item/${item}.png")))
+                if (image.width != 16 || image.height != 16) throw new GradleException('Expected 16x16 item texture')
+            }
+            for (String lang : ['en_us', 'zh_cn']) {
+                def text = json(zip, "assets/starfold_biotech/lang/${lang}.json")
+                if (!text['planet.starfold_biotech.flesh']) throw new GradleException('Missing planet name')
+                if (text['block.starfold_biotech.blood'] != (lang == 'en_us' ? 'Blood' : '血液')
+                        || text['item.starfold_biotech.blood_bucket'] != (lang == 'en_us' ? 'Bucket of Blood' : '血液桶'))
+                    throw new GradleException('Missing blood localization')
+            }
+            def type = json(zip, 'data/starfold_biotech/starfold/planet_type/flesh.json')
+            if (type.terrain.version != 2 || type.terrain.containsKey('algorithm')
+                    || type.terrain.landforms*.type != ['starfold:hive']
+                    || type.terrain.water.block != 'starfold_biotech:blood'
+                    || type.life.biome != 'starfold_biotech:flesh_hive' || type.environment.atmosphere.breathable)
+                throw new GradleException('Flesh policy changed')
+            json(zip, 'data/starfold_biotech/worldgen/biome/flesh_hive.json')
+            new java.util.zip.ZipFile(project(':worlds').tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { worlds ->
+                for (String registry : ['system', 'universe']) {
+                    def path = "data/starfold_worlds/starfold/${registry}/experience.json"
+                    def original = json(worlds, path)
+                    def override = json(zip, path)
+                    def list = registry == 'system' ? override.suns[0].gas_giants[0].moons : override.types
+                    def addition = list.remove(list.size() - 1)
+                    if (addition.type != 'starfold_biotech:flesh' || override != original)
+                        throw new GradleException("Biotech must only append Flesh to Worlds ${registry}")
+                }
+            }
+            for (String entity : ['host', 'host_sac', 'host_drone']) {
+                def geometry = json(zip, "assets/starfold_biotech/geo/${entity}.geo.json")['minecraft:geometry'][0]
+                def animations = json(zip, "assets/starfold_biotech/animations/${entity}.animation.json").animations
+                def required = entity == 'host' ? ['idle', 'roots', 'vent', 'spit', 'shell_break', 'takeoff', 'fly', 'dive', 'egg_drop', 'death'] : entity == 'host_sac' ? ['idle', 'rupture'] : ['fly']
+                if (!animations.keySet().containsAll(required)) throw new GradleException("Missing animations: ${entity}")
+                def bones = geometry.bones.collect { it.name }
+                animations.values().each { clip ->
+                    if (!bones.containsAll(clip.bones.keySet())) throw new GradleException('Animation references missing bone')
+                }
+                if (entity == 'host') {
+                    if (!bones.containsAll(['shell', 'engine'])) throw new GradleException('Missing phase organs')
+                    def glow = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry('assets/starfold_biotech/textures/entity/host_glowmask.png')))
+                    if (glow.width != 256 || glow.height != 256) throw new GradleException('Expected 256x256 engine glow mask')
+                }
+                def image = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry("assets/starfold_biotech/textures/entity/${entity}.png")))
+                if (image.width != 256 || image.height != 256) throw new GradleException('Expected 256x256 entity atlas')
+                geometry.bones.each { bone -> bone.cubes?.each { cube -> cube.uv.values().each { face ->
+                    if (face.uv[0] < 0 || face.uv[1] < 0 || face.uv[0] + face.uv_size[0] > 256 || face.uv[1] + face.uv_size[1] > 256)
+                        throw new GradleException('UV outside entity atlas')
+                } } }
+                json(zip, "data/starfold_biotech/loot_table/entities/${entity}.json")
+                json(zip, "assets/starfold_biotech/models/item/${entity}_spawn_egg.json")
+                for (String locale : ['en_us', 'zh_cn']) {
+                    def text = json(zip, "assets/starfold_biotech/lang/${locale}.json")
+                    if (!text["entity.starfold_biotech.${entity}".toString()] || !text["item.starfold_biotech.${entity}_spawn_egg".toString()]
+                            || !text['item.starfold_biotech.host_ganglion']) throw new GradleException('Missing Host localization')
+                }
+            }
+            def ganglion = json(zip, 'data/starfold_biotech/loot_table/entities/host.json').pools[0].entries[0]
+            if (ganglion.name != 'starfold_biotech:host_ganglion' || ganglion.functions != [[function: 'minecraft:set_count', count: 4]])
+                throw new GradleException('Host must drop exactly four ganglia')
+            json(zip, 'assets/starfold_biotech/models/item/host_ganglion.json')
+            def ganglionImage = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry('assets/starfold_biotech/textures/item/host_ganglion.png')))
+            if (ganglionImage.width != 16 || ganglionImage.height != 16) throw new GradleException('Expected 16x16 ganglion')
+            def metadata = zip.getInputStream(zip.getEntry('META-INF/neoforge.mods.toml')).getText('UTF-8')
+            if (!(metadata =~ /(?s)\[\[dependencies.starfold_biotech\]\]\s*modId="geckolib"\s*type="required"\s*versionRange="\[4\.8\.2\]"/))
+                throw new GradleException('GeckoLib must be a pinned required dependency')
+            if (!metadata.contains('modId="starfold_worlds"') || !metadata.contains('displayName="Starfold: Biotech"') || !metadata.contains('ordering="AFTER"'))
+                throw new GradleException('Biotech must load after Worlds')
+            if (zip.entries().toList().any { it.name.endsWith('.jar') || it.name.startsWith('dev/starfold/worlds/') })
+                throw new GradleException('Foreign content bundled in Biotech')
+        }
+        for (def auditedProject : [rootProject, project(':worlds')])
+            new java.util.zip.ZipFile(auditedProject.tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+                zip.entries().toList().findAll { !it.directory }.each { entry ->
+                    def text = new String(zip.getInputStream(entry).withCloseable { it.readAllBytes() }, java.nio.charset.StandardCharsets.ISO_8859_1)
+                    if (entry.name.contains('starfold_biotech') || entry.name.startsWith('dev/starfold/biotech/') || text.contains('starfold_biotech') || text.contains('dev/starfold/biotech/'))
+                        throw new GradleException("Biotech leaked into ${auditedProject.name}: ${entry.name}")
+                }
+            }
+    }
+}
+tasks.register('hostResourcesContract', Exec) {
+    group = 'verification'
+    commandLine 'python3', file('tools/generate-host-resources.py'), '--check'
+}
+tasks.named('check') { dependsOn tasks.named('packagingContract'), tasks.named('hostResourcesContract') }

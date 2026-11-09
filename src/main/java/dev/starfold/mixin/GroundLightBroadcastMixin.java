@@ -21,6 +21,6 @@ public abstract class GroundLightBroadcastMixin {
     private void starfold$nativeLight(LightLayer layer, SectionPos section, CallbackInfo ci) {
         if (PlanetLevels.is(level))
             // Light callbacks can arrive off-thread; the stream's queues belong to the server.
-            level.getServer().execute(() -> ImageStream.lit(level, section.chunk()));
+            level.getServer().execute(() -> ImageStream.lit(level, layer, section));
     }
 }

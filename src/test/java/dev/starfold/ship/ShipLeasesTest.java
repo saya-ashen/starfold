@@ -107,6 +107,26 @@ class ShipLeasesTest {
     }
 
     @Test
+    void leasesSnapshotInputsAndKeepTheirColumnsReadOnly() {
+        var id = UUID.randomUUID();
+        var footprint = new HashSet<>(Set.of(1L));
+        var cargo = new HashSet<>(Set.of(2L));
+        var input = new ShipLeases.Input(id, footprint, Set.of(ShipLeases.Reason.ALWAYS), cargo);
+        footprint.clear();
+        cargo.clear();
+        assertEquals(Set.of(1L), input.footprint());
+        assertEquals(Set.of(2L), input.cargo());
+        assertThrows(UnsupportedOperationException.class, () -> input.footprint().clear());
+        assertThrows(UnsupportedOperationException.class, () -> input.cargo().clear());
+        var planned = ShipLeases.plan(List.of(input));
+        var references = new HashMap<>(planned.references());
+        var snapshot = new ShipLeases.Plan(planned.ships(), references);
+        references.clear();
+        assertEquals(Map.of(1L, 1, 2L, 1), snapshot.references());
+        assertThrows(UnsupportedOperationException.class, () -> snapshot.columns().clear());
+    }
+
+    @Test
     void eachRealReasonRetainsCurrentNextAndCargoColumnsButNoReasonRetainsNone() {
         var id = UUID.randomUUID();
         for (var reason : ShipLeases.Reason.values()) {
@@ -176,6 +196,6 @@ class ShipLeasesTest {
                             "removeSubLevel(",
                             "addForceLoadTicket("))
                 assertFalse(text.contains(forbidden), forbidden);
-        assertTrue(Sources.text("StarfoldServer").contains("DevShipPersistenceProbe.clear()"));
+        assertTrue(Sources.text("StarfoldProbes").contains("DevShipPersistenceProbe.clear()"));
     }
 }

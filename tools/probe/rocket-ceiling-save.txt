@@ -1,4 +1,4 @@
-# A copy of Saya's save where "space no longer climbs": aboard where it stopped, the helm taken, space held.
+# A copy of the tester's save where "space no longer climbs": aboard where it stopped, the helm taken, space held.
 waitworld
 wait 200
 waitworld

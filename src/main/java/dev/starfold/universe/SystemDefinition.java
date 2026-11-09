@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
+import dev.starfold.chart.SunSettings;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetStorage;
@@ -21,6 +22,9 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
             ResourceKey.createRegistryKey(
                     ResourceLocation.fromNamespaceAndPath("starfold", "system"));
     public static final double MARGIN = 256;
+    public static final double HOME_ORBIT = 12000 / Math.tan(Math.toRadians(1.5));
+    public static final double STAR_GM =
+            4 * Math.PI * Math.PI * Math.pow(HOME_ORBIT, 3) / Math.pow(8 * 2400, 2);
     private static final Codec<Point> POINT =
             Codec.DOUBLE
                     .listOf()
@@ -34,7 +38,7 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                                             "system position needs three finite block coordinates"),
                             p -> List.of(p.x(), p.y(), p.z()));
 
-    public record Path(double radius, double period, double phase) {
+    public record Path(double radius, double phase) {
         static final Codec<Path> CODEC =
                 RecordCodecBuilder.create(
                         i ->
@@ -43,18 +47,18 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                                         .fieldOf("radius")
                                                         .forGetter(Path::radius),
                                                 Codec.DOUBLE
-                                                        .fieldOf("period")
-                                                        .forGetter(Path::period),
-                                                Codec.DOUBLE
                                                         .optionalFieldOf("phase", 0.0)
                                                         .forGetter(Path::phase))
                                         .apply(i, Path::new));
 
         public Path {
             range(radius, 1, 1e7, "orbit.radius");
-            range(period, 12000, 1e9, "orbit.period (ticks)");
             if (!Double.isFinite(phase))
                 throw new IllegalArgumentException("orbit.phase must be finite radians");
+        }
+
+        public double period(double gm) {
+            return 20 * 2 * Math.PI * Math.sqrt(radius * radius * radius / gm);
         }
     }
 
@@ -232,7 +236,79 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
         }
     }
 
-    public record Sun(Point position, double radius, List<Planet> planets) {
+    /** A physical catalog body without a terrain type, generator or surface-storage slot. */
+    public record GasBody(
+            double radius,
+            Path orbit,
+            Rotation spin,
+            dev.starfold.chart.GasGiant gas,
+            double gm,
+            List<Planet> moons) {
+        public GasBody(double radius, Path orbit, Rotation spin, dev.starfold.chart.GasGiant gas) {
+            this(radius, orbit, spin, gas, 80 * radius * radius, List.of());
+        }
+
+        static final Codec<GasBody> CODEC =
+                RecordCodecBuilder.create(
+                        i ->
+                                i.group(
+                                                Codec.DOUBLE
+                                                        .fieldOf("radius")
+                                                        .forGetter(GasBody::radius),
+                                                Path.CODEC
+                                                        .fieldOf("orbit")
+                                                        .forGetter(GasBody::orbit),
+                                                Rotation.CODEC
+                                                        .fieldOf("spin")
+                                                        .forGetter(GasBody::spin),
+                                                dev.starfold.chart.GasGiant.CODEC
+                                                        .fieldOf("gas")
+                                                        .forGetter(GasBody::gas),
+                                                Codec.DOUBLE.optionalFieldOf("gm")
+                                                        .forGetter(g -> Optional.of(g.gm)),
+                                                strict(Planet.MOON.listOf())
+                                                        .optionalFieldOf("moons", List.of())
+                                                        .forGetter(GasBody::moons))
+                                        .apply(
+                                                i,
+                                                (radius, orbit, spin, gas, gm, moons) ->
+                                                        new GasBody(
+                                                                radius,
+                                                                orbit,
+                                                                spin,
+                                                                gas,
+                                                                gm.orElse(80 * radius * radius),
+                                                                moons)));
+
+        public GasBody {
+            Objects.requireNonNull(orbit);
+            Objects.requireNonNull(spin);
+            Objects.requireNonNull(gas).validateRadius(radius);
+            range(gm, 1, 1e30, "gas.gm");
+            moons = List.copyOf(moons);
+            if (moons.stream().anyMatch(m -> !m.moons.isEmpty()))
+                throw new IllegalArgumentException("A moon cannot have moons");
+        }
+
+        double shell() {
+            return radius + gas.outerHeight();
+        }
+    }
+
+    public record Sun(
+            Point position,
+            double radius,
+            List<Planet> planets,
+            List<GasBody> gasGiants,
+            double gm) {
+        public Sun(Point position, double radius, List<Planet> planets, List<GasBody> gasGiants) {
+            this(position, radius, planets, gasGiants, STAR_GM);
+        }
+
+        public Sun(Point position, double radius, List<Planet> planets) {
+            this(position, radius, planets, List.of());
+        }
+
         static final Codec<Sun> CODEC =
                 RecordCodecBuilder.create(
                         i ->
@@ -243,15 +319,32 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                                         .forGetter(Sun::radius),
                                                 strict(Planet.CODEC.listOf())
                                                         .fieldOf("planets")
-                                                        .forGetter(Sun::planets))
-                                        .apply(i, Sun::new));
+                                                        .forGetter(Sun::planets),
+                                                strict(GasBody.CODEC.listOf())
+                                                        .optionalFieldOf("gas_giants", List.of())
+                                                        .forGetter(Sun::gasGiants),
+                                                Codec.DOUBLE.optionalFieldOf("gm")
+                                                        .forGetter(s -> Optional.of(s.gm)))
+                                        .apply(
+                                                i,
+                                                (position, radius, planets, gasGiants, gm) ->
+                                                        new Sun(
+                                                                position,
+                                                                radius,
+                                                                planets,
+                                                                gasGiants,
+                                                                gm.orElse(STAR_GM))));
 
         public Sun {
             planets = List.copyOf(planets);
+            gasGiants = List.copyOf(gasGiants);
+            if (gasGiants.size() > dev.starfold.chart.GasGiant.MAX_PER_SUN)
+                throw new IllegalArgumentException("At most eight gas giants per sun");
             if (position == null || !position.finite() || position.length() > 1e9)
                 throw new IllegalArgumentException(
                         "sun.position must be finite and within 1000000000 blocks of origin");
-            range(radius, 32, 4096, "sun.radius");
+            range(radius, 32, 16384, "sun.radius");
+            range(gm, 1, 1e30, "sun.gm");
             if (planets.isEmpty())
                 throw new IllegalArgumentException("Each sun needs at least one planet");
         }
@@ -309,10 +402,19 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
 
     public SystemDefinition {
         suns = List.copyOf(suns);
+        if (suns.stream().mapToLong(s -> s.gasGiants.size()).sum()
+                > dev.starfold.chart.GasGiant.MAX_COUNT)
+            throw new IllegalArgumentException("At most 64 authored gas giants");
         long count =
                 suns.stream()
-                        .flatMap(s -> s.planets.stream())
-                        .mapToLong(p -> 1L + p.moons.size())
+                        .mapToLong(
+                                s ->
+                                        s.planets.stream()
+                                                        .mapToLong(p -> 1L + p.moons.size())
+                                                        .sum()
+                                                + s.gasGiants.stream()
+                                                        .mapToLong(g -> g.moons.size())
+                                                        .sum())
                         .sum();
         if (count < 1 || count > Universe.CAPACITY || count > PlanetStorage.MAX_PLANETS)
             throw new IllegalArgumentException(
@@ -323,10 +425,6 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                 || home.planet >= suns.get(home.sun).planets.size())
             throw new IllegalArgumentException(
                     "home.sun/home.planet must index an existing sun and planet (zero based)");
-        var sun = suns.get(home.sun);
-        if (sun.position.length() > 100000 || sun.radius > 1024)
-            throw new IllegalArgumentException(
-                    "home sun position must be within 100000 blocks of origin and radius at most 1024");
     }
 
     private static void range(double n, double min, double max, String field) {
@@ -339,168 +437,13 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
         PlanetIdentity.validName(name);
     }
 
-    /** Seedless validation uses the largest possible size, so choosing another world seed cannot invalidate a pack. */
     public void validate() {
-        if (beyond.isPresent()) {
-            var layout = beyond.get().value();
-            var path = suns.get(home.sun).planets.get(home.planet).orbit;
-            double outer = path.radius + (layout.maxPlanets() - 1) * layout.ring();
-            double first =
-                    640
-                            + new PlanetShape(PlanetShape.MAX).radius()
-                            + GroundEphemeris.Body.DEFAULT_REACH
-                            + MARGIN / 2;
-            if (path.radius <= first || layout.gap() < 4 * outer + 16384)
-                throw new IllegalArgumentException(
-                        "beyond rings need home orbit radius above "
-                                + first
-                                + " and star_gap at least "
-                                + (4 * outer + 16384));
-            if (path.period * Math.pow(outer / path.radius, 1.5) > 1e9)
-                throw new IllegalArgumentException(
-                        "beyond outer orbit period exceeds 1000000000 ticks; shorten the home period or reduce beyond rings");
-        }
-        double[] reaches = new double[suns.size()];
-        for (int s = 0; s < suns.size(); s++) {
-            var sun = suns.get(s);
-            double[] radii = new double[sun.planets.size()];
-            double[] families = new double[radii.length];
-            for (int p = 0; p < radii.length; p++) {
-                var planet = sun.planets.get(p);
-                try {
-                    var type = planet.type.value();
-                    int size = planet.size.orElse(type.maxSize());
-                    type.generation(size);
-                    radii[p] = new PlanetShape(size).radius();
-                } catch (RuntimeException e) {
-                    throw new IllegalArgumentException(
-                            "sun "
-                                    + s
-                                    + " planet "
-                                    + p
-                                    + " type "
-                                    + planet.type
-                                            .unwrapKey()
-                                            .map(k -> k.location().toString())
-                                            .orElse("inline")
-                                    + ": "
-                                    + e.getMessage(),
-                            e);
-                }
-                families[p] = family(planet, radii[p], "sun " + s + " planet " + p);
-                double reach = families[p] + MARGIN / 2;
-                if (planet.orbit.radius <= sun.radius + reach)
-                    throw new IllegalArgumentException(
-                            "sun "
-                                    + s
-                                    + " planet "
-                                    + p
-                                    + " orbit is too close to its sun; radius must exceed "
-                                    + (sun.radius + reach));
-                reaches[s] = Math.max(reaches[s], planet.orbit.radius + reach);
-                for (int q = 0; q < p; q++) {
-                    var other = sun.planets.get(q);
-                    double distance = distance(planet.orbit, other.orbit);
-                    double required =
-                            planet.moons.isEmpty() && other.moons.isEmpty()
-                                    ? radii[p] + radii[q] + (planet.reach + other.reach) + MARGIN
-                                    : families[p] + families[q] + MARGIN;
-                    if (!Double.isFinite(distance) || distance < required)
-                        throw new IllegalArgumentException(
-                                "sun "
-                                        + s
-                                        + " planets "
-                                        + q
-                                        + " and "
-                                        + p
-                                        + " orbits too close: minimum "
-                                        + distance
-                                        + ", need "
-                                        + required
-                                        + "; separate rings, or use equal periods and separated phases");
-                }
-            }
-            // Own-flight saves reject absolute positions beyond this bound; do not offer an
-            // unreachable authored planet.
-            if (sun.position.length() + reaches[s] > 200000)
-                throw new IllegalArgumentException(
-                        "sun "
-                                + s
-                                + " orbit envelope must stay within 200000 blocks of origin (flight save limit)");
-            for (int t = 0; t < s; t++)
-                if (sun.position.sub(suns.get(t).position).length() < reaches[s] + reaches[t])
-                    throw new IllegalArgumentException(
-                            "suns "
-                                    + t
-                                    + " and "
-                                    + s
-                                    + " outermost orbits overlap; separate positions by at least "
-                                    + (reaches[s] + reaches[t]));
-        }
-    }
-
-    private static double radius(Planet planet) {
-        var type = planet.type.value();
-        int size = planet.size.orElse(type.maxSize());
-        type.generation(size);
-        return new PlanetShape(size).radius();
-    }
-
-    /** The parent's shell and every moon's entire path must fit inside the sun's spacing envelope. */
-    private static double family(Planet planet, double radius, String label) {
-        double extent = radius + planet.reach;
-        var shells = new double[planet.moons.size()];
-        for (int m = 0; m < shells.length; m++) {
-            var moon = planet.moons.get(m);
-            try {
-                shells[m] = radius(moon) + moon.reach;
-            } catch (RuntimeException error) {
-                throw new IllegalArgumentException(
-                        label + " moon " + m + ": " + error.getMessage(), error);
-            }
-            double required = radius + planet.reach + shells[m] + MARGIN;
-            if (moon.orbit.radius < required)
-                throw new IllegalArgumentException(
-                        label
-                                + " moon "
-                                + m
-                                + " orbit too close to its planet; radius must be at least "
-                                + required);
-            extent = Math.max(extent, moon.orbit.radius + shells[m]);
-            for (int n = 0; n < m; n++) {
-                double distance = distance(moon.orbit, planet.moons.get(n).orbit);
-                double need = shells[m] + shells[n] + MARGIN;
-                if (!Double.isFinite(distance) || distance < need)
-                    throw new IllegalArgumentException(
-                            label
-                                    + " moons "
-                                    + n
-                                    + " and "
-                                    + m
-                                    + " orbits too close: minimum "
-                                    + distance
-                                    + ", need "
-                                    + need
-                                    + "; separate rings, or use equal periods and separated phases");
-            }
-        }
-        return extent;
-    }
-
-    private static double distance(Path a, Path b) {
-        return a.period == b.period
-                ? Math.sqrt(
-                        Math.pow(a.radius - b.radius, 2)
-                                + 4
-                                        * a.radius
-                                        * b.radius
-                                        * Math.pow(Math.sin((a.phase - b.phase) / 2), 2))
-                : Math.abs(a.radius - b.radius);
+        SystemValidation.validate(this);
     }
 
     /** This is the saved celestial source, not a reference back into a pack. The running clock copies it once. */
     public record Sky(GroundEphemeris.Model model, List<String> names, List<Integer> groups) {
-        private static final Codec<GroundEphemeris.Model> MODEL = SystemSkyCodec.MODEL;
+        private static final Codec<GroundEphemeris.Model> MODEL = SystemSkyCodec.SAVED_MODEL;
         public static final Codec<Sky> CODEC =
                 RecordCodecBuilder.create(
                         i ->
@@ -534,70 +477,7 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
             List<PlanetChunkGenerator> planets, Sky sky, Optional<Holder<UniverseLayout>> beyond) {}
 
     public Made materialize(long worldSeed) {
-        validate();
-        var planets = new ArrayList<PlanetChunkGenerator>();
-        var bodies = new ArrayList<GroundEphemeris.Body>();
-        var names = new ArrayList<String>();
-        var groups = new ArrayList<Integer>();
-        var parents = new IdentityHashMap<Planet, Integer>();
-        var order = new ArrayList<Integer>();
-        order.add(home.sun);
-        for (int s = 0; s < suns.size(); s++) if (s != home.sun) order.add(s);
-        for (int s : order) {
-            var sun = suns.get(s);
-            int parent = bodies.size();
-            bodies.add(
-                    new GroundEphemeris.Body(
-                            new GroundEphemeris.Fixed(sun.position), sun.radius, true, -1));
-            groups.add(sun.planets.stream().mapToInt(p -> 1 + p.moons.size()).sum());
-            var places = new ArrayList<Integer>();
-            if (s == home.sun) places.add(home.planet);
-            for (int p = 0; p < sun.planets.size(); p++) if (!places.contains(p)) places.add(p);
-            int offset = 0;
-            for (int before = 0; before < s; before++) offset += suns.get(before).planets.size();
-            for (int p : places) {
-                var planet = sun.planets.get(p);
-                long seed = planet.seed.orElse(derivedSeed(worldSeed, offset + p));
-                parents.put(planet, bodies.size());
-                append(planet, seed, parent, planets, bodies, names);
-            }
-        }
-        int ordinal = planets.size();
-        for (var sun : suns)
-            for (var planet : sun.planets)
-                for (var moon : planet.moons) {
-                    long seed = moon.seed.orElse(derivedSeed(worldSeed, ordinal++));
-                    append(moon, seed, parents.get(planet), planets, bodies, names);
-                }
-        var model = new GroundEphemeris.Model(bodies);
-        return new Made(List.copyOf(planets), new Sky(model, names, groups), beyond);
-    }
-
-    private static void append(
-            Planet planet,
-            long seed,
-            int parent,
-            List<PlanetChunkGenerator> planets,
-            List<GroundEphemeris.Body> bodies,
-            List<String> names) {
-        planets.add(
-                planet.type
-                        .value()
-                        .planet(seed, planet.size)
-                        .identity(planet.typeId(), planet.name));
-        names.add(planet.name.orElse(PlanetSystem.defaultName(names.size())));
-        var path = planet.orbit;
-        var orbit =
-                new GroundEphemeris.Orbit(
-                        parent,
-                        GroundEphemeris.Y,
-                        new Point(0, 0, 1),
-                        path.radius,
-                        path.period,
-                        path.phase,
-                        0,
-                        planet.rotation());
-        bodies.add(new GroundEphemeris.Body(orbit, 0, false, planets.size() - 1, planet.reach));
+        return SystemMaterializer.materialize(this, worldSeed);
     }
 
     /** WorldDimensions.bake runs after holder binding, but before a dedicated server saves or creates levels. */
@@ -619,10 +499,7 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
     }
 
     public static long derivedSeed(long world, int index) {
-        long seed = world + 0x9E3779B97F4A7C15L * (index + 1L);
-        seed = (seed ^ (seed >>> 30)) * 0xBF58476D1CE4E5B9L;
-        seed = (seed ^ (seed >>> 27)) * 0x94D049BB133111EBL;
-        return seed ^ (seed >>> 31);
+        return SystemMaterializer.derivedSeed(world, index);
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {

@@ -2,6 +2,21 @@
 
 [中文](CHANGELOG_zh-CN.md)
 
+
+## Unreleased — 0.3.0 development
+
+**Create a new world. Saves from 0.2.0 are not supported, and no migration is provided.**
+
+- Split experience worlds, starter content, maps, materials and Biotech into optional modules; keep development probes and profiling separate from player jars.
+- Add Atlas planet surveys, ground/globe views, 3D system and interstellar maps, navigation targets and persistent ship tracking.
+- Extend reachable star systems and interstellar engine progression. Fuel and component mass now affect flight and remaining delta-v.
+- Add gas-giant pressure, skimming, aluminum hull plating and osmium pressure hulls.
+- Add optional Flesh hive terrain, blood and the Host encounter through Biotech (requires Worlds and GeckoLib 4.8.2).
+- Rework deterministic terrain planning, caves, roads, structures and ecology; improve far-view caching, streaming and rendering.
+- Improve return flights and map-based recovery of saved ship dependency groups.
+
+This is a source update, not a packaged release. Single-player remains the validation target. Full survival progression, fuel balance, multiplayer and shader compatibility are not accepted. The optional seasonal display module is omitted while its third-party provenance review remains pending; core seasonal APIs remain available.
+
 ## 0.2.0 “Moonrise”
 
 **Worlds from 0.1.x cannot be opened with 0.2.0.** Create a new world. An experience-pack or generated-universe

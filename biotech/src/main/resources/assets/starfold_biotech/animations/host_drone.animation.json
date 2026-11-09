@@ -1,0 +1,25 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "fly": {
+      "loop": true,
+      "animation_length": 0.4,
+      "bones": {
+        "wing_l": {
+          "rotation": [
+            0,
+            0,
+            "math.sin(query.anim_time * 1800) * 45"
+          ]
+        },
+        "wing_r": {
+          "rotation": [
+            0,
+            0,
+            "-math.sin(query.anim_time * 1800) * 45"
+          ]
+        }
+      }
+    }
+  }
+}

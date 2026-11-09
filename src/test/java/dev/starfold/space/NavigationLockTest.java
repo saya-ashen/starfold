@@ -119,8 +119,15 @@ class NavigationLockTest {
         assertTrue(client.contains("action==org.lwjgl.glfw.GLFW.GLFW_PRESS&&visible()"));
         assertTrue(client.contains("body!=lockBody||mc.level!=lockLevel"));
         assertTrue(client.contains("transformDirection"));
-        assertTrue(client.contains("sendToServer(new SpacePackets.Target(planet))"));
-        assertTrue(client.contains("if(locked==planet)return"));
+        assertTrue(
+                client.contains(
+                        "sendToServer(new SpacePackets.Target(target==null?-1:target.bodyIndex()))"));
+        assertTrue(client.contains("if(Objects.equals(selection,target)&&shipSelection==null&&!mapSelection)return"));
+        assertTrue(client.contains("private static CelestialTarget selection"));
+        assertTrue(client.contains("selection.surfaceSlot"));
+        assertFalse(client.contains("private static int locked"));
+        // Ground marker selection must replace a pending map/ship intent before takeoff too.
+        assertTrue(Sources.text("PlanetMapApi").contains("publicstaticvoidtarget(Stringname){markers().stream()"));
         for (String language : new String[] {"en_us", "zh_cn"})
             assertTrue(
                     java.nio.file.Files.readString(

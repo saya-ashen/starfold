@@ -1,0 +1,18 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_atlas' }
+repositories { mavenCentral() }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_atlas { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation(project(':')) { transitive = false }
+}
+// Camera tests use the JOML classes already supplied by Minecraft, without booting the game.
+sourceSets.test {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+test { workingDir = rootProject.projectDir }

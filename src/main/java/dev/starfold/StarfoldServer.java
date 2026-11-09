@@ -1,15 +1,8 @@
 package dev.starfold;
 
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-
-import dev.starfold.dev.DevBoardingProbe;
-import dev.starfold.dev.DevShipPersistenceProbe;
-import dev.starfold.dev.DevShipRecords;
 import dev.starfold.flight.AnomalyZone;
-import dev.starfold.flight.FlightHost;
 import dev.starfold.flight.FlightPermit;
 import dev.starfold.flight.GroundFlightServer;
-import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.*;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.ground.GroundServer;
@@ -19,7 +12,6 @@ import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.Anomaly;
 import dev.starfold.planet.PlanetCore;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.render.GroundViewServer;
 import dev.starfold.render.PlanetRemoteServer;
@@ -30,285 +22,38 @@ import dev.starfold.ship.HullVehicles;
 import dev.starfold.ship.SableBoarding;
 import dev.starfold.ship.SableBoardingPacket;
 import dev.starfold.ship.SableFrames;
-import dev.starfold.ship.ShipHost;
 import dev.starfold.ship.ShipRecords;
-import dev.starfold.ship.SpacePackets;
-import dev.starfold.ship.StarterShip;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.GroundDaylight;
-import dev.starfold.sky.GroundEphemerisSave;
-import dev.starfold.sky.SkyHost;
-import dev.starfold.space.SpaceApproach;
-import dev.starfold.space.SpaceDust;
-import dev.starfold.space.SpaceHost;
 import dev.starfold.space.SpaceServer;
-import dev.starfold.space.SpaceSpeed;
-import dev.starfold.space.SpaceSpeedServer;
-import dev.starfold.space.SpaceView;
+import dev.starfold.space.SpaceDust;
 import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.universe.Universe;
 import dev.starfold.waypoint.ShipGuide;
-import dev.starfold.waypoint.WaypointSave;
 import dev.starfold.waypoint.WaypointServer;
 
-import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.*;
 import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 
-/** Brings the server side of every subsystem up in a fixed order, and owns the per-tick order between them and the /starfold command tree. */
+/** Brings the server side of every subsystem up in a fixed order, and owns the per-tick order between them and lifecycle wiring. */
 public final class StarfoldServer {
     private StarfoldServer() {}
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
-        installFlightHost();
-        installGroundHost();
-        installShipHost();
-        installSkyHost();
-        installSpaceHost();
+        StarfoldHostBindings.install();
         initializeServerSystems(modBus);
+        dev.starfold.planet.PlanetFire.initialize();
         registerPlanetLifecycle();
         initializePlayerSystems();
         registerTicketsAndCleanup();
         registerSleeping();
         registerClockTicks();
         registerCommands();
-    }
-
-    private static void installFlightHost() {
-        FlightHost.install(
-                new FlightHost() {
-                    @Override
-                    public void viewLost(net.minecraft.server.level.ServerPlayer player) {
-                        GroundViewServer.remove(player);
-                    }
-
-                    @Override
-                    public void targetSync(net.minecraft.server.level.ServerPlayer player) {
-                        WaypointServer.send(player);
-                    }
-
-                    @Override
-                    public void targetCleared(net.minecraft.server.level.ServerPlayer player) {
-                        WaypointSave.get(player.serverLevel()).clear(player.getUUID());
-                    }
-
-                    @Override
-                    public Component failure(RuntimeException error) {
-                        return WaypointServer.failure(error);
-                    }
-
-                    @Override
-                    public int leave(net.minecraft.server.level.ServerPlayer player) {
-                        return PlanetPlayers.leave(player);
-                    }
-                });
-    }
-
-    private static void installGroundHost() {
-        GroundHost.install(
-                new GroundHost() {
-                    @Override
-                    public void afterDeath(net.minecraft.server.level.ServerPlayer player) {
-                        PlanetPlayers.afterDeath(player);
-                    }
-
-                    @Override
-                    public void viewLost(net.minecraft.server.level.ServerPlayer player) {
-                        GroundViewServer.remove(player);
-                    }
-
-                    @Override
-                    public void resited(net.minecraft.server.level.ServerPlayer player) {
-                        GroundFlightServer.site(player);
-                    }
-
-                    @Override
-                    public void regionSync(net.minecraft.server.level.ServerPlayer player) {
-                        SpaceServer.sync(player);
-                    }
-
-                    @Override
-                    public boolean controlled(net.minecraft.world.entity.Entity entity) {
-                        return GroundFlightServer.controlled(entity);
-                    }
-
-                    @Override
-                    public boolean aloft(net.minecraft.server.level.ServerPlayer player) {
-                        return GroundFlightServer.aloft(player);
-                    }
-
-                    @Override
-                    public boolean carrying(net.minecraft.server.level.ServerPlayer player) {
-                        return SableFrames.carrying(player);
-                    }
-
-                    @Override
-                    public void clearArrival() {
-                        SpaceApproach.clear();
-                    }
-                });
-    }
-
-    private static void installShipHost() {
-        ShipHost.install(
-                new ShipHost() {
-                    @Override
-                    public boolean alwaysTicket(java.util.UUID ship) {
-                        return DevShipPersistenceProbe.alwaysTicket(ship);
-                    }
-
-                    @Override
-                    public boolean retainLead(
-                            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-                        return SpaceServer.retainLead(level, body);
-                    }
-
-                    @Override
-                    public boolean probeTicket(java.util.UUID ship) {
-                        return DevShipPersistenceProbe.held(ship);
-                    }
-
-                    @Override
-                    public double minimumSpeed() {
-                        return SpaceSpeed.V_MIN;
-                    }
-
-                    @Override
-                    public SpeedCaps speedCaps(dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-                        var caps = SpaceSpeedServer.caps(body);
-                        return new SpeedCaps(caps.cruise(), caps.boost());
-                    }
-
-                    @Override
-                    public boolean externalRoll(
-                            net.minecraft.world.level.Level level,
-                            dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-                        return SpaceServer.rollControl(level, body);
-                    }
-
-                    @Override
-                    public void pilotReleased(net.minecraft.server.level.ServerPlayer player) {
-                        SpaceServer.releaseHelm(player);
-                    }
-
-                    @Override
-                    public void releaseArrival(ServerLevel level) {
-                        SpaceApproach.release(level);
-                    }
-
-                    @Override
-                    public void advanceSurroundings(
-                            ServerLevel level,
-                            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
-                        SpaceServer.step(level, container);
-                    }
-
-                    @Override
-                    public dev.starfold.sky.Space.Frame departureFrame(
-                            ServerLevel level,
-                            dev.starfold.sky.Space.Motion motion,
-                            org.joml.Quaterniond orientation,
-                            dev.starfold.chart.GroundEphemeris.Model model,
-                            int planet,
-                            long tick) {
-                        return SpaceServer.entering(
-                                level, motion, orientation, model, planet, tick);
-                    }
-
-                    @Override
-                    public void hullDeparted(ServerLevel level, int planet, String id) {
-                        SpaceServer.departed(level, planet, id);
-                    }
-
-                    @Override
-                    public dev.starfold.sky.Space.Frame surroundingsFrame(ServerLevel level) {
-                        return SpaceServer.frame(level);
-                    }
-
-                    @Override
-                    public Point carriedSpin(ServerLevel level, java.util.UUID hull) {
-                        return SpaceServer.carriedSpin(level, hull);
-                    }
-
-                    @Override
-                    public boolean landingLoaded(ServerLevel level, Point anchor) {
-                        return SpaceApproach.full(level, anchor);
-                    }
-
-                    @Override
-                    public boolean landingReady(
-                            dev.starfold.chart.GroundEphemeris.Body body,
-                            double height,
-                            boolean full) {
-                        return SpaceApproach.ready(body, height, full);
-                    }
-
-                    @Override
-                    public net.minecraft.world.level.ChunkPos landingColumn(
-                            dev.starfold.geometry.BentStripGeometry.Point anchor) {
-                        return SpaceApproach.column(anchor);
-                    }
-
-                    @Override
-                    public void hullEnteredChart(ServerLevel level, String id) {
-                        SpaceServer.enteredChart(level, id);
-                    }
-
-                    @Override
-                    public void hullArrived(
-                            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-                        SpaceApproach.arrived(level, body);
-                    }
-
-                    @Override
-                    public SpacePackets.Frame carriedFrame(
-                            net.minecraft.server.level.ServerPlayer player) {
-                        return SpaceServer.packet(player);
-                    }
-                });
-    }
-
-    private static void installSkyHost() {
-        SkyHost.install(
-                new SkyHost() {
-                    @Override
-                    public boolean underWay() {
-                        return GroundFlightServer.underWay();
-                    }
-
-                    @Override
-                    public double sunlight(
-                            ServerLevel level,
-                            net.minecraft.core.BlockPos pos,
-                            GroundEphemerisSave clock) {
-                        var eye =
-                                SpaceServer.frame(level)
-                                        .universe(
-                                                new dev.starfold.geometry.BentStripGeometry.Point(
-                                                        pos.getX() + .5,
-                                                        pos.getY() + .5,
-                                                        pos.getZ() + .5),
-                                                clock.model,
-                                                clock.tick());
-                        return SpaceView.sunlight(clock.model, eye, clock.tick());
-                    }
-                });
-    }
-
-    private static void installSpaceHost() {
-        SpaceHost.install(
-                new SpaceHost() {
-                    @Override
-                    public void targetSync(
-                            net.minecraft.server.level.ServerPlayer player, long session) {
-                        WaypointServer.send(player, session);
-                    }
-                });
     }
 
     private static void initializeServerSystems(net.neoforged.bus.api.IEventBus modBus) {
@@ -327,10 +72,9 @@ public final class StarfoldServer {
         SableFrames.initialize();
         SpaceServer.initialize();
         StarfoldNetwork.playS2C(SableBoardingPacket.TYPE, SableBoardingPacket.CODEC);
-        DevBoardingProbe.initialize();
-        dev.starfold.dev.DevEntityBench.initialize();
         SableBoarding.initialize();
         Thrusters.initialize(modBus);
+        dev.starfold.space.GasPlayerExposureServer.initialize();
         Airstair.initialize(modBus);
         AircraftDock.initialize(modBus);
         SpaceDust.initialize(modBus);
@@ -343,6 +87,13 @@ public final class StarfoldServer {
     }
 
     private static void registerPlanetLifecycle() {
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.level.LevelEvent.Unload event) -> {
+                    if (event.getLevel() instanceof ServerLevel level) {
+                        dev.starfold.ground.ChunkViews.release(level);
+                        PlanetPlayers.release(level);
+                    }
+                });
         // A system's planets take their saved sizes before any of its chunks is addressed.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.level.LevelEvent.Load cpEvent) -> {
@@ -353,6 +104,7 @@ public final class StarfoldServer {
                             instanceof SystemChunkGenerator system) {
                         system.materialize(level.getSeed());
                         Universe.bind(level, system);
+                        dev.starfold.worldgen.plan.PlanetPlanStore.bind(level,system);
                         GroundServer.system(system);
                     }
                     ShipRecords.attach(level);
@@ -360,10 +112,13 @@ public final class StarfoldServer {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.server.ServerStoppedEvent cpEvent) -> {
                     var server = cpEvent.getServer();
+                    PlanetPlayers.clear();
+                    dev.starfold.ground.ObserverFrames.clear();
+                    WaypointServer.clear();
                     ShipRecords.clear();
                     dev.starfold.ship.ShipDormancy.clear();
-                    DevShipPersistenceProbe.clear();
                     PlanetSystem.reset();
+                    dev.starfold.ground.ChunkViews.resetLayout();
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent
@@ -373,7 +128,13 @@ public final class StarfoldServer {
                                     .connection;
                     var server = handler.player.getServer();
                     GroundServer.shapes(handler.player);
+                    PlanetPlayers.joined(handler.player);
                 });
+        // Someone reborn with no bed wakes on the home planet, as a new player does.
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(PlanetPlayers::respawn);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) ->
+                        PlanetPlayers.joined((net.minecraft.server.level.ServerPlayer) event.getEntity()));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.tick.ServerTickEvent.Post cpEvent) -> {
                     var server = cpEvent.getServer();
@@ -387,6 +148,9 @@ public final class StarfoldServer {
                             ((net.minecraft.server.level.ServerPlayer) cpEvent.getEntity())
                                     .connection;
                     var server = handler.player.getServer();
+                    PlanetPlayers.cancel(handler.player.getUUID());
+                    dev.starfold.ground.ObserverFrames.forget(handler.player);
+                    WaypointServer.forget(handler.player);
                     GroundServer.forget(handler.player.getUUID());
                 });
     }
@@ -394,8 +158,8 @@ public final class StarfoldServer {
     private static void initializePlayerSystems() {
         GroundFlightServer.initialize();
         WaypointServer.initialize();
+        dev.starfold.waypoint.MapNavigationServer.initialize();
         ShipGuide.initialize();
-        StarterShip.initialize();
         GroundViewServer.initialize();
         PlanetRemoteServer.initialize();
     }
@@ -468,7 +232,7 @@ public final class StarfoldServer {
                         ChunkTickReadiness.postProcessHeld(level);
                         GroundViewServer.tick(level, saved);
                         AnomalyZone.tick(level);
-                        DevShipPersistenceProbe.tick(level);
+                        DevelopmentHooks.tickLevel.accept(level);
                         if (level.getGameTime() % 20 == 0) {
                             ShipRecords.refresh(level);
                             for (var player : List.copyOf(level.players())) {
@@ -491,175 +255,8 @@ public final class StarfoldServer {
     private static void registerCommands() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.RegisterCommandsEvent cpEvent) -> {
-                    var dispatcher = cpEvent.getDispatcher();
-                    dispatcher.register(
-                            coreCommands()
-                                    .then(navigationCommands())
-                                    .then(faceCommands())
-                                    .then(spinCommands())
-                                    .then(DevShipRecords.command())
-                                    .then(DevShipPersistenceProbe.command()));
+                    StarfoldCommands.register(cpEvent.getDispatcher());
                 });
     }
 
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<
-                    net.minecraft.commands.CommandSourceStack>
-            coreCommands() {
-        return Commands.literal("starfold")
-                // Going to the planets, steering and marking are everyone's;
-                // the rest is for setting a world up and looking into it.
-                .then(
-                        Commands.literal("enter")
-                                .requires(s -> s.hasPermission(2))
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.enter(
-                                                        c.getSource().getPlayerOrException())))
-                .then(
-                        Commands.literal("terrain")
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.enter(
-                                                        c.getSource().getPlayerOrException(),
-                                                        PlanetLevels.PLANET)))
-                .then(
-                        Commands.literal("leave")
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.leave(
-                                                        c.getSource().getPlayerOrException())))
-                .then(WaypointServer.commands())
-                .then(
-                        Commands.literal("status")
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.status(
-                                                        c.getSource().getPlayerOrException())))
-                .then(
-                        Commands.literal("universe")
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.universe(
-                                                        c.getSource().getPlayerOrException())))
-                .then(
-                        Commands.literal("orbit")
-                                .requires(s -> s.hasPermission(2))
-                                .executes(
-                                        c ->
-                                                GroundFlightServer.orbit(
-                                                        c.getSource().getPlayerOrException())));
-    }
-
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<
-                    net.minecraft.commands.CommandSourceStack>
-            navigationCommands() {
-        return Commands.literal("nav")
-                .then(
-                        Commands.literal("target")
-                                .then(
-                                        Commands.literal("a")
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.target(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        0)))
-                                .then(
-                                        Commands.literal("b")
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.target(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        1)))
-                                .then(
-                                        Commands.argument(
-                                                        "planet",
-                                                        IntegerArgumentType.integer(
-                                                                0, PlanetStorage.MAX_PLANETS - 1))
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.target(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        IntegerArgumentType
-                                                                                .getInteger(
-                                                                                        c,
-                                                                                        "planet")))))
-                .then(
-                        Commands.literal("brake")
-                                .then(
-                                        Commands.literal("on")
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.guidance(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        0,
-                                                                        true)))
-                                .then(
-                                        Commands.literal("off")
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.guidance(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        0,
-                                                                        false))))
-                .then(
-                        Commands.literal("land")
-                                .then(
-                                        Commands.literal("on")
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.guidance(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        1,
-                                                                        true)))
-                                .then(
-                                        Commands.literal("off")
-                                                .executes(
-                                                        c ->
-                                                                GroundFlightServer.guidance(
-                                                                        c.getSource()
-                                                                                .getPlayerOrException(),
-                                                                        1,
-                                                                        false))));
-    }
-
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<
-                    net.minecraft.commands.CommandSourceStack>
-            faceCommands() {
-        return Commands.literal("face")
-                .requires(s -> s.hasPermission(2))
-                .then(
-                        Commands.argument("id", IntegerArgumentType.integer(0, 5))
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.face(
-                                                        c.getSource().getPlayerOrException(),
-                                                        IntegerArgumentType.getInteger(c, "id"))));
-    }
-
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<
-                    net.minecraft.commands.CommandSourceStack>
-            spinCommands() {
-        return Commands.literal("spin")
-                .requires(s -> s.hasPermission(2))
-                .then(
-                        Commands.literal("on")
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.spin(
-                                                        c.getSource().getPlayerOrException(),
-                                                        true)))
-                .then(
-                        Commands.literal("off")
-                                .executes(
-                                        c ->
-                                                PlanetPlayers.spin(
-                                                        c.getSource().getPlayerOrException(),
-                                                        false)));
-    }
 }

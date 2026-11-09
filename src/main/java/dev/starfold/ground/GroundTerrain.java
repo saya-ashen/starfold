@@ -288,6 +288,11 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
         return feet.y() - top;
     }
 
+    @Override
+    public double handoff() {
+        return GroundDynamics.handoff(mask);
+    }
+
     private GroundTerrain() {
         throw new AssertionError();
     }
@@ -298,6 +303,10 @@ public final class GroundTerrain implements GroundDynamics.Terrain {
             net.minecraft.server.level.ServerPlayer player,
             GroundSpace.Config mask) {
         return new GroundDynamics.Terrain() {
+            public double handoff() {
+                return GroundDynamics.handoff(mask);
+            }
+
             public boolean clear(PlanetShape.Pose p) {
                 return clear(player == null ? 0 : PlanetSystem.planet(player), p);
             }

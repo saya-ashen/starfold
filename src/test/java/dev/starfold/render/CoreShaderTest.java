@@ -26,6 +26,7 @@ class CoreShaderTest {
                         "rendertype_translucent",
                         "rendertype_translucent_moving_block",
                         "rendertype_entity_cutout",
+                        "rendertype_entity_alpha",
                         "rendertype_entity_solid",
                         "rendertype_entity_translucent",
                         "rendertype_item_entity_translucent_cull",
@@ -40,9 +41,18 @@ class CoreShaderTest {
             assertTrue(f.startsWith("#version 150"));
             assertTrue(v.contains("void cpCapOriginalMain()"));
             assertTrue(v.contains("out float cpNativeFacing"));
+            if(!v.contains("uniform sampler2D Sampler2;"))
+                assertFalse(v.contains("texelFetch(Sampler2"),name);
             assertTrue(f.contains("in float cpNativeFacing"));
             assertTrue(f.contains("cpCapOriginalMain();"));
         }
+    }
+
+    @Test
+    void farTexturesKeepMipmappedAtlasDetailAtEveryAltitude() {
+        assertTrue(GroundShaderSource.TEXTURE.contains("textureGrad(source,repeated,dx,dy)"));
+        assertTrue(GroundShaderSource.TEXTURE.contains("return vec4(rgb,cpNativeTextureAlpha<0.0?1.0:cpNativeTextureAlpha)"));
+        assertFalse(GroundShaderSource.TEXTURE.contains("mix(rgb,cpNativeRepeatAlbedo"));
     }
 
     @Test

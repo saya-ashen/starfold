@@ -483,7 +483,6 @@ public final class Airstair {
         var flight = chart ? plan(server, stair, body, at, gravity) : null;
         boolean planned = flight != null, clear = planned;
         double reach = flight == null ? Double.NaN : flight.drop();
-        int before = stair.settled;
         boolean lift = lifting(ship, level);
         String why = null;
         if (stair.anchor != null) {
@@ -544,45 +543,6 @@ public final class Airstair {
         }
         stair.published.set(at);
         stair.publishedOut.set(out);
-        if (Boolean.getBoolean("starfold.airstairProbe")
-                && stair.width > 0
-                && (server.getGameTime() % 20 == 0
-                        || (before >= SETTLE_TICKS) != (stair.settled >= SETTLE_TICKS)))
-            org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                    .info(
-                            "PROBE STAIR tick {} pos {} facing {} top {} out {} speed {} poseSpeed {} linear {} angular {} chart {} gravity {} lift {} planned {} clear {} reach {} settled {} length {} foot {} players {}",
-                            server.getGameTime(),
-                            stair.getBlockPos(),
-                            stair.getBlockState().getValue(BlockStateProperties.HORIZONTAL_FACING),
-                            java.util.List.of(at.x, at.y, at.z),
-                            java.util.List.of(out.x, out.y, out.z),
-                            speed,
-                            poseSpeed,
-                            linear,
-                            angular,
-                            chart,
-                            gravity,
-                            lift,
-                            planned,
-                            clear,
-                            reach,
-                            stair.settled,
-                            stair.length,
-                            flight == null
-                                    ? null
-                                    : java.util.List.of(
-                                            at.x + out.x * flight.steps() * .5,
-                                            at.y - flight.drop(),
-                                            at.z + out.z * flight.steps() * .5),
-                            server.players().stream()
-                                    .map(
-                                            p ->
-                                                    p.position()
-                                                            + " ground="
-                                                            + p.onGround()
-                                                            + " survival="
-                                                            + !p.isCreative())
-                                    .toList());
         var packet =
                 new State(
                         stair.getBlockPos(),

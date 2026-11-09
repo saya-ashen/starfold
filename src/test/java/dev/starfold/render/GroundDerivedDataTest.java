@@ -51,7 +51,7 @@ class GroundDerivedDataTest {
     }
 
     @Test
-    void derivedIndexReloadRevalidatesWithoutWritingNativeChunks() {
+    void derivedIndexReloadServesWithoutLoadingNativeChunks() {
         var index = new GroundSurfaceIndex();
         var pos = new BlockPos(0, 128, 0);
         index.mark(pos);
@@ -65,7 +65,7 @@ class GroundDerivedDataTest {
         var tag = index.save(new CompoundTag(), null);
         assertFalse(tag.contains("inventory"));
         var loaded = GroundSurfaceIndex.load(tag, null);
-        assertTrue(loaded.dirty(0));
+        assertFalse(loaded.dirty(0));
         assertEquals(128, loaded.surface(0).height(0, 0));
         assertEquals(index.revision(), loaded.revision());
         var copy = loaded.coverage();
@@ -74,12 +74,12 @@ class GroundDerivedDataTest {
     }
 
     @Test
-    void exactNativeBaselineClearsConservativeUnknownCoverage() {
+    void exactNativeBaselineIsStillARealGeneratedSurface() {
         var index = new GroundSurfaceIndex();
         index.mark(BlockPos.ZERO);
         index.update(GroundChunkSnapshot.fromStates(0, 0, 0, 2, baseline()));
-        assertFalse(index.coverage().get(0));
-        assertNull(index.surface(0));
+        assertTrue(index.coverage().get(0));
+        assertEquals(127, index.surface(0).height(0, 0));
         assertFalse(index.dirty(0));
     }
 
@@ -95,59 +95,4 @@ class GroundDerivedDataTest {
         assertThrows(IllegalArgumentException.class, () -> GroundSurfaceIndex.load(tag, null));
     }
 
-    @Test
-    void publicDisplayTagsAndOwnersRoundTripWithoutMutableAliases() {
-        var states = baseline();
-        states[(128 + 64) * 256] =
-                Block.BLOCK_STATE_REGISTRY.getId(Blocks.CHEST.defaultBlockState());
-        var chunk = GroundChunkSnapshot.fromStates(0, 0, 0, 3, states);
-        var tag = new CompoundTag();
-        tag.putString("label", "public");
-        var image =
-                new GroundDisplayEntities.Image(
-                        new BlockPos.MutableBlockPos(0, 128, 0),
-                        ResourceLocation.withDefaultNamespace("chest"),
-                        tag);
-        tag.putString("label", "changed");
-        image.update().putString("label", "changed");
-        assertEquals("public", image.update().getString("label"));
-        var packet = new GroundViewPackets.Image(4, chunk, List.of(image));
-        var raw = io.netty.buffer.Unpooled.buffer();
-        try {
-            var b = new RegistryFriendlyByteBuf(raw, RegistryAccess.EMPTY);
-            GroundViewPackets.Image.CODEC.encode(b, packet);
-            assertEquals(packet.entities(), GroundViewPackets.Image.CODEC.decode(b).entities());
-            assertEquals(0, b.readableBytes());
-        } finally {
-            raw.release();
-        }
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new GroundViewPackets.Image(4, chunk, List.of(image, image)));
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        new GroundViewPackets.Image(
-                                4,
-                                chunk,
-                                List.of(
-                                        new GroundDisplayEntities.Image(
-                                                new BlockPos(4096, 128, 0),
-                                                image.type(),
-                                                image.update()))));
-    }
-
-    @Test
-    void equalHashPublicTagsAreStillDifferentUpdates() {
-        var a = new CompoundTag();
-        a.putString("text", "FB");
-        var b = new CompoundTag();
-        b.putString("text", "Ea");
-        var first =
-                new GroundDisplayEntities.Image(
-                        BlockPos.ZERO, ResourceLocation.withDefaultNamespace("sign"), a);
-        var second = new GroundDisplayEntities.Image(BlockPos.ZERO, first.type(), b);
-        assertEquals(first.hashCode(), second.hashCode());
-        assertNotEquals(first, second);
-    }
 }

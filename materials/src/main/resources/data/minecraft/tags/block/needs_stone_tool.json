@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "starfold_materials:aluminum_hull_plating",
+    "starfold_materials:aluminum_hull_plating_slab",
+    "starfold_materials:bauxite_ore",
+    "starfold_materials:deepslate_bauxite_ore",
+    "starfold_materials:raw_aluminum_block",
+    "starfold_materials:aluminum_block"
+  ]
+}

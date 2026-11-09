@@ -1,0 +1,19 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="starfold_probes"
+version="${version}"
+displayName="Starfold Probes"
+description='''Development-only probes. Not for distribution with Starfold.'''
+
+[[mixins]]
+config="starfold_probes.mixins.json"
+
+[[dependencies.starfold_probes]]
+modId="starfold"
+type="required"
+versionRange="[0,)"
+ordering="AFTER"
+side="BOTH"

@@ -9,7 +9,6 @@ import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.OrbitAttitude;
 import dev.starfold.geometry.PlanetSpace;
 import dev.starfold.render.GroundExteriorMesh;
-import dev.starfold.render.GroundSelection;
 import dev.starfold.render.GroundShaderSource;
 
 import org.joml.Quaterniondc;
@@ -139,41 +138,8 @@ class GroundReliefCameraTest {
                 shader.contains("cross(dFdx(cpNativeSolarPosition),dFdy(cpNativeSolarPosition))"));
         assertTrue(shader.contains("cpNativeSea>0.999"));
         assertTrue(shader.contains("dot(slope,radial)<0.0"));
-        assertFalse(GroundShaderSource.TEXTURE.contains("dFdx"));
-    }
-
-    @Test
-    void partialFineSelectionRetainsCoverUntilItsConnectorsArePublished() {
-        BitSet old = new BitSet(), available = new BitSet();
-        available.set(4);
-        assertFalse(GroundSelection.detail(4, old, new BitSet()));
-        BitSet completed = (BitSet) available.clone();
-        assertTrue(
-                GroundSelection.detail(
-                        4, GroundSelection.retain(completed, available), new BitSet()));
-    }
-
-    @Test
-    void vanishedFineTileRevealsFallbackAndDoesNotMutateRequestedSelection() {
-        BitSet requested = new BitSet(), available = new BitSet();
-        requested.set(1);
-        requested.set(2);
-        available.set(2);
-        BitSet selected = GroundSelection.retain(requested, available);
-        assertFalse(selected.get(1));
-        assertTrue(selected.get(2));
-        assertTrue(requested.get(1));
-        assertFalse(GroundSelection.detail(1, selected, new BitSet()));
-    }
-
-    @Test
-    void nativeAndDerivedDetailsAreMutuallyExclusive() {
-        BitSet selected = new BitSet(), nativeReady = new BitSet();
-        selected.set(9);
-        nativeReady.set(9);
-        assertFalse(GroundSelection.detail(9, selected, nativeReady));
-        nativeReady.clear(9);
-        assertTrue(GroundSelection.detail(9, selected, nativeReady));
+        assertFalse(GroundShaderSource.TEXTURE.contains("dFdx(cpNativeSolarPosition)"));
+        assertTrue(GroundShaderSource.TEXTURE.contains("dFdx(cpNativeBlockUv)"));
     }
 
     @Test
@@ -182,11 +148,11 @@ class GroundReliefCameraTest {
         assertTrue(
                 s.contains(
                         "cpEvent.getStage()!=net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY"));
-        assertTrue(s.contains("prepareDetails();if(selectionActive)updateExclusions()"));
+        assertTrue(s.contains("prepareSurfaceUpdates();if(selectionActive)updateExclusions()"));
         assertTrue(s.contains("if(stitchJob==null&&"));
         assertTrue(s.contains("pendingStitches=stitchJob.finish()"));
         assertTrue(s.contains("GroundOwnership.canCommit(pendingJob.nextCover"));
-        assertTrue(s.contains("ownership.owner(key)==GroundOwnership.Owner.DETAIL"));
+        assertFalse(s.contains("drawDetail("));
         assertTrue(s.contains("GroundClient.stitch(mesh==stitches[face])"));
     }
 

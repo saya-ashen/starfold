@@ -88,7 +88,7 @@ class DiveControlsTest {
 
     @Test
     void nearTheGroundForwardStaysLevelLikeVanillaFlight() {
-        var s = hover(200);
+        var s = hover(220);
         var moved = fly(s, down(s, 0, 0), 1, 0, false, 10);
         assertEquals(0, moved.y(), .05);
         assertTrue(level(moved) > 2, moved.toString());
@@ -96,7 +96,7 @@ class DiveControlsTest {
 
     @Test
     void lookingStraightDownHasOneStableHeading() {
-        var s = hover(200);
+        var s = hover(220);
         var base = fly(s, down(s, 1e-3, 0), 1, 0, false, 10);
         // The old projection normalised a vanishing vector: a hair of aim change picked an
         // unrelated direction at full speed.
@@ -112,7 +112,7 @@ class DiveControlsTest {
     @Test
     void descentFadesInSmoothlyWithHeight() {
         double previous = -1;
-        for (double height = 180; height <= 1500; height += 20) {
+        for (double height = 220; height <= 1500; height += 20) {
             var s = hover(height);
             var moved = fly(s, down(s, 0, 0), 1, 0, false, 1);
             double path = Math.hypot(level(moved), moved.y());
@@ -129,7 +129,7 @@ class DiveControlsTest {
 
     @Test
     void directKeyDivesAtAnyHeightAndShiftAlwaysDescendsNearTheGround() {
-        var s = hover(200);
+        var s = hover(220);
         assertTrue(fly(s, down(s, 0, 0), 1, 0, true, 10).y() < -2);
         var level = GroundDynamics.orientation(model, s, s.tick());
         var sunk = fly(s, level, 0, -1, false, 10);
@@ -139,7 +139,7 @@ class DiveControlsTest {
 
     @Test
     void levelFlightIsUnchangedAtEveryHeight() {
-        for (double height : new double[] {200, 600, 1400}) {
+        for (double height : new double[] {220, 600, 1400}) {
             var s = hover(height);
             var moved = fly(s, GroundDynamics.orientation(model, s, s.tick()), 1, 0, false, 10);
             // Low down the craft holds its height exactly. Higher up thrust follows the view, and a

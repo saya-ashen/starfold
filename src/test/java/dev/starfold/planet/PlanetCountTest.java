@@ -16,11 +16,11 @@ import dev.starfold.ground.ObserverFrame;
 import dev.starfold.render.GroundSurfaceIndex;
 import dev.starfold.sky.GroundEphemerisSave;
 import dev.starfold.universe.PlanetChunkGenerator;
-import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.PlanetTypeFixtures;
 import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.waypoint.Waypoint;
 import dev.starfold.waypoint.WaypointCodec;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetGeneration;
 
 import net.minecraft.core.BlockPos;
@@ -39,24 +39,19 @@ class PlanetCountTest {
 
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     PlanetChunkGenerator third() {
         var settings =
                 new net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings(
                         Optional.of(net.minecraft.core.HolderSet.direct()),
-                        PlanetEcologyTest.palette.getHolderOrThrow(Biomes.DESERT),
+                        PlanetBiomeFixtures.palette.getHolderOrThrow(Biomes.DESERT),
                         List.of());
         settings.getLayersInfo()
                 .add(new net.minecraft.world.level.levelgen.flat.FlatLayerInfo(1, Blocks.BEDROCK));
         settings.updateLayers();
-        return new PlanetChunkGenerator(
-                settings,
-                20261003L,
-                5,
-                Optional.empty(),
-                Optional.of(new PlanetGeneration("rocky", "rocky_craters", 1, 1.2, .04, .09, 512)));
+        return new PlanetChunkGenerator(settings,20261003L,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.empty(),Optional.of(new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),512,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,512))));
     }
 
     SystemChunkGenerator three() {
@@ -87,7 +82,7 @@ class PlanetCountTest {
                             .isAir()) solid++;
                 assertTrue(solid > 100, "face " + face + " of the third planet has ground");
                 assertSame(
-                        Blocks.BEDROCK,
+                        PlanetCore.SHELL_BLOCK,
                         chunk.getBlockState(
                                         new BlockPos(
                                                 chunk.getPos().getMinBlockX(),
@@ -136,14 +131,14 @@ class PlanetCountTest {
                                     z,
                                     net.minecraft.world.level.levelgen.Heightmap.Types
                                             .WORLD_SURFACE_WG,
-                                    PlanetEcologyTest.HEIGHT,
+                                    PlanetBiomeFixtures.HEIGHT,
                                     null),
                             g.getBaseHeight(
                                     x,
                                     rowBlocks + z,
                                     net.minecraft.world.level.levelgen.Heightmap.Types
                                             .WORLD_SURFACE_WG,
-                                    PlanetEcologyTest.HEIGHT,
+                                    PlanetBiomeFixtures.HEIGHT,
                                     null));
         } finally {
             PlanetSystem.reset();
@@ -320,7 +315,7 @@ class PlanetCountTest {
                                 List.of(two.planet(0), two.planet(1), third())));
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         var row =
                 SystemChunkGenerator.CODEC
                         .codec()
@@ -347,20 +342,14 @@ class PlanetCountTest {
         for (var preset : List.of("native_trio", "native_stars", "native_universe"))
             assertTrue(
                     java.nio.file.Files.readString(
-                                    java.nio.file.Path.of(
-                                            "src/main/resources/data/starfold/worldgen/world_preset/"
-                                                    + preset
-                                                    + ".json"))
-                            .contains("\"storage_layout\":\"six_face_square_v2\""),
+                                    PlanetTypeFixtures.presetPath(preset))
+                            .replaceAll("\\s", "").contains("\"storage_layout\":\"six_face_square_v2\""),
                     preset);
         for (var preset : List.of("native_system", "native_exploration"))
             assertTrue(
                     java.nio.file.Files.readString(
-                                    java.nio.file.Path.of(
-                                            "src/main/resources/data/starfold/worldgen/world_preset/"
-                                                    + preset
-                                                    + ".json"))
-                            .contains("\"storage_layout\":\"six_face_square_v2\""),
+                                    PlanetTypeFixtures.presetPath(preset))
+                            .replaceAll("\\s", "").contains("\"storage_layout\":\"six_face_square_v2\""),
                     preset);
     }
 
@@ -368,7 +357,7 @@ class PlanetCountTest {
     void everySystemIsSavedAsAListAndTheNamedPairIsRefused() {
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         var codec = SystemChunkGenerator.CODEC.codec();
         var pair = codec.encodeStart(ops, fixture.generator()).getOrThrow().getAsJsonObject();
         assertFalse(pair.has("a") || pair.has("b"));
@@ -461,7 +450,8 @@ class PlanetCountTest {
                 1e-6,
                 "velocity is the motion of the centre");
         assertTrue(three.extent() >= ring + 8192);
-        assertEquals(GroundTransit.SPACE_RADIUS, two.extent());
+        assertEquals(
+                Math.max(GroundTransit.SPACE_RADIUS, two.orbit(0).radius() + 8192), two.extent());
         assertTrue(three.drift() >= two.drift());
         assertEquals(two.turn(), three.turn());
         assertSame(three.orbit(2).spin(), three.spin(2));
@@ -585,7 +575,7 @@ class PlanetCountTest {
                 com.google.gson.JsonParser.parseString(
                                 java.nio.file.Files.readString(
                                         java.nio.file.Path.of(
-                                                "src/main/resources/data/starfold/worldgen/world_preset/native_trio.json")))
+                                                "probes/src/main/resources/data/starfold/worldgen/world_preset/native_trio.json")))
                         .getAsJsonObject()
                         .getAsJsonObject("dimensions")
                         .getAsJsonObject("starfold:native_planet");
@@ -595,7 +585,7 @@ class PlanetCountTest {
                         .codec()
                         .parse(
                                 net.minecraft.resources.RegistryOps.create(
-                                        JsonOps.INSTANCE, PlanetEcologyTest.lookup),
+                                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup),
                                 json.get("generator"))
                         .getOrThrow();
         assertEquals(3, g.count());
@@ -659,9 +649,9 @@ class PlanetCountTest {
 
     @Test
     void aSystemSavesHowItsPlanetsAreSharedOutAmongItsSuns() throws Exception {
-        var ops = PlanetTypeTest.ops();
+        var ops = PlanetTypeFixtures.ops();
         var codec = SystemChunkGenerator.CODEC.codec();
-        var json = PlanetTypeTest.preset("native_stars");
+        var json = PlanetTypeFixtures.preset("native_stars");
         var g = codec.parse(ops, json).getOrThrow();
         assertEquals(8, g.count());
         assertArrayEquals(new int[] {2, 2, 2, 2}, g.groups());
@@ -672,12 +662,13 @@ class PlanetCountTest {
         assertArrayEquals(new int[] {2, 2, 2, 2}, codec.parse(ops, saved).getOrThrow().groups());
         // More planets about one sun than the gap to the next has room for are refused: their
         // circles would cross.
-        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[] {2, 6}));
-        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[] {2, 3, 3}));
+        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[] {2, 12}));
+        assertThrows(IllegalArgumentException.class, () -> PlanetSystem.model(new int[] {2, 6, 6}));
+        assertEquals(8, PlanetSystem.model(new int[] {2, 3, 3}).count());
         assertEquals(5, PlanetSystem.model(new int[] {3, 2}).count());
         var plain =
                 net.minecraft.resources.RegistryOps.create(
-                        JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         assertFalse(
                 codec.encodeStart(plain, three()).getOrThrow().getAsJsonObject().has("stars"),
                 "one sun is not written");
@@ -738,9 +729,9 @@ class PlanetCountTest {
 
     @Test
     void eachPlanetHasASurfaceIndexOfItsOwn() throws Exception {
-        assertTrue(
-                Sources.text("GroundSurfaceIndex").contains("if(Files.size(path)<4096)continue;"),
-                "a region file still being made is passed over");
+        assertFalse(
+                Sources.text("GroundSurfaceIndex").contains("Files.list"),
+                "generated surfaces use lifecycle events, never region-file scans");
         assertEquals(GroundSurfaceIndex.FILE, GroundSurfaceIndex.file(0));
         assertEquals(GroundSurfaceIndex.FILE + "_planet_b", GroundSurfaceIndex.file(1));
         var names = new java.util.HashSet<String>();

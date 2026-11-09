@@ -20,9 +20,5 @@ class CubicMeshTest {
         assertEquals(CubicColor.linear(179 / 255.0), grass[1], 1e-6);
         assertEquals(1, CubicColor.average(new int[] {0xffffffff}, 22, Side.DOWN)[0]);
         assertEquals(1, CubicColor.average(new int[] {0x00000000, 0xffffffff}, 20, Side.UP)[0]);
-        assertEquals(1, CubicColor.textureWeight(0));
-        assertEquals(0, CubicColor.textureWeight(2));
-        assertEquals(0, CubicColor.textureWeight(8));
-        assertTrue(CubicColor.textureWeight(1) > 0 && CubicColor.textureWeight(1) < 1);
     }
 }

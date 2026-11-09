@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "starfold:thruster",
+    "starfold:gyro",
+    "starfold:booster",
+    "starfold:helm",
+    "starfold:scope",
+    "starfold:scope_nav",
+    "starfold:scope_precise",
+    "starfold:gas_scoop",
+    "starfold:airstair",
+    "starfold:aircraft_dock"
+  ]
+}

@@ -16,7 +16,6 @@ import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.ship.SableFrames;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.Space;
 import dev.starfold.sky.SpaceTest;
 
@@ -242,7 +241,6 @@ class SpacePlayerTest {
                     "toward",
                     "gain",
                     "coastFrame",
-                    "getUniversalDrag",
                     "setDirty",
                     "addLinearAndAngularVelocity",
                     "getDeltaMovement",
@@ -305,7 +303,7 @@ class SpacePlayerTest {
         assertTrue(
                 Sources.text("GroundFlightServer")
                         .contains(
-                                "if(restores(saved))enter(player,clock,entry(player,player.serverLevel(),clock));else site(player)"));
+                                "if(restores(saved,clock.mask))enter(player,clock,entry(player,player.serverLevel(),clock));else site(player)"));
     }
 
     @Test
@@ -374,7 +372,7 @@ class SpacePlayerTest {
 
     @Test
     void carriedLoginRespawnAndFrameReplacementAllAnnouncePassiveFrame() throws Exception {
-        var s = Sources.text("SpaceServer");
+        var s = Sources.text("SpaceSessions");
         for (String event :
                 new String[] {
                     "PlayerLoggedInEvent", "PlayerRespawnEvent", "PlayerChangedDimensionEvent"
@@ -506,9 +504,10 @@ class SpacePlayerTest {
     @Test
     void clientAndProbeArePassiveAndClearOnLogoutAndLevelChanges() throws Exception {
         var s = Sources.text("SpaceClient");
+        assertTrue(Sources.text("ClientWorldSession").contains("LoggingOut"));
+        assertTrue(Sources.text("ClientWorldSession").contains("SpaceClient.clear()"));
         for (String text :
                 new String[] {
-                    "LoggingOut",
                     "level!=Minecraft.getInstance().level",
                     "GroundFlightClient.region()",
                     "frame.universe(new Point(levelCameraPosition.x,levelCameraPosition.y,levelCameraPosition.z),SpaceClientHost.get().ephemeris(),time())"
@@ -517,7 +516,7 @@ class SpacePlayerTest {
                 new String[] {"setPos", "teleport", "camera.rotation", "GroundClient.ready"})
             assertFalse(s.contains(forbidden));
         assertEquals(List.of("get", "departing", "reset"), calls("GroundFlightClient", "region"));
-        var probe = Sources.text("DevProbe");
+        var probe = Sources.textPaths("probes/src/main/java/dev/starfold/dev/ProbeSession.java", "probes/src/main/java/dev/starfold/dev/ProbeSamples.java");
         for (String text :
                 new String[] {
                     "case \"region\"",

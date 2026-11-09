@@ -5,6 +5,7 @@ public final class CoreShaderSource {
     private CoreShaderSource() {}
 
     private static String coreName(String name) {
+        if (name.equals(GroundCompact.NAME)) return "rendertype_solid";
         return name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
     }
 
@@ -38,6 +39,9 @@ public final class CoreShaderSource {
                     entry.replaceFirst("void cpCapOriginalMain() {")
                             + "\nvoid main(){cpCapOriginalMain();}\n";
         }
-        return GroundShaderSource.wrap(name, vertex, source);
+        source = dev.starfold.api.PlanetSurfaceRender.exterior(name, vertex, source);
+        source = GroundShaderSource.wrap(name, vertex, source);
+        return vertex && name.equals(GroundCompact.NAME) && source.contains("in vec3 Position;")
+                ? GroundCompact.unpack(source) : source;
     }
 }

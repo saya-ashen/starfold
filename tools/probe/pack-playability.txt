@@ -1,0 +1,122 @@
+# Fresh survival baseline, bounded local destructive sampling, quest and first fuel fixture.
+waitworld
+wait 180
+abilities fresh-survival
+nav fresh-spawn
+entities
+shot play-fresh-spawn
+cmd data get entity @s Inventory
+cmd execute in minecraft:the_nether run say UNEXPECTED_NETHER
+cmd execute in minecraft:the_end run say UNEXPECTED_END
+cmd tellraw @s "SAMPLE home shallow iron/copper/coal/zinc/stone"
+cmd execute at @s run fill ~-15 ~-35 ~-15 ~15 ~-5 ~15 minecraft:air replace minecraft:iron_ore
+wait 20
+cmd execute at @s run fill ~-15 ~-35 ~-15 ~15 ~-5 ~15 minecraft:air replace minecraft:copper_ore
+wait 20
+cmd execute at @s run fill ~-15 ~-35 ~-15 ~15 ~-5 ~15 minecraft:air replace minecraft:coal_ore
+wait 20
+cmd execute at @s run fill ~-15 ~-35 ~-15 ~15 ~-5 ~15 minecraft:air replace create:zinc_ore
+wait 20
+cmd execute at @s run fill ~-15 ~-35 ~-15 ~15 ~-5 ~15 minecraft:air replace mekanism:osmium_ore
+wait 20
+cmd execute at @s run fill ~-15 ~-35 ~-15 ~15 ~-5 ~15 minecraft:air replace minecraft:stone
+wait 20
+cmd cdg oil get
+wait 20
+cmd give @s minecraft:oak_log 4
+wait 80
+cmd ftbquests open_book
+wait 80
+shot play-quests-item
+press 256 1
+wait 2
+press 256 0
+wait 30
+# Rewards must be claimed in the quest UI; pinned FTB Quests has no claim_all_rewards command.
+cmd data get entity @s Inventory
+# Portal ignition fixture away from the spawn sample.
+cmd gamemode creative
+cmd tp @s 5280.5 145 850.5 0 20
+fly on
+cmd fill 5275 139 845 5285 139 855 minecraft:stone
+cmd fill 5278 140 850 5281 144 850 minecraft:obsidian
+cmd fill 5279 141 850 5280 143 850 minecraft:air
+cmd setblock 5279 141 850 minecraft:fire
+wait 60
+cmd execute if block 5279 142 850 minecraft:nether_portal run say PORTAL_ACTIVE
+cmd execute unless block 5279 142 850 minecraft:nether_portal run say PORTAL_INERT
+shot play-portal
+# Place both pumpjack components; operational extraction is a separate acceptance.
+cmd setblock 5283 140 850 createdieselgenerators:pumpjack_hole
+cmd setblock 5283 142 850 createdieselgenerators:pumpjack_bearing[facing=up]
+wait 40
+cmd data get block 5283 140 850
+cmd data get block 5283 142 850
+# Minimal-A hull, basic scope (not the off-world-gated navigation scope).
+cmd fill 5285 140 855 5300 155 870 minecraft:air
+cmd setblock 5290 141 860 minecraft:oak_planks
+cmd setblock 5291 141 860 starfold:thruster[facing=north]
+cmd setblock 5292 141 860 starfold:airstair[facing=north]
+cmd setblock 5293 141 860 starfold:thruster[facing=north]
+cmd setblock 5294 141 860 minecraft:oak_planks
+cmd setblock 5290 141 861 starfold:thruster[facing=west]
+cmd setblock 5291 141 861 minecraft:oak_planks
+cmd setblock 5292 141 861 starfold:thruster[facing=down]
+cmd setblock 5293 141 861 minecraft:oak_planks
+cmd setblock 5294 141 861 starfold:thruster[facing=east]
+cmd setblock 5290 141 862 minecraft:oak_planks
+cmd setblock 5291 141 862 starfold:thruster[facing=up]
+cmd setblock 5292 141 862 minecraft:oak_planks
+cmd setblock 5293 141 862 starfold:thruster[facing=up]
+cmd setblock 5294 141 862 minecraft:oak_planks
+cmd setblock 5290 141 863 starfold:thruster[facing=west]
+cmd setblock 5291 141 863 minecraft:oak_planks
+cmd setblock 5292 141 863 starfold:thruster[facing=down]
+cmd setblock 5293 141 863 minecraft:oak_planks
+cmd setblock 5294 141 863 starfold:thruster[facing=east]
+cmd setblock 5290 141 864 minecraft:oak_planks
+cmd setblock 5291 141 864 starfold:thruster[facing=south]
+cmd setblock 5292 141 864 starfold:airstair[facing=south]
+cmd setblock 5293 141 864 starfold:thruster[facing=south]
+cmd setblock 5294 141 864 minecraft:oak_planks
+cmd setblock 5290 142 862 starfold:gyro
+cmd setblock 5292 142 862 starfold:helm[facing=west]
+cmd setblock 5294 142 862 starfold:gyro
+cmd setblock 5290 143 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 143 862 starfold:scope[facing=west]
+cmd setblock 5294 143 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5293 142 863 create:fluid_tank{TankContent:{Fluid:{id:"createdieselgenerators:diesel",amount:8000}}}
+wait 40
+cmd data get block 5293 142 863
+cmd sable assemble area 5290 141 860 5294 143 864
+wait 150
+helmstate fuel-built
+hullblocks fuel-built
+cmd tp @s 5293.5 142.2 863.5 90 30
+fly off
+wait 60
+cmd gamemode survival
+wait 30
+find starfold:helm
+wait 5
+usehit helm
+wait 30
+helmstate fuel-rest
+shot play-fuel-rest
+look free
+press 32 1
+wait 200
+nav fuel-t200
+shot play-fuel-t200
+wait 400
+nav fuel-t600
+shot play-fuel-t600
+wait 600
+nav fuel-t1200
+shot play-fuel-t1200
+press 32 0
+helmstate fuel-final
+hullblocks fuel-final
+wait 40
+shot play-fuel-final
+quit

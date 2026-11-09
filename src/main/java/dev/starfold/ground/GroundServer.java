@@ -47,6 +47,7 @@ public final class GroundServer {
             depths[id] = system.planet(id).generation().depth();
         }
         PlanetShape.system(sizes, depths);
+        ChunkViews.resetLayout();
         PlanetSystem.names(system.names());
         PlanetSystem.identities(
                 java.util.stream.IntStream.range(0, system.count())

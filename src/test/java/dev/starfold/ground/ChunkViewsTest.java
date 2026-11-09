@@ -7,7 +7,7 @@ import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -23,7 +23,49 @@ import java.util.*;
 class ChunkViewsTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
+    }
+
+    @Test
+    void cachedColumnsFollowLayoutChangesAcrossWorlds() {
+        try {
+            for (int size : new int[] {2048, 512, 2048}) {
+                dev.starfold.chart.PlanetShape.system(
+                        new int[] {size, size, size, size}, new int[] {191, 191, 191, 191});
+                for (int planet = 0; planet < 4; planet++)
+                    for (var face : Face.values())
+                        for (int[] chunk : new int[][] {{-1, 16}, {16, -1}, {-1, -1}, {size / 16, 16}}) {
+                            int cx = (PlanetStorage.offset(planet) + face.ordinal() * GroundCoordinates.STRIDE) / 16 + chunk[0];
+                            int cz = PlanetStorage.offsetZ(planet) / 16 + chunk[1];
+                            var columns = ChunkViews.columns(PlanetAccess.SHARED, cx, cz);
+                            for (int i = 0; i < 256; i++) {
+                                var query = new BlockPos(cx * 16 + (i & 15), GroundCoordinates.FLOOR, cz * 16 + (i >> 4));
+                                try {
+                                    var address = PlanetAccess.SHARED.address(query);
+                                    assertEquals(address.owner().getX(), columns.x()[i]);
+                                    assertEquals(address.owner().getZ(), columns.z()[i]);
+                                    assertEquals(address.turns(), columns.turns()[i]);
+                                } catch (IllegalArgumentException unowned) {
+                                    assertFalse(columns.present(i));
+                                }
+                            }
+                        }
+            }
+        } finally {
+            dev.starfold.chart.PlanetShape.reset();
+            ChunkViews.resetLayout();
+        }
+    }
+
+    @Test
+    void releasingWorldRemovesItsViewEntry() throws Exception {
+        var field = ChunkViews.class.getDeclaredField("VIEWS");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var views = (Map<net.minecraft.server.level.ServerLevel, Object>) field.get(null);
+        views.put(null, new java.util.concurrent.ConcurrentHashMap<>());
+        ChunkViews.release(null);
+        assertFalse(views.containsKey(null));
     }
 
     private static final PlanetAccess[] LAYOUTS = new PlanetAccess[] {PlanetAccess.SHARED};

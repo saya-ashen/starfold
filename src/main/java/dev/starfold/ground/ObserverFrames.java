@@ -21,6 +21,14 @@ public final class ObserverFrames {
     private static final Map<ServerPlayer, Entry> FRAMES =
             java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
+    public static void forget(ServerPlayer player) {
+        FRAMES.remove(player);
+    }
+
+    public static void clear() {
+        FRAMES.clear();
+    }
+
     public static boolean active(ServerPlayer player) {
         return PlanetLevels.is(player.level());
     }

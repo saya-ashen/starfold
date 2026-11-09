@@ -19,9 +19,12 @@ import java.util.*;
 public final class PlanetRemoteServer {
     private static final class Viewer {
         long session, last = -100;
-        int planet, cursor;
+        int planet;
+        final GroundSurfaceStream surfaceStream = new GroundSurfaceStream();
         long revision = -1;
+        dev.starfold.universe.PlanetPlanSync.Prepared profile;
         final Map<Long, Long> sent = new HashMap<>();
+        BitSet announced = new BitSet();
     }
 
     /** The nearest planets of each player, chosen again every second: choosing means measuring to every planet found. */
@@ -50,6 +53,13 @@ public final class PlanetRemoteServer {
                     viewers.clear();
                     nearest.clear();
                 });
+    }
+
+    static void requestPlan(ServerPlayer player,dev.starfold.universe.PlanetPlanSync.Request request) {
+        if(request.session()!=(Space.in(player) ? SpaceServer.view(player) : GroundFlightServer.session(player)))return;
+        var mine=viewers.get(player.getUUID());
+        if(mine!=null)for(var viewer:mine.values())
+            if(viewer.profile!=null && request.matches(viewer.profile.profile()))viewer.profile=null;
     }
 
     /** Every other planet of the system is kept up to date for this player, each at its own pace. */
@@ -132,6 +142,8 @@ public final class PlanetRemoteServer {
             long session,
             int id,
             Map<Integer, Viewer> mine) {
+        if (clock.clock.model.body(id).appearance()
+                != dev.starfold.chart.GroundEphemeris.Appearance.SURFACE) return;
         var level = player.serverLevel();
         var source = level.getChunkSource().getGenerator();
         var g = source instanceof SystemChunkGenerator system ? system.planet(id) : null;
@@ -144,39 +156,60 @@ public final class PlanetRemoteServer {
             v.planet = id;
             mine.put(id, v);
         }
+        if(v.profile==null) {
+            var profile=PlanetPackets.Profile.whenReady(session,g);
+            if(profile.isEmpty())return;
+            v.profile=dev.starfold.universe.PlanetPlanSync.prepare(profile.orElseThrow(),level.registryAccess());
+            for(var part:v.profile.parts())net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,part);
+        }
         var keys = index.coverage();
-        if (v.revision != index.revision() || clock.clock.tick() - v.last >= 20) {
-            var unknown = new BitSet();
-            for (int k = keys.nextSetBit(0); k >= 0; k = keys.nextSetBit(k + 1))
-                if (index.dirty(k) || index.surface(k) == null) {
-                    unknown.set(k);
-                    v.sent.remove((long) k);
-                }
+        if (v.revision < 0 || clock.clock.tick() - v.last >= 20) {
+            var unknown = index.unknown();
+            for (int k = unknown.nextSetBit(0); k >= 0; k = unknown.nextSetBit(k + 1))
+                v.sent.remove((long) k);
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                     player,
                     new PlanetRemotePackets.Summary(
                             id,
-                            PlanetPackets.Profile.of(session, g),
+                            v.profile.profile(),
                             index.revision(),
                             keys.toLongArray(),
                             unknown.toLongArray()));
+            v.announced = (BitSet) keys.clone();
+            v.announced.andNot(unknown);
             v.revision = index.revision();
             v.last = clock.clock.tick();
         }
-        if (!keys.isEmpty()) {
-            int key = keys.nextSetBit(v.cursor);
-            if (key < 0) key = keys.nextSetBit(0);
-            v.cursor = key + 1;
+        var eye =
+                Space.in(player)
+                        ? SpaceServer.frame(level)
+                                .universe(
+                                        new dev.starfold.geometry.BentStripGeometry.Point(
+                                                player.getX(), player.getEyeY(), player.getZ()),
+                                        clock.clock.model,
+                                        clock.clock.tick())
+                        : GroundFlightServer.position(player, clock);
+        if (eye == null) return;
+        long key =
+                v.surfaceStream.next(
+                        index,
+                        v.sent,
+                        dev.starfold.chart.PlanetShape.of(id),
+                        clock.clock.model.at(id, clock.clock.tick()).local(eye));
+        if (key >= 0 && index.hasSurface(key) && !v.announced.get((int) key)) {
+            // The client rejects unknown/unannounced surfaces. Retry after its next summary,
+            // rather than acknowledging a payload that it will necessarily discard.
+            v.surfaceStream.retry(key);
+            return;
+        }
+        if (key >= 0) {
             var surface = index.surface(key);
-            if (surface != null
-                    && !index.dirty(key)
-                    && v.sent.getOrDefault((long) key, -1L) != surface.revision()) {
-                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
-                        player,
-                        new PlanetRemotePackets.Surface(
-                                id, new GroundViewPackets.Surface(session, key, surface)));
-                v.sent.put((long) key, surface.revision());
-            }
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                    player,
+                    new PlanetRemotePackets.Surface(
+                            id, surface==null ? GroundViewPackets.Surface.removal(session,key,index.surfaceRevision(key))
+                                    : new GroundViewPackets.Surface(session, key, surface)));
+            v.sent.put(key,index.surfaceRevision(key));
         }
     }
 

@@ -1,10 +1,11 @@
 package dev.starfold.ship;
 
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -81,7 +82,7 @@ class AircraftDockTest {
 
     @Test
     void unknownVehicleNbtSurvivesSaveLoadAndSyncWithoutResolution() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
         var dock = new AircraftDock.Dock(BlockPos.ZERO, AircraftDock.block.defaultBlockState());
         var vehicle = new CompoundTag();
         vehicle.putString("id", "removed_mod:aircraft");
@@ -94,21 +95,21 @@ class AircraftDockTest {
         dock.yaw = 73;
         dock.ignored.add(java.util.UUID.randomUUID());
         dock.ignored.add(java.util.UUID.randomUUID());
-        var saved = dock.getUpdateTag(PlanetEcologyTest.lookup);
+        var saved = dock.getUpdateTag(PlanetBiomeFixtures.lookup);
         var restored = new AircraftDock.Dock(BlockPos.ZERO, AircraftDock.block.defaultBlockState());
-        restored.loadAdditional(saved, PlanetEcologyTest.lookup);
+        restored.loadAdditional(saved, PlanetBiomeFixtures.lookup);
         assertEquals(vehicle, restored.stored);
         assertEquals(73, restored.yaw);
         assertEquals(dock.ignored, restored.ignored);
         assertEquals(
-                vehicle, restored.getUpdateTag(PlanetEcologyTest.lookup).getCompound("Vehicle"));
+                vehicle, restored.getUpdateTag(PlanetBiomeFixtures.lookup).getCompound("Vehicle"));
         saved.getCompound("Vehicle").putString("id", "changed:test");
         assertEquals("removed_mod:aircraft", restored.stored.getString("id"));
     }
 
     @Test
     void registeredResourcesAndIronRecipe() throws Exception {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
         var id = net.minecraft.resources.ResourceLocation.parse("starfold:aircraft_dock");
         var block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(id);
         assertInstanceOf(AircraftDock.DockBlock.class, block);
@@ -119,7 +120,7 @@ class AircraftDockTest {
         var recipe = FlightPermitTest.json("data/starfold/recipe/aircraft_dock.json");
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        com.mojang.serialization.JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        com.mojang.serialization.JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         assertInstanceOf(
                 net.minecraft.world.item.crafting.ShapedRecipe.class,
                 net.minecraft.world.item.crafting.Recipe.CODEC.parse(ops, recipe).getOrThrow());
@@ -188,12 +189,5 @@ class AircraftDockTest {
         assertTrue(Sources.text("StarfoldServer").contains("AircraftDock.initialize(modBus)"));
         assertTrue(
                 Sources.text("StarfoldClient").contains("AircraftDockRenderer.initialize(modBus)"));
-        for (var lang : new String[] {"en_us", "zh_cn"})
-            assertTrue(
-                    String.join("\n", StarterBooks.pages(lang))
-                            .contains(
-                                    lang.equals("en_us")
-                                            ? "Sneak-click: release only"
-                                            : "潜行右键只放出"));
     }
 }

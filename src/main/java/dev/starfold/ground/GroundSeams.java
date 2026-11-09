@@ -150,7 +150,7 @@ public final class GroundSeams {
         var route =
                 GroundTopology.canonical(
                         shape,
-                        CubeSurfaceTopology.Face.values()[access.face(feet.x())],
+                        CubeSurfaceTopology.Face.VALUES[access.face(feet.x())],
                         chart.add(new Point(0, .9, 0)));
         return new Transport(
                 feet,
@@ -462,7 +462,7 @@ public final class GroundSeams {
         var canonical =
                 GroundTopology.canonical(
                         access.shape(x, z),
-                        CubeSurfaceTopology.Face.values()[access.face(x)],
+                        CubeSurfaceTopology.Face.VALUES[access.face(x)],
                         access.chart(new Point(x, y, z)));
         var at = access.feet(access.storagePlanet(x, z), canonical.pose()).add(new Point(0, .9, 0));
         return access.image(observer.getX(), observer.getZ(), at);
@@ -491,8 +491,8 @@ public final class GroundSeams {
         var tile =
                 new PlanetChart(
                                 access.shape(observerX, observerZ),
-                                CubeSurfaceTopology.Face.values()[root])
-                        .tile(CubeSurfaceTopology.Face.values()[owner]);
+                                CubeSurfaceTopology.Face.VALUES[root])
+                        .tile(CubeSurfaceTopology.Face.VALUES[owner]);
         if (tile == null) return null;
         var origin = access.originAt(center.x, center.z);
         var base = access.originAt(observerX, observerZ);
@@ -517,7 +517,7 @@ public final class GroundSeams {
         var chart =
                 new PlanetChart(
                         access.shape(center.x, center.z),
-                        CubeSurfaceTopology.Face.values()[access.face(center.x)]);
+                        CubeSurfaceTopology.Face.VALUES[access.face(center.x)]);
         var boxes = new java.util.ArrayList<net.minecraft.world.phys.AABB>();
         boxes.add(query);
         for (var tile : chart.tiles()) {

@@ -13,20 +13,25 @@ public final class GroundSolar {
         return new GroundEphemeris.Model(
                 java.util.List.of(
                         new GroundEphemeris.Body(
-                                new GroundEphemeris.Fixed(new Point(0, 0, 8192)), 512, true, -1),
+                                new GroundEphemeris.Fixed(new Point(0, 0, 17800)),
+                                SunSettings.DEFAULT_RADIUS,
+                                true,
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT),
                         new GroundEphemeris.Body(
                                 new GroundEphemeris.Orbit(
                                         0,
                                         GroundEphemeris.Y,
                                         new Point(0, 0, 1),
-                                        8192,
+                                        17800,
                                         24000,
                                         Math.PI,
                                         0,
                                         spin),
                                 0,
                                 false,
-                                0)));
+                                0,
+                                GroundEphemeris.Appearance.SURFACE)));
     }
 
     public static Point direction(GroundEphemeris.Model model, Point world) {

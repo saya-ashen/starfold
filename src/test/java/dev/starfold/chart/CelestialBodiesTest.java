@@ -16,7 +16,12 @@ class CelestialBodiesTest {
             new GroundEphemeris.Spin(false, GroundEphemeris.Y, new Quaterniond(), 0, 36000, 0);
 
     private static GroundEphemeris.Body light(Point position) {
-        return new GroundEphemeris.Body(new GroundEphemeris.Fixed(position), 512, true, -1);
+        return new GroundEphemeris.Body(
+                new GroundEphemeris.Fixed(position),
+                512,
+                true,
+                -1,
+                GroundEphemeris.Appearance.LIGHT);
     }
 
     private static GroundEphemeris.Body orbit(int parent, double radius, double period, int slot) {
@@ -25,7 +30,8 @@ class CelestialBodiesTest {
                         parent, GroundEphemeris.Y, Z, radius, period, .4, 0, STILL),
                 0,
                 false,
-                slot);
+                slot,
+                GroundEphemeris.Appearance.SURFACE);
     }
 
     private static void close(Point expected, Point actual) {
@@ -66,7 +72,8 @@ class CelestialBodiesTest {
                                                 new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
                                                 0,
                                                 false,
-                                                -1))));
+                                                -1,
+                                                GroundEphemeris.Appearance.SURFACE))));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new GroundEphemeris.Model(List.of(sun, orbit(1, 9000, 24000, 0))));
@@ -87,7 +94,11 @@ class CelestialBodiesTest {
                 IllegalArgumentException.class,
                 () ->
                         new GroundEphemeris.Body(
-                                new GroundEphemeris.Fixed(GroundEphemeris.ZERO), 0, true, -1));
+                                new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
+                                0,
+                                true,
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT));
     }
 
     @Test
@@ -100,7 +111,8 @@ class CelestialBodiesTest {
                                 0, GroundEphemeris.Y, Z, 9000, 24000, .4, 0, spin),
                         0,
                         false,
-                        0);
+                        0,
+                        GroundEphemeris.Appearance.SURFACE);
         var model =
                 new GroundEphemeris.Model(
                         List.of(light(new Point(10, 20, 30)), planet, orbit(1, 3000, 12000, 1)));

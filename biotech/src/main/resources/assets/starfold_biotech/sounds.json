@@ -1,0 +1,74 @@
+{
+  "host.idle": {
+    "subtitle": "subtitles.starfold_biotech.host.idle",
+    "sounds": [{"name": "minecraft:entity.warden.ambient", "type": "event", "pitch": 0.55, "volume": 0.7}]
+  },
+  "host.hurt": {
+    "subtitle": "subtitles.starfold_biotech.host.hurt",
+    "sounds": [{"name": "minecraft:entity.warden.hurt", "type": "event", "pitch": 0.5, "volume": 1.0},
+                {"name": "minecraft:entity.ravager.hurt", "type": "event", "pitch": 0.45, "volume": 1.0}]
+  },
+  "host.roots_warn": {
+    "subtitle": "subtitles.starfold_biotech.host.roots_warn",
+    "sounds": [{"name": "minecraft:block.sculk.break", "type": "event", "pitch": 0.5, "volume": 0.8}]
+  },
+  "host.roots": {
+    "subtitle": "subtitles.starfold_biotech.host.roots",
+    "sounds": [{"name": "minecraft:block.mangrove_roots.break", "type": "event", "pitch": 0.6, "volume": 1.0}]
+  },
+  "host.vent_charge": {
+    "subtitle": "subtitles.starfold_biotech.host.vent_charge",
+    "sounds": [{"name": "minecraft:entity.creeper.primed", "type": "event", "pitch": 0.7, "volume": 0.8}]
+  },
+  "host.vent": {
+    "subtitle": "subtitles.starfold_biotech.host.vent",
+    "sounds": [{"name": "minecraft:block.fire.extinguish", "type": "event", "pitch": 0.6, "volume": 1.0}]
+  },
+  "host.spit": {
+    "subtitle": "subtitles.starfold_biotech.host.spit",
+    "sounds": [{"name": "minecraft:entity.llama.spit", "type": "event", "pitch": 0.5, "volume": 0.9}]
+  },
+  "host.slurry_land": {
+    "subtitle": "subtitles.starfold_biotech.host.slurry_land",
+    "sounds": [{"name": "minecraft:entity.generic.splash", "type": "event", "pitch": 0.65, "volume": 0.8}]
+  },
+  "host.shell_break": {
+    "subtitle": "subtitles.starfold_biotech.host.shell_break",
+    "sounds": [{"name": "minecraft:block.basalt.break", "type": "event", "pitch": 0.6, "volume": 1.0}]
+  },
+  "host.cry": {
+    "subtitle": "subtitles.starfold_biotech.host.cry",
+    "sounds": [{"name": "minecraft:entity.ghast.ambient", "type": "event", "pitch": 0.8, "volume": 0.8}]
+  },
+  "host.engine": {
+    "subtitle": "subtitles.starfold_biotech.host.engine",
+    "sounds": [{"name": "minecraft:entity.blaze.burn", "type": "event", "pitch": 0.5, "volume": 1.0},
+                {"name": "minecraft:entity.warden.heartbeat", "type": "event", "pitch": 0.7, "volume": 1.0}]
+  },
+  "host.dive": {
+    "subtitle": "subtitles.starfold_biotech.host.dive",
+    "sounds": [{"name": "minecraft:entity.breeze.wind_burst", "type": "event", "pitch": 1.4, "volume": 1.0}]
+  },
+  "host.egg_drop": {
+    "subtitle": "subtitles.starfold_biotech.host.egg_drop",
+    "sounds": [{"name": "minecraft:entity.slime.squish", "type": "event", "pitch": 0.6, "volume": 0.8}]
+  },
+  "host.death": {
+    "subtitle": "subtitles.starfold_biotech.host.death",
+    "sounds": [{"name": "minecraft:entity.warden.death", "type": "event", "pitch": 0.6, "volume": 1.0}]
+  },
+  "host.crash": {
+    "subtitle": "subtitles.starfold_biotech.host.crash",
+    "sounds": [{"name": "minecraft:entity.generic.explode", "type": "event", "pitch": 0.6, "volume": 1.0}]
+  },
+  "host.hurt_shell": {
+    "subtitle": "subtitles.starfold_biotech.host.hurt_shell",
+    "sounds": [{"name": "minecraft:entity.iron_golem.damage", "type": "event", "pitch": 0.5, "volume": 1.0},
+                {"name": "minecraft:block.basalt.break", "type": "event", "pitch": 0.5, "volume": 1.0}]
+  },
+  "host.hurt_open": {
+    "subtitle": "subtitles.starfold_biotech.host.hurt_open",
+    "sounds": [{"name": "minecraft:entity.ghast.hurt", "type": "event", "pitch": 0.55, "volume": 1.0},
+                {"name": "minecraft:entity.phantom.hurt", "type": "event", "pitch": 0.4, "volume": 1.0}]
+  }
+}

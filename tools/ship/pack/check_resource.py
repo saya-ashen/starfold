@@ -6,14 +6,14 @@ import shipgen
 import r3_geometry
 
 root = pathlib.Path(__file__).resolve().parents[3]
-with tempfile.TemporaryDirectory(dir=root / 'build/space', prefix='starter-hash-') as folder:
+with tempfile.TemporaryDirectory(prefix='starter-hash-') as folder:
     hull = shipgen.runtime_build('B')
     shipgen.export(hull, pathlib.Path(folder))
     generated = (pathlib.Path(folder) / 'ship.nbt').read_bytes()
-    resource = (root / 'src/main/resources/data/starfold/structure/starter_ship.nbt').read_bytes()
+    resource = (root / 'extras/src/main/resources/data/starfold_extras/structure/starter_ship.nbt').read_bytes()
     assert generated == resource, 'starter_ship.nbt differs from runtime-r4 Hauler generator'
     print('Starter structure SHA256', hashlib.sha256(resource).hexdigest(), 'blocks', len(hull.b))
-    weapon = (root / 'src/main/resources/data/starfold/structure/starter_ship_weapon.nbt').read_bytes()
+    weapon = (root / 'extras/src/main/resources/data/starfold_extras/structure/starter_ship_weapon.nbt').read_bytes()
     assert weapon == shipgen.weapon_structure_bytes(), 'starter_ship_weapon.nbt differs from dev.104 moving-drive mast generator'
     armed = shipgen.armed_hauler(hull)
     assert len(hull.b) == 2347 and len(armed.b) == 2370

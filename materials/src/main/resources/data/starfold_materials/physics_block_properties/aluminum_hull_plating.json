@@ -1,0 +1,7 @@
+{
+  "priority": 1002,
+  "selector": "starfold_materials:aluminum_hull_plating",
+  "properties": {
+    "sable:mass": 0.5
+  }
+}

@@ -5,264 +5,402 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.GroundCoordinates;
-import dev.starfold.planet.PlanetCore;
-
+import dev.starfold.planet.*;
+import dev.starfold.worldgen.plan.PlanetPlan;
+import dev.starfold.worldgen.plan.terrain.*;
+import java.util.*;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** Versioned, immutable global height field. Face/chart identity never enters the noise. */
+/** One fixed description and one evaluator for every planet type. */
 public final class PlanetTerrain {
-    public static final int VERSION = 2, MIN_Y = -64, MAX_Y = 320, SEA_LEVEL = 128;
+    public static final int VERSION = 14, MIN_Y = -64, MAX_Y = 320, SEA_LEVEL = 128, SURFACE_DEPTH = 4;
     public static final long TEST_SEED = 20261001L;
-    public static final int MINING_VERSION = 3, ECOLOGY_VERSION = 4, ROCK_VERSION = 5;
-
-    /** The one definition of a body's sea. Real columns are filled from it and every derived view reads it. */
     public record Sea(int level, BlockState fluid) {
         public double elevation() {
             return level - 128;
         }
     }
-
     private final long seed;
-    private final int version;
     private final PlanetGeneration generation;
     private final PlanetShape shape;
     private final int floor;
-
-    /** Above this the ground is bare stone; it rises with ground raised against the sea. */
-    private final int peaks;
-
     private final BlockState shell;
-    private final Sea sea;
-    private final PlanetRock rock;
     private final PlanetUnderground underground;
-    private final PlanetEcology ecology;
-    private final java.util.LinkedHashMap<Long, Column> columns =
-            new java.util.LinkedHashMap<>(16, .75f, true);
-
+    private volatile TerrainPlan terrainPlan;
+    private java.util.concurrent.CompletableFuture<dev.starfold.worldgen.surface.SurfaceFunction> surfaceFunction;
+    /** Non-blocking publication of fully prepared immutable inputs to render/tick consumers. */
+    public synchronized dev.starfold.worldgen.surface.SurfaceFunction readySurface() {
+        if (surfaceFunction == null)
+            surfaceFunction = dev.starfold.worldgen.surface.SurfaceFunction.prepare(this);
+        if (surfaceFunction.isCompletedExceptionally())
+            throw new IllegalStateException("Surface preparation failed", surfaceFunction.exceptionNow());
+        return surfaceFunction.state() == java.util.concurrent.Future.State.SUCCESS ? surfaceFunction.resultNow() : null;
+    }
+    /** Background/offline coarse readers may wait; ready render inputs take resultNow only. */
+    public dev.starfold.worldgen.surface.SurfaceSummary surfaceSummary(dev.starfold.worldgen.surface.SurfaceFunction function) {
+        var summary = function.summary();
+        return summary.state() == java.util.concurrent.Future.State.SUCCESS ? summary.resultNow() : summary.join();
+    }
+    private java.util.function.Supplier<PlanetPlan> plan;
+    private PlanetPlan localPlan;
+    private java.util.function.Supplier<dev.starfold.worldgen.surface.BiomeScatter> scatter;
+    private final LinkedHashMap<Long, Column> columns = new LinkedHashMap<>(16, .75f, true);
     public PlanetTerrain(long seed) {
         this(seed, VERSION);
     }
-
     public PlanetTerrain(long seed, int version) {
         this(seed, version, PlanetGeneration.defaults(version));
     }
-
     public PlanetTerrain(long seed, int version, PlanetGeneration generation) {
-        if (!supported(version) || generation == null)
-            throw new IllegalArgumentException("Unsupported planet terrain version: " + version);
         generation.validate(version);
         this.seed = seed;
-        this.version = version;
         this.generation = generation;
         shape = generation.shape();
         floor = generation.floor();
-        peaks = 157 + (int) Math.round(Math.max(0, generation.climate().land()));
         shell = generation.coreShell() ? PlanetCore.shell() : Blocks.BEDROCK.defaultBlockState();
-        sea = generation.rocky() ? null : new Sea(SEA_LEVEL, Blocks.WATER.defaultBlockState());
-        rock = generation.rocky() ? new PlanetRock(this) : null;
-        underground =
-                version >= MINING_VERSION && rock == null ? new PlanetUnderground(this) : null;
-        ecology = version == ECOLOGY_VERSION ? new PlanetEcology(this) : null;
+        underground = new PlanetUnderground(this);
     }
-
     public static boolean supported(int version) {
-        return version == VERSION
-                || version == MINING_VERSION
-                || version == ECOLOGY_VERSION
-                || version == ROCK_VERSION;
+        return version == VERSION;
     }
-
     public long seed() {
         return seed;
     }
-
     public int version() {
-        return version;
+        return VERSION;
     }
-
     public PlanetGeneration generation() {
         return generation;
     }
-
     public PlanetShape shape() {
         return shape;
     }
-
-    public PlanetEcology ecology() {
-        return ecology;
-    }
-
-    /** The lowest layer of this planet, which is its floor; MIN_Y on a planet of the standard depth. */
     public int floor() {
         return floor;
     }
-
-    public int peaks() {
-        return peaks;
+    public TerrainPlan terrainPlan() {
+        var value = terrainPlan;
+        if (value != null)
+            return value;
+        synchronized (this) {
+            if (terrainPlan == null)
+                terrainPlan = new TerrainPlanner(
+                    seed, shape.size(), generation.recipe(), generation.environment().temperatureOffset())
+                                  .generate();
+            return terrainPlan;
+        }
     }
-
-    /** The height that decides what a layer is made of. A deeper planet stretches the standard planet's layers over
-     *  its own depth, so its ores lie proportionally as deep; on a planet of the standard depth this is y itself. */
-    public int layer(int y) {
-        int depth = generation.depth();
-        return depth == PlanetGeneration.STANDARD_DEPTH || y >= SEA_LEVEL - 1
-                ? y
-                : SEA_LEVEL
-                        - 1
-                        - (int)
-                                Math.round(
-                                        (SEA_LEVEL - 1 - y)
-                                                * (double) PlanetGeneration.STANDARD_DEPTH
-                                                / depth);
+    /** Bind before structure replay: L1 must never join the archive future it is currently constructing. */
+    public synchronized void initializeTerrain(TerrainPlan value) {
+        terrainPlan = value;
+        surfaceFunction = null;
+        columns.clear();
+        localPlan = null;
     }
-
-    /** Null on a dry body: no layer may assume a sea from height alone. */
+    public synchronized void initializePlan(java.util.function.Supplier<PlanetPlan> value) {
+        plan = value;
+        surfaceFunction = null;
+    }
+    public PlanetPlan plan() {
+        if (plan != null)
+            return plan.get();
+        synchronized (this) {
+            if (localPlan == null)
+                localPlan = new PlanetPlan(shape.size(), terrainPlan(), List.of(), List.of());
+            return localPlan;
+        }
+    }
+    public void initializeSurface(net.minecraft.world.level.biome.BiomeSource biomes,
+        net.minecraft.world.level.chunk.ChunkGenerator generator) {
+        if (generation.features())
+            scatter = com.google.common.base.Suppliers.memoize(
+                () -> new dev.starfold.worldgen.surface.BiomeScatter(this, biomes, generator))::get;
+    }
+    public void initializeSurface(
+        dev.starfold.worldgen.surface.SurfacePolicy policy, net.minecraft.resources.ResourceLocation biome) {
+        scatter = com.google.common.base.Suppliers.memoize(() -> policy.bind(this, biome))::get;
+    }
+    public dev.starfold.worldgen.surface.BiomeScatter scatter() {
+        return scatter == null ? null : scatter.get();
+    }
     public Sea sea() {
-        return sea;
+        var r = terrainPlan().recipe();
+        return r.liquid().defaultBlockState().isAir() || r.value("land_fraction") >= 1
+            ? null
+            : new Sea((int) r.value("water", "sea_level"), r.liquid().defaultBlockState());
     }
-
-    /** Top block of a bare generated column: the ground, or the sea surface above it. */
-    public int surfaceTop(int ground) {
-        return sea == null ? ground : Math.max(sea.level() - 1, ground);
+    private CubeSurfaceTopology.Cell canonical(Face f, int u, int v) {
+        return shape.topology().canonical(new CubeSurfaceTopology.Cell(f, u, 0, v)).cell();
     }
-
-    public boolean closure(Face face, int u, int v) {
-        return Anomaly.column(
-                shape, GroundSpace.DEFAULT_MASK, new CubeSurfaceTopology.Cell(face, u, 0, v));
+    public Sea liquid(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        if (Anomaly.distance(unit(c.face(), c.u() + .5, c.v() + .5), shape) < Anomaly.FIELD)
+            return null;
+        double level = terrainPlan().waterLevel(c.face(), c.u(), c.v());
+        return !Double.isFinite(level) || terrainPlan().recipe().liquid().defaultBlockState().isAir()
+            ? null
+            : new Sea((int) Math.ceil(level), terrainPlan().recipe().liquid().defaultBlockState());
     }
-
+    public boolean submerged(Face f, int u, int v, int ground) {
+        var liquid = liquid(f, u, v);
+        return liquid != null && ground < liquid.level;
+    }
+    public int surfaceTop(Face f, int u, int v, int ground) {
+        if (terrainPlan().localContent(f, u, v)) return composedSurface(f, u, v, ground).top();
+        if (Anomaly.distance(unit(f, u + .5, v + .5), shape) < Anomaly.FIELD)
+            return ground;
+        var liquid = liquid(f, u, v);
+        int top = liquid == null ? ground : Math.max(ground, Math.min(MAX_Y - 1, liquid.level - 1));
+        return top == ground && (liquid == null || ground >= liquid.level) && temperature(f, u, v) < 0
+                && generation.environment().atmosphere().density() > 0
+            ? ground + 1
+            : top;
+    }
+    public boolean closure(Face f, int u, int v) {
+        return Anomaly.column(shape, GroundSpace.DEFAULT_MASK, new CubeSurfaceTopology.Cell(f, u, 0, v));
+    }
     public int closureTop() {
         return GroundCoordinates.FLOOR + GroundSpace.DEFAULT_MASK.height() - 1;
     }
-
-    public int surfaceY(Face face, int u, int v) {
-        if (closure(face, u, v)) return closureTop();
-        return ecology == null ? surfaceTop(groundY(face, u, v)) : ecology.surfaceY(face, u, v);
+    public int visibleBottom(Face f, int u, int v, int ground) {
+        return Integer.MAX_VALUE;
     }
-
+    public int surfaceY(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        return closure(c.face(), c.u(), c.v())
+            ? closureTop()
+            : surfaceTop(c.face(), c.u(), c.v(), groundY(c.face(), c.u(), c.v()));
+    }
+    public double temperature(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        return terrainPlan().interpolate(TerrainPlan.TEMPERATURE, c.face(), c.u() + .5, c.v() + .5);
+    }
+    public double humidity(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        return Math.clamp(
+            terrainPlan().interpolate(TerrainPlan.HUMIDITY, c.face(), c.u() + .5, c.v() + .5), 0, 1);
+    }
+    public String biome(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        return terrainPlan().biome(c.face(), c.u(), c.v());
+    }
+    public int layer(int y) {
+        return generation.depth() == PlanetGeneration.STANDARD_DEPTH || y >= 127 ? y
+                                                                                 : 127
+                - (int) Math.round((127 - y) * (double) PlanetGeneration.STANDARD_DEPTH / generation.depth());
+    }
     public static final class Column {
         private final int ground, floor;
         private final BlockState[] states;
-
         private Column(int ground, int floor, BlockState[] states) {
             this.ground = ground;
             this.floor = floor;
             this.states = states;
         }
-
         public int ground() {
             return ground;
         }
-
+        public int bottom() { return floor; }
+        public int end() { return floor + states.length; }
         public BlockState state(int y) {
-            return y < floor || y >= MAX_Y ? Blocks.AIR.defaultBlockState() : states[y - floor];
+            return y < floor || y - floor >= states.length ? Blocks.AIR.defaultBlockState()
+                                                           : states[y - floor];
         }
     }
-
-    /** Bounded immutable baseline memo only; never stores edits or substitutes for a LevelChunk. */
-    public Column column(Face face, int u, int v) {
-        if (!shape.owned(u, v)) {
-            var cell =
-                    shape.topology().canonical(new CubeSurfaceTopology.Cell(face, u, 0, v)).cell();
-            face = cell.face();
-            u = cell.u();
-            v = cell.v();
-        }
-        long key = u + 2048L * (v + 2048L * face.ordinal());
+    public Column column(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        long key = c.u() + 2048L * (c.v() + 2048L * c.face().ordinal());
         synchronized (columns) {
-            var hit = columns.get(key);
-            if (hit != null) return hit;
+            var cached = columns.get(key);
+            if (cached != null)
+                return cached;
         }
-        int ground = groundY(face, u, v);
-        var states = new BlockState[MAX_Y - floor];
-        var direction = unit(face, u + .5, v + .5);
+        var value = buildColumn(c.face(), c.u(), c.v(), floor, MAX_Y, false, groundY(c.face(), c.u(), c.v()));
+        synchronized (columns) {
+            columns.put(key, value);
+            if (columns.size() > 2048)
+                columns.remove(columns.keySet().iterator().next());
+        }
+        return value;
+    }
+    public Column surfaceColumn(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        return buildColumn(c.face(), c.u(), c.v(), floor, MAX_Y, true, groundY(c.face(), c.u(), c.v()));
+    }
+    public Column plannedColumn(Face f, int u, int v, int ground, boolean vegetation) {
+        return buildColumn(f, u, v, floor, MAX_Y, false, ground);
+    }
+    public Column foundationColumn(Face f, int u, int v, int ground) {
+        return buildColumn(f, u, v, floor, MAX_Y, false, ground, false);
+    }
+    public Column foundationBand(Face f, int u, int v, int ground, int low, int high) {
+        return buildColumn(f, u, v, low, high, false, ground, false);
+    }
+    public int foundationTop(Face f, int u, int v, int ground) {
+        if(!terrainPlan().localContent(f,u,v))return surfaceTop(f,u,v,ground);
+        var column = buildColumn(f, u, v, floor, MAX_Y, false, ground, false);
+        int top = MAX_Y - 1;
+        while (top > floor && column.state(top).isAir()) top--;
+        return top;
+    }
+    public Column visibleBand(Face f, int u, int v, int ground, int bottom) {
+        return visibleBand(f, u, v, ground, bottom, true);
+    }
+    public Column visibleBand(Face f, int u, int v, int ground, int bottom, boolean vegetation) {
+        int top = closure(f, u, v) ? closureTop() : surfaceTop(f, u, v, ground);
+        // Road cuts and carves can put the surface below ground; the band must still reach it.
+        return buildColumn(f, u, v, Math.max(floor, Math.min(Math.min(bottom, ground), top)),
+            Math.min(MAX_Y, top + 2), false, ground);
+    }
+    private Column buildColumn(Face f, int u, int v, int low, int high, boolean surfaceOnly, int ground) {
+        return buildColumn(f, u, v, low, high, surfaceOnly, ground, true);
+    }
+    private Column buildColumn(Face f, int u, int v, int low, int high, boolean surfaceOnly, int ground, boolean routes) {
+        var direction = unit(f, u + .5, v + .5);
         var cells = lattices();
-        for (int y = floor; y < MAX_Y; y++) {
-            var base =
-                    rock != null && generation.exploration() && y >= ground - 3 && y <= ground
-                            ? rock.surface(direction, ground, y)
-                            : state(ground, y);
-            states[y - floor] =
-                    y > floor && y < ground - 3
-                            ? (rock != null
-                                    ? rock.underground(
-                                            cells,
-                                            direction.scale(shape.half() + y - 128),
-                                            ground,
-                                            y)
-                                    : underground != null
-                                            ? underground.state(
-                                                    cells,
-                                                    underground.sample(direction, y),
-                                                    ground,
-                                                    y)
-                                            : base)
-                            : base;
+        var liquid = liquid(f, u, v);
+        double temp = temperature(f, u, v);
+        var recipe = terrainPlan().recipe();
+        int shift = (int) Math.round(terrainPlan().interpolate(TerrainPlan.STRATA_SHIFT, f, u + .5, v + .5));
+        double slope =
+            Math.max(Math.abs(ground - groundY(f, u + 1, v)), Math.abs(ground - groundY(f, u, v + 1)));
+        String biome = biome(f, u, v);
+        var shapes = terrainPlan().localVolumes(f, u, v);
+        if(!shapes.isEmpty()) {
+            low=Math.min(low,ground);
+            high=Math.min(MAX_Y,Math.max(high,Math.max(ground+2,liquid==null?ground+2:liquid.level+1)));
+            for(var volume:shapes) {
+                low=Math.max(floor,Math.min(low,(int)Math.floor(volume.level()-volume.radiusY())-1));
+                high=Math.min(MAX_Y,Math.max(high,(int)Math.ceil(volume.level()+volume.radiusY())+2));
+            }
         }
-        if (ecology != null) {
-            var decoration = ecology.decoration(face, u, v);
-            for (int y = ground - 3; y <= ground; y++)
-                states[y - floor] = decoration.soil(y, states[y - floor]);
-            for (int y = ground + 1; y < Math.min(MAX_Y, ground + 11); y++)
-                if (states[y - floor].isAir()) states[y - floor] = decoration.above(y);
+        var states = new BlockState[high - low];
+        var road = routes ? terrainPlan().road(f, u + .5, v + .5, direction) : null;
+        boolean shore = liquid != null && Math.abs(ground - liquid.level) < 3;
+        for (int y = low; y < high; y++) {
+            BlockState state;
+            if (y < floor || y >= MAX_Y)
+                state = Blocks.AIR.defaultBlockState();
+            else if (y == floor)
+                state = shell;
+            else if (y <= ground) {
+                state = y >= ground - 3 ? underground.stratum(layer(y - shift))
+                                        : underground.state(cells, underground.sample(direction, y), ground,
+                                              y, shift, surfaceOnly && y < ground - SURFACE_DEPTH);
+                if (!state.isAir())
+                    state = material(recipe,
+                        new TerrainRegistries.MaterialContext(biome, ground - y, slope, temp, shore, state));
+            } else
+                state = Blocks.AIR.defaultBlockState();
+            if (y > floor) {
+                for (var shape : shapes)
+                    if (terrainPlan().contains(shape, direction, y))
+                        state = shape.operation() == TerrainPlan.Operation.CARVE ? Blocks.AIR.defaultBlockState()
+                            : material(recipe, new TerrainRegistries.MaterialContext(biome, Math.max(0, ground - y),
+                                slope, temp, shore, underground.stratum(layer(y - shift))));
+            }
+            if(state.isAir() && liquid!=null && y<liquid.level && y>floor)state=liquid.fluid;
+            states[y-low]=state;
         }
-        if (generation.minerals().shallowAndesite())
-            for (int y = Math.max(floor + 1, ground - PlanetMinerals.SHALLOW_DEPTH);
-                    y <= ground;
-                    y++)
-                states[y - floor] =
-                        generation
-                                .minerals()
-                                .shallow(this, cells, direction, ground, y, states[y - floor]);
-        var field = Anomaly.surface(Anomaly.distance(direction, shape));
-        if (field != null)
-            for (int y = Math.max(floor + 1, ground - Anomaly.DEPTH); y <= ground; y++)
-                states[y - floor] = y == ground ? field : Anomaly.ground();
-        if (closure(face, u, v))
-            for (int y = floor; y <= Math.min(closureTop(), MAX_Y - 1); y++)
-                states[y - floor] = Anomaly.core(y);
-        var result = new Column(ground, floor, states);
-        synchronized (columns) {
-            columns.put(key, result);
-            if (columns.size() > 2048) columns.remove(columns.keySet().iterator().next());
+        if(temp<0 && Anomaly.distance(direction,shape)>=Anomaly.FIELD) {
+            int top=high-1;
+            while(top>=low && states[top-low].isAir())top--;
+            if(top>=low) {
+                if(recipe.flag("water","freeze") && liquid!=null && top==liquid.level-1
+                    && !states[top-low].getFluidState().isEmpty())states[top-low]=Blocks.ICE.defaultBlockState();
+                else if(top+1<high && top+1<MAX_Y && (liquid==null || top>=liquid.level) && states[top-low].getFluidState().isEmpty()
+                    && generation.environment().atmosphere().density()>0)states[top+1-low]=Blocks.SNOW.defaultBlockState();
+            }
         }
-        return result;
+        for(int y=low;y<high;y++) {
+            var state=states[y-low];
+            if(y>floor && road!=null && road.mode()!=TerrainPlan.RoadMode.CUT) {
+                int deck=(int)Math.round(road.height());
+                if(road.mode()==TerrainPlan.RoadMode.GROUND && y>deck && y<=ground+1)state=Blocks.AIR.defaultBlockState();
+                if(road.mode()==TerrainPlan.RoadMode.GROUND && y<deck && y>ground)state=underground.stratum(layer(y-shift));
+                if(y==deck)state=road.mode()==TerrainPlan.RoadMode.BRIDGE?Blocks.OAK_PLANKS.defaultBlockState():Blocks.DIRT_PATH.defaultBlockState();
+            }
+            var field = y >= ground - Anomaly.DEPTH && y <= ground
+                ? Anomaly.surface(Anomaly.distance(direction, shape))
+                : null;
+            if (field != null)
+                state = y == ground ? field : Anomaly.ground();
+            if (y >= floor && closure(f, u, v) && y <= closureTop())
+                state = Anomaly.core(y);
+            states[y - low] = state;
+        }
+        return new Column(ground, low, states);
     }
-
-    public BlockState surfaceState(Face face, int u, int v) {
-        if (closure(face, u, v)) return Anomaly.core(closureTop());
-        int ground = groundY(face, u, v);
-        if (version >= MINING_VERSION) {
-            var field = Anomaly.surface(Anomaly.distance(unit(face, u + .5, v + .5), shape));
-            if (field != null) return field;
+    private BlockState material(TerrainRecipe recipe, TerrainRegistries.MaterialContext context) {
+        for (var rule : recipe.materials()) {
+            var value = rule.material(context);
+            if (value != null)
+                return value;
         }
-        BlockState top;
-        if (rock != null && generation.exploration())
-            top = rock.surface(unit(face, u + .5, v + .5), ground, ground);
-        else if (ecology == null) top = state(ground, surfaceTop(ground));
-        else {
-            var d = ecology.decoration(face, u, v);
-            top =
-                    d.top() > ground
-                            ? (sea != null && d.top() < sea.level()
-                                    ? sea.fluid()
-                                    : d.above(d.top()))
-                            : d.soil(ground, solidTop(ground));
-        }
-        return generation
-                .minerals()
-                .shallow(this, lattices(), unit(face, u + .5, v + .5), ground, ground, top);
+        return context.substrate();
     }
-
+    public record Surface(int top, BlockState state) {}
+    /** The one-block cap uses the same material rules as buildColumn, without rebuilding its context. */
+    public Surface surface(Face f, int u, int v, int ground) {
+        var direction = unit(f, u + .5, v + .5);
+        double anomaly = Anomaly.distance(direction, shape);
+        if (closure(f, u, v)) return new Surface(closureTop(), Anomaly.core(closureTop()));
+        var fixed = terrainPlan();
+        if (fixed.localContent(f, u, v)) return composedSurface(f, u, v, ground);
+        var recipe = fixed.recipe();
+        double level = anomaly < Anomaly.FIELD ? Double.NEGATIVE_INFINITY : fixed.waterLevel(f,u,v);
+        var fluid = recipe.liquid().defaultBlockState();
+        var liquid = Double.isFinite(level) && !fluid.isAir() ? new Sea((int) Math.ceil(level), fluid) : null;
+        double temp = fixed.interpolate(TerrainPlan.TEMPERATURE, f, u + .5, v + .5);
+        if (liquid != null && liquid.level - 1 > ground) {
+            // Lake planning can exceed the storage ceiling; only an actually generated cap is visible.
+            int top = Math.min(MAX_Y - 1, liquid.level - 1);
+            return new Surface(top, top == liquid.level - 1 && recipe.flag("water", "freeze") && temp < 0
+                ? Blocks.ICE.defaultBlockState() : liquid.fluid);
+        }
+        if (anomaly >= Anomaly.FIELD && temp < 0 && (liquid == null || ground >= liquid.level)
+            && generation.environment().atmosphere().density() > 0)
+            return new Surface(ground + 1, Blocks.SNOW.defaultBlockState());
+        var field = Anomaly.surface(anomaly);
+        if (field != null) return new Surface(ground, field);
+        int shift = (int) Math.round(terrainPlan().interpolate(TerrainPlan.STRATA_SHIFT, f, u + .5, v + .5));
+        double slope = Math.max(Math.abs(ground - groundY(f, u + 1, v)), Math.abs(ground - groundY(f, u, v + 1)));
+        boolean shore = liquid != null && Math.abs(ground - liquid.level) < 3;
+        return new Surface(ground, material(recipe, new TerrainRegistries.MaterialContext(
+            biome(f,u,v), 0, slope, temp, shore, underground.stratum(layer(ground - shift)))));
+    }
+    private Surface composedSurface(Face f, int u, int v, int ground) {
+        int high = Math.min(MAX_Y,Math.max(ground+2, (int)Math.ceil(terrainPlan().waterLevel(f,u,v))+1));
+        int low = Math.max(floor,ground-4);
+        for(var shape:terrainPlan().localVolumes(f,u,v)) {
+            high = Math.min(MAX_Y,Math.max(high,(int)Math.ceil(shape.level()+shape.radiusY())+2));
+            low = Math.max(floor,Math.min(low,(int)Math.floor(shape.level()-shape.radiusY())-1));
+        }
+        var road=terrainPlan().road(f,u+.5,v+.5,unit(f,u+.5,v+.5));
+        if(road!=null) {
+            high=Math.min(MAX_Y,Math.max(high,(int)Math.ceil(road.height())+1));
+            low=Math.max(floor,Math.min(low,(int)Math.floor(road.height())-2));
+        }
+        var column = buildColumn(f, u, v, low, high, false, ground);
+        int top = high - 1;
+        while (top > low && column.state(top).isAir()) top--;
+        if(column.state(top).isAir() && low>floor) {
+            column=buildColumn(f,u,v,floor,low,false,ground);
+            top=low-1;
+            while(top>floor && column.state(top).isAir())top--;
+        }
+        return new Surface(top, column.state(top));
+    }
+    public BlockState surfaceState(Face f, int u, int v) {
+        var c = canonical(f, u, v);
+        return surface(c.face(), c.u(), c.v(), groundY(c.face(), c.u(), c.v())).state;
+    }
     public int cachedColumns() {
         synchronized (columns) {
             return columns.size();
         }
     }
-
     private static long mix(long x) {
         x = (x ^ (x >>> 30)) * 0xbf58476d1ce4e5b9L;
         x = (x ^ (x >>> 27)) * 0x94d049bb133111ebL;
@@ -270,16 +408,12 @@ public final class PlanetTerrain {
     }
 
     private double value(int x, int y, int z, long octave) {
-        return ((mix(
-                                                seed
-                                                        ^ octave
-                                                        ^ mix(x * 0x9e3779b97f4a7c15L)
-                                                        ^ mix(y * 0x632be59bd9b4e019L)
-                                                        ^ mix(z * 0x94d049bb133111ebL))
-                                        >>> 11)
-                                * 0x1.0p-53)
-                        * 2
-                - 1;
+        return ((mix(seed ^ octave ^ mix(x * 0x9e3779b97f4a7c15L) ^ mix(y * 0x632be59bd9b4e019L)
+                     ^ mix(z * 0x94d049bb133111ebL))
+                    >>> 11)
+                   * 0x1.0p-53)
+            * 2
+            - 1;
     }
 
     private static double fade(double x) {
@@ -290,8 +424,11 @@ public final class PlanetTerrain {
         return a + (b - a) * x;
     }
 
-    /** The eight values around one lattice cell of one octave. Consecutive samples down a column mostly fall in the
-     *  cell of the sample before, so a thread keeps the last cell of each octave: the same values, hashed once. */
+    /**
+     * The eight values around one lattice cell of one octave. Consecutive samples down a column mostly fall
+     * in the cell of the sample before, so a thread keeps the last cell of each octave: the same values,
+     * hashed once.
+     */
     static final class Lattice {
         PlanetTerrain owner;
         long octave;
@@ -299,13 +436,11 @@ public final class PlanetTerrain {
         final double[] v = new double[8];
     }
 
-    private static final ThreadLocal<Lattice[]> LATTICES =
-            ThreadLocal.withInitial(
-                    () -> {
-                        var cells = new Lattice[64];
-                        for (int i = 0; i < cells.length; i++) cells[i] = new Lattice();
-                        return cells;
-                    });
+    private static final ThreadLocal<Lattice[]> LATTICES = ThreadLocal.withInitial(() -> {
+        var cells = new Lattice[64];
+        for (int i = 0; i < cells.length; i++) cells[i] = new Lattice();
+        return cells;
+    });
 
     /** A thread's cells, fetched once by whoever samples a whole column. */
     static Lattice[] lattices() {
@@ -322,11 +457,7 @@ public final class PlanetTerrain {
         double u = fade(x - a), v = fade(y - b), w = fade(z - c);
         var cell = cells[(int) (octave & 63)];
         var n = cell.v;
-        if (cell.owner != this
-                || cell.octave != octave
-                || cell.a != a
-                || cell.b != b
-                || cell.c != c) {
+        if (cell.owner != this || cell.octave != octave || cell.a != a || cell.b != b || cell.c != c) {
             cell.owner = this;
             cell.octave = octave;
             cell.a = a;
@@ -341,169 +472,58 @@ public final class PlanetTerrain {
             n[6] = value(a, b + 1, c + 1, octave);
             n[7] = value(a + 1, b + 1, c + 1, octave);
         }
-        return lerp(
-                lerp(lerp(n[0], n[1], u), lerp(n[2], n[3], u), v),
-                lerp(lerp(n[4], n[5], u), lerp(n[6], n[7], u), v),
-                w);
+        return lerp(lerp(lerp(n[0], n[1], u), lerp(n[2], n[3], u), v),
+            lerp(lerp(n[4], n[5], u), lerp(n[6], n[7], u), v), w);
     }
 
     public double elevation(Point unit) {
-        if (!unit.finite() || Math.abs(unit.length() - 1) > 1e-8)
-            throw new IllegalArgumentException("Planet direction");
-        double anomaly = Anomaly.distance(unit, shape);
-        if (anomaly >= Anomaly.PLATEAU_OUTER) return generated(unit);
-        var twisted = Anomaly.twisted(unit, anomaly);
-        return Anomaly.elevation(generated(twisted), anomaly)
-                + Anomaly.warp(anomaly)
-                        * (field(twisted, 70, 5) * .7 + field(twisted, 160, 6) * .3);
+        double distance = Anomaly.distance(unit, shape);
+        var sample = distance >= Anomaly.PLATEAU_OUTER ? unit : Anomaly.twisted(unit, distance);
+        var chart = terrainPlan().chart(sample);
+        double h = terrainPlan().height(chart.face(), chart.u(), chart.v()) - 127;
+        return distance >= Anomaly.PLATEAU_OUTER ? h
+                                                 : Anomaly.elevation(h, distance)
+                + Anomaly.warp(distance) * (noise(sample, 70, 5) * .7 + noise(sample, 160, 6) * .3);
     }
-
-    private double generated(Point unit) {
-        if (rock != null) return rock.elevation(unit);
-        double continental = field(unit, 2.1, 1), ridge = 1 - Math.abs(field(unit, 4.8, 2));
-        double mountains = Math.max(0, continental + .18) * ridge * ridge * 46;
-        double land = generation.climate().land();
-        // Ground raised against the sea keeps its relief: the heights it may reach rise, and the
-        // depths sink, with it.
+    public double elevation(Face f, double u, double v) {
+        var p = unit(f,u,v);
+        if (Anomaly.distance(p,shape) >= Anomaly.PLATEAU_OUTER)
+            return terrainPlan().height(f,u,v) - 127;
+        return elevation(p);
+    }
+    public int groundY(Face f, int u, int v) {
+        var c = canonical(f, u, v);
         return Math.clamp(
-                continental * 24
-                        - 4
-                        + land
-                        + mountains
-                        + field(unit, 18, 3) * 1.5
-                        + field(unit, 43, 4) * .5,
-                -24 + Math.min(0, land),
-                48 + Math.max(0, land));
+            127 + (int) Math.floor(elevation(c.face(), c.u() + .5, c.v() + .5)), floor + 1, MAX_Y - 2);
     }
-
-    /** Noise over the sphere, in features of the same size in blocks whatever the planet's size. */
-    double field(Point unit, double scale, long octave) {
-        return noise(unit, scale * (shape.size() / (double) PlanetShape.STANDARD.size()), octave);
+    public static Point direction(Face f, double u, double v) {
+        return direction(PlanetShape.STANDARD, f, u, v);
     }
-
-    /** Direction of a face point of a planet of the standard size; the face's plane is extended beyond its edges. */
-    public static Point direction(Face face, double u, double v) {
-        return direction(PlanetShape.STANDARD, face, u, v);
-    }
-
-    public static Point direction(PlanetShape shape, Face face, double u, double v) {
+    public static Point direction(PlanetShape shape, Face f, double u, double v) {
         double h = shape.half();
-        return face.normal
-                .scale(h)
-                .add(face.u.scale(u - h))
-                .add(face.v.scale(v - h))
-                .scale(1 / Math.sqrt(h * h + (u - h) * (u - h) + (v - h) * (v - h)));
+        var p = f.normal.scale(h).add(f.u.scale(u - h)).add(f.v.scale(v - h));
+        return p.scale(1 / p.length());
     }
-
-    /** Direction of a face point of this planet. */
-    public Point unit(Face face, double u, double v) {
-        return direction(shape, face, u, v);
+    public Point unit(Face f, double u, double v) {
+        return direction(shape, f, u, v);
     }
-
-    public double elevation(Face face, double u, double v) {
-        return elevation(unit(face, u, v));
+    public BlockState state(Face f, int u, int y, int v) {
+        return column(f, u, v).state(y);
     }
-
-    /** Cells sample their centre; shared edge nodes sample the very same global direction. */
-    /** The share of a planet's surface that lies under its sea, measured over a grid of its own ground. */
-    public double oceanShare() {
-        if (sea == null) return 0;
-        int under = 0, all = 0;
-        for (var face : Face.values())
-            for (int a = 0; a < SAMPLES; a++)
-                for (int b = 0; b < SAMPLES; b++) {
-                    double u = (a + .5) * shape.size() / SAMPLES,
-                            v = (b + .5) * shape.size() / SAMPLES;
-                    all++;
-                    if (127 + (int) Math.floor(elevation(face, u, v)) < sea.level()) under++;
-                }
-        return under / (double) all;
-    }
-
-    private static final int SAMPLES = 24;
-
-    /** How far the ground must be raised for that share of this planet to lie under its sea: the height below which
-     *  that share of its ground lies is brought to the shore. Measured on the planet as its seed makes it. */
-    public double landFor(double ocean) {
-        if (sea == null || generation.climate().land() != 0)
-            throw new IllegalStateException(
-                    "Measured on a planet with a sea and its ground where it was");
-        var heights = new double[6 * SAMPLES * SAMPLES];
-        int at = 0;
-        for (var face : Face.values())
-            for (int a = 0; a < SAMPLES; a++)
-                for (int b = 0; b < SAMPLES; b++)
-                    heights[at++] =
-                            elevation(
-                                    face,
-                                    (a + .5) * shape.size() / SAMPLES,
-                                    (b + .5) * shape.size() / SAMPLES);
-        java.util.Arrays.sort(heights);
-        // No sea at all: the ground is raised as far as it goes, above what a grid of samples could
-        // miss.
-        if (ocean <= 0) return PlanetClimate.MAX_LAND;
-        return Math.clamp(
-                1 - heights[(int) Math.min(heights.length - 1, Math.floor(ocean * heights.length))],
-                -PlanetClimate.MAX_LAND,
-                PlanetClimate.MAX_LAND);
-    }
-
-    public int groundY(Face face, int u, int v) {
-        return 127 + (int) Math.floor(elevation(face, u + .5, v + .5));
-    }
-
-    public BlockState solidTop(int y) {
-        if (rock != null) return Blocks.STONE.defaultBlockState();
-        return y < SEA_LEVEL + 2
-                ? Blocks.SAND.defaultBlockState()
-                : y > peaks
-                        ? Blocks.STONE.defaultBlockState()
-                        : Blocks.GRASS_BLOCK.defaultBlockState();
-    }
-
-    public BlockState state(int ground, int y) {
-        if (y < floor || y >= MAX_Y) return Blocks.AIR.defaultBlockState();
-        if (y == floor) return shell;
-        if (y <= ground) {
-            if (y == ground) return solidTop(ground);
-            if (y >= ground - 3)
-                return rock != null
-                        ? Blocks.STONE.defaultBlockState()
-                        : ground < SEA_LEVEL + 2
-                                ? Blocks.SAND.defaultBlockState()
-                                : ground > peaks
-                                        ? Blocks.STONE.defaultBlockState()
-                                        : Blocks.DIRT.defaultBlockState();
-            return Blocks.STONE.defaultBlockState();
-        }
-        return sea != null && y < sea.level() ? sea.fluid() : Blocks.AIR.defaultBlockState();
-    }
-
-    public BlockState state(Face face, int u, int y, int v) {
-        if (y >= floor && y <= closureTop() && closure(face, u, v)) return Anomaly.core(y);
-        return version == VERSION ? state(groundY(face, u, v), y) : column(face, u, v).state(y);
-    }
-
-    /** One chunk of a face as something else holds it, to be compared with what this terrain generates there. */
     public interface Image {
         int face();
-
         int u();
-
         int v();
-
         BlockState state(int x, int y, int z);
     }
-
     public boolean matches(Image image) {
+        var surface = new dev.starfold.worldgen.surface.SurfaceFunction(this);
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++) {
-                var face = Face.values()[image.face()];
-                int u = image.u() * 16 + x, v = image.v() * 16 + z;
-                int ground = groundY(face, u, v);
-                var col = version >= MINING_VERSION ? column(face, u, v) : null;
-                for (int y = MIN_Y; y < MAX_Y; y++)
-                    if (image.state(x, y, z) != (col == null ? state(face, u, y, v) : col.state(y)))
+                var states =
+                    surface.blocks(Face.VALUES[image.face()], image.u() * 16 + x, image.v() * 16 + z);
+                for (int y = floor; y < MAX_Y; y++)
+                    if (image.state(x, y, z) != states[y - floor])
                         return false;
             }
         return true;

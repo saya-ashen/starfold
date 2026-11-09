@@ -1,0 +1,14 @@
+waitworld
+log PERF cache-first-enter
+cmd starfold enter
+wait 600
+shot perf-cache-first
+log PERF cache-leave
+cmd starfold leave
+wait 100
+log PERF cache-second-enter
+cmd starfold enter
+wait 600
+shot perf-cache-second
+log PERF cache-quit
+quit

@@ -1,0 +1,20 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_devtools' }
+repositories { mavenCentral() }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_devtools { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation(project(':')) { transitive = false }
+    // Same ASM used by NeoForge; offline packaged bytecode contract only.
+    testImplementation 'org.ow2.asm:asm-tree:9.10.1'
+}
+test {
+    dependsOn tasks.named('jar'), rootProject.tasks.named('jar')
+    systemProperty 'devtools.jar', tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath
+    systemProperty 'starfold.jar', rootProject.tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath
+    systemProperty 'minecraft.jar', tasks.named('createMinecraftArtifacts').get().gameJarArtifact.get().asFile.absolutePath
+}

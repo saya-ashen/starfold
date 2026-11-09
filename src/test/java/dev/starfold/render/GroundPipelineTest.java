@@ -3,6 +3,7 @@ package dev.starfold.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
+import dev.starfold.chart.PlanetShape;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +49,8 @@ class GroundPipelineTest {
     void captureRetainsChunkOffsetBeforeProjection() {
         String s =
                 GroundShaderSource.captureView(
-                        "void cpCapOriginalMain() {vec3 pos=Position+ChunkOffset;gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);}");
+                        "void cpCapOriginalMain() {vec3 pos=Position+ChunkOffset;gl_Position ="
+                                + " ProjMat * ModelViewMat * vec4(pos, 1.0);}");
         assertTrue(s.contains("vec4 cpNativeModelView;"));
         assertTrue(s.contains("cpNativeModelView=ModelViewMat * vec4(pos, 1.0)"));
         assertTrue(s.contains("gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);"));
@@ -58,11 +60,14 @@ class GroundPipelineTest {
     void lineCaptureKeepsViewScaleAndOriginalExtrusion() {
         String s =
                 GroundShaderSource.captureView(
-                        "void cpNativeOriginalMain() {vec4 linePosStart = ProjMat * VIEW_SCALE * ModelViewMat * vec4(Position, 1.0);vec4 linePosEnd=ProjMat*VIEW_SCALE*ModelViewMat*vec4(Position+Normal,1.0);gl_Position=linePosStart;}");
+                        "void cpNativeOriginalMain() {vec4 linePosStart = ProjMat * VIEW_SCALE *"
+                                + " ModelViewMat * vec4(Position, 1.0);vec4"
+                                + " linePosEnd=ProjMat*VIEW_SCALE*ModelViewMat*vec4(Position+Normal,1.0);gl_Position=linePosStart;}");
         assertTrue(s.contains("cpNativeModelView=VIEW_SCALE * ModelViewMat"));
         assertTrue(
                 s.contains(
-                        "vec4 linePosStart = ProjMat * VIEW_SCALE * ModelViewMat * vec4(Position, 1.0);"));
+                        "vec4 linePosStart = ProjMat * VIEW_SCALE * ModelViewMat * vec4(Position,"
+                                + " 1.0);"));
         assertTrue(s.contains("vec4 linePosEnd=ProjMat*VIEW_SCALE"));
         assertTrue(
                 GroundShaderSource.VERTEX.contains("gl_Position.xy+=screenOffset*gl_Position.w"));
@@ -98,10 +103,11 @@ class GroundPipelineTest {
     }
 
     @Test
-    void nativeShaderDoesNotReconstructDepthOrRepeatFarAtlasTexels() {
+    void nativeShaderDoesNotReconstructDepthAndRepeatsOnlyInsideFarSprite() {
         assertFalse(GroundShaderSource.VERTEX.contains("inverse(ProjMat)"));
-        assertFalse(GroundShaderSource.TEXTURE.contains("dFdx"));
-        assertFalse(GroundShaderSource.TEXTURE.contains("fract("));
+        assertTrue(GroundShaderSource.TEXTURE.contains("dFdx(cpNativeBlockUv)"));
+        assertTrue(GroundShaderSource.TEXTURE.contains("fract(cpNativeBlockUv)"));
+        assertTrue(GroundShaderSource.TEXTURE.contains("textureGrad(source,repeated,dx,dy)"));
         assertTrue(
                 GroundShaderSource.TEXTURE.contains(
                         "if(CPNativeLowFrequency>=1.0)return vec4(1.0)"));
@@ -134,6 +140,18 @@ class GroundPipelineTest {
     }
 
     @Test
+    void smallPlanetsPublishWithoutWaitingForNonexistentPatches() {
+        for(int size:new int[]{256,512,1024,2048}) {
+            var shape=new dev.starfold.chart.PlanetShape(size);
+            Object[] old=new Object[384],next=new Object[384];
+            for(int p=0;p<384;p++) if(GroundViewPolicy.exists(shape,p)) next[p]=new Object();
+            assertTrue(GroundPipeline.publish(0,false,old,next,p->GroundViewPolicy.exists(shape,p)));
+            next[0]=null;
+            assertFalse(GroundPipeline.publish(0,false,old,next,p->GroundViewPolicy.exists(shape,p)));
+        }
+    }
+
+    @Test
     void partialInitialCoverIsNotAPublishableGlobe() {
         Object[] old = new Object[384], next = new Object[384];
         for (int i = 0; i < 141; i++) next[i] = new Object();
@@ -155,42 +173,53 @@ class GroundPipelineTest {
     }
 
     @Test
-    void initialParentCoverUsesBoundedNearBudgetThenReturnsToBackground() {
-        assertEquals(6_000_000, GroundViewPolicy.coverBudget(false));
-        assertEquals(GroundViewPolicy.NEAR_BUDGET_NS, GroundViewPolicy.coverBudget(false));
-        assertEquals(1_000_000, GroundViewPolicy.coverBudget(true));
-        assertEquals(GroundViewPolicy.FRAME_BUDGET_NS / 2, GroundViewPolicy.coverBudget(true));
+    void continuousEditsDeferUntilTheLatchedCohortPublishes() {
+        var work = new GroundViewPolicy.CohortPatches(() -> PlanetShape.STANDARD);
+        while (work.poll() >= 0) {}
+        work.tile(0);
+        work.tile(16);
+        work.latch();
+        work.tile(0);
+        work.tile(16);
+
+        assertEquals(0, work.poll());
+        assertEquals(1, work.poll());
+        assertEquals(-1, work.poll());
+        Object[] first = {new Object(), new Object()};
+        assertTrue(GroundPipeline.publish(0, false, new Object[2], first));
+
+        work.promote();
+        assertEquals(0, work.poll());
+        assertEquals(1, work.poll());
+        assertEquals(-1, work.poll());
+        Object[] second = {new Object(), new Object()};
+        assertTrue(GroundPipeline.publish(0, false, first, second));
     }
 
     @Test
-    void rendererUsesInitialCoverBudgetWithoutPublishingPartialFaces() throws Exception {
+    void rendererUsesInitialCoverBudgetAndPublishesEachReadyStartupPatch() throws Exception {
         var s = Sources.text("GroundRenderer");
-        assertTrue(s.contains("boolean parentsReady=GroundPipeline.complete(parents)"));
+        assertTrue(s.contains("boolean parentsReady=parentsComplete()"));
         assertTrue(s.contains("GroundViewPolicy.coverBudget(parentsReady)"));
-        assertTrue(
-                s.contains(
-                        "if(parentJob.done()){var meshes=parentJob.finish();parentJob=null;System.arraycopy(meshes,0,parents,0,6)"));
-        assertTrue(s.contains("!parentsReady||job!=null"));
+        assertTrue(s.contains("parents[patch]=builders.upload(0)"));
+        assertFalse(s.contains("System.arraycopy(meshes,0,parents,0,6)"));
+        assertTrue(s.contains("if(parentJob.done()){parentJob.close();parentJob=null"));
+        assertTrue(s.contains("!parentsReady||!lodJobs.isEmpty()"));
     }
 
     @Test
-    void parentCoverageMustHaveAllSixFaces() {
-        Object[] faces = new Object[6];
-        for (int i = 0; i < 6; i++) {
-            assertFalse(GroundPipeline.complete(faces));
-            faces[i] = new Object();
-        }
-        assertTrue(GroundPipeline.complete(faces));
-    }
-
-    @Test
-    void rendererSeparatesOpaqueFarCoverFromRealWaterAndUsesCompleteParents() throws Exception {
+    void rendererSeparatesOpaqueFarCoverFromRealWaterAndRefinesOverRetainedStartup()
+            throws Exception {
         var s = Sources.text("GroundRenderer");
-        assertTrue(s.contains("builders.surface?RenderType.solid():layer"));
-        assertTrue(s.contains("buffers.surface?RenderType.solid():layer"));
-        assertTrue(s.contains("GroundPipeline.complete(parents))render"));
-        assertTrue(s.contains("baselineTop(builders[face],face,x,z,16"));
+        var vertices = Sources.text("GroundMeshVertices");
+        assertTrue(vertices.contains("varout=builders.get(layer)"));
+        assertTrue(vertices.contains("buffers.surface?RenderType.solid():layer"));
+        // GroundDrawPlanTest records progressive parents and complete fine cohorts.
+        assertTrue(s.contains("farPyramids.initialField(GroundViewClient.terrain())"));
+        assertTrue(s.contains("snapshot.withTerraces(GroundViewPolicy.face(patch),quads,step)"));
+        assertTrue(s.contains("patchQuads.put(patch,quads)"));
+        assertTrue(s.contains("previous=patchQuads.getOrDefault(patch,List.of())"));
         assertTrue(s.contains("clearParents()"));
-        assertTrue(s.contains("if(selectionReady()&&ready){for(int p=face*64"));
+        assertTrue(s.contains("GroundDrawPlan.draw(translucent,orbitalChart,GroundClient.face(),selectionReady()&&ready"));
     }
 }

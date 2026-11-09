@@ -1,0 +1,31 @@
+{
+  "vertex":"starfold:native_gas_giant","fragment":"starfold:native_gas_giant",
+  "attributes":["Position"],"samplers":[],
+  "uniforms":[
+    {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"SpaceLens","type":"float","count":3,"values":[0,1,1]},
+    {"name":"DrawCenter","type":"float","count":3,"values":[0,0,0]},
+    {"name":"ChartU","type":"float","count":3,"values":[1,0,0]},
+    {"name":"ChartUp","type":"float","count":3,"values":[0,1,0]},
+    {"name":"ChartV","type":"float","count":3,"values":[0,0,1]},
+    {"name":"EyeBody","type":"float","count":3,"values":[0,0,0]},
+    {"name":"SunBody","type":"float","count":3,"values":[0,0,8192]},
+    {"name":"HomeCenter","type":"float","count":3,"values":[0,0,0]},
+    {"name":"HomeRadius","type":"float","count":1,"values":[0]},
+    {"name":"GasRadius","type":"float","count":1,"values":[4096]},
+    {"name":"GasPhase","type":"float","count":1,"values":[0]},
+    {"name":"BandFrequency","type":"float","count":1,"values":[36]},
+    {"name":"BandWarp","type":"float","count":1,"values":[1.3]},
+    {"name":"Ambient","type":"float","count":1,"values":[0.12]},
+    {"name":"BodyFade","type":"float","count":1,"values":[1]},
+    {"name":"Inside","type":"float","count":1,"values":[0]},
+    {"name":"GasCount","type":"int","count":1,"values":[0]},
+    {"name":"GasSpheres","type":"float","count":256,"values":[0]},
+    {"name":"SurfaceLow","type":"float","count":3,"values":[0,0,0]},
+    {"name":"SurfaceHigh","type":"float","count":3,"values":[1,1,1]},
+    {"name":"GasFogColor","type":"float","count":3,"values":[0,0,0]},
+    {"name":"SkyColor","type":"float","count":3,"values":[0,0,0]},
+    {"name":"AtmosphereGrade","type":"float","count":3,"values":[1,1,1]}
+  ]
+}

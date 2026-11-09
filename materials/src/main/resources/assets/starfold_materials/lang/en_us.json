@@ -1,0 +1,13 @@
+{
+  "block.starfold_materials.aluminum_hull_plating": "Aluminum Alloy Hull Plating",
+  "block.starfold_materials.aluminum_hull_plating_slab": "Aluminum Alloy Hull Plating Slab",
+  "block.starfold_materials.osmium_pressure_hull": "Osmium Alloy Pressure Hull",
+  "block.starfold_materials.osmium_pressure_hull_slab": "Osmium Alloy Pressure Hull Slab",
+  "block.starfold_materials.bauxite_ore": "Bauxite Ore",
+  "block.starfold_materials.deepslate_bauxite_ore": "Deepslate Bauxite Ore",
+  "block.starfold_materials.raw_aluminum_block": "Block of Raw Aluminum",
+  "block.starfold_materials.aluminum_block": "Block of Aluminum",
+  "item.starfold_materials.raw_aluminum": "Raw Aluminum",
+  "item.starfold_materials.aluminum_ingot": "Aluminum Ingot",
+  "item.starfold_materials.aluminum_nugget": "Aluminum Nugget"
+}

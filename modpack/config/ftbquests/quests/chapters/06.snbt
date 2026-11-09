@@ -1,0 +1,338 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000060000",
+  "group": "",
+  "order_index": 6,
+  "quests": [
+    {
+      "id": "1000000000060100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000060101",
+          "type": "item",
+          "item": {
+            "id": "mekanism:raw_tin",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050B00"
+      ]
+    },
+    {
+      "id": "1000000000060200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000060201",
+          "type": "item",
+          "item": {
+            "id": "mekanism:raw_lead",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060100"
+      ]
+    },
+    {
+      "id": "1000000000060300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000060301",
+          "type": "item",
+          "item": {
+            "id": "mekanism:fluorite_gem",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060200"
+      ]
+    },
+    {
+      "id": "1000000000060400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000060401",
+          "type": "item",
+          "item": {
+            "id": "mekanism:advanced_control_circuit",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060300"
+      ]
+    },
+    {
+      "id": "1000000000060500",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000060501",
+          "type": "item",
+          "item": {
+            "id": "starfold:scope_precise",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060502",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060400"
+      ]
+    },
+    {
+      "id": "1000000000060600",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000060601",
+          "type": "item",
+          "item": {
+            "id": "mekanism:raw_uranium",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060602",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060500"
+      ]
+    },
+    {
+      "id": "1000000000060700",
+      "x": 4.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000060701",
+          "type": "item",
+          "item": {
+            "id": "minecraft:ancient_debris",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060702",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060600"
+      ]
+    },
+    {
+      "id": "1000000000060800",
+      "x": 6.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000060801",
+          "type": "item",
+          "item": {
+            "id": "minecraft:netherite_scrap",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060802",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060700"
+      ]
+    },
+    {
+      "id": "1000000000060900",
+      "x": 0.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000060901",
+          "type": "item",
+          "item": {
+            "id": "mekanism:advanced_fluid_tank",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060902",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060800"
+      ]
+    },
+    {
+      "id": "1000000000060A00",
+      "x": 2.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000060A01",
+          "type": "item",
+          "item": {
+            "id": "mekanismtools:steel_paxel",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060A02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060900"
+      ]
+    },
+    {
+      "id": "1000000000060B00",
+      "x": 4.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000060B01",
+          "type": "item",
+          "item": {
+            "id": "starfold_materials:aluminum_hull_plating",
+            "count": 1
+          },
+          "count": 4
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060B02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060A00"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+// These modules reuse the patched NeoForge launcher while keeping checkout-relative audits.
+dependencies { testImplementation(testFixtures(project(':'))) { transitive = false } }
+test {
+    dependsOn rootProject.tasks.named('testFixturesClasses'), rootProject.tasks.named('prepareNeoForgeTestFiles')
+    doFirst {
+        def mainTest = rootProject.tasks.named('test', Test).get()
+        classpath = (mainTest.classpath - rootProject.sourceSets.test.output) + sourceSets.test.runtimeClasspath
+        systemProperties.putAll(mainTest.systemProperties)
+        systemProperty 'starfold.testArchives', rootProject.sourceSets.main.runtimeClasspath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.join(File.pathSeparator)
+        jvmArgs = mainTest.jvmArgs
+        jvmArgumentProviders.add({
+            mainTest.jvmArgumentProviders.collectMany { it.asArguments() as List }.collect { arg ->
+                arg.startsWith('-Dfml.modFolders=')
+                        ? arg.replaceAll(':starfold%%[^:]*[/\\\\]test(?=:|$)', '') + sourceSets.test.output.files.collect { ':' + base.archivesName.get() + '%%' + it.absolutePath }.join('')
+                        : arg
+            }
+        } as CommandLineArgumentProvider)
+        workingDir = rootProject.projectDir
+    }
+}

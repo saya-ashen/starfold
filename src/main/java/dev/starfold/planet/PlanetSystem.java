@@ -4,6 +4,7 @@ import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.PlanetShape;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 
 /** Explicit saved generator opt-in. Merely installing this mod never adds another planet. */
@@ -37,7 +38,7 @@ public final class PlanetSystem {
 
     /** Every planet after a sun's first circles further out, a ring apart, turning as Kepler would have it; suns
      *  stand a gap apart in a row. Until the layout of a universe is generated, this is where everything is. */
-    public static final double RING = 12288, STAR_GAP = 49152;
+    public static final double RING = 12288, STAR_GAP = 137900;
 
     public static GroundEphemeris.Model model(int count) {
         return model(new int[] {count});
@@ -83,7 +84,11 @@ public final class PlanetSystem {
             int parent = bodies.size();
             bodies.add(
                     new GroundEphemeris.Body(
-                            new GroundEphemeris.Fixed(centre), m.primary().radius(), true, -1));
+                            new GroundEphemeris.Fixed(centre),
+                            m.primary().radius(),
+                            true,
+                            -1,
+                            GroundEphemeris.Appearance.LIGHT));
             for (int place = 0; place < groups[star]; place++, id++) {
                 boolean pair = star == 0 && place < 2;
                 double radius = path.radius() + (pair ? 0 : star == 0 ? place - 1 : place) * RING;
@@ -94,10 +99,12 @@ public final class PlanetSystem {
                                 path.radial(),
                                 radius,
                                 path.period() * Math.pow(radius / path.radius(), 1.5),
-                                pair ? (place == 0 ? Math.PI : 0) : id * 2.1,
+                                pair ? Math.PI + place * 2 * Math.PI / 3 : id * 2.1,
                                 path.epoch(),
                                 id == 0 ? path.spin() : still);
-                bodies.add(new GroundEphemeris.Body(orbit, 0, false, id));
+                bodies.add(
+                        new GroundEphemeris.Body(
+                                orbit, 0, false, id, GroundEphemeris.Appearance.SURFACE));
             }
         }
         return new GroundEphemeris.Model(bodies);
@@ -154,6 +161,10 @@ public final class PlanetSystem {
     public static String name(int planet) {
         var saved = names;
         return planet >= 0 && planet < saved.size() ? saved.get(planet) : defaultName(planet);
+    }
+
+    public static Component label(int planet) {
+        return Component.translatable(name(planet));
     }
 
     public static String defaultName(int planet) {

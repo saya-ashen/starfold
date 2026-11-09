@@ -128,13 +128,13 @@ class ArrivalStateTest {
     void blendProjectionKeepsCruiseAndRadialEndpoints() {
         var push = new dev.starfold.geometry.BentStripGeometry.Point(3, 2, 4);
         var toward = new dev.starfold.geometry.BentStripGeometry.Point(0, -1, 0);
-        assertEquals(push, SpaceServer.blendPush(push, toward, 0));
+        assertEquals(push, dev.starfold.space.SpaceFlightMath.blendPush(push, toward, 0));
         assertEquals(
                 new dev.starfold.geometry.BentStripGeometry.Point(1.5, 2, 2),
-                SpaceServer.blendPush(push, toward, .5));
+                dev.starfold.space.SpaceFlightMath.blendPush(push, toward, .5));
         SpaceTest.point(
-                SpaceServer.arrivalPush(push, toward, true),
-                SpaceServer.blendPush(push, toward, 1));
+                dev.starfold.space.SpaceFlightMath.arrivalPush(push, toward, true),
+                dev.starfold.space.SpaceFlightMath.blendPush(push, toward, 1));
     }
 
     @Test

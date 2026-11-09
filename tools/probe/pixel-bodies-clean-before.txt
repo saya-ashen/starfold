@@ -1,0 +1,38 @@
+# Fresh experience world; normal FOV and actual vanilla spyglass, same observer.
+wait 300
+createworld
+wait 100
+createworld starfold_worlds:experience_named_preview
+wait 40
+createworld go
+waitworld
+wait 300
+cmd gamemode creative
+cmd weather clear
+cmd gamerule doWeatherCycle false
+cmd starfold universe
+cmd item replace entity @s weapon.mainhand with minecraft:spyglass
+cmd packprobe visit 0 4
+wait 400
+cmd tp @s ~ 4000 ~
+wait 5
+fly on
+wait 60
+port sky live
+hud off
+sunlook 0
+wait 60
+solar pixel-clean-before
+shot pixel-clean-before-sun-normal
+fov 30
+wait 60
+shot pixel-clean-before-sun-zoom
+fov 70
+sunlook gas
+wait 60
+shot pixel-clean-before-gas-normal
+fov 30
+wait 60
+shot pixel-clean-before-gas-zoom
+fov 70
+quit

@@ -66,9 +66,13 @@ public record ShipRecord(
 
     /** A material plot point and hull attitude fixed in the named body's turning frame. */
     public record Place(
-            int body, Point anchorPlot, Point position, Quaterniond attitude, long tick) {
+            dev.starfold.chart.BodyId body,
+            Point anchorPlot,
+            Point position,
+            Quaterniond attitude,
+            long tick) {
         public Place {
-            if (body < 0) throw new IllegalArgumentException("Ship body");
+            Objects.requireNonNull(body);
             GroundEphemeris.point(anchorPlot);
             GroundEphemeris.point(position);
             GroundEphemeris.quaternion(attitude);

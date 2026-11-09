@@ -1,4 +1,4 @@
-# A copy of Saya's save after "I fell straight into the sea": where is the rocket, and how is it set?
+# A copy of the tester's save after "I fell straight into the sea": where is the rocket, and how is it set?
 waitworld
 wait 200
 waitworld

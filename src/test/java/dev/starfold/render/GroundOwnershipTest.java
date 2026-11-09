@@ -22,15 +22,15 @@ class GroundOwnershipTest {
         net.minecraft.server.Bootstrap.bootStrap();
     }
 
-    static GroundViewCache.Surface surface(long revision, int h, Block block) {
+    static GroundSurface surface(long revision, int h, Block block) {
         int[] heights = new int[256], states = new int[256];
         Arrays.fill(heights, h);
         Arrays.fill(states, Block.getId(block.defaultBlockState()));
-        return new GroundViewCache.Surface(revision, heights, states);
+        return new GroundSurface(revision, heights, states);
     }
 
     static GroundOwnership.Snapshot snapshot(
-            long key, GroundViewCache.Surface s, boolean nativeOwner) {
+            long key, GroundSurface s, boolean nativeOwner) {
         var bits = new BitSet();
         if (nativeOwner) bits.set((int) key);
         return new GroundOwnership.Snapshot(Map.of(key, s), bits);
@@ -50,10 +50,6 @@ class GroundOwnershipTest {
         var s = surface(0, 147, Blocks.GRASS_BLOCK);
         var requested = snapshot(key, s, false);
         var arrived = snapshot(key, s, true);
-        var selected = new BitSet();
-        selected.set((int) key);
-        assertTrue(GroundSelection.detail(key, selected, new BitSet()));
-        assertTrue(selected.get((int) key)); // old one-bit GPU test also drew native
         assertFalse(commit(requested, arrived));
         assertEquals(0, requested.retainCompatible(arrived).code(key));
         assertEquals(127, requested.code(key));
@@ -79,6 +75,22 @@ class GroundOwnershipTest {
     }
 
     @Test
+    void nativeWindowSuppressesDuplicateSnapshotAndLeavingItRestoresDetail() {
+        long key = 12;
+        var selected = snapshot(key, surface(1, 147, Blocks.GRASS_BLOCK), false);
+        assertTrue(GroundOwnership.drawDetail(selected, Set.of(), key));
+        assertFalse(GroundOwnership.drawDetail(selected, Set.of(key), key));
+        assertTrue(GroundOwnership.drawDetail(selected, Set.of(key + 1), key));
+        assertFalse(GroundOwnership.drawDetail(GroundOwnership.empty(), Set.of(), key));
+        assertFalse(
+                GroundOwnership.drawDetail(
+                        snapshot(key, selected.surface(key), true), Set.of(), key));
+        // The GPU owner agrees with the CPU draw decision, including the window override.
+        var atlas = GroundOwnership.atlas(selected, Set.of(key));
+        assertEquals(255, Byte.toUnsignedInt(atlas[13 + GroundOwnership.SIDE]));
+    }
+
+    @Test
     void everyOwnerHasExactlyOneSurfaceDraw() {
         var s = surface(0, 127, Blocks.GRASS_BLOCK);
         for (var state :
@@ -95,7 +107,7 @@ class GroundOwnershipTest {
     @Test
     void immutableSnapshotsDoNotFollowMutableNativeFlagsOrMaps() {
         var nativeTiles = new BitSet();
-        var map = new HashMap<Long, GroundViewCache.Surface>();
+        var map = new HashMap<Long, GroundSurface>();
         map.put(12L, surface(0, 147, Blocks.GRASS_BLOCK));
         var s = new GroundOwnership.Snapshot(map, nativeTiles);
         nativeTiles.set(12);
@@ -104,6 +116,7 @@ class GroundOwnershipTest {
         var selected = s.selected();
         selected.clear();
         assertTrue(s.selected().get(12));
+        assertThrows(UnsupportedOperationException.class, () -> s.keys().clear());
     }
 
     @Test
@@ -173,7 +186,7 @@ class GroundOwnershipTest {
 
     @Test
     void residentCoverUsesBakedSurfaceNotNewestCachedSummary() {
-        var map = new HashMap<Long, GroundViewCache.Surface>();
+        var map = new HashMap<Long, GroundSurface>();
         map.put(12L, surface(1, 147, Blocks.GRASS_BLOCK));
         var old = new GroundCoverSnapshot(heights(), map, new BitSet());
         map.put(12L, surface(2, 167, Blocks.STONE));
@@ -206,7 +219,7 @@ class GroundOwnershipTest {
             h[i] = 127 + i % 32;
             states[i] = Block.getId(Blocks.GRASS_BLOCK.defaultBlockState());
         }
-        var s = new GroundViewCache.Surface(1, h, states);
+        var s = new GroundSurface(1, h, states);
         for (var f : CubeSurfaceTopology.Face.values())
             for (var p : new int[][] {{-1, 512}, {2048, 512}, {512, -1}, {512, 2048}}) {
                 var c =
@@ -232,7 +245,7 @@ class GroundOwnershipTest {
     @Test
     void threeStateAtlasIncludesEveryFaceEdgeAndCornerHalo() {
         var s = surface(0, 147, Blocks.GRASS_BLOCK);
-        var map = new HashMap<Long, GroundViewCache.Surface>();
+        var map = new HashMap<Long, GroundSurface>();
         var natives = new BitSet();
         for (int f = 0; f < 6; f++)
             for (int i = 0; i < 128; i++)
@@ -253,15 +266,32 @@ class GroundOwnershipTest {
     }
 
     @Test
+    void cachedHaloMatchesSeamCanonicalisationForEverySize() {
+        for (int size : new int[] {256, 272, 1024, 2048}) {
+            var shape = new dev.starfold.chart.PlanetShape(size);
+            var halo = GroundOwnership.halo(shape);
+            assertSame(halo, GroundOwnership.halo(shape));
+            int n = shape.chunks(), i = 0;
+            for (int f = 0; f < 6; f++)
+                for (int z = -1; z <= n; z++)
+                    for (int x = -1; x <= n; x++)
+                        if (x < 0 || x >= n || z < 0 || z >= n) {
+                            assertEquals(x + 1 + 130 * (z + 1 + 130 * f), halo.index()[i]);
+                            assertEquals(GroundOwnership.key(shape, f, x * 16 + 8, z * 16 + 8), halo.key()[i++]);
+                        }
+            assertEquals(halo.index().length, i);
+        }
+    }
+
+    @Test
     void runtimeUsesBakedMeshImagesAndCommitsCoverOnlyWithItsStrips() throws Exception {
         var source = Sources.text("GroundRenderer");
         var draw =
                 source.substring(
                         source.indexOf("private static void draw("),
-                        source.indexOf("private static boolean drawDetail"));
+                        source.indexOf("private static boolean coversPending"));
         assertFalse(draw.contains("GroundExterior.commit()"));
         assertTrue(source.contains("if(pendingJob.nextCover)commitCovers()"));
-        assertTrue(source.contains("columns.put(e.getKey(),e.getValue().surface)"));
         var strips =
                 source.substring(
                         source.indexOf("private static final class StitchJob"),
@@ -270,12 +300,13 @@ class GroundOwnershipTest {
         assertFalse(strips.contains("level.getBlockState"));
         assertTrue(strips.contains("covers[GroundViewPolicy.patch(neighbour)]"));
         assertFalse(strips.contains("selection.owner(neighbour)=="));
-        assertTrue(source.contains("publishOwnership(ownership.retainCompatible(resident))"));
-        assertTrue(source.contains("commitDetails(retained)"));
-        assertTrue(source.contains("GL11.GL_UNPACK_ALIGNMENT,alignment"));
-        assertTrue(source.contains("GL11.GL_UNPACK_ROW_LENGTH,0"));
-        assertTrue(source.contains("GL11.GL_UNPACK_ROW_LENGTH,rowLength"));
-        assertTrue(source.contains("GL11.GL_UNPACK_SKIP_PIXELS,skipPixels"));
+        assertTrue(source.contains("publishOwnership(coverage.ownership.retainCompatible(residentOwnership))"));
+        assertFalse(source.contains("commitDetails("));
+        var coverage = Sources.text("GroundCoverage");
+        assertTrue(coverage.contains("GL11.GL_UNPACK_ALIGNMENT,alignment"));
+        assertTrue(coverage.contains("GL11.GL_UNPACK_ROW_LENGTH,0"));
+        assertTrue(coverage.contains("GL11.GL_UNPACK_ROW_LENGTH,rowLength"));
+        assertTrue(coverage.contains("GL11.GL_UNPACK_SKIP_PIXELS,skipPixels"));
     }
 
     @Test
@@ -286,15 +317,18 @@ class GroundOwnershipTest {
                         false,
                         "#version 150\nuniform sampler2D Sampler0;in vec2 texCoord0;out vec4 fragColor;void main(){fragColor=texture(Sampler0,texCoord0);}");
         assertFalse(f.contains("CPNativeDerived<0.5&&owner<0.75)discard"));
-        assertTrue(f.contains("owner>0.1&&!lod)discard"));
-        assertTrue(f.contains("bool deep=dither<far,lod=far>0.0&&dither<far+0.125;"));
-        assertTrue(f.contains("if(CPNativeDerived<0.5&&deep)discard;"));
+        assertTrue(f.contains("if(CPNativeCover>0.5&&owner>0.1)discard;"));
+        assertTrue(f.contains("bool deep=far>=1.0,lod=deep;"));
+        assertTrue(f.contains("CPNativeLodPass>0.5&&cpNativeDither()>=CPNativeLodFade"));
+        assertFalse(GroundShaderSource.FADE.contains("cpNativeDither"));
+        assertFalse(f.contains("if(CPNativeCoarse<0.5&&cpNativeDither()<far)discard;"));
         assertTrue(f.contains("if(owner<0.1||deep)discard;"));
         assertTrue(f.contains("int(CPNativeFace)*130"));
         assertTrue(
                 f.contains(
                         "ivec2 neighbour=cpNativeNeighbour(tile);if(cpNativeOwner(neighbour)>0.1)discard"));
         assertTrue(f.contains("border&&cpNativeOwner(neighbour)>0.1"));
+        assertFalse(f.contains("CPNativeLodPass>0.5&&cpNativeResident(neighbour)>0.5"));
         assertTrue(GroundShaderSource.VERTEX.contains("cpNativeSourcePoint.x+=0.02"));
         assertTrue(
                 GroundShaderSource.VERTEX.contains(
@@ -305,11 +339,9 @@ class GroundOwnershipTest {
                         "rendertype_solid",
                         true,
                         "#version 150\nin vec3 Position;in vec3 Normal;in vec4 Color;in ivec2 UV2;uniform sampler2D Sampler2;uniform mat4 ProjMat,ModelViewMat;out vec4 vertexColor;vec4 minecraft_sample_lightmap(sampler2D s,ivec2 uv){return vec4(1);}void main(){vertexColor=Color*minecraft_sample_lightmap(Sampler2,UV2);gl_Position=ProjMat*ModelViewMat*vec4(Position,1);}");
-        assertTrue(v.contains("max(vec3(0.0001),minecraft_sample_lightmap(Sampler2,UV2).rgb)"));
-        assertTrue(v.contains("if(CPNativeDerived>0.5||CPNativeTerrain>0.5)"));
-        assertTrue(
-                f.contains(
-                        "max(vec3((0.12+0.88*daylight)*cpNativeSkyVisibility),cpNativeBlockLight)"));
+        assertTrue(v.contains("Color*minecraft_sample_lightmap(Sampler2,cpNativeLightUV2)"));
+        assertFalse(v.contains("vertexColor.rgb/=max"));
+        assertFalse(f.contains("(0.12+0.88*daylight)*cpNativeSkyVisibility"));
         assertTrue(
                 GroundShaderSource.TEXTURE.contains(
                         "CPNativeStitch>0.5)return vec4(vec3(1.0),texture(source,uv).a)"));

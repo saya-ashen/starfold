@@ -18,7 +18,7 @@ import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.universe.SystemChunkGenerator;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.*;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -34,7 +34,7 @@ import java.util.*;
 class SystemRuntimeTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -43,10 +43,10 @@ class SystemRuntimeTest {
                 JsonParser.parseString(
                                 Files.readString(
                                         Path.of(
-                                                "src/main/resources/data/starfold/worldgen/world_preset/native_system.json")))
+                                                "probes/src/main/resources/data/starfold/worldgen/world_preset/native_system.json")))
                         .getAsJsonObject()
                         .getAsJsonObject("dimensions");
-        assertEquals(4, dims.size());
+        assertEquals(2, dims.size());
         assertFalse(dims.has("starfold:native_rock"));
         var encoded = dims.getAsJsonObject("starfold:native_planet").getAsJsonObject("generator");
         assertEquals("starfold:native_system", encoded.get("type").getAsString());
@@ -54,11 +54,11 @@ class SystemRuntimeTest {
                 SystemChunkGenerator.CODEC
                         .codec()
                         .parse(
-                                RegistryOps.create(JsonOps.INSTANCE, PlanetEcologyTest.lookup),
+                                RegistryOps.create(JsonOps.INSTANCE, PlanetBiomeFixtures.lookup),
                                 encoded)
                         .getOrThrow();
-        assertEquals(4, g.planet(0).version());
-        assertEquals(5, g.planet(1).version());
+        assertEquals(dev.starfold.worldgen.PlanetTerrain.VERSION, g.planet(0).version());
+        assertEquals(dev.starfold.worldgen.PlanetTerrain.VERSION, g.planet(1).version());
         assertNotEquals(g.planet(0).seed(), g.planet(1).seed());
         assertFalse(encoded.has("a") || encoded.has("b"));
         assertEquals(2, encoded.getAsJsonArray("planets").size());
@@ -109,7 +109,7 @@ class SystemRuntimeTest {
                     var copy = GroundFlightPackets.Setup.CODEC.decode(buf);
                     assertEquals(packet, copy);
                     assertEquals(0, buf.readableBytes());
-                    assertEquals("starfold:native_ground_v6_setup", copy.type().id().toString());
+                    assertEquals("starfold:native_ground_v8_setup", copy.type().id().toString());
                 } finally {
                     raw.release();
                 }
@@ -137,7 +137,7 @@ class SystemRuntimeTest {
         var loaded =
                 GroundSurfaceIndex.load(b.save(new net.minecraft.nbt.CompoundTag(), null), null);
         assertSame(Blocks.GOLD_BLOCK.defaultBlockState(), loaded.surface(key).state(0, 0));
-        assertTrue(loaded.dirty(key));
+        assertFalse(loaded.dirty(key));
         assertNull(
                 GroundSurfaceIndex.load(a.save(new net.minecraft.nbt.CompoundTag(), null), null)
                         .surface(key));
@@ -201,9 +201,7 @@ class SystemRuntimeTest {
                         .contains(
                                 "void sessionBound(ClientLevel level,long session){GroundViewClient.bindSession(level,session);}"));
         var views = Sources.text("GroundViewClient");
-        assertTrue(views.contains("clear();level=world;session=id;boundPlanet="));
-        assertTrue(
-                Sources.text("GroundViewServer")
-                        .contains("offset+face*GroundCoordinates.STRIDE/16+u"));
+        assertTrue(views.contains("clear();state.bind(world,id,planet,shape)"));
+        assertTrue(Sources.text("GroundViewServer").contains("ImageStream.changed(level,pos)"));
     }
 }

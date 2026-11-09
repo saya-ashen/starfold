@@ -48,7 +48,7 @@ public abstract class GroundTopologyPlayerMixin {
             return;
         }
         var owner = access.cell(access.address(pos).owner());
-        var root = CubeSurfaceTopology.Face.values()[access.face(p.getX())];
+        var root = CubeSurfaceTopology.Face.VALUES[access.face(p.getX())];
         var tile = new PlanetChart(access.shape(p.getX(), p.getZ()), root).tile(owner.face());
         if (tile == null) {
             ci.setReturnValue(false);

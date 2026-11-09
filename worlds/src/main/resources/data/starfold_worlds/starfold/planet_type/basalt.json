@@ -1,0 +1,187 @@
+{
+  "shape": {
+    "size": {
+      "min": 1024,
+      "max": 1024
+    },
+    "depth_ratio": 0.5,
+    "shell": "core_shell"
+  },
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 1,
+    "relief": {
+      "mountains": 8,
+      "hills": 4,
+      "roughness": 0.4
+    },
+    "landforms": [
+      {
+        "type": "starfold:volcano",
+        "parameters": {
+          "density": 4,
+          "radius_min": 24,
+          "radius_max": 128,
+          "amplitude": 100,
+          "operation": "raise"
+        }
+      }
+    ],
+    "erosion": {
+      "rivers": false,
+      "strength": 1,
+      "river_threshold": 48
+    },
+    "climate": {
+      "temperature": 27,
+      "latitude_gradient": 47,
+      "humidity": -0.8,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "minecraft:nether_wastes",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0.7,
+          "region_max": 1
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "minecraft:soul_sand_valley",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0,
+          "region_max": 0.3
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "minecraft:basalt_deltas",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:basalt",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:basalt"
+      },
+      {
+        "block": "minecraft:blackstone",
+        "from": 0.35
+      },
+      {
+        "block": "minecraft:netherrack",
+        "from": 0.7
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:nether_quartz_ore",
+        "from": 0,
+        "to": 1,
+        "rarity": 0.9
+      },
+      {
+        "block": "minecraft:nether_gold_ore",
+        "from": 0.25,
+        "to": 1,
+        "rarity": 0.94
+      },
+      {
+        "block": "minecraft:ancient_debris",
+        "from": 0.85,
+        "to": 1,
+        "rarity": 0.999
+      }
+    ],
+    "caves": {
+      "width": 0.08,
+      "scale": 36
+    },
+    "water": {
+      "block": "minecraft:lava",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": [
+      {
+        "type": "starfold:cave_mouth",
+        "parameters": {
+          "density": 0.18,
+          "radius": 6,
+          "height": 12,
+          "operation": "carve",
+          "slope_min": 0.3,
+          "slope_max": 200,
+          "cave_connection": true,
+          "offset": 0
+        }
+      }
+    ]
+  },
+  "life": {
+    "biome": "minecraft:basalt_deltas",
+    "creatures": false,
+    "features": false,
+    "structures": false
+  },
+  "environment": {
+    "atmosphere": {
+      "density": 0.3,
+      "color": 11040104,
+      "breathable": false
+    }
+  }
+}

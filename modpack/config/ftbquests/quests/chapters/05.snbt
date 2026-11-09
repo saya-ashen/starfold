@@ -1,0 +1,300 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000050000",
+  "group": "",
+  "order_index": 5,
+  "quests": [
+    {
+      "id": "1000000000050100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000050101",
+          "type": "advancement",
+          "advancement": "starfold:ship/other_planet"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040C00"
+      ]
+    },
+    {
+      "id": "1000000000050200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000050201",
+          "type": "item",
+          "item": {
+            "id": "mekanism:raw_osmium",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050100"
+      ]
+    },
+    {
+      "id": "1000000000050300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000050301",
+          "type": "item",
+          "item": {
+            "id": "mekanism:ingot_osmium",
+            "count": 1
+          },
+          "count": 8
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050200"
+      ]
+    },
+    {
+      "id": "1000000000050400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000050401",
+          "type": "advancement",
+          "advancement": "starfold:ship/home"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050300"
+      ]
+    },
+    {
+      "id": "1000000000050500",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000050501",
+          "type": "item",
+          "item": {
+            "id": "createaddition:alternator",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050502",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050400"
+      ]
+    },
+    {
+      "id": "1000000000050600",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000050601",
+          "type": "item",
+          "item": {
+            "id": "mekanism:metallurgic_infuser",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050602",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050500"
+      ]
+    },
+    {
+      "id": "1000000000050700",
+      "x": 4.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000050701",
+          "type": "item",
+          "item": {
+            "id": "mekanism:basic_control_circuit",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050702",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050600"
+      ]
+    },
+    {
+      "id": "1000000000050900",
+      "x": 6.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000050901",
+          "type": "item",
+          "item": {
+            "id": "mekanism:electrolytic_separator",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050902",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050700"
+      ]
+    },
+    {
+      "id": "1000000000050A00",
+      "x": 0.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000050A01",
+          "type": "item",
+          "item": {
+            "id": "mekanism:rotary_condensentrator",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050A02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050900"
+      ]
+    },
+    {
+      "id": "1000000000050B00",
+      "x": 2.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000050B01",
+          "type": "item",
+          "item": {
+            "id": "mekanism:hydrogen_bucket",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050B02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050A00"
+      ]
+    }
+  ]
+}

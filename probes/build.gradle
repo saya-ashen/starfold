@@ -1,0 +1,28 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_probes' }
+repositories { mavenCentral(); maven { url = 'https://api.modrinth.com/maven' } }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_probes { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation(project(':')) { transitive = false }
+    compileOnly files(rootProject.configurations.compileClasspath)
+    testCompileOnly files(rootProject.configurations.testCompileClasspath)
+}
+apply from: rootProject.file('gradle/core-test-launcher.gradle')
+
+// Optional fresh-world fixture belongs to the development probes, never the core jar.
+if (providers.gradleProperty('seasonsWorld').isPresent()) {
+    def seasonsWorld = tasks.register('seasonsWorld', Exec) {
+        workingDir rootProject.projectDir
+        commandLine 'python3', 'tools/probe/seasons-world.py'
+        inputs.file rootProject.file('tools/probe/seasons-world.py')
+        inputs.file rootProject.file('worlds/src/main/resources/data/starfold_worlds/worldgen/world_preset/experience.json')
+        outputs.dir layout.buildDirectory.dir('seasons-world')
+    }
+    sourceSets.main.resources.srcDir(layout.buildDirectory.dir('seasons-world'))
+    tasks.named('processResources') { dependsOn seasonsWorld }
+}

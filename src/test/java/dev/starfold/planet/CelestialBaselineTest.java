@@ -7,10 +7,10 @@ import com.google.gson.JsonParser;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSolar;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.universe.PlanetTypeTest;
+import dev.starfold.universe.PlanetTypeFixtures;
 import dev.starfold.universe.Universe;
 import dev.starfold.universe.UniverseLayout;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ class CelestialBaselineTest {
 
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     private static Map<String, GroundEphemeris.Model> models() throws Exception {
@@ -66,7 +66,7 @@ class CelestialBaselineTest {
         var layout =
                 UniverseLayout.CODEC
                         .parse(
-                                PlanetTypeTest.ops(),
+                                PlanetTypeFixtures.ops(),
                                 JsonParser.parseString(
                                         Files.readString(
                                                 Path.of(
@@ -154,6 +154,25 @@ class CelestialBaselineTest {
     @Test
     void everyBuilderMatchesLiteralFramesLightsAndBounds() throws Exception {
         var expected = literals();
+        // D3 changes only procedural sun radii; keep the C1 fixture and every other literal intact.
+        var enlarged =
+                java.util.Set.of(
+                        "solar",
+                        "solar-spinning",
+                        "groups-2",
+                        "groups-3",
+                        "groups-2-3",
+                        "groups-4-1-2",
+                        "discovered");
+        for (var entry : expected.entrySet()) {
+            var key = entry.getKey().split("/");
+            if (key.length == 3
+                    && enlarged.contains(key[0])
+                    && (key[1].equals("star-list") || key[1].equals("star"))) {
+                assertEquals(4, entry.getValue().length, entry.getKey());
+                entry.getValue()[3] *= 1.5;
+            }
+        }
         var actual = samples();
         assertEquals(
                 expected.keySet(), actual.keySet(), "no numerical contract may silently disappear");

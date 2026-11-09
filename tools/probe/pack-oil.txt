@@ -1,0 +1,6 @@
+waitworld
+wait 300
+cmd cdg oil get
+cmd cdg oil locate
+wait 40
+quit

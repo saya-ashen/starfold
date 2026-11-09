@@ -1,0 +1,13 @@
+{
+  "values": [
+    "#minecraft:flowers", "#minecraft:saplings",
+    "minecraft:short_grass", "minecraft:tall_grass", "minecraft:fern", "minecraft:large_fern",
+    "minecraft:vine", "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:weeping_vines", "minecraft:weeping_vines_plant",
+    "minecraft:twisting_vines", "minecraft:twisting_vines_plant",
+    "minecraft:sugar_cane", "minecraft:bamboo", "minecraft:bamboo_sapling",
+    "minecraft:sweet_berry_bush", "minecraft:azalea", "minecraft:flowering_azalea",
+    "minecraft:small_dripleaf", "minecraft:big_dripleaf", "minecraft:big_dripleaf_stem",
+    "minecraft:hanging_roots", "minecraft:spore_blossom"
+  ]
+}

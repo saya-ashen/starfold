@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import org.junit.jupiter.api.Test;
 
@@ -72,7 +72,7 @@ class AirstairTest {
 
     @Test
     void hingeIsAtOuterTopEdgeForEveryFacing() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
         var block =
                 net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
                         net.minecraft.resources.ResourceLocation.parse("starfold:airstair"));
@@ -94,7 +94,7 @@ class AirstairTest {
 
     @Test
     void registeredResourcesAndIronRecipe() throws Exception {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
         var id = net.minecraft.resources.ResourceLocation.parse("starfold:airstair");
         var block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(id);
         assertInstanceOf(Airstair.StairBlock.class, block);
@@ -106,7 +106,7 @@ class AirstairTest {
         var recipe = FlightPermitTest.json("data/starfold/recipe/airstair.json");
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        com.mojang.serialization.JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        com.mojang.serialization.JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         assertInstanceOf(
                 net.minecraft.world.item.crafting.ShapedRecipe.class,
                 net.minecraft.world.item.crafting.Recipe.CODEC.parse(ops, recipe).getOrThrow());

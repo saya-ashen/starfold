@@ -87,10 +87,10 @@ class HelmCommandTest {
             var f = new BentStripGeometry.Point(-Math.sin(a), 0, Math.cos(a));
             var up = new BentStripGeometry.Point(0, 1, 0);
             var old =
-                    SpaceServer.attitude(
+                    dev.starfold.space.SpaceFlightMath.attitude(
                             frame, model, 0, Space.ORIGIN, false, true, yaw, .3, -.2, 1, 2);
             var current =
-                    SpaceServer.attitude(
+                    dev.starfold.space.SpaceFlightMath.attitude(
                             frame, model, 0, Space.ORIGIN, false, true, f, up, .3, -.2, 1, 2);
             assertEquals(old.x, current.x, 1e-12);
             assertEquals(old.y, current.y, 1e-12);
@@ -100,7 +100,7 @@ class HelmCommandTest {
             var fv = pose.transform(new Vector3d(f.x(), f.y(), f.z()));
             var uv = pose.transform(new Vector3d(0, 1, 0));
             var rotated =
-                    SpaceServer.attitude(
+                    dev.starfold.space.SpaceFlightMath.attitude(
                             frame,
                             model,
                             0,

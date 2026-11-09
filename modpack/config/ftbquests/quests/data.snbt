@@ -1,0 +1,6 @@
+{
+  "version": 13,
+  "default_consume_items": false,
+  "fallback_locale": "en_us",
+  "progression_mode": "linear"
+}

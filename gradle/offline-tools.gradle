@@ -1,0 +1,22 @@
+def offlineTests = ['Probe': 'tools/probe', 'Ship': 'tools/ship', 'ShipPack': 'tools/ship/pack'].collect { name, directory ->
+    tasks.register("offline${name}Test", Exec) {
+        group = 'verification'
+        description = "Run offline Python tests in ${directory}; no Minecraft or downloads."
+        workingDir projectDir
+        commandLine 'python3', '-B', '-m', 'unittest', 'discover', '-s', directory, '-p', 'test_*.py'
+        doFirst { layout.buildDirectory.get().asFile.mkdirs() }
+    }
+}
+def modpackCheck = tasks.register('modpackSourceCheck', Exec) {
+    group = 'verification'
+    commandLine 'python3', '-B', 'tools/modpack/check-modpack.py'
+}
+def questsCheck = tasks.register('modpackQuestsCheck', Exec) {
+    group = 'verification'
+    commandLine 'python3', '-B', 'tools/modpack/generate-quests.py', '--check'
+}
+tasks.register('offlineToolsCheck') {
+    group = 'verification'
+    dependsOn offlineTests, modpackCheck, questsCheck
+}
+tasks.named('check') { dependsOn tasks.named('offlineToolsCheck') }

@@ -1,0 +1,235 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000070000",
+  "group": "",
+  "order_index": 7,
+  "quests": [
+    {
+      "id": "1000000000070100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000070101",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_chestplate",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000060B00"
+      ]
+    },
+    {
+      "id": "1000000000070200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000070201",
+          "type": "item",
+          "item": {
+            "id": "minecraft:bow",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070100"
+      ]
+    },
+    {
+      "id": "1000000000070300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000070301",
+          "type": "item",
+          "item": {
+            "id": "minecraft:arrow",
+            "count": 1
+          },
+          "count": 64
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070200"
+      ]
+    },
+    {
+      "id": "1000000000070400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000070401",
+          "type": "item",
+          "item": {
+            "id": "minecraft:golden_apple",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070300"
+      ]
+    },
+    {
+      "id": "1000000000070800",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000070801",
+          "type": "checkmark"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070802",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070400"
+      ]
+    },
+    {
+      "id": "1000000000070900",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000070901",
+          "type": "checkmark"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070902",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070800"
+      ]
+    },
+    {
+      "id": "1000000000070A00",
+      "x": 4.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000070A01",
+          "type": "kill",
+          "entity": "starfold_biotech:host",
+          "value": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070A02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070900"
+      ]
+    },
+    {
+      "id": "1000000000070B00",
+      "x": 6.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000070B01",
+          "type": "item",
+          "item": {
+            "id": "starfold_biotech:host_ganglion",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000070B02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070A00"
+      ]
+    }
+  ]
+}

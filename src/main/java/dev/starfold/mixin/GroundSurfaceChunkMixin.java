@@ -4,7 +4,6 @@ import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.render.GroundSurfaceIndex;
 import dev.starfold.render.GroundViewServer;
-import dev.starfold.space.SpaceSpeedServer;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -23,10 +22,10 @@ public abstract class GroundSurfaceChunkMixin {
             BlockPos pos, BlockState state, boolean moved, CallbackInfoReturnable<BlockState> ci) {
         var chunk = (LevelChunk) (Object) this;
         if (ci.getReturnValue() != null && chunk.getLevel() instanceof ServerLevel level) {
-            SpaceSpeedServer.changed(level, pos);
+            dev.starfold.ship.Thrusters.changed(level, pos);
             if (!PlanetLevels.is(level)) return;
             if (PlanetAccess.of(level).key(chunk.getPos().x, chunk.getPos().z) >= 0)
-                GroundSurfaceIndex.at(level, chunk.getPos().x, chunk.getPos().z).changed(chunk);
+                GroundSurfaceIndex.at(level, chunk.getPos().x, chunk.getPos().z).changed(chunk,pos);
             GroundViewServer.changed(level, pos, state);
         }
     }

@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+[[mods]]
+modId="starfold_devtools"
+version="${version}"
+displayName="Starfold: Devtools"
+displayTest="IGNORE_ALL_VERSION"
+description='''Opt-in client CPU/GPU render section profiler.'''
+[[mixins]]
+config="starfold_devtools.mixins.json"
+[[dependencies.starfold_devtools]]
+modId="starfold"
+type="required"
+versionRange="[${version}]"
+ordering="AFTER"
+side="CLIENT"
+[[dependencies.starfold_devtools]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.247,)"
+ordering="NONE"
+side="CLIENT"
+[[dependencies.starfold_devtools]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="CLIENT"

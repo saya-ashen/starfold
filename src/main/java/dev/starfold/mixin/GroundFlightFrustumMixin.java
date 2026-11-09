@@ -14,16 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class GroundFlightFrustumMixin {
     @Inject(method = "isVisible", at = @At("HEAD"), cancellable = true)
     private void starfold$nativeProjectedBounds(AABB bounds, CallbackInfoReturnable<Boolean> ci) {
-        if (GroundClient.projectedFrame()) {
-            boolean section =
-                    bounds.getXsize() == 16
-                            && bounds.getYsize() == 16
-                            && bounds.getZsize()
-                                    == 16; // Halo sections are real client chunks now (images of
-                                           // the adjacent face): draw them like any other.
-            if (section && dev.starfold.render.GroundRenderer.replacesNative())
-                ci.setReturnValue(false);
-            else ci.setReturnValue(true);
-        }
+        // Never remove native sections from the visible list on behalf of asynchronous LOD.
+        // A committed exterior may replace pixels, not the section visibility/compilation input.
+        if (GroundClient.projectedFrame()) ci.setReturnValue(true);
     }
 }

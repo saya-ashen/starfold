@@ -1,0 +1,202 @@
+{
+  "shape": {
+    "size": {
+      "min": 512,
+      "max": 2048
+    },
+    "depth_ratio": 0.5
+  },
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 1,
+    "relief": {
+      "mountains": 8,
+      "hills": 5,
+      "roughness": 0.3
+    },
+    "landforms": [
+      {
+        "type": "starfold:canyon",
+        "parameters": {
+          "density": 5,
+          "radius_min": 64,
+          "radius_max": 160,
+          "amplitude": 72,
+          "operation": "raise"
+        }
+      },
+      {
+        "type": "starfold:dunes",
+        "parameters": {
+          "density": 3,
+          "radius_min": 32,
+          "radius_max": 96,
+          "amplitude": 12,
+          "operation": "raise"
+        }
+      }
+    ],
+    "erosion": {
+      "rivers": false,
+      "strength": 1,
+      "river_threshold": 48
+    },
+    "climate": {
+      "temperature": 40,
+      "latitude_gradient": 47,
+      "humidity": -0.8,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "starfold_worlds:desert_scrub",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0,
+          "region_max": 0.35
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "starfold_worlds:desert_barren",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "minecraft:red_sand",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:sandstone"
+      },
+      {
+        "block": "minecraft:terracotta",
+        "from": 0.3
+      },
+      {
+        "block": "minecraft:stone",
+        "from": 0.55
+      },
+      {
+        "block": "minecraft:deepslate",
+        "from": 0.8
+      }
+    ],
+    "ores": [
+      {
+        "block": "mekanism:uranium_ore",
+        "from": 0.25,
+        "to": 1.0,
+        "rarity": 0.9,
+        "deep": "mekanism:deepslate_uranium_ore"
+      },
+      {
+        "block": "minecraft:gold_ore",
+        "from": 0.1,
+        "to": 1.0,
+        "rarity": 0.87,
+        "deep": "minecraft:deepslate_gold_ore"
+      },
+      {
+        "block": "starfold_materials:bauxite_ore",
+        "deep": "starfold_materials:deepslate_bauxite_ore",
+        "from": 0,
+        "to": 1.0,
+        "rarity": 0.9
+      }
+    ],
+    "caves": {
+      "width": 0.08,
+      "scale": 36
+    },
+    "water": {
+      "block": "minecraft:air",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": [
+      {
+        "type": "starfold:arch",
+        "parameters": {
+          "density": 0.18,
+          "radius": 24,
+          "height": 18,
+          "operation": "fill",
+          "slope_min": 0.3,
+          "slope_max": 200,
+          "cave_connection": false,
+          "offset": 5
+        }
+      },
+      {
+        "type": "starfold:overhang",
+        "parameters": {
+          "density": 0.18,
+          "radius": 18,
+          "height": 6,
+          "operation": "fill",
+          "slope_min": 0.5,
+          "slope_max": 200,
+          "cave_connection": false,
+          "offset": 1
+        }
+      }
+    ]
+  },
+  "life": {
+    "biome": "minecraft:desert",
+    "creatures": true,
+    "features": true,
+    "structures": true
+  },
+  "environment": {
+    "atmosphere": {
+      "density": 0.12,
+      "color": 13597019,
+      "breathable": false
+    }
+  }
+}

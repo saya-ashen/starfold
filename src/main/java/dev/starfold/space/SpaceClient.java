@@ -10,7 +10,6 @@ import dev.starfold.planet.PlanetLevels;
 import dev.starfold.ship.HelmClient;
 import dev.starfold.ship.HullVehicles;
 import dev.starfold.ship.SableCarryClient;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.ship.ThrusterSoundClient;
 import dev.starfold.sky.Space;
 import dev.starfold.sky.WeatherClient;
@@ -93,6 +92,21 @@ public final class SpaceClient {
                     true);
 
     public static void initialize() {
+        SpaceServer.clientSunMotion =
+                (entity, motion) -> {
+                    var f = frame();
+                    var model = SpaceClientHost.get().ephemeris();
+                    if (f == null || model == null) return motion;
+                    var limited =
+                            dev.starfold.chart.SunBoundary.inFrame(
+                                    model,
+                                    f,
+                                    new Point(entity.getX(), entity.getY(), entity.getZ()),
+                                    new Point(motion.x, motion.y, motion.z),
+                                    time(),
+                                    entity.getBbHeight());
+                    return new Vec3(limited.x(), limited.y(), limited.z());
+                };
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.SelectMusicEvent event) -> {
                     if (present()) event.setMusic(MUSIC);
@@ -103,7 +117,10 @@ public final class SpaceClient {
             SpaceDustClient.initialize();
             ThrusterSoundClient.initialize();
         }
-        if (net.neoforged.fml.ModList.get().isLoaded("sable")) HelmClient.initialize();
+        if (net.neoforged.fml.ModList.get().isLoaded("sable")) {
+            HelmClient.initialize();
+            GasPressureClient.initialize();
+        }
         HullVehicles.initialize();
         StarfoldNetwork.clientReceiver(SpacePackets.Frame.TYPE, (packet, c) -> install(packet));
         StarfoldNetwork.clientReceiver(
@@ -120,16 +137,13 @@ public final class SpaceClient {
                     if (packet.session() != 0) retainedSession = packet.session();
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
-                        clear());
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Pre event) -> {
                     if (level != Minecraft.getInstance().level) clear();
                     clientTick++;
                 });
     }
 
-    private static void clear() {
+    public static void clear() {
         if (frames.current() != null || view != null) SpaceClientHost.get().viewLost();
         level = null;
         arriving = false;
@@ -156,8 +170,7 @@ public final class SpaceClient {
 
     public static Space.Frame frame() {
         var mc = Minecraft.getInstance();
-        if (level != Minecraft.getInstance().level) clear();
-        return PlanetLevels.is(mc.level)
+        return level == mc.level && PlanetLevels.is(mc.level)
                         && mc.player != null
                         && Space.holds(mc.player.getX(), mc.player.getZ())
                 ? frames.sample(eye(), renderTick(), SpaceClientHost.get().ephemeris(), time())
@@ -209,7 +222,7 @@ public final class SpaceClient {
     }
 
     public static java.util.List<GroundEphemeris.Star> suns(Point eye) {
-        var all = new java.util.ArrayList<>(SpaceClientHost.get().ephemeris().everyStar());
+        var all = new java.util.ArrayList<>(SpaceClientHost.get().ephemeris().visibleStars());
         all.sort(java.util.Comparator.comparingDouble(s -> s.position().sub(eye).length()));
         return all.subList(0, Math.min(SpaceClientHost.get().sunLimit(), all.size()));
     }

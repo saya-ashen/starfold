@@ -75,7 +75,7 @@ class SpaceServerTest {
                                     axis == 1 ? sign * distance : 0,
                                     axis == 2 ? sign * distance : 0);
                     var at = Space.ORIGIN.add(delta);
-                    var shift = SpaceServer.anchor(at);
+                    var shift = SpaceFlightMath.anchor(at);
                     if (distance == 12000) assertNull(shift);
                     else SpaceTest.point(Space.ORIGIN, at.add(shift));
                 }
@@ -89,9 +89,9 @@ class SpaceServerTest {
             var b = model.at(1, tick).center();
             var axis = b.sub(a).scale(1 / b.sub(a).length());
             var middle = a.add(b).scale(.5);
-            assertFalse(SpaceServer.nearer(model, middle.add(axis.scale(255)), 0, 1, tick));
-            assertTrue(SpaceServer.nearer(model, middle.add(axis.scale(257)), 0, 1, tick));
-            assertFalse(SpaceServer.nearer(model, b, 1, 1, tick));
+            assertFalse(SpaceFlightMath.nearer(model, middle.add(axis.scale(255)), 0, 1, tick));
+            assertTrue(SpaceFlightMath.nearer(model, middle.add(axis.scale(257)), 0, 1, tick));
+            assertFalse(SpaceFlightMath.nearer(model, b, 1, 1, tick));
         }
     }
 

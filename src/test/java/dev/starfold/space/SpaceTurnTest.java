@@ -11,7 +11,6 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ship.SableFrames;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.Space;
 
 import org.joml.Quaterniond;
@@ -42,7 +41,7 @@ class SpaceTurnTest {
 
     @Test
     void boundedStepsConvergeWithoutOvershootWhileReferenceMoves() {
-        assertEquals(30, SpaceServer.ALIGN_TURN);
+        assertEquals(30, SpaceFlightMath.ALIGN_TURN);
         var model = tilted();
         var pivot = Space.ORIGIN;
         for (int planet = 0; planet < 2; planet++) {
@@ -69,8 +68,8 @@ class SpaceTurnTest {
                                 model,
                                 tick,
                                 pivot,
-                                Math.toRadians(SpaceServer.ALIGN_TURN) / 20);
-                assertTrue(delta.angle() <= Math.toRadians(SpaceServer.ALIGN_TURN) / 20 + 1e-10);
+                                Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20);
+                assertTrue(delta.angle() <= Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20 + 1e-10);
                 var next = frame.turned(delta, pivot);
                 point(frame.universe(pivot, model, tick), next.universe(pivot, model, tick));
                 frame = next;
@@ -84,7 +83,7 @@ class SpaceTurnTest {
                             model,
                             9000,
                             pivot,
-                            Math.toRadians(SpaceServer.ALIGN_TURN) / 20));
+                            Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20));
         }
     }
 
@@ -308,23 +307,17 @@ class SpaceTurnTest {
                 calls.subList(calls.indexOf("toward"), calls.indexOf("turned"))
                         .contains("steadied"));
         assertTrue(calls.indexOf("turned") < calls.indexOf("anchor"));
-        var source = Sources.text("SpaceServer");
-        var turn =
-                source.substring(
-                        source.indexOf("if(Thrusters.steadied(lead"),
-                        source.indexOf("var delta=anchor(point)"));
-        assertTrue(turn.contains("value.relabelTurn(level,container,bodies,lead,old)"));
-        var relabel =
-                source.substring(
-                        source.indexOf("private void relabelTurn"),
-                        source.indexOf("private static void settleFollowers"));
-        assertTrue(relabel.contains("if(body!=lead)"));
-        assertTrue(source.contains("send(player,true)"));
-        for (var part : new dev.starfold.SourceText[] {turn, relabel}) {
-            assertFalse(part.contains("addLinearAndAngularVelocity"));
-            assertFalse(part.contains("rider.set"));
-            assertFalse(part.contains("teleport"));
-            assertFalse(part.contains("resetVelocity"));
-        }
+        assertTrue(calls.contains("relabelTurn"));
+        var relabel = SpaceBytecode.calls("space/SpaceServer", "relabelTurn");
+        assertTrue(relabel.contains("SableFrames.motion"));
+        assertTrue(relabel.contains("Space$Frame.universe"));
+        assertTrue(relabel.contains("Space$Frame.level"));
+        assertTrue(relabel.contains("SableFrames.move"));
+        for (String forbidden : java.util.List.of("addLinearAndAngularVelocity", "setDeltaMovement", "teleportTo", "resetVelocity"))
+            assertFalse(relabel.stream().anyMatch(c -> c.endsWith("." + forbidden)), forbidden);
+        // The lead must branch around the relabel operation; all other hulls keep the same universe motion.
+        var relabelMethod = SpaceBytecode.method("space/SpaceServer", "relabelTurn");
+        assertTrue(java.util.stream.StreamSupport.stream(relabelMethod.instructions.spliterator(), false)
+                .anyMatch(i -> i.getOpcode() == org.objectweb.asm.Opcodes.IF_ACMPEQ));
     }
 }

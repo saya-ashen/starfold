@@ -22,7 +22,7 @@ public final class ShipParking {
         GroundEphemeris.quaternion(attitude);
         var frame = model.frame(body, tick);
         return new ShipRecord.Place(
-                body,
+                model.bodies().get(body).id(),
                 anchorPlot,
                 frame.local(position),
                 frame.rotation().conjugate().mul(attitude).normalize(),
@@ -32,7 +32,7 @@ public final class ShipParking {
     /** Velocities are blocks/tick and radians/tick in universe axes. */
     public static Space.Motion evaluate(
             GroundEphemeris.Model model, ShipRecord.Place place, double tick) {
-        var frame = model.frame(place.body(), tick);
+        var frame = model.frame(model.index(place.body()), tick);
         var angular = frame.angular();
         return new Space.Motion(
                 frame.world(place.position()),

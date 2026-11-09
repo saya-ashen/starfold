@@ -1,5 +1,7 @@
 package dev.starfold.ship;
 
+import dev.starfold.space.SpacePackets;
+
 /**
  * What hull clients ask of the layers built on them. Client wiring installs the answers.
  * Alone, ships have no surrounding moving frame or external mouse steering, and carried

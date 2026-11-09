@@ -1,0 +1,9 @@
+# Source documentation and local test jars are not distributable overrides.
+README.md
+RULES.md
+ids.md
+ids.json
+.packwizignore
+.gitignore
+mods/*.jar
+*.zip

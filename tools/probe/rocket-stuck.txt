@@ -1,4 +1,4 @@
-# A copy of Saya's save as it was left: thrown off the rocket in space, "cannot move", ship gone.
+# A copy of the tester's save as it was left: thrown off the rocket in space, "cannot move", ship gone.
 waitworld
 wait 200
 waitworld

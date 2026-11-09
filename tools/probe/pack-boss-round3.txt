@@ -1,0 +1,1297 @@
+strict
+waitworld
+wait 180
+pause off
+cmd gamerule sendCommandFeedback true
+cmd difficulty normal
+cmd effect give @s minecraft:resistance 600 4 true
+cmd gamemode creative
+cmd packprobe visit 0
+wait 700
+check home-slot if entity @s[x=17128,z=1272,dx=16,dz=16]
+cmd fill 17124 158 1268 17148 158 1292 minecraft:stone
+cmd fill 17124 159 1268 17148 180 1292 minecraft:air
+cmd gamemode survival
+pause off
+cmd tp @s 17136.5 159 1278.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:lich 17136.5 159 1281.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK home lich before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK home lich after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-home-lich
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd tp @s 17136.5 159 1278.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:void_blossom 17136.5 159 1281.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK home void_blossom before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK home void_blossom after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-home-void_blossom
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd tp @s 17136.5 159 1278.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:gauntlet 17136.5 159 1281.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK home gauntlet before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK home gauntlet after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-home-gauntlet
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd tp @s 17136.5 159 1278.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:obsidilith 17136.5 159 1281.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK home obsidilith before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK home obsidilith after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-home-obsidilith
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd gamemode creative
+cmd packprobe visit 11
+wait 700
+check end-slot if entity @s[x=115192,z=16888,dx=16,dz=16]
+cmd fill 115188 158 16884 115212 158 16908 minecraft:stone
+cmd fill 115188 159 16884 115212 180 16908 minecraft:air
+cmd gamemode survival
+pause off
+cmd tp @s 115200.5 159 16894.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:lich 115200.5 159 16897.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK end lich before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK end lich after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-end-lich
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd tp @s 115200.5 159 16894.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:void_blossom 115200.5 159 16897.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK end void_blossom before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK end void_blossom after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-end-void_blossom
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd tp @s 115200.5 159 16894.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:gauntlet 115200.5 159 16897.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK end gauntlet before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK end gauntlet after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-end-gauntlet
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+cmd tp @s 115200.5 159 16894.5
+cmd item replace entity @s weapon.mainhand with minecraft:netherite_sword
+cmd enchant @s minecraft:sharpness 5
+cmd summon bosses_of_mass_destruction:obsidilith 115200.5 159 16897.5 {Tags:["r3_boss"]}
+wait 80
+cmd tellraw @s "NORMAL_ATTACK end obsidilith before"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+wait 40
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd execute at @e[tag=r3_boss,limit=1] run tp @s ~ ~ ~-2
+look 0 0
+wait 4
+guide button 0 1
+wait 1
+guide button 0 0
+wait 21
+cmd tellraw @s "NORMAL_ATTACK end obsidilith after 20 sword swings"
+cmd data get entity @e[tag=r3_boss,limit=1] Health
+cmd data get entity @e[tag=r3_boss,limit=1] Pos
+shot r3-boss-end-obsidilith
+cmd execute as @e[type=minecraft:item,distance=..40] run data get entity @s Item
+cmd tellraw @s "CLEANUP ONLY: command kill below is not combat evidence"
+cmd kill @e[tag=r3_boss]
+wait 10
+cmd kill @e[type=minecraft:item,distance=..40]
+shot r3-boss-final
+quit

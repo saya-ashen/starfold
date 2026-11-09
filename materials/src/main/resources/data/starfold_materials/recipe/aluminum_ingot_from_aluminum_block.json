@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "starfold_materials:aluminum_block"
+    }
+  ],
+  "result": {
+    "id": "starfold_materials:aluminum_ingot",
+    "count": 9
+  }
+}

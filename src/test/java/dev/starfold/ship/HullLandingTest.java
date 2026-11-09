@@ -155,10 +155,10 @@ class HullLandingTest {
 
     @Test
     void runtimeGuardsExcludeRegionButNeverRequireAPilotForLandingProtection() throws Exception {
-        var source = Sources.text("SableFrames");
+        var source = Sources.text("HullPhysics");
         var land =
                 source.substring(
-                        source.indexOf("private static void land("),
+                        source.indexOf("static void land("),
                         source.indexOf("static Vector3d drift("));
         assertTrue(land.contains("Space.holds"));
         assertTrue(land.contains("Thrusters.steadied"));
@@ -169,7 +169,7 @@ class HullLandingTest {
         assertTrue(land.contains("new Vector3d(0,-allowed-velocity.y,0)"));
         assertTrue(
                 source.contains("land(level,container,body,false,mass>0?impulses.pre().y/mass:0)"));
-        assertTrue(source.contains("damp(level,container,body);land(level,container,body,true)"));
+        assertTrue(Sources.text("SableFrames").contains("HullPhysics.damp(level,container,body);HullPhysics.land(level,container,body,true)"));
     }
 
     @Test

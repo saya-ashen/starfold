@@ -21,11 +21,6 @@ public final class RendererMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // Do not wrap hot chunk lookups or frames at all in ordinary play.
-        if (mixinClassName.startsWith("dev.starfold.mixin.Arrival")
-                && !Boolean.getBoolean("starfold.carryProbe")
-                && !(mixinClassName.endsWith("ArrivalTickMixin")
-                        && Boolean.getBoolean("starfold.relightProbe"))) return false;
         return RendererCompatibility.apply(
                 mixinClassName, id -> LoadingModList.get().getModFileById(id) != null);
     }

@@ -26,7 +26,12 @@ class BodyReachTest {
     void smallBodyHandoverIsStrictAndWeightFadesInItsOwnBand() {
         var body =
                 new GroundEphemeris.Body(
-                        new GroundEphemeris.Fixed(GroundEphemeris.ZERO), 0, false, 0, 512);
+                        new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
+                        0,
+                        false,
+                        0,
+                        512,
+                        GroundEphemeris.Appearance.SURFACE);
         assertEquals(512, body.hullOut());
         assertEquals(384, body.hullIn());
         assertEquals(1024, body.flightExit());
@@ -50,16 +55,29 @@ class BodyReachTest {
         for (double reach : new double[] {0, 511, 2049, Double.NaN, Double.POSITIVE_INFINITY})
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> new GroundEphemeris.Body(body.motion(), 0, false, 0, reach));
+                    () ->
+                            new GroundEphemeris.Body(
+                                    body.motion(),
+                                    0,
+                                    false,
+                                    0,
+                                    reach,
+                                    GroundEphemeris.Appearance.SURFACE));
         var light = new GroundEphemeris.Fixed(new Point(0, 20000, 0));
-        assertEquals(0, new GroundEphemeris.Body(light, 64, true, -1).reach());
+        assertEquals(
+                0,
+                new GroundEphemeris.Body(light, 64, true, -1, GroundEphemeris.Appearance.LIGHT)
+                        .reach());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new GroundEphemeris.Body(light, 64, true, -1, 512));
+                () ->
+                        new GroundEphemeris.Body(
+                                light, 64, true, -1, 512, GroundEphemeris.Appearance.LIGHT));
         var bodies = new java.util.ArrayList<>(original.bodies());
         bodies.set(
                 original.index(0),
-                new GroundEphemeris.Body(body.motion(), body.radius(), body.light(), 0, 512));
+                new GroundEphemeris.Body(
+                        body.motion(), body.radius(), body.light(), 0, 512, body.appearance()));
         var model = new GroundEphemeris.Model(bodies);
         assertEquals(512, GroundEphemeris.spinning(model, true, 123).body(0).reach());
         assertEquals(512, GroundEphemeris.spinning(model, false, 123).body(0).reach());

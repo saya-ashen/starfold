@@ -1,0 +1,36 @@
+# Incomplete runtime fixture: a fresh world must first supply an assembled helm ship.
+# Last retry failed closed at boardblock; later cruise/arrival stages are unverified.
+wait 300
+createworld
+wait 100
+createworld seed 20261028
+createworld go
+waitworld
+wait 120
+cmd gamemode creative
+log solar-layout-surface
+shot solar-layout-surface
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+press 32 1
+until region 6000 2400
+press 32 0
+wait 80
+log solar-layout-space
+shot solar-layout-space
+cmd feelspeed 20000
+wait 1200
+log solar-layout-cruise-60s
+shot solar-layout-cruise-60s
+cmd helmstate solar-layout-cruise-60s
+cmd arrivalprobe 9 0
+wait 1200
+log solar-layout-basalt-approach
+shot solar-layout-basalt-approach
+cmd helmstate solar-layout-basalt-approach
+quit

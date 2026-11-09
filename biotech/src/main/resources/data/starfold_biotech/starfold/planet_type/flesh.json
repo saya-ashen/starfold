@@ -1,0 +1,187 @@
+{
+  "shape": {
+    "size": {
+      "min": 768,
+      "max": 1024
+    },
+    "depth_ratio": 0.5,
+    "shell": "core_shell"
+  },
+  "terrain": {
+    "version": 2,
+    "planner": {
+      "stages": [
+        "starfold:plates",
+        "starfold:landforms",
+        "starfold:erosion",
+        "starfold:climate",
+        "starfold:biomes",
+        "starfold:volumes"
+      ]
+    },
+    "land_fraction": 0.95,
+    "relief": {
+      "mountains": 50,
+      "hills": 12,
+      "roughness": 1
+    },
+    "landforms": [
+      {
+        "type": "starfold:hive",
+        "parameters": {
+          "density": 2,
+          "radius_min": 64,
+          "radius_max": 96,
+          "amplitude": 40,
+          "operation": "raise",
+          "spacing": 128,
+          "wall_slope": 1.2
+        }
+      }
+    ],
+    "erosion": {
+      "rivers": false,
+      "strength": 1,
+      "river_threshold": 48
+    },
+    "climate": {
+      "temperature": 27,
+      "latitude_gradient": 47,
+      "humidity": 0,
+      "lapse_rate": 0.0065
+    },
+    "biomes": [
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "minecraft:crimson_forest",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0.65,
+          "region_max": 1
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "minecraft:warped_forest",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048,
+          "region_min": 0,
+          "region_max": 0.3
+        }
+      },
+      {
+        "type": "starfold:terrain",
+        "parameters": {
+          "biome": "starfold_biotech:flesh_hive",
+          "height_min": -1024,
+          "height_max": 320,
+          "slope_min": 0,
+          "slope_max": 200,
+          "landform_min": -2048,
+          "landform_max": 2048
+        }
+      }
+    ],
+    "materials": [
+      {
+        "type": "starfold:surface",
+        "parameters": {
+          "block": "starfold_biotech:hive_flesh",
+          "depth_min": 0,
+          "depth_max": 3,
+          "temperature_min": -300,
+          "temperature_max": 300,
+          "slope_min": 0,
+          "shore": false,
+          "biome": ""
+        }
+      }
+    ],
+    "strata": [
+      {
+        "block": "minecraft:stone"
+      },
+      {
+        "block": "minecraft:andesite",
+        "from": 0.3
+      },
+      {
+        "block": "minecraft:stone",
+        "from": 0.36
+      },
+      {
+        "block": "minecraft:tuff",
+        "from": 0.65
+      },
+      {
+        "block": "minecraft:stone",
+        "from": 0.72
+      }
+    ],
+    "ores": [
+      {
+        "block": "minecraft:iron_ore",
+        "deep": "minecraft:deepslate_iron_ore",
+        "from": 0.25,
+        "to": 0.8,
+        "rarity": 0.88
+      }
+    ],
+    "caves": {
+      "width": 0.06,
+      "scale": 36
+    },
+    "water": {
+      "block": "starfold_biotech:blood",
+      "sea_level": 128,
+      "freeze": false
+    },
+    "preferences": {
+      "desolation": 0.3,
+      "damage": 0.2,
+      "burial": 0.1,
+      "overlap": 0.2,
+      "road_continuity": 0.8,
+      "density": 1
+    },
+    "volumes": [
+      {
+        "type": "starfold:arch",
+        "parameters": {
+          "density": 0.18,
+          "radius": 20,
+          "height": 16,
+          "operation": "fill",
+          "slope_min": 0.4,
+          "slope_max": 200,
+          "cave_connection": false,
+          "offset": 5
+        }
+      }
+    ]
+  },
+  "life": {
+    "biome": "starfold_biotech:flesh_hive",
+    "creatures": true,
+    "features": false,
+    "structures": false
+  },
+  "environment": {
+    "temperature_offset": 70,
+    "atmosphere": {
+      "density": 1.2,
+      "color": 7151656,
+      "breathable": false
+    }
+  }
+}

@@ -52,9 +52,42 @@ public final class FlightWidgets {
         if (shows(s, THRUST)) thrust(g, s, l);
     }
 
+    /** Non-surface lock uses the same projection, edge arrow and radial ETA as planet locks. */
+    public static void remote(GuiGraphics g, String name, SpaceNavigation.Marker marker, double distance, double closing) {
+        var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
+        g.fill(l.mode().x(), l.mode().y() + 20, l.mode().right(), l.mode().y() + 34, DARK);
+        centreText(g, tr("remote", name), l.width() / 2, l.mode().y() + 23, AMBER, l.mode().width());
+        int x = Math.clamp((int) Math.round(marker.x() * l.width()), l.speed().right() + 12, l.closing().x() - 12);
+        int y = Math.clamp((int) Math.round(marker.y() * l.height()), 54, l.height() - 76);
+        box(g, x - 6, y - 6, 13, 13, AMBER);
+        if (marker.edge()) SpaceNavigationClient.arrow(g, x, y, marker.angle(), AMBER);
+        var r = l.closing();
+        text(g, tr("distance", number(distance)), r.x(), 44, AMBER, r.width());
+        text(g, HudLayout.eta(distance, closing), r.x(), 55, AMBER, r.width());
+    }
+
     public static void view(GuiGraphics g, String label, boolean flash) {
         var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
         centreText(g, label, l.width() / 2, l.view().y(), flash ? INK : DIM, l.view().width());
+    }
+
+    public static void fuel(GuiGraphics g, double amount, double deltaV) {
+        if (amount < 0) return;
+        var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
+        text(g, tr("fuel", number(amount)), 8, l.height() - 76,
+                amount == 0 ? RED : CYAN, Math.min(160, l.width() - 16));
+        if (deltaV >= 0)
+            text(g, tr("delta_v", number(deltaV)), 8, l.height() - 65,
+                    CYAN, Math.min(160, l.width() - 16));
+    }
+
+    public static void stopping(GuiGraphics g, double speed, double deltaV) {
+        var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
+        text(g, tr("stop_delta_v", number(speed)), 8, l.height() - 54,
+                CYAN, Math.min(200, l.width() - 16));
+        if (deltaV >= 0 && deltaV < speed)
+            text(g, tr("stop_delta_v_low"), 8, l.height() - 43,
+                    RED, Math.min(240, l.width() - 16));
     }
 
     private static boolean shows(FlightSnapshot s, HudLayout.Widget w) {
@@ -103,12 +136,12 @@ public final class FlightWidgets {
         boolean arrival = s.mode() == FlightMode.ARRIVAL;
         String label =
                 s.phase() == ArrivalState.Phase.NOTICE
-                        ? tr("notice", PlanetSystem.name(s.planet()), s.notice())
+                        ? tr("notice", PlanetSystem.label(s.planet()).getString(), s.notice())
                         : tr(
                                 arrival
                                         ? "arrival"
                                         : s.mode() == FlightMode.CHART ? "chart" : "free",
-                                PlanetSystem.name(s.planet()));
+                                PlanetSystem.label(s.planet()).getString());
         if (arrival) {
             if (s.blend() < 1) {
                 g.setColor(1, 1, 1, (float) (1 - s.blend()));
@@ -126,26 +159,40 @@ public final class FlightWidgets {
             centreText(g, label, l.width() / 2, r.y() + 5, CYAN, r.width() - 8);
         }
         String target =
-                s.target() == null
-                        ? tr(
-                                "caption",
-                                "—",
-                                s.launchPlanet() < 0 ? "—" : PlanetSystem.name(s.launchPlanet()))
-                        : SpaceNavigationClient.caption(
-                                s.target().planet(),
-                                s.target().rank(),
-                                s.target().count(),
-                                r.width());
+                s.gas() != null
+                        ? s.gas().name()
+                                + " · "
+                                + tr("gas_nonlandable")
+                                + " · "
+                                + s.gas().rank()
+                                + "/"
+                                + s.gas().count()
+                        : s.target() == null
+                                ? tr(
+                                        "caption",
+                                        "—",
+                                        s.launchPlanet() < 0
+                                                ? "—"
+                                                : PlanetSystem.label(s.launchPlanet()).getString())
+                                : SpaceNavigationClient.caption(
+                                        s.target().planet(),
+                                        s.target().rank(),
+                                        s.target().count(),
+                                        r.width());
         centreText(g, target, l.width() / 2, r.y() + 23, DIM, r.width());
-        if (shows(s, TARGET) && s.target() != null && s.target().blocker() >= 0) {
+        String obstruction =
+                s.gas() != null
+                        ? s.gas().blockerName()
+                        : s.target() == null
+                                ? null
+                                : s.target().gasBlockerName() != null
+                                        ? s.target().gasBlockerName()
+                                        : s.target().blocker() < 0
+                                                ? null
+                                                : PlanetSystem.label(s.target().blocker()).getString();
+        if (shows(s, TARGET) && obstruction != null) {
             var row = HudLayout.occlusion(l);
-            centreText(
-                    g,
-                    tr("blocked", PlanetSystem.name(s.target().blocker())),
-                    l.width() / 2,
-                    row.y(),
-                    AMBER,
-                    row.width());
+            centreText(g, tr("blocked", obstruction), l.width() / 2, row.y(), AMBER, row.width());
         }
     }
 
@@ -169,22 +216,24 @@ public final class FlightWidgets {
         if (shows(s, SPEED_TAPE) && s.mode() != FlightMode.CHART) {
             g.vLine(x, top, bottom, DIM);
             for (int i = 0; i <= 4; i++) g.hLine(x - 4, x + 4, top + h * i / 4, DIM);
-            int fill = (int) Math.round(h * HudLayout.fill(s.speed(), s.boostCap()));
+            int fill = (int) Math.round(h * HudLayout.fill(s.speed(), s.speedRange()));
             g.fill(x - 2, bottom - fill, x + 3, bottom, CYAN);
-            int cruise = bottom - (int) Math.round(h * HudLayout.fill(s.cruiseCap(), s.boostCap()));
-            g.hLine(x - 7, x + 7, cruise, AMBER);
-            text(g, number(s.cruiseCap()), x + 10, cruise - 4, AMBER, r.width() - 28);
-            text(g, number(s.boostCap()), x + 10, top - 4, DIM, r.width() - 28);
+            text(g, number(s.speedRange()), x + 10, top - 4, DIM, r.width() - 28);
             if (s.boosted()) {
                 g.fill(r.x(), r.y() - 6, r.x() + 44, r.y() + 5, AMBER);
                 text(g, tr("boost"), r.x() + 3, r.y() - 5, 0xff070a12, 40);
             }
-            text(g, tr("cap", number(s.activeCap())), r.x(), r.y() - 18, DIM, r.width());
+            if (s.deltaV() >= 0)
+                text(g, tr("delta_v", number(s.deltaV())), r.x(), r.y() - 18, CYAN, r.width());
         }
         big(g, number(s.speed()), r.x(), bottom + 4, INK);
         text(
                 g,
-                tr("relative", PlanetSystem.name(s.relativeTo())),
+                tr(
+                        "relative",
+                        s.gas() == null
+                                ? PlanetSystem.label(s.relativeTo()).getString()
+                                : s.gas().name()),
                 r.x(),
                 bottom + 18,
                 DIM,
@@ -208,12 +257,15 @@ public final class FlightWidgets {
                 half = Math.max(1, (bottom - top) / 2);
         g.vLine(x, top, bottom, DIM);
         g.hLine(x - 6, x + 6, mid, DIM);
-        int fill = (int) Math.round(half * HudLayout.fill(Math.abs(s.closing()), s.boostCap()));
-        if (s.target() != null) {
+        int fill = (int) Math.round(half * HudLayout.fill(Math.abs(s.closing()), s.speedRange()));
+        if (s.target() != null || s.gas() != null) {
             if (s.closing() >= 0) g.fill(x - 2, mid - fill, x + 3, mid, AMBER);
             else g.fill(x - 2, mid, x + 3, mid + fill, AMBER);
         }
-        String value = s.target() == null ? "—" : String.format(Locale.ROOT, "%+.0f", s.closing());
+        String value =
+                s.target() == null && s.gas() == null
+                        ? "—"
+                        : String.format(Locale.ROOT, "%+.0f", s.closing());
         centreText(g, value, r.x() + r.width() / 2, bottom + 5, INK, r.width());
         centreText(g, tr("closing"), r.x() + r.width() / 2, bottom + 18, DIM, r.width());
     }
@@ -242,7 +294,7 @@ public final class FlightWidgets {
                     for (int dy : new int[] {-1, 1}) {
                         int bx = x + dx * 12, by = y + dy * 12;
                         for (int i = 0; i <= 5; i++) {
-                            if (t.blocker() >= 0 && i % 4 >= 2) continue;
+                            if (t.blocked() && i % 4 >= 2) continue;
                             g.fill(bx - dx * i, by, bx - dx * i + 1, by + 1, color);
                             g.fill(bx, by - dy * i, bx + 1, by - dy * i + 1, color);
                         }
@@ -255,7 +307,7 @@ public final class FlightWidgets {
                 }
             text(
                     g,
-                    PlanetSystem.name(t.planet()),
+                    PlanetSystem.label(t.planet()).getString(),
                     Math.min(l.width() - 30, x + (selected ? 16 : 7)),
                     y - 4,
                     color,
@@ -266,12 +318,48 @@ public final class FlightWidgets {
             var r = l.closing();
             text(
                     g,
-                    PlanetSystem.name(t.planet()) + " · " + tr("distance", number(t.distance())),
+                    PlanetSystem.label(t.planet()).getString()
+                            + " · "
+                            + tr("distance", number(t.distance())),
                     r.x(),
                     44,
                     AMBER,
                     r.width());
             text(g, t.eta(), r.x(), 55, AMBER, r.width());
+        }
+        if (s.gas() != null) {
+            var gas = s.gas();
+            var m = gas.marker();
+            int x = (int) Math.round(m.x() * l.width());
+            int y = (int) Math.round(m.y() * l.height());
+            if (m.edge()) {
+                x = Math.clamp(x, l.speed().right() + 12, l.closing().x() - 12);
+                y = Math.clamp(y, 54, l.height() - 76);
+                SpaceNavigationClient.arrow(g, x, y, m.angle(), AMBER);
+            } else circle(g, x, y, 12, AMBER);
+            text(g, gas.name(), Math.min(l.width() - 30, x + 16), y - 4, AMBER, 72);
+            var r = l.closing();
+            text(g, tr("distance", number(gas.distance())), r.x(), 44, AMBER, r.width());
+            text(g, tr("gas_nonlandable"), r.x(), 55, AMBER, r.width());
+            if (gas.layer() == null) {
+                text(g, tr("gas_unknown"), r.x(), 66, AMBER, r.width());
+            } else {
+                text(
+                        g,
+                        tr("gas_pressure", Math.round(gas.layer().pressure() * 100)),
+                        r.x(),
+                        66,
+                        gas.layer().pressure() >= .5 ? RED : AMBER,
+                        r.width());
+                text(g, tr("gas_depth", number(gas.layer().depth())), r.x(), 77, DIM, r.width());
+                text(
+                        g,
+                        tr("gas_remaining", number(gas.layer().remaining())),
+                        r.x(),
+                        88,
+                        DIM,
+                        r.width());
+            }
         }
     }
 
@@ -308,7 +396,7 @@ public final class FlightWidgets {
         g.fill(x + dx - 1, y + dy - 1, x + dx + 2, y + dy + 2, AMBER);
         text(
                 g,
-                tr("bearing", PlanetSystem.name(s.referencePlanet())),
+                tr("bearing", PlanetSystem.label(s.referencePlanet()).getString()),
                 r.x(),
                 r.y(),
                 DIM,
@@ -437,7 +525,7 @@ public final class FlightWidgets {
                 l.speed(),
                 a.closing(),
                 a.limit(),
-                Math.max(s.boostCap(), a.limit()),
+                Math.max(s.speedRange(), a.limit()),
                 tr("closing"),
                 tape);
         height(

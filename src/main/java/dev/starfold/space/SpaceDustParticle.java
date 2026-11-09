@@ -3,7 +3,7 @@ package dev.starfold.space;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.probe.ProbeState;
+import dev.starfold.DevelopmentHooks;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -93,7 +93,7 @@ public final class SpaceDustParticle extends TextureSheetParticle {
         if (start.z >= 0 || end.z >= 0) return;
         var mc = net.minecraft.client.Minecraft.getInstance();
         var projection = mc.gameRenderer.getProjectionMatrix(mc.options.fov().get());
-        if (ProbeState.active() && probeTick != level.getGameTime()) {
+        if (DevelopmentHooks.driving.getAsBoolean() && probeTick != level.getGameTime()) {
             probeTick = level.getGameTime();
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(

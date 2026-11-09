@@ -1,0 +1,21 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "starfold_biotech:block/hive_flesh"
+      },
+      {
+        "model": "starfold_biotech:block/hive_flesh",
+        "y": 90
+      },
+      {
+        "model": "starfold_biotech:block/hive_flesh",
+        "y": 180
+      },
+      {
+        "model": "starfold_biotech:block/hive_flesh",
+        "y": 270
+      }
+    ]
+  }
+}

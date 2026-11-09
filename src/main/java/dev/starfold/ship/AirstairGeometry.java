@@ -9,7 +9,7 @@ import java.util.List;
 
 /** Chart-local, plumb geometry shared by authoritative terrain planning and both collision sides. */
 final class AirstairGeometry {
-    static final double MAX_DROP = 10, STEP = .5;
+    static final double STEP = .5;
 
     interface Terrain {
         double height(double x, double z);

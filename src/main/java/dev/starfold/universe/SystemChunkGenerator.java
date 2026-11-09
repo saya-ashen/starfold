@@ -12,6 +12,7 @@ import dev.starfold.worldgen.PlanetDecoration;
 import dev.starfold.worldgen.PlanetTerrain;
 import dev.starfold.worldgen.SystemBiomes;
 
+import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -63,18 +64,8 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                                     .forGetter(
                                                             g ->
                                                                     java.util.Optional.ofNullable(
-                                                                            g.celestial)),
-                                            StarterShipOption.CODEC
-                                                    .optionalFieldOf("starter_ship")
-                                                    .forGetter(SystemChunkGenerator::starterShip))
-                                    .apply(
-                                            i,
-                                            (layout, planets, stars, universe, celestial, ship) ->
-                                                    withStarter(
-                                                            saved(
-                                                                    layout, planets, stars,
-                                                                    universe, celestial),
-                                                            ship)));
+                                                                            g.celestial)))
+                                    .apply(i, SystemChunkGenerator::saved));
     private static final MapCodec<SystemChunkGenerator> AUTHORED_CODEC =
             RecordCodecBuilder.mapCodec(
                     i ->
@@ -86,23 +77,15 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                                     .fieldOf("system")
                                                     .forGetter(g -> g.pending),
                                             net.minecraft.resources.RegistryOps.retrieveElement(
-                                                    net.minecraft.world.level.biome.Biomes.PLAINS),
-                                            StarterShipOption.CODEC
-                                                    .optionalFieldOf("starter_ship")
-                                                    .forGetter(SystemChunkGenerator::starterShip))
-                                    .apply(
-                                            i,
-                                            (layout, system, plains, ship) ->
-                                                    withStarter(
-                                                            new SystemChunkGenerator(
-                                                                    layout, system, plains),
-                                                            ship)));
+                                                    net.minecraft.world.level.biome.Biomes.PLAINS))
+                                    .apply(i, SystemChunkGenerator::new));
     public static final MapCodec<SystemChunkGenerator> CODEC =
             new MapCodec<>() {
                 @Override
                 public <T> java.util.stream.Stream<T> keys(DynamicOps<T> ops) {
                     return java.util.stream.Stream.concat(
-                                    SAVED_CODEC.keys(ops), AUTHORED_CODEC.keys(ops))
+                                    dev.starfold.api.PlanetContent.get().generatorCodec(SAVED_CODEC).keys(ops),
+                                    dev.starfold.api.PlanetContent.get().generatorCodec(AUTHORED_CODEC).keys(ops))
                             .distinct();
                 }
 
@@ -116,32 +99,21 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                             if (input.get(key) != null)
                                 return DataResult.error(
                                         () -> "system cannot be combined with " + key);
-                        return AUTHORED_CODEC.decode(ops, input);
+                        return dev.starfold.api.PlanetContent.get().generatorCodec(AUTHORED_CODEC).decode(ops, input);
                     }
                     if (input.get("a") != null || input.get("b") != null)
                         return DataResult.error(() -> "A system needs a planets list");
-                    return SAVED_CODEC.decode(ops, input);
+                    return dev.starfold.api.PlanetContent.get().generatorCodec(SAVED_CODEC).decode(ops, input);
                 }
 
                 @Override
                 public <T> RecordBuilder<T> encode(
                         SystemChunkGenerator g, DynamicOps<T> ops, RecordBuilder<T> prefix) {
-                    return (g.pending == null ? SAVED_CODEC : AUTHORED_CODEC)
+                    return dev.starfold.api.PlanetContent.get()
+                            .generatorCodec(g.pending == null ? SAVED_CODEC : AUTHORED_CODEC)
                             .encode(g, ops, prefix);
                 }
             };
-    private java.util.Optional<StarterShipOption> starterShip = java.util.Optional.empty();
-
-    public java.util.Optional<StarterShipOption> starterShip() {
-        return starterShip;
-    }
-
-    private static SystemChunkGenerator withStarter(
-            SystemChunkGenerator g, java.util.Optional<StarterShipOption> ship) {
-        g.starterShip = ship;
-        return g;
-    }
-
     private net.minecraft.core.Holder<SystemDefinition> pending;
     private SystemDefinition.Sky celestial;
 
@@ -183,7 +155,7 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
 
     @Override
     public boolean startsWithShip() {
-        return starterShip.isPresent();
+        return dev.starfold.api.PlanetContent.get().startsWithShip(this);
     }
 
     @Override
@@ -207,7 +179,19 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         if (pending != null)
             throw new IllegalStateException(
                     "Authored system needs its world seed before its model");
-        return celestial == null ? PlanetSystem.model(groups) : celestial.model();
+        if (celestial != null) return celestial.model();
+        var model = PlanetSystem.model(groups);
+        return new GroundEphemeris.Model(
+                model.bodies().stream()
+                        .map(
+                                body ->
+                                        body.slot() < 0
+                                                ? body
+                                                : body.withEnvironment(
+                                                        planet(body.slot())
+                                                                .generation()
+                                                                .environment()))
+                        .toList());
     }
 
     public java.util.List<String> names() {
@@ -294,8 +278,7 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                 java.util.List.of(new PlanetType.Entry(a), new PlanetType.Entry(b)),
                 new int[] {2},
                 null);
-        if (a.version() != 4 || b.version() != 5)
-            throw new IllegalArgumentException("System requires ecology v4 and rocky v5 policies");
+
     }
 
     public SystemChunkGenerator(String layout, java.util.List<PlanetChunkGenerator> planets) {
@@ -358,10 +341,6 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                         entries.stream().map(PlanetType.Entry::get),
                                         beyond.stream())
                                 .toList();
-                for (var planet : list)
-                    if (planet.version() != 4 && planet.version() != 5)
-                        throw new IllegalArgumentException(
-                                "System requires ecology v4 and rocky v5 policies");
                 biomes =
                         new SystemBiomes(
                                 list.stream().map(PlanetChunkGenerator::getBiomeSource).toList());
@@ -408,6 +387,38 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                         >= 0
                 ? id
                 : -1;
+    }
+
+    /** /locate, explorer and treasure maps: the nearest planned site on the searcher's planet, by angle on the planet,
+     *  since vanilla's spacing arithmetic does not know where the plan put structures. */
+    @Override
+    public com.mojang.datafixers.util.Pair<BlockPos, net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure>>
+            findNearestMapStructure(net.minecraft.server.level.ServerLevel level,
+                    net.minecraft.core.HolderSet<net.minecraft.world.level.levelgen.structure.Structure> structures,
+                    BlockPos pos, int radius, boolean skipKnownStructures) {
+        int id = owner(pos.getX() >> 4, pos.getZ() >> 4);
+        if (id < 0 || !planet(id).generation().structures()) return null;
+        var terrain = planet(id).terrain();
+        var shape = terrain.shape();
+        var here = GroundTopology.cell(new BlockPos(pos.getX() - originX(id), pos.getY(), pos.getZ() - originZ(id)));
+        var from = shape.direction(here.face(), here.u() + .5, here.v() + .5);
+        var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+        // shortcut: skipKnownStructures (explorer maps skipping explored sites) is ignored; add when maps repeat targets.
+        com.mojang.datafixers.util.Pair<BlockPos, net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure>> best = null;
+        double nearest = Double.NEGATIVE_INFINITY;
+        for (var site : terrain.plan().sites()) {
+            var holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.STRUCTURE, site.structure()));
+            if (holder.isEmpty() || !structures.contains(holder.get())) continue;
+            var cell = shape.topology().canonical(new dev.starfold.geometry.CubeSurfaceTopology.Cell(site.face(), site.u(), 0, site.v())).cell();
+            double closeness = from.dot(shape.direction(cell.face(), cell.u() + .5, cell.v() + .5));
+            if (closeness <= nearest) continue;
+            nearest = closeness;
+            var local = GroundTopology.block(shape, cell);
+            best = com.mojang.datafixers.util.Pair.of(
+                    new BlockPos(local.getX() + originX(id), pos.getY(), local.getZ() + originZ(id)), holder.get());
+        }
+        return best;
     }
 
     /** Where a planet's storage begins: by its place in the square alone, whatever system is running. */
@@ -466,14 +477,6 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                             net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
                                     "starfold", "planets"));
 
-    /** A structure begins no nearer than this many chunks to the edge of a face: nothing built reaches further from
-     *  where it begins, so none is cut by a seam. */
-    public static final int MARGIN = 8;
-
-    public static boolean interior(int chunks, int u, int v) {
-        return u >= MARGIN && v >= MARGIN && u < chunks - MARGIN && v < chunks - MARGIN;
-    }
-
     @Override
     public ChunkGeneratorStructureState createState(
             net.minecraft.core.HolderLookup<
@@ -496,8 +499,7 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                                 set));
     }
 
-    /** As any generator begins its structures, but only on a planet that has them, away from the edges of its faces,
-     *  and by the biomes of the planet the chunk is on. */
+    /** Fixed L0 starts come from each planet's saved structure plan. */
     @Override
     public void createStructures(
             net.minecraft.core.RegistryAccess registries,
@@ -509,88 +511,20 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         var pos = chunk.getPos();
         int id = owner(pos.x, pos.z);
         if (id < 0 || !planet(id).generation().structures()) return;
-        if (!interior(
-                planet(id).terrain().shape().chunks(),
-                Math.floorMod(pos.x - originX(id) / 16, 256),
-                pos.z - originZ(id) / 16)) return;
-        var section = net.minecraft.core.SectionPos.bottomOf(chunk);
-        state.possibleStructureSets()
-                .forEach(
-                        set -> {
-                            var entries = set.value().structures();
-                            for (var entry : entries) {
-                                var begun =
-                                        manager.getStartForStructure(
-                                                section, entry.structure().value(), chunk);
-                                if (begun != null && begun.isValid()) return;
-                            }
-                            if (!set.value().placement().isStructureChunk(state, pos.x, pos.z))
-                                return;
-                            var left = new java.util.ArrayList<>(entries);
-                            var random = new WorldgenRandom(new LegacyRandomSource(0L));
-                            random.setLargeFeatureSeed(state.getLevelSeed(), pos.x, pos.z);
-                            int weight = 0;
-                            for (var entry : left) weight += entry.weight();
-                            while (!left.isEmpty()) {
-                                int pick = left.size() == 1 ? 0 : random.nextInt(weight), at = 0;
-                                if (left.size() > 1)
-                                    for (var entry : left) {
-                                        pick -= entry.weight();
-                                        if (pick < 0) break;
-                                        at++;
-                                    }
-                                var chosen = left.get(at);
-                                var structure = chosen.structure().value();
-                                var before =
-                                        manager.getStartForStructure(section, structure, chunk);
-                                var start =
-                                        structure.generate(
-                                                registries,
-                                                this,
-                                                getBiomeSource(),
-                                                state.randomState(),
-                                                templates,
-                                                state.getLevelSeed(),
-                                                pos,
-                                                before == null ? 0 : before.getReferences(),
-                                                chunk,
-                                                structure.biomes()::contains);
-                                if (start.isValid()) {
-                                    manager.setStartForStructure(section, structure, start, chunk);
-                                    return;
-                                }
-                                left.remove(at);
-                                weight -= chosen.weight();
-                            }
-                        });
+        dev.starfold.worldgen.plan.PlannedStructurePiece.createStarts(this, id, registries, manager, chunk);
     }
 
-    private volatile PlanetDecoration decoration;
-
-    /** A planet that has them gets the features of its biomes and the pieces of its structures as its chunks are made. */
+    /** Biome features are composed by SurfaceFunction; this stage places planned structure pieces. */
     @Override
     public void applyBiomeDecoration(
             WorldGenLevel level, ChunkAccess chunk, StructureManager structures) {
         var start = chunk.getPos();
         int id = owner(start.x, start.z);
         if (id < 0) return;
-        var generation = planet(id).generation();
-        if (!generation.features() && !generation.structures()) return;
-        var all = decoration;
-        if (all == null) {
-            synchronized (this) {
-                if (decoration == null) decoration = new PlanetDecoration(getBiomeSource());
-                all = decoration;
-            }
-        }
-        all.apply(
-                this,
-                level,
-                chunk,
-                structures,
-                generation.features(),
-                generation.structures(),
-                planet(id).version() == PlanetTerrain.ECOLOGY_VERSION);
+        // Noise writes L5/L6 directly into sections. Notify before replay can replace any POI.
+        PlanetDecoration.generatedPois(chunk,(pos,state)->level.getLevel().onBlockStateChange(
+                pos,net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(),state));
+        if (planet(id).generation().structures()) PlanetDecoration.apply(this, level, chunk, structures);
     }
 
     @Override
@@ -643,13 +577,17 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         var start = chunk.getPos();
         int id = owner(start.x, start.z);
         if (id < 0) return CompletableFuture.completedFuture(chunk);
-        long began = System.nanoTime();
-        try {
-            return fill(chunk, start, id);
-        } finally {
-            GENERATED.increment();
-            NANOS.add(System.nanoTime() - began);
-        }
+        return CompletableFuture.supplyAsync(Util.wrapThreadWithTaskName("wgen_fill_noise", () -> {
+            for (var section : chunk.getSections()) section.acquire();
+            long began = System.nanoTime();
+            try {
+                return fill(chunk, start, id);
+            } finally {
+                GENERATED.increment();
+                NANOS.add(System.nanoTime() - began);
+                for (var section : chunk.getSections()) section.release();
+            }
+        }), Util.backgroundExecutor());
     }
 
     /** Chunks of planets made since the server began, and the time that took: read by /starfold perf. */
@@ -657,9 +595,10 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
             GENERATED = new java.util.concurrent.atomic.LongAdder(),
             NANOS = new java.util.concurrent.atomic.LongAdder();
 
-    private CompletableFuture<ChunkAccess> fill(
+    private ChunkAccess fill(
             ChunkAccess chunk, net.minecraft.world.level.ChunkPos start, int id) {
         var terrain = planet(id).terrain();
+        var function = new dev.starfold.worldgen.surface.SurfaceFunction(terrain);
         var surface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
         var floor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
         var pos = new BlockPos.MutableBlockPos();
@@ -668,11 +607,9 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                 int wx = start.getMinBlockX() + x, wz = start.getMinBlockZ() + z;
                 var cell =
                         GroundTopology.cell(new BlockPos(wx - originX(id), 128, wz - originZ(id)));
-                var column = terrain.column(cell.face(), cell.u(), cell.v());
-                int ceiling =
-                        Math.max(
-                                terrain.surfaceY(cell.face(), cell.u(), cell.v()),
-                                column.ground() + (terrain.version() == 4 ? 10 : 0));
+                var generated = function.blocks(cell.face(), cell.u(), cell.v());
+                var liquid = terrain.liquid(cell.face(), cell.u(), cell.v());
+                int ceiling = PlanetTerrain.MAX_Y - 1;
                 // Written straight into the sections, from the top: the generation heightmaps are
                 // kept here, so the chunk's
                 // own per-block bookkeeping would only repeat them for every layer of a deep
@@ -681,18 +618,18 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                                 low = Math.max(terrain.floor(), chunk.getMinBuildHeight());
                         y >= low;
                         y--) {
-                    var state = column.state(y);
-                    if (state.isAir()) continue;
+                    var state = generated[y - terrain.floor()];
+                    if (state.is(net.minecraft.world.level.block.Blocks.AIR)) continue;
                     chunk.getSection(chunk.getSectionIndex(y))
                             .setBlockState(x, y & 15, z, state, false);
                     surface.update(x, y, z, state);
                     floor.update(x, y, z, state);
                     if (!state.getFluidState().isEmpty()
-                            && (y == 127 || x == 0 || x == 15 || z == 0 || z == 15))
+                            && (liquid != null && y == liquid.level() - 1 || x == 0 || x == 15 || z == 0 || z == 15))
                         chunk.markPosForPostprocessing(pos.set(wx, y, wz));
                 }
             }
-        return CompletableFuture.completedFuture(chunk);
+        return chunk;
     }
 
     @Override

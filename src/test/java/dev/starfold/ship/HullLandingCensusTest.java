@@ -3,7 +3,7 @@ package dev.starfold.ship;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.geometry.CubeSurfaceTopology;
-import dev.starfold.planet.ExperiencePackTest;
+import dev.starfold.worlds.fixtures.ExperienceFixtures;
 
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.*;
@@ -18,12 +18,12 @@ import java.util.*;
 class HullLandingCensusTest {
     @Test
     void sampleExperienceCraterFields() throws Exception {
-        ExperiencePackTest.boot();
-        var system = ExperiencePackTest.generator("experience");
+        ExperienceFixtures.boot();
+        var system = ExperienceFixtures.generator("experience");
         system.materialize(20261009L);
         var tag =
                 NbtIo.readCompressed(
-                        Path.of("src/main/resources/data/starfold/structure/starter_ship.nbt"),
+                        Path.of("extras/src/main/resources/data/starfold_extras/structure/starter_ship.nbt"),
                         NbtAccounter.unlimitedHeap());
         var size = tag.getList("size", 3);
         int sx = size.getInt(0), sz = size.getInt(2);

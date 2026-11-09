@@ -113,9 +113,9 @@ class HudLayoutTest {
     }
 
     @Test
-    void capsComeFromServerAndBothSidesGateLock() throws Exception {
+    void deltaVComesFromServerAndBothSidesGateLock() throws Exception {
         var client = Sources.text("SpaceNavigationClient");
-        assertTrue(client.contains("flight.cruiseCap(),flight.boostCap()"));
+        assertTrue(client.contains("flight.deltaV()"));
         assertTrue(client.contains("HelmClient.tier()<2"));
         assertTrue(client.contains("hintedBody!=HelmClient.body()"));
         assertTrue(client.contains("VanillaGuiLayers.HOTBAR"));

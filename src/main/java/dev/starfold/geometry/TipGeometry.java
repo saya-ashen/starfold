@@ -5,7 +5,6 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 /** Local, static outward tips over the exact dev.5 direction map. No rounded-box blend. */
 public final class TipGeometry {
     public static final double WIDTH = 22, AMPLITUDE = 3.2, SQUEEZE = -.153;
-    public static final String PROFILE = "dev5_tips_w22_a3.2_s-0.153_v1";
     public final double radius, range, amplitude;
 
     public TipGeometry(int size) {

@@ -14,13 +14,13 @@ import org.junit.jupiter.api.Test;
 class SpaceAssistTest {
     @Test
     void sidewaysAndBackwardOnlyDampPerpendicularAtTheDecidedRate() {
-        assertEquals(1.5, SpaceServer.ASSIST);
+        assertEquals(1.5, SpaceFlightMath.ASSIST);
         var nose = new Point(0, 0, 1);
         double factor = 1 / (1 + 1.5 / 20);
         for (double along : new double[] {-120, 0}) {
             var drift = new Point(30, -40, along);
             for (int tick = 1; tick <= 100; tick++) {
-                drift = SpaceServer.assist(drift, nose, true);
+                drift = SpaceFlightMath.assist(drift, nose, true);
                 point(
                         new Point(30 * Math.pow(factor, tick), -40 * Math.pow(factor, tick), along),
                         drift);
@@ -34,7 +34,7 @@ class SpaceAssistTest {
         var drift = new Point(30, -40, 120);
         double factor = 1 / (1 + 1.5 / 20), speed = drift.length();
         for (int tick = 1; tick <= 100; tick++) {
-            drift = SpaceServer.assist(drift, nose, true);
+            drift = SpaceFlightMath.assist(drift, nose, true);
             assertEquals(speed, drift.length(), 1e-10);
             assertEquals(30 * Math.pow(factor, tick) / 120, drift.x() / drift.z(), 1e-10);
             assertEquals(-40 * Math.pow(factor, tick) / 120, drift.y() / drift.z(), 1e-10);
@@ -56,7 +56,7 @@ class SpaceAssistTest {
                             random.nextDouble() * 200 - 100,
                             random.nextDouble() * 200 - 100,
                             random.nextDouble() * 200 - 100);
-            var next = SpaceServer.assist(d, n, true);
+            var next = SpaceFlightMath.assist(d, n, true);
             if (d.dot(n) > 0) assertEquals(d.length(), next.length(), 1e-10);
             else {
                 assertTrue(next.length() <= d.length() + 1e-10);
@@ -74,10 +74,10 @@ class SpaceAssistTest {
                     new Point(0, 150, 0),
                     new Point(30, 40, -120),
                     GroundEphemeris.ZERO
-                }) point(d, SpaceServer.assist(d, nose, false));
-        point(GroundEphemeris.ZERO, SpaceServer.assist(GroundEphemeris.ZERO, nose, true));
+                }) point(d, SpaceFlightMath.assist(d, nose, false));
+        point(GroundEphemeris.ZERO, SpaceFlightMath.assist(GroundEphemeris.ZERO, nose, true));
         for (double along : new double[] {-120, 120})
-            point(nose.scale(along), SpaceServer.assist(nose.scale(along), nose, true));
+            point(nose.scale(along), SpaceFlightMath.assist(nose.scale(along), nose, true));
     }
 
     @Test
@@ -132,30 +132,21 @@ class SpaceAssistTest {
 
     @Test
     void weightDoesNotConsultTheGraceAndAssistDoesNotDependOnAWish() throws Exception {
-        var s = Sources.text("SpaceServer");
-        var weight =
-                s.substring(
-                        s.indexOf(
-                                "private static java.util.Set<net.minecraft.world.entity.Entity> cabins"),
-                        s.indexOf("static void weight("));
-        assertFalse(weight.contains("aboard("));
-        assertTrue(weight.contains("getTrackingSubLevel(entity)!=null"));
-        assertTrue(weight.contains("!body.isRemoved()"));
-        assertTrue(weight.contains("Space.in(entity)&&SableFrames.inside(body,entity)"));
-        assertTrue(weight.contains("cabins.contains(entity)"));
-        var assist =
-                s.substring(
-                        s.indexOf("if(Thrusters.steadied", s.indexOf("var turn=arriving?")),
-                        s.indexOf("SpaceApproach.update(level,container,lead)"));
-        for (String guard :
-                new String[] {
-                    "Thrusters.steadied(lead,level.getGameTime())",
-                    "helm(player,lead)",
-                    "if(!arriving)",
-                    "HelmServer.forward(lead)",
-                    "f.universeVector",
-                    "Thrusters.forward(lead,level.getGameTime(),forward)"
-                }) assertTrue(assist.contains(guard), guard);
-        assertFalse(assist.contains("wishes"));
+        var weight = SpaceBytecode.calls("space/SpaceServer", "weighted");
+        assertTrue(weight.stream().anyMatch(c -> c.endsWith(".getTrackingSubLevel")));
+        assertTrue(weight.contains("Set.contains"));
+        assertFalse(weight.contains("SableFrames.aboard"));
+        var cabins = SpaceBytecode.calls("space/SpaceServer", "cabins");
+        SpaceBytecode.before(cabins, "ServerSubLevel.isRemoved", "SableFrames.inside");
+        assertTrue(cabins.contains("Space.in"));
+        var advance = SpaceBytecode.calls("space/SpaceServer", "advanceLead");
+        SpaceBytecode.before(advance, "Thrusters.steadied", "SpaceFlightMath.assist");
+        SpaceBytecode.before(advance, "SpaceServer.helm", "SpaceFlightMath.assist");
+        SpaceBytecode.before(advance, "HelmServer.forward", "SpaceFlightMath.assist");
+        SpaceBytecode.before(advance, "Thrusters.forward", "SpaceFlightMath.assist");
+        var assist = SpaceBytecode.method("space/SpaceFlightMath", "assist");
+        assertFalse(java.util.stream.StreamSupport.stream(assist.instructions.spliterator(), false)
+                .anyMatch(i -> i instanceof org.objectweb.asm.tree.FieldInsnNode f
+                        && f.owner.equals("dev/starfold/space/SpaceSessions")));
     }
 }

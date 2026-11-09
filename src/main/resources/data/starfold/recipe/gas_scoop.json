@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["I I", "ISI", " C "],
+  "key": {
+    "I": {"item": "minecraft:iron_ingot"},
+    "S": {"item": "starfold:scope"},
+    "C": {"item": "minecraft:copper_ingot"}
+  },
+  "result": {"id": "starfold:gas_scoop", "count": 1}
+}

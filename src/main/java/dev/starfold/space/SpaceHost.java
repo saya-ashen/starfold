@@ -7,6 +7,9 @@ public interface SpaceHost {
     /** Publish the player's saved navigation target for the region session; alone there is none. */
     default void targetSync(ServerPlayer player, long session) {}
 
+    /** A new helm selection supersedes any higher-layer moving destination. */
+    default void targetCleared(ServerPlayer player) {}
+
     static SpaceHost get() {
         return Installed.host;
     }

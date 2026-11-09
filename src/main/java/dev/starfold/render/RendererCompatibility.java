@@ -25,6 +25,8 @@ public final class RendererCompatibility {
                 || mixin.equals("dev.starfold.mixin.SableShipWriteMixin")
                 || mixin.equals("dev.starfold.mixin.SableShipStorageMixin")
                 || mixin.equals("dev.starfold.mixin.SableShipSerializationMixin")
+                || mixin.equals("dev.starfold.mixin.SableShipSplitMixin")
+                || mixin.equals("dev.starfold.mixin.SableFuelMassMixin")
                 || mixin.equals("dev.starfold.mixin.SableShipReadinessMixin"))
             return loaded.test("sable");
         if (mixin.equals("dev.starfold.mixin.HelmFitMixin")

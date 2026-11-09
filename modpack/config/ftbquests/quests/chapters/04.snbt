@@ -1,0 +1,399 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000040000",
+  "group": "",
+  "order_index": 4,
+  "quests": [
+    {
+      "id": "1000000000040100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000040101",
+          "type": "item",
+          "item": {
+            "id": "createdieselgenerators:oil_scanner",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000030800"
+      ]
+    },
+    {
+      "id": "1000000000040200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000040201",
+          "type": "item",
+          "item": {
+            "id": "createdieselgenerators:pumpjack_bearing",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040100"
+      ]
+    },
+    {
+      "id": "1000000000040300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000040301",
+          "type": "item",
+          "item": {
+            "id": "create:fluid_tank",
+            "count": 1
+          },
+          "count": 4
+        },
+        {
+          "id": "1000000000040303",
+          "type": "item",
+          "item": {
+            "id": "createdieselgenerators:distillation_controller",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040200"
+      ]
+    },
+    {
+      "id": "1000000000040400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000040401",
+          "type": "item",
+          "item": {
+            "id": "createdieselgenerators:diesel_bucket",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040300"
+      ]
+    },
+    {
+      "id": "1000000000040500",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000040501",
+          "type": "item",
+          "item": {
+            "id": "create:fluid_tank",
+            "count": 1
+          },
+          "count": 4
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040502",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040400"
+      ]
+    },
+    {
+      "id": "1000000000040600",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000040601",
+          "type": "item",
+          "item": {
+            "id": "starfold:thruster",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040602",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040500"
+      ]
+    },
+    {
+      "id": "1000000000040700",
+      "x": 4.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000040701",
+          "type": "item",
+          "item": {
+            "id": "starfold:gyro",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040702",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040600"
+      ]
+    },
+    {
+      "id": "1000000000040800",
+      "x": 6.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000040801",
+          "type": "item",
+          "item": {
+            "id": "starfold:helm",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040802",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040700"
+      ]
+    },
+    {
+      "id": "1000000000040900",
+      "x": 0.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000040901",
+          "type": "item",
+          "item": {
+            "id": "starfold:scope",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040902",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040800"
+      ]
+    },
+    {
+      "id": "1000000000050800",
+      "x": 2.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000050801",
+          "type": "item",
+          "item": {
+            "id": "starfold:scope_nav",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000050802",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040900"
+      ]
+    },
+    {
+      "id": "1000000000040A00",
+      "x": 4.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000040A01",
+          "type": "advancement",
+          "advancement": "starfold:ship/lift_off"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040A02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000050800"
+      ]
+    },
+    {
+      "id": "1000000000040B00",
+      "x": 6.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000040B01",
+          "type": "advancement",
+          "advancement": "starfold:ship/space"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040B02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040A00"
+      ]
+    },
+    {
+      "id": "1000000000040C00",
+      "x": 0.0,
+      "y": 6.0,
+      "tasks": [
+        {
+          "id": "1000000000040C01",
+          "type": "item",
+          "item": {
+            "id": "starfold:airstair",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000040C02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000040B00"
+      ]
+    }
+  ]
+}

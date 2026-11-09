@@ -4,9 +4,11 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
 import dev.starfold.chart.GroundSolar;
+import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.chart.PlanetOrbit;
 import dev.starfold.space.RenderFrame;
 import dev.starfold.space.SpaceClient;
+import dev.starfold.space.SpaceClientHost;
 
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
@@ -17,9 +19,9 @@ import org.lwjgl.opengl.*;
 
 import java.util.Random;
 
-/** Deterministic, cached, world-oriented background only. Travel destinations are real meshes. */
+/** Dim cached galactic background and a small, observer-relative batch of actual suns. */
 public final class GroundStars {
-    private static VertexBuffer stars;
+    private static VertexBuffer stars, realStars;
     private static ShaderInstance shader;
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
@@ -33,6 +35,7 @@ public final class GroundStars {
                                         DefaultVertexFormat.POSITION_COLOR),
                                 s -> {
                                     shader = s;
+                                    shader.getUniform("DepthFar").set(ReversedDepth.ACTIVE ? 0f : 1f);
                                     clear();
                                 });
                     } catch (java.io.IOException error) {
@@ -42,6 +45,10 @@ public final class GroundStars {
     }
 
     public static void clear() {
+        if (realStars != null) {
+            realStars.close();
+            realStars = null;
+        }
         if (stars != null) {
             stars.close();
             stars = null;
@@ -64,7 +71,7 @@ public final class GroundStars {
                             .normalize();
             var v = new Vector3d(n).cross(u).normalize();
             double size = .025 + Math.pow(random.nextDouble(), 5) * .12;
-            int light = 110 + random.nextInt(146);
+            int light = 28 + random.nextInt(40);
             int warm = random.nextInt(5);
             var center = new Vector3d(n).mul(128);
             for (int k : new int[] {0, 1, 2, 0, 2, 3}) {
@@ -90,20 +97,73 @@ public final class GroundStars {
         }
     }
 
+    static Point direction(Point star, Point eye) {
+        var delta = star.sub(eye);
+        return delta.scale(1 / delta.length());
+    }
+
+    static double brightness(double distance) {
+        return .35 + .65 / (1 + Math.pow(distance / 5_200_000, 2));
+    }
+
+    private static boolean buildReal(RenderFrame context, boolean region) {
+        var model = region ? SpaceClientHost.get().ephemeris() : GroundClient.model();
+        if (model == null) return false;
+        var eye = region
+                ? SpaceClient.universeEye(context.camera().getPosition())
+                : GroundClient.universeEye();
+        var b = Tesselator.getInstance()
+                .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        for (var star : model.everyStar(region ? SpaceClient.time() : GroundClient.time())) {
+            double distance = star.position().sub(eye).length();
+            // Nearby suns already have resolved emissive meshes; points are only their distant image.
+            if (distance <= star.radius() * 100) continue;
+            var d = direction(star.position(), eye);
+            var n = new Vector3d(d.x(), d.y(), d.z());
+            var u = new Vector3d(Math.abs(n.y) < .9
+                    ? new Vector3d(0, 1, 0) : new Vector3d(1, 0, 0)).cross(n).normalize();
+            var v = new Vector3d(n).cross(u).normalize();
+            double light = brightness(distance);
+            double size = .16 + .20 * light;
+            int color = (int) (255 * light);
+            var center = new Vector3d(n).mul(128);
+            for (int k : new int[] {0, 1, 2, 0, 2, 3}) {
+                double x = k == 0 || k == 3 ? -size : size, y = k < 2 ? -size : size;
+                var p = new Vector3d(center).fma(x, u).fma(y, v);
+                b.addVertex((float) p.x, (float) p.y, (float) p.z)
+                        .setColor(color, color, color, 255);
+            }
+        }
+        var mesh = b.build();
+        if (mesh == null) return false;
+        if (realStars == null) realStars = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+        realStars.bind();
+        try {
+            realStars.upload(mesh);
+        } finally {
+            VertexBuffer.unbind();
+        }
+        return true;
+    }
+
     public static void draw(RenderFrame context) {
+        if (!RendererGuard.pipelineSupported()) return;
         boolean region = SpaceClient.active();
         float fade =
                 region
                         ? 1f
-                        : (float)
-                                (GroundClient.solar()
-                                        ? GroundSolar.stars(
-                                                GroundClient.sunElevation(),
-                                                GroundClient.darkness())
-                                        : GroundClient.darkness());
+                        : GroundAtmosphere.enabled()
+                                ? GroundAtmosphere.stars()
+                                : (float)
+                                        (GroundClient.solar()
+                                                ? GroundSolar.stars(
+                                                        GroundClient.sunElevation(),
+                                                        GroundClient.darkness())
+                                                : GroundClient.darkness());
         if (fade <= 0 || shader == null) return;
         if (stars == null) build();
         if (stars == null) return;
+        boolean real = buildReal(context, region);
         var previous = RenderSystem.getShader();
         var color = RenderSystem.getShaderColor().clone();
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
@@ -119,7 +179,8 @@ public final class GroundStars {
         try {
             if (region)
                 GL11.glDepthRange(
-                        1, 1); // Infinite background must not cover distant finite planets.
+                        ReversedDepth.ACTIVE ? 0 : 1,
+                        ReversedDepth.ACTIVE ? 0 : 1); // Infinite background must not cover distant finite planets.
             RenderSystem.enableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
@@ -159,6 +220,10 @@ public final class GroundStars {
             stars.bind();
             try {
                 stars.drawWithShader(model, RenderSystem.getProjectionMatrix(), shader);
+                if (real) {
+                    realStars.bind();
+                    realStars.drawWithShader(model, RenderSystem.getProjectionMatrix(), shader);
+                }
             } finally {
                 VertexBuffer.unbind();
             }

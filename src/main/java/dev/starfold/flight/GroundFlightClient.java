@@ -21,7 +21,7 @@ import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.probe.ProbeState;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.Space;
 
 import net.minecraft.client.*;
@@ -44,7 +44,9 @@ public final class GroundFlightClient {
     private static Quaterniond aim = new Quaterniond();
     private static long session, sequence, ack, lastTick;
     private static boolean controlled, waiting, heldG;
-    private static int lastSync = -100;
+    private static int lastSync = -100, queuedToggles;
+    // shortcut: multiplayer or high-latency connections need an RTT-based prediction window.
+    private static final int MAX_PENDING = 6;
     private static GroundFlightPackets.Seam seam;
 
     public static void teleported(Vec3 oldVelocity) {
@@ -123,7 +125,7 @@ public final class GroundFlightClient {
         reset();
     }
 
-    private static void reset() {
+    public static void reset() {
         var mc = Minecraft.getInstance();
         if (oldCamera != null) mc.options.setCameraType(oldCamera);
         oldCamera = null;
@@ -135,6 +137,7 @@ public final class GroundFlightClient {
         session = sequence = ack = lastTick = 0;
         controlled = waiting = heldG = false;
         lastSync = -100;
+        queuedToggles = 0;
         pending.clear();
         renderPose = null;
         renderTime = 0;
@@ -143,6 +146,10 @@ public final class GroundFlightClient {
     private static GroundDynamics.Terrain terrain() {
         var local = new GroundTerrain(level, Minecraft.getInstance().player, mask, state.planet());
         return new GroundDynamics.Terrain() {
+            public double handoff() {
+                return local.handoff();
+            }
+
             public boolean clear(PlanetShape.Pose p) {
                 return local.clear(p);
             }
@@ -197,6 +204,7 @@ public final class GroundFlightClient {
                     sequence = ack = 0;
                     lastTick = state.tick();
                     controlled = packet.controlled();
+                    if (!controlled) queuedToggles = 0;
                     waiting = false;
                     pending.clear();
                     // A vessel under way keeps the aim its pilot gave it: a new planet to reckon
@@ -234,7 +242,7 @@ public final class GroundFlightClient {
                         if (nextControlled)
                             for (var input : pending.values()) {
                                 if (!corrected.space()
-                                        && corrected.local().point().y() <= GroundDynamics.HANDOFF)
+                                        && corrected.local().point().y() <= GroundDynamics.handoff(mask))
                                     break;
                                 var predicted =
                                         GroundDynamics.step(
@@ -273,9 +281,6 @@ public final class GroundFlightClient {
 
     private static void registerClientLifecycle() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
-                        reset());
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Post cpEvent) -> {
                     var mc = net.minecraft.client.Minecraft.getInstance();
                     if (level != mc.level) {
@@ -286,7 +291,7 @@ public final class GroundFlightClient {
                     boolean play =
                             mc.screen == null
                                     && (mc.isWindowActive() && mc.mouseHandler.isMouseGrabbed()
-                                            || ProbeState.active());
+                                            || DevelopmentHooks.driving.getAsBoolean());
                     boolean
                             g =
                                     play
@@ -311,14 +316,16 @@ public final class GroundFlightClient {
                     }
                     if (oldCamera == null) oldCamera = mc.options.getCameraType();
                     mc.options.setCameraType(CameraType.FIRST_PERSON);
+                    // Prediction can reach native ownership before the server's handoff arrives.
+                    if (!state.space() && state.local().point().y() <= GroundDynamics.handoff(mask))
+                        return;
                     if (waiting) {
                         sync();
                         return;
                     }
-                    if (pending.size() >= 24) {
-                        sync();
-                        return;
-                    }
+                    if (toggle) queuedToggles++;
+                    // A slow server drains ordered inputs at its own tick rate.
+                    if (pending.size() >= MAX_PENDING) return;
                     var o = mc.options;
                     float f = play ? (o.keyUp.isDown() ? 1 : 0) - (o.keyDown.isDown() ? 1 : 0) : 0,
                             l =
@@ -344,12 +351,13 @@ public final class GroundFlightClient {
                                     r,
                                     play && OrbitFlightControls.direct(),
                                     play && o.keySprint.isDown());
-                    var packet = new GroundFlightPackets.Input(session, motion, toggle);
+                    var packet = new GroundFlightPackets.Input(session, motion, queuedToggles > 0);
                     pending.put(sequence, packet);
+                    if (packet.toggle()) queuedToggles--;
                     previous = state;
                     try {
                         var predicted =
-                                GroundDynamics.step(model, terrain(), state, motion, toggle);
+                                GroundDynamics.step(model, terrain(), state, motion, packet.toggle());
                         if (predicted.planet() != state.planet()) {
                             waiting = true;
                             net.neoforged.neoforge.network.PacketDistributor.sendToServer(packet);
@@ -362,6 +370,7 @@ public final class GroundFlightClient {
                     } catch (IllegalArgumentException | IllegalStateException failure) {
                         sequence--;
                         pending.remove(packet.motion().sequence());
+                        if (packet.toggle()) queuedToggles++;
                         sync();
                     }
                 });
@@ -381,6 +390,7 @@ public final class GroundFlightClient {
                                                 || Minecraft.getInstance().options.hideGui) return;
                                         var mc = Minecraft.getInstance();
                                         if (FlightClientHost.get().diagnosticHud()) {
+                                            if (mc.getDebugOverlay().showDebugScreen()) return;
                                             debugHud(g, mc);
                                             return;
                                         }
@@ -420,7 +430,7 @@ public final class GroundFlightClient {
     /** The four lines a vessel shows: its target, its height and speed, where the target lies, and the keys. */
     static String hudLine(int line) {
         var read = GroundDynamics.reading(model, terrain(), state, state.tick());
-        String name = PlanetSystem.name(state.guidance().target());
+        String name = PlanetSystem.label(state.guidance().target()).getString();
         return switch (line) {
             case 0 ->
                     I18n.get(
@@ -477,7 +487,7 @@ public final class GroundFlightClient {
                 mc.font,
                 net.minecraft.client.resources.language.I18n.get(
                         "hud.starfold.flight_target",
-                        PlanetSystem.name(state.guidance().target()),
+                        PlanetSystem.label(state.guidance().target()).getString(),
                         String.format(Locale.ROOT, "%.1f", read.altitude()),
                         String.format(Locale.ROOT, "%.1f", read.relativeSpeed() * 20),
                         String.format(Locale.ROOT, "%+.1f", read.closing() * 20)),
@@ -527,7 +537,7 @@ public final class GroundFlightClient {
                 mc.font,
                 net.minecraft.client.resources.language.I18n.get(
                         "hud.starfold.flight_bearing",
-                        PlanetSystem.name(state.guidance().target()),
+                        PlanetSystem.label(state.guidance().target()).getString(),
                         net.minecraft.client.resources.language.I18n.get(
                                 bearing >= 0 ? "hud.starfold.left" : "hud.starfold.right"),
                         String.format(Locale.ROOT, "%.1f", Math.abs(bearing)),

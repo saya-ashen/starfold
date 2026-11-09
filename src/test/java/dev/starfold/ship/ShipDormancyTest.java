@@ -51,7 +51,13 @@ class ShipDormancyTest {
                         new Quaterniond().rotateXYZ(.7, 1.3, -.2),
                         new Point(1, 2, 3),
                         new Vector3d(.1));
-        var place = new ShipRecord.Place(1, anchor, new Point(1, 2, 3), new Quaterniond(), 100);
+        var place =
+                new ShipRecord.Place(
+                        new dev.starfold.chart.BodyId(0, 1),
+                        anchor,
+                        new Point(1, 2, 3),
+                        new Quaterniond(),
+                        100);
         var before = tag.copy();
         var result = ShipDormancy.repose(original, place, motion);
         assertEquals(before, tag);
@@ -104,6 +110,26 @@ class ShipDormancyTest {
     }
 
     @Test
+    void recoveryRequiresEveryMemberOfACyclicSavedDependencyGroup() {
+        var a = UUID.randomUUID();
+        var b = UUID.randomUUID();
+        var c = UUID.randomUUID();
+        var graph = new java.util.HashMap<UUID, java.util.List<UUID>>();
+        graph.put(a, java.util.List.of(b, c));
+        graph.put(b, java.util.List.of(a, c));
+        graph.put(c, java.util.List.of(a, b));
+        assertEquals(java.util.Set.of(a, b, c), ShipDormancy.dependencyGroup(a, graph::get));
+        graph.put(a, java.util.List.of(b));
+        assertNull(ShipDormancy.dependencyGroup(a, graph::get));
+        graph.put(a, java.util.List.of(b, c));
+        graph.remove(c);
+        assertNull(ShipDormancy.dependencyGroup(a, graph::get));
+        assertNull(ShipDormancy.dependencyGroup(c, graph::get));
+        graph.put(c, java.util.List.of());
+        assertEquals(java.util.Set.of(c), ShipDormancy.dependencyGroup(c, graph::get));
+    }
+
+    @Test
     void wakeAndSleepKeepTheReadinessAndPublicationBoundaries() throws Exception {
         var source = Sources.text("ShipDormancy");
         var tickets = Sources.text("SableTickets");
@@ -114,9 +140,12 @@ class ShipDormancyTest {
                 tickets.indexOf("apply(level,ShipLeases.plan(inputs))")
                         < tickets.indexOf("ShipDormancy.finish"));
         assertTrue(source.indexOf("isChunkLoadedEnough") < source.indexOf("snatchAndLoad("));
-        assertTrue(source.contains("!original.dependencies().isEmpty()"));
+        assertTrue(source.contains("return original.dependencies()"));
+        assertTrue(source.contains("active.addAll(group)"));
         assertTrue(source.contains("!SableTickets.input(level,body).reasons().isEmpty()"));
         assertTrue(source.contains("!ShipHost.get().spaceDormancy()"));
+        // A restart leaves space hulls unloaded; production must wake them at their current place.
+        assertTrue(new ShipHost() {}.spaceDormancy());
         assertTrue(tickets.contains("ShipLeases.Reason.LEAD"));
         assertTrue(tickets.contains("ShipLeases.Reason.DEPENDENCY"));
         var hook = Sources.text("SableShipStorageMixin");

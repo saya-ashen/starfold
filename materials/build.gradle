@@ -1,0 +1,133 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+base { archivesName = 'starfold_materials' }
+repositories { mavenCentral() }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_materials { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation(project(':')) { transitive = false }
+    compileOnly files(rootProject.configurations.compileClasspath)
+}
+
+tasks.register('packagingContract') {
+    group = 'verification'
+    dependsOn tasks.named('jar'), rootProject.tasks.named('jar')
+    doLast {
+        new java.util.zip.ZipFile(tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            for (String entry : ['dev/starfold/materials/StarfoldMaterials.class',
+                    'assets/starfold_materials/lang/en_us.json', 'assets/starfold_materials/lang/zh_cn.json',
+                    'data/starfold_materials/starfold/hull_pressure/osmium_pressure_hull.json'])
+                if (zip.getEntry(entry) == null) throw new GradleException("Missing Materials artifact: ${entry}")
+            def json = { String path -> zip.getInputStream(zip.getEntry(path)).withCloseable { new groovy.json.JsonSlurper().parse(it) } }
+            if (json('data/starfold_materials/starfold/hull_pressure/osmium_pressure_hull.json') != [blocks: '#starfold_materials:pressure_hulls', pressure: 0.85])
+                throw new GradleException('Pressure hull definition changed')
+            if (json('data/starfold_materials/tags/block/pressure_hulls.json').values != ['starfold_materials:osmium_pressure_hull', 'starfold_materials:osmium_pressure_hull_slab'])
+                throw new GradleException('Pressure hull tag must cover full blocks and slabs')
+            for (String block : ['aluminum_hull_plating', 'osmium_pressure_hull']) {
+                def mass = block.startsWith('aluminum') ? 0.5 : 4
+                def full = json("data/starfold_materials/physics_block_properties/${block}.json")
+                def slab = json("data/starfold_materials/physics_block_properties/${block}_slab.json")
+                if (full.properties['sable:mass'] != mass || slab.properties['sable:mass'] != mass / 2 || slab.overrides['type=double']['sable:mass'] != mass)
+                    throw new GradleException('Half/double slab mass mismatch')
+                def recipe = json("data/starfold_materials/recipe/${block}.json")
+                if (recipe.key.values().any { it.keySet() != (['tag'] as Set) || !it.tag.startsWith('c:ingots/') })
+                    throw new GradleException('Metal recipes must use common ingot tags')
+                for (String name : [block, block + '_slab'])
+                    for (String entry : ["assets/starfold_materials/blockstates/${name}.json",
+                            "assets/starfold_materials/models/item/${name}.json",
+                            "data/starfold_materials/recipe/${name}.json",
+                            "data/starfold_materials/loot_table/blocks/${name}.json",
+                            "data/starfold_materials/physics_block_properties/${name}.json"])
+                        if (zip.getEntry(entry) == null) throw new GradleException("Missing Materials resource: ${entry}")
+                def image = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry("assets/starfold_materials/textures/block/${block}.png")))
+                if (image.width != 16 || image.height != 16) throw new GradleException('Expected 16x16 panel texture')
+            }
+            def aluminumBlocks = ['bauxite_ore', 'deepslate_bauxite_ore', 'raw_aluminum_block', 'aluminum_block']
+            def aluminumItems = ['raw_aluminum', 'aluminum_ingot', 'aluminum_nugget']
+            for (String name : aluminumBlocks + aluminumItems) {
+                def kind = name in aluminumBlocks ? 'block' : 'item'
+                for (String entry : ["assets/starfold_materials/models/item/${name}.json",
+                        "assets/starfold_materials/textures/${kind}/${name}.png"] +
+                        (kind == 'block' ? ["assets/starfold_materials/blockstates/${name}.json",
+                            "assets/starfold_materials/models/block/${name}.json",
+                            "data/starfold_materials/loot_table/blocks/${name}.json"] : []))
+                    if (zip.getEntry(entry) == null) throw new GradleException("Missing aluminum resource: ${entry}")
+                for (String locale : ['en_us', 'zh_cn'])
+                    if (!json("assets/starfold_materials/lang/${locale}.json")["${kind}.starfold_materials.${name}".toString()])
+                        throw new GradleException("Missing aluminum translation: ${name}")
+                def image = javax.imageio.ImageIO.read(zip.getInputStream(zip.getEntry("assets/starfold_materials/textures/${kind}/${name}.png")))
+                if (image.width != 16 || image.height != 16) throw new GradleException('Expected 16x16 aluminum texture')
+            }
+            def tags = ['ores/aluminum': aluminumBlocks.take(2), 'ores_in_ground/stone': ['bauxite_ore'],
+                    'ores_in_ground/deepslate': ['deepslate_bauxite_ore'], 'raw_materials/aluminum': ['raw_aluminum'],
+                    'ingots/aluminum': ['aluminum_ingot'], 'nuggets/aluminum': ['aluminum_nugget'],
+                    'storage_blocks/aluminum': ['aluminum_block'], 'storage_blocks/raw_aluminum': ['raw_aluminum_block']]
+            tags.each { tag, names ->
+                for (String registry : tag.startsWith('ores') || tag.startsWith('storage_blocks') ? ['block', 'item'] : ['item']) {
+                    if (json("data/c/tags/${registry}/${tag}.json").values != names.collect { "starfold_materials:${it}".toString() })
+                        throw new GradleException("Aluminum tag mismatch: ${tag}")
+                    def parent = tag.split('/')[0]
+                    if (!("#c:${tag}".toString() in json("data/c/tags/${registry}/${parent}.json").values))
+                        throw new GradleException("Missing aluminum parent tag: ${tag}")
+                }
+            }
+            for (String block : aluminumBlocks)
+                for (String tag : ['mineable/pickaxe', 'needs_stone_tool'])
+                    if (!("starfold_materials:${block}".toString() in json("data/minecraft/tags/block/${tag}.json").values))
+                        throw new GradleException("Aluminum tool tag mismatch: ${block}")
+            for (String ore : aluminumBlocks.take(2)) {
+                def pool = json("data/starfold_materials/loot_table/blocks/${ore}.json").pools[0]
+                def entry = pool.entries[0]
+                def silk = entry.children[0]
+                def raw = entry.children[1]
+                if (entry.type != 'minecraft:alternatives' || silk.name != "starfold_materials:${ore}" ||
+                        silk.conditions != [[condition: 'minecraft:match_tool', predicate: [predicates: [
+                            'minecraft:enchantments': [[enchantments: 'minecraft:silk_touch', levels: [min: 1]]]]]]] ||
+                        raw.name != 'starfold_materials:raw_aluminum' || raw.functions != [
+                            [function: 'minecraft:apply_bonus', enchantment: 'minecraft:fortune', formula: 'minecraft:ore_drops'],
+                            [function: 'minecraft:explosion_decay']])
+                    throw new GradleException("Aluminum ore must use iron-style silk/fortune drops: ${ore}")
+            }
+            for (String ingredient : ['raw_aluminum', 'bauxite_ore', 'deepslate_bauxite_ore'])
+                for (String type : ['smelting', 'blasting']) {
+                    def recipe = json("data/starfold_materials/recipe/aluminum_ingot_from_${ingredient}_${type}.json")
+                    if (recipe != [type: "minecraft:${type}".toString(), category: 'misc',
+                            ingredient: [item: "starfold_materials:${ingredient}".toString()],
+                            result: [id: 'starfold_materials:aluminum_ingot'], experience: 0.7,
+                            cookingtime: type == 'smelting' ? 200 : 100])
+                        throw new GradleException('Aluminum smelting contract changed')
+                }
+            for (def pair : [['raw_aluminum', 'raw_aluminum_block', 'raw_materials/aluminum'],
+                    ['aluminum_ingot', 'aluminum_block', 'ingots/aluminum'],
+                    ['aluminum_nugget', 'aluminum_ingot', 'nuggets/aluminum']]) {
+                def (small, large, tag) = pair
+                def compress = json("data/starfold_materials/recipe/${large}_from_${small}.json")
+                def unpack = json("data/starfold_materials/recipe/${small}_from_${large}.json")
+                if (compress.type != 'minecraft:crafting_shaped' || compress.pattern != ['AAA', 'AAA', 'AAA'] ||
+                        compress.key != [A: [tag: "c:${tag}".toString()]] ||
+                        compress.result != [id: "starfold_materials:${large}".toString(), count: 1] ||
+                        unpack.type != 'minecraft:crafting_shapeless' ||
+                        unpack.ingredients != [[item: "starfold_materials:${large}".toString()]] ||
+                        unpack.result != [id: "starfold_materials:${small}".toString(), count: 9])
+                    throw new GradleException('Aluminum must compress 9:1 and unpack 1:9')
+            }
+            if (zip.entries().toList().any { it.name.contains('/worldgen/') || it.name.contains('/biome_modifier/') })
+                throw new GradleException('Materials must not add world generation')
+            if (zip.entries().toList().any { it.name.endsWith('.jar') || it.name.startsWith('dev/starfold/ship/') || it.name.startsWith('data/starfold_worlds/') })
+                throw new GradleException('Foreign content leaked into Materials')
+            def metadata = zip.getInputStream(zip.getEntry('META-INF/neoforge.mods.toml')).getText('UTF-8')
+            if (!metadata.contains('modId="starfold"') || !metadata.contains('displayName="Starfold: Materials"'))
+                throw new GradleException('Materials metadata/dependency missing')
+        }
+        new java.util.zip.ZipFile(rootProject.tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            zip.entries().toList().findAll { !it.directory }.each { entry ->
+                def text = new String(zip.getInputStream(entry).withCloseable { it.readAllBytes() }, java.nio.charset.StandardCharsets.ISO_8859_1)
+                if (entry.name.contains('starfold_materials') || entry.name.startsWith('dev/starfold/materials/') || text.contains('starfold_materials') || text.contains('dev/starfold/materials/'))
+                    throw new GradleException("Materials leaked into core: ${entry.name}")
+            }
+        }
+    }
+}
+tasks.named('check') { dependsOn tasks.named('packagingContract') }

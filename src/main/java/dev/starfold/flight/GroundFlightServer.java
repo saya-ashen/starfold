@@ -21,7 +21,7 @@ import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 import dev.starfold.universe.PlanetPackets;
@@ -76,6 +76,9 @@ public final class GroundFlightServer {
 
     /** Above this height over the nominal surface a vessel loads no chunks; the approach owners begin below it. */
     public static final double ALOFT = 2048;
+
+    /** Blocks from a hull's box: native within RELEASE, a vessel again only beyond RESUME. */
+    static final double HULL_RELEASE = 16, HULL_RESUME = 32;
 
     public static boolean aloft(ServerPlayer player) {
         if (Space.in(player)) return false;
@@ -185,6 +188,11 @@ public final class GroundFlightServer {
                 options);
     }
 
+    public static boolean entryReady(ServerPlayer player,ServerLevel level) {
+        var saved=Space.in(player) ? null : GroundNavigationSave.get(level).find(player.getUUID());
+        return dev.starfold.worldgen.plan.PlanetPlanStore.ready(level,saved==null ? 0 : saved.planet());
+    }
+
     /** Prepare before any teleport or return-book mutation; never reset a damaged/occupied entry. */
     public static GroundDynamics.State entry(
             ServerPlayer player, ServerLevel level, GroundClock clock) {
@@ -223,7 +231,7 @@ public final class GroundFlightServer {
         var state = saved == null ? capture(player, clock) : saved;
         boolean controlled =
                 state.space()
-                        || state.local().point().y() > GroundDynamics.HANDOFF && state.flying();
+                        || state.local().point().y() > GroundDynamics.handoff(clock.mask) && state.flying();
         var session = new Session(state, controlled);
         sessions.put(player.getUUID(), session);
         if (saved != null) apply(player, clock, session, true);
@@ -234,14 +242,19 @@ public final class GroundFlightServer {
     /** Vanilla's saved position wins unless navigation owned the saved movement. Explicit entry is unchanged. */
     private static void login(ServerPlayer player, GroundClock clock) {
         var saved = GroundNavigationSave.get(player.serverLevel()).find(player.getUUID());
-        if (restores(saved)) enter(player, clock, entry(player, player.serverLevel(), clock));
+        if(!entryReady(player,player.serverLevel()))return;
+        if (restores(saved, clock.mask)) enter(player, clock, entry(player, player.serverLevel(), clock));
         else site(player);
     }
 
     public static boolean restores(GroundDynamics.State saved) {
+        return restores(saved, GroundSpace.DEFAULT_MASK);
+    }
+
+    public static boolean restores(GroundDynamics.State saved, GroundSpace.Config mask) {
         return saved != null
                 && (saved.space()
-                        || saved.local().point().y() > GroundDynamics.HANDOFF && saved.flying());
+                        || saved.local().point().y() > GroundDynamics.handoff(mask) && saved.flying());
     }
 
     private static void setup(ServerPlayer player, GroundClock clock, Session s) {
@@ -297,7 +310,9 @@ public final class GroundFlightServer {
                     s.state = capture(player, clock);
                     // Only someone flying is taken over as a vessel: on foot, a mountain or a tower
                     // above the handoff is still ground.
-                    if (s.state.local().point().y() > GroundDynamics.HANDOFF && s.state.flying()) {
+                    if (s.state.local().point().y() > GroundDynamics.handoff(clock.mask)
+                            && s.state.flying()
+                            && !FlightHost.get().nearHull(player, HULL_RESUME)) {
                         var next = new Session(s.state, true);
                         sessions.put(player.getUUID(), next);
                         s = next;
@@ -329,9 +344,12 @@ public final class GroundFlightServer {
                                     s.state,
                                     motion,
                                     input != null && input.toggle());
+                    // Vessel dynamics collide only with terrain: near a hull, native movement and
+                    // Sable collision take over, as on its deck.
                     boolean landing =
                             !s.state.space()
-                                    && s.state.local().point().y() <= GroundDynamics.HANDOFF;
+                                    && (s.state.local().point().y() <= GroundDynamics.handoff(clock.mask)
+                                            || FlightHost.get().nearHull(player, HULL_RELEASE));
                     if (landing)
                         s.state =
                                 GroundDynamics.local(
@@ -458,7 +476,7 @@ public final class GroundFlightServer {
     }
 
     public static void site(ServerPlayer player) {
-        long start = ArrivalProbe.start();
+        long start = DevelopmentHooks.arrival.start();
         try {
             if (Space.in(player)) {
                 region(player);
@@ -470,7 +488,7 @@ public final class GroundFlightServer {
             checkpoint(player);
             setup(player, clock, next);
         } finally {
-            ArrivalProbe.end("site", start);
+            DevelopmentHooks.arrival.end("site", start);
         }
     }
 
@@ -516,7 +534,7 @@ public final class GroundFlightServer {
         player.sendSystemMessage(
                 Component.translatable(
                         "message.starfold.guidance",
-                        PlanetSystem.name(options.target()),
+                        PlanetSystem.label(options.target()),
                         Component.translatable(
                                 options.relativeBrake() ? "options.on" : "options.off"),
                         Component.translatable(options.landing() ? "options.on" : "options.off")));
@@ -548,7 +566,7 @@ public final class GroundFlightServer {
         checkpoint(player);
         restart(player, clock);
         player.sendSystemMessage(
-                Component.translatable("message.starfold.target", PlanetSystem.name(target)));
+                Component.translatable("message.starfold.target", PlanetSystem.label(target)));
         return 1;
     }
 

@@ -39,7 +39,7 @@ public abstract class HelmActionsMixin {
     @Inject(method = "handleKeybinds", at = @At("HEAD"))
     private void starfold$keys(CallbackInfo ci) {
         var mc = (Minecraft) (Object) this;
-        dev.starfold.dev.DevFeelProbe.prepare(mc);
+        dev.starfold.DevelopmentHooks.beforeKeys.run();
         if (!blocked()) return;
         var o = mc.options;
         for (var key :

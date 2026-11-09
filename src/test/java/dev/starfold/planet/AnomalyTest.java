@@ -7,7 +7,7 @@ import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.render.GroundExteriorMesh;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,7 @@ import java.nio.file.Path;
 class AnomalyTest {
     @org.junit.jupiter.api.BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -70,13 +70,13 @@ class AnomalyTest {
                                 Path.of(
                                         "src/main/resources/assets/starfold/shaders/core/native_ground_exterior.fsh"))
                         .contains("if(surfaceColor.a<0.5)light=1.0;"));
-        for (String file : new String[] {"GroundExterior.java", "PlanetRemoteRenderer.java"}) {
+        for (String file : new String[] {"GroundExterior.java", "RemotePlanetMeshes.java"}) {
             var source = Sources.text(file.substring(0, file.length() - 5));
             assertTrue(
                     source.contains(
-                            "GroundExteriorMesh.anomalyBeams(shape,Face.values()[face],x0,z0,mask.height())"),
+                            "GroundExteriorMesh.anomalyBeams(shape,Face.VALUES[face],x0,z0,mask.height())"),
                     file);
-            assertTrue(source.contains("Anomaly.GLOW_TINT&255,0)"), file);
+            assertTrue(source.contains("out.glow(t,Anomaly.GLOW_TINT)"), file);
         }
     }
 
@@ -121,9 +121,9 @@ class AnomalyTest {
     void everyGeneratorLevelsTheFieldLaysItsGroundAndGrowsNothingOnIt() {
         for (int version :
                 new int[] {
-                    PlanetTerrain.MINING_VERSION,
-                    PlanetTerrain.ECOLOGY_VERSION,
-                    PlanetTerrain.ROCK_VERSION
+                    PlanetTerrain.VERSION,
+                    PlanetTerrain.VERSION,
+                    PlanetTerrain.VERSION
                 }) {
             var t = new PlanetTerrain(PlanetTerrain.TEST_SEED, version);
             for (var f : CubeSurfaceTopology.Face.values())
@@ -145,10 +145,11 @@ class AnomalyTest {
             var far = t.column(CubeSurfaceTopology.Face.TOP, 1024, 1024);
             assertNotSame(Anomaly.ground(), far.state(far.ground()));
         }
-        var eco = new PlanetTerrain(PlanetTerrain.TEST_SEED, PlanetTerrain.ECOLOGY_VERSION);
+        var eco = new PlanetTerrain(PlanetTerrain.TEST_SEED, PlanetTerrain.VERSION);
         for (int u = 0; u < 40; u++)
             for (int v = 0; v < 40; v++)
-                assertNull(eco.ecology().tree(CubeSurfaceTopology.Face.TOP, u, v));
+                assertTrue(new dev.starfold.worldgen.surface.SurfaceFunction(eco)
+                        .visible(CubeSurfaceTopology.Face.TOP, u, v).objects().isEmpty());
     }
 
     @Test
@@ -176,7 +177,7 @@ class AnomalyTest {
         var rim = PlanetTerrain.direction(CubeSurfaceTopology.Face.TOP, 120, 0);
         assertEquals(0, Anomaly.twisted(rim, Anomaly.distance(rim)).sub(rim).length(), 1e-12);
         // Relief: rough near the closure.
-        var t = new PlanetTerrain(PlanetTerrain.TEST_SEED, PlanetTerrain.MINING_VERSION);
+        var t = new PlanetTerrain(PlanetTerrain.TEST_SEED, PlanetTerrain.VERSION);
         int low = 999, high = -999;
         for (int u = 0; u < 40; u++)
             for (int v = 0; v < 40; v++) {
@@ -251,7 +252,8 @@ class AnomalyTest {
         assertTrue(
                 Sources.text("GroundRenderer")
                         .contains(
-                                "drawResidual(RenderFrame c){if(GroundFlightClient.controlled()||mask!=null&&mask.core()>0)return;"));
+                                "drawResidual(RenderFrame"
+                                        + " c){if(GroundFlightClient.controlled()||mask!=null&&mask.core()>0)return;"));
     }
 
     @Test
@@ -261,25 +263,23 @@ class AnomalyTest {
                 renderer.substring(
                         renderer.indexOf("private static Mesh buildMask("),
                         renderer.indexOf(
-                                "private static void render(RenderFrame c,int face,Mesh mesh,RenderType layer){"));
+                                "private static void render(RenderFrame c,int face,Mesh"
+                                        + " mesh,RenderType layer){"));
         assertTrue(mask.contains("Anomaly.shell()"));
         assertTrue(mask.contains("next-row<Anomaly.QUAD"));
         assertTrue(
                 renderer.contains(
                         "masks[face]=buildMask(face,false);masks[face+6]=buildMask(face,true);"));
-        assertTrue(
-                renderer.contains(
-                        "if(!orbitalChart&&face==GroundClient.face())render(c,face,masks[face+6],layer);"));
+        // GroundDrawPlanTest records the extra closure only on the planar observer face.
+        assertTrue(renderer.contains("masks[face+(residual?6:0)]"));
         assertTrue(
                 renderer.contains("mesh!=masks[face]&&mesh!=masks[face+6]&&mesh!=stitches[face]"));
         assertTrue(mask.contains("above+=Anomaly.QUAD"));
         assertTrue(Anomaly.QUAD <= 4);
         assertTrue(mask.contains("Anomaly.glow()"));
         assertFalse(mask.contains("Blocks."));
-        for (String file : new String[] {"GroundExterior.java", "PlanetRemoteRenderer.java"})
-            assertTrue(
-                    Sources.text(file.substring(0, file.length() - 5))
-                            .contains("if(masked(x,z))state=Anomaly.shell();"),
-                    file);
+        assertTrue(Sources.text("PlanetTerrain").contains("Anomaly.core(y)"));
+        assertTrue(Sources.text("GroundRenderer").contains("pyramids.field("));
+        assertTrue(Sources.text("RemotePlanetMeshes").contains("GroundMeshScheduler.shared.farMesh("));
     }
 }

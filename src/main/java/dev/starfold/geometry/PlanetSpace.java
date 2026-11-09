@@ -143,7 +143,7 @@ public final class PlanetSpace {
         int v = index % size;
         index /= size;
         return new Cell(
-                Face.values()[index / (maxHeight - minHeight)],
+                Face.VALUES[index / (maxHeight - minHeight)],
                 u,
                 minHeight + index % (maxHeight - minHeight),
                 v);
@@ -255,7 +255,7 @@ public final class PlanetSpace {
             throw new IllegalArgumentException("Invalid position");
         Face face = Face.TOP;
         double best = -Double.MAX_VALUE;
-        for (var f : Face.values()) {
+        for (var f : Face.VALUES) {
             double d = p.dot(f.normal);
             if (d > best) {
                 best = d;

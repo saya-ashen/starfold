@@ -77,8 +77,8 @@ public final class StarfoldNetwork {
             throw new IllegalStateException("Duplicate server receiver: " + type.id());
     }
 
-    /** v3 carries every planet's saved identity in Shapes; reject old peers before decoding. */
-    public static final String PROTOCOL = "3";
+    /** v15: fixed terrain descriptions and recipe fields; reject old peers before decoding. */
+    public static final String PROTOCOL = "18";
 
     public static void initialize(IEventBus modBus) {
         modBus.addListener(

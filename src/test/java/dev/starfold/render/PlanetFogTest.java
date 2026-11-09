@@ -32,6 +32,8 @@ class PlanetFogTest {
                 "uniform vec4 FogColor; uniform float FogStart,FogEnd; in float vertexDistance; out vec4 fragColor; void main(){fragColor=linear_fog(vec4(1),vertexDistance,FogStart,FogEnd,FogColor);}";
         String patched = GroundShaderSource.wrap("rendertype_solid", false, source);
         assertTrue(patched.contains("FogColor.rgb*cpFog*(vec3(1.0)-cpLight)"));
+        assertTrue(patched.contains("fragColor.rgb*=CPAtmosphereGrade"));
+        assertTrue(patched.contains("FogColor.rgb*cpGradeFog*(vec3(1.0)-CPAtmosphereGrade)"));
         // Algebraic reference: relight only the material contribution, not the fog colour.
         for (double fog : new double[] {0, .25, .5, 1})
             for (double light : new double[] {0, .12, .6, 1}) {
@@ -40,6 +42,12 @@ class PlanetFogTest {
                         material * light * (1 - fog) + sky * fog,
                         alreadyFogged * light + sky * fog * (1 - light),
                         1e-12);
+                for (double grade : new double[] {.97, 1, 1.03})
+                    assertEquals(
+                            material * light * grade * (1 - fog) + sky * fog,
+                            (alreadyFogged * light + sky * fog * (1 - light)) * grade
+                                    + sky * fog * (1 - grade),
+                            1e-12);
             }
     }
 }

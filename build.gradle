@@ -1,5 +1,5 @@
-plugins { id 'net.neoforged.moddev' version '2.0.148' }
-version = '0.2.0'
+plugins { id 'net.neoforged.moddev' version '2.0.148'; id 'java-test-fixtures' }
+version = providers.gradleProperty('candidateVersion').getOrElse('0.3.0-dev')
 group = 'dev.starfold'
 base { archivesName = 'starfold' }
 repositories {
@@ -49,15 +49,21 @@ dependencies {
     testCompileOnly files(sableEmbeddedJars)
     // Compile only: a shim for Create's shafts across face seams, applied only where Create is installed.
     compileOnly 'maven.modrinth:create:UjX6dr61'
+    // Real-content integration tests still use the Worlds-owned registry fixture.
+    testImplementation(testFixtures(project(':worlds'))) { transitive = false }
+    testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+sourceSets.testFixtures.compileClasspath += sourceSets.main.compileClasspath
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) }; withSourcesJar() }
 tasks.withType(JavaCompile).configureEach {
     options.release = 21
     options.encoding = 'UTF-8'
 }
 test {
+    // The full suite exhausts a 512 MiB heap; retain headroom for world generation and registries.
+    maxHeapSize = '1G'
     useJUnitPlatform()
     // NIO and java.io source/image audits must agree on the checkout working directory.
     workingDir = project.projectDir
@@ -115,13 +121,14 @@ tasks.register('sableRuntimeContract') {
 tasks.register('packagedContractTest', Test) {
     description = 'Audit packaged mixins against NeoForge-patched Mojang bytecode.'
     group = 'verification'
-    dependsOn tasks.named('jar'), tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles')
+    dependsOn tasks.named('jar'), tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles'), ':probes:jar', ':worlds:jar'
     testClassesDirs = sourceSets.test.output.classesDirs
     useJUnitPlatform()
     filter {
         includeTestsMatching 'dev.starfold.MixinContractTest.everySelectedInjectionSelectsRealMethodsAndEveryInvokeMatchesExactly'
         includeTestsMatching 'dev.starfold.MixinContractTest.shadowFieldsAndPacketAccessorsMatchUpstreamDescriptors'
         includeTestsMatching 'dev.starfold.SablePersistenceContractTest.*'
+        includeTestsMatching 'dev.starfold.SableMassContractTest.*'
     }
     def modJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
     def upstream = tasks.named('createMinecraftArtifacts').flatMap { it.gameJarArtifact }
@@ -137,6 +144,8 @@ tasks.register('packagedContractTest', Test) {
         def veil = sableEmbeddedJars().findAll { it.name.startsWith('veil-neoforge-') }
         if (veil.size() != 1) throw new GradleException('Expected one bundled NeoForge Veil artifact')
         systemProperty 'starfold.auditJar', modJar.get().asFile.absolutePath
+        systemProperty 'starfold.auditProbes', project(':probes').tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath
+        systemProperty 'starfold.auditPack', project(':worlds').tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath
         systemProperty 'starfold.auditUpstream', upstream.get().asFile.absolutePath
         systemProperty 'starfold.auditVeil', veil.first().absolutePath
         systemProperty 'starfold.auditSable', configurations.sableBundle.singleFile.absolutePath
@@ -149,4 +158,159 @@ tasks.register('packagedContractTest', Test) {
         receipt.text = "jar=${archive}\nsha256=${hash}\nupstream=${upstream.get().asFile}\n"
     }
 }
-tasks.named('check') { dependsOn tasks.named('sableRuntimeContract'), tasks.named('packagedContractTest') }
+apply from: 'gradle/packaging-boundary.gradle'
+apply from: 'gradle/offline-tools.gradle'
+tasks.register('splitPackagingContract') {
+    group = 'verification'
+    dependsOn tasks.named('jar'), ':probes:jar', ':worlds:jar', ':extras:jar'
+    doLast {
+        new java.util.zip.ZipFile(tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            zip.entries().toList().findAll { !it.directory }.each { entry ->
+                auditCoreEntry(entry.name, zip.getInputStream(entry).withCloseable { it.readAllBytes() })
+            }
+            def universe = zip.getEntry('data/starfold/starfold/universe/default.json')
+            if (universe == null) throw new GradleException('Core default universe is missing')
+            def definition = zip.getInputStream(universe).withCloseable { new groovy.json.JsonSlurper().parse(it) }
+            definition.types.each { type ->
+                def id = type.type.split(':')
+                if (zip.getEntry("data/${id[0]}/starfold/planet_type/${id[1]}.json") == null)
+                    throw new GradleException("Unresolved core default type: ${type.type}")
+            }
+            for (String name : ['system', 'trio', 'stars', 'exploration'])
+                if (zip.getEntry("data/starfold/worldgen/world_preset/native_${name}.json") != null)
+                    throw new GradleException("Development preset leaked into core: ${name}")
+        }
+        new java.util.zip.ZipFile(project(':worlds').tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            for (String entry : ['dev/starfold/worlds/StarfoldWorlds.class', 'starfold_worlds.mixins.json', 'data/starfold_worlds/worldgen/world_preset/experience.json', 'assets/starfold_worlds/lang/en_us.json', 'assets/starfold_worlds/lang/zh_cn.json'])
+                if (zip.getEntry(entry) == null) throw new GradleException("Missing pack artifact: ${entry}")
+            if (zip.entries().toList().count { it.name.startsWith('data/starfold_worlds/starfold/planet_type/') && it.name.endsWith('.json') } != 12)
+                throw new GradleException('Worlds must contain its twelve planet types')
+            zip.entries().toList().findAll { !it.directory }.each { entry ->
+                def text = new String(zip.getInputStream(entry).withCloseable { it.readAllBytes() }, java.nio.charset.StandardCharsets.ISO_8859_1)
+                if (entry.name.contains('Starter') || entry.name.startsWith('data/starfold_extras/') || text.contains('dev/starfold/extras/') || text.contains('starfold_extras:') || text.contains('starter_ship'))
+                    throw new GradleException("Extras content leaked into Worlds: ${entry.name}")
+            }
+        }
+        new java.util.zip.ZipFile(project(':extras').tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            for (String entry : ['dev/starfold/extras/StarterShip.class', 'data/starfold_extras/structure/starter_ship.nbt', 'data/starfold_extras/structure/starter_ship_weapon.nbt', 'assets/starfold_extras/lang/en_us.json', 'assets/starfold_extras/lang/zh_cn.json'])
+                if (zip.getEntry(entry) == null) throw new GradleException("Missing Extras artifact: ${entry}")
+            if (zip.entries().toList().any { it.name.startsWith('dev/starfold/worlds/') || it.name.contains('/planet_type/') || it.name.contains('/biome/') || it.name.contains('/starfold/system/') })
+                throw new GradleException('Worlds content leaked into Extras')
+            def entry = zip.getEntry('data/starfold_worlds/worldgen/world_preset/experience.json')
+            def json = zip.getInputStream(entry).withCloseable { new groovy.json.JsonSlurper().parse(it) }
+            if (json.dimensions['starfold:native_planet'].generator.remove('starter_ship') != [structure: 'starfold_extras:starter_ship'])
+                throw new GradleException('Missing Extras starter opt-in')
+            def worldsPreset = new groovy.json.JsonSlurper().parse(file('worlds/src/main/resources/data/starfold_worlds/worldgen/world_preset/experience.json'))
+            if (json != worldsPreset) throw new GradleException('Extras must only add the starter ship to the Worlds preset')
+        }
+        new java.util.zip.ZipFile(project(':probes').tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            for (String name : ['system', 'trio', 'stars', 'exploration'])
+                if (zip.getEntry("data/starfold/worldgen/world_preset/native_${name}.json") == null)
+                    throw new GradleException("Missing development preset: ${name}")
+            for (String entry : ['dev/starfold/dev/DevProbe.class', 'dev/starfold/probe/ArrivalProbe.class', 'starfold_probes.mixins.json'])
+                if (zip.getEntry(entry) == null) throw new GradleException("Missing probe artifact: ${entry}")
+        }
+    }
+}
+tasks.named('check') { dependsOn tasks.named('sableRuntimeContract'), tasks.named('packagedContractTest'), tasks.named('splitPackagingContract'), tasks.named('packagingBoundaryTest') }
+
+// Root owns development composition and verification aggregation.
+gradle.projectsEvaluated {
+    tasks.named('test', Test) {
+        def launcherArgs = jvmArgumentProviders.toList()
+        jvmArgumentProviders.clear()
+        jvmArgumentProviders.add({
+            launcherArgs.collectMany { it.asArguments() as List }.collect { arg ->
+                arg.startsWith('-Dfml.modFolders=')
+                        ? (arg + sourceSets.testFixtures.output.files.collect { ':starfold%%' + it.absolutePath }.join('')
+                            + project(':worlds').sourceSets.testFixtures.output.files.collect { ':starfold_worlds%%' + it.absolutePath }.join(''))
+                        : arg
+            }
+        } as CommandLineArgumentProvider)
+    }
+    subprojects.each { module ->
+        tasks.named('build') { dependsOn module.tasks.named('build') }
+        tasks.named('check') { dependsOn module.tasks.named('check') }
+    }
+    def loaded = ['atlas', 'probes', 'worlds', 'extras', 'materials', 'biotech']
+    loaded.each { name ->
+        def module = project(":${name}")
+        neoForge.mods.create(module.base.archivesName.get()) { sourceSet module.sourceSets.main }
+        tasks.withType(Test).configureEach { dependsOn module.tasks.named('classes') }
+    }
+    neoForge.runs.named('client') { loadedMods = neoForge.mods.toList() }
+    neoForge.runs.named('server') {
+        loadedMods = ['starfold', 'starfold_probes', 'starfold_worlds', 'starfold_extras', 'starfold_materials', 'starfold_biotech'].collect { neoForge.mods.getByName(it) }
+    }
+}
+
+// Registry-only offline evaluation, deliberately not a dependency of check.
+tasks.register('surfaceCacheEval', JavaExec) {
+    group = 'verification'
+    description = 'Measure offline whole-planet surface caches, estimates and simulated edits.'
+    dependsOn tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles')
+    mainClass = 'dev.starfold.worldgen.surface.SurfaceCacheEval'
+    maxHeapSize = '2G'
+    workingDir = project.projectDir
+    doFirst {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = fullTest.classpath
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+        systemProperty 'java.awt.headless', 'true'
+        if (providers.gradleProperty('surfaceCacheType').isPresent())
+            systemProperty 'surfaceCacheType', providers.gradleProperty('surfaceCacheType').get()
+    }
+}
+
+tasks.register('surfaceEval', JavaExec) {
+    group = 'verification'
+    description = 'Write offline pointwise surface images, consistency checks and timings.'
+    dependsOn tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles')
+    mainClass = 'dev.starfold.worldgen.surface.SurfaceEval'
+    maxHeapSize = '2G'
+    workingDir = project.projectDir
+    doFirst {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = fullTest.classpath
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+        systemProperty 'java.awt.headless', 'true'
+    }
+}
+
+// Explicit registry-only L0 receipt: every legal planet size, no game/server bootstrap.
+tasks.register('planetPlanEval', JavaExec) {
+    group = 'verification'
+    description = 'Measure deterministic structure plans at every legal planet size.'
+    dependsOn tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles')
+    mainClass = 'dev.starfold.worldgen.plan.PlanetPlanEval'
+    maxHeapSize = '1G'
+    workingDir = project.projectDir
+    doFirst {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = fullTest.classpath
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+    }
+}
+
+// Terrain and road measurements and evaluated-column atlases, registry-only and explicitly invoked.
+tasks.register('terrainPlanEval', JavaExec) {
+    group = 'verification'
+    description = 'Measure all 103 terrain sizes and render all 13 type atlases offline.'
+    dependsOn tasks.named('testClasses'), tasks.named('prepareNeoForgeTestFiles')
+    mainClass = 'dev.starfold.worldgen.plan.TerrainPlanEval'
+    maxHeapSize = '1G'
+    workingDir = project.projectDir
+    doFirst {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = fullTest.classpath
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+    }
+}

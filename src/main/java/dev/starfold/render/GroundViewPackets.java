@@ -30,112 +30,37 @@ public final class GroundViewPackets {
         }
     }
 
-    public record Tile(long key, long known) {
-        public Tile {
-            if (key < 0 || key >= CHUNKS || known < -1)
-                throw new IllegalArgumentException("Native view tile");
-        }
-    }
-
-    public record Request(long session, List<Tile> tiles) implements CustomPacketPayload {
-        public Request {
-            if (session == 0
-                    || tiles == null
-                    || tiles.isEmpty()
-                    || tiles.size() > GroundStreaming.REQUEST_TILES)
-                throw new IllegalArgumentException("Native view subscription");
-            tiles = List.copyOf(tiles);
-            var seen = new HashSet<Long>();
-            for (var tile : tiles)
-                if (!seen.add(tile.key()))
-                    throw new IllegalArgumentException("Duplicate native tile");
-        }
-
-        public static final Type<Request> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v2_view_request"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Request> CODEC =
-                StreamCodec.of(
-                        (b, p) -> {
-                            b.writeLong(p.session);
-                            b.writeVarInt(p.tiles.size());
-                            for (var tile : p.tiles) {
-                                b.writeVarLong(tile.key);
-                                b.writeVarLong(tile.known);
-                            }
-                        },
-                        b -> {
-                            long id = b.readLong();
-                            int count = b.readVarInt();
-                            if (count < 1 || count > GroundStreaming.REQUEST_TILES)
-                                throw new IllegalArgumentException("Native view request size");
-                            var out = new ArrayList<Tile>(count);
-                            for (int i = 0; i < count; i++)
-                                out.add(new Tile(b.readVarLong(), b.readVarLong()));
-                            return new Request(id, out);
-                        });
+    public record Known(long session, long[] keys, long[] revisions) implements CustomPacketPayload {
+        public static final Type<Known> TYPE =
+                new Type<>(ResourceLocation.parse("starfold:native_ground_view_known"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Known> CODEC = StreamCodec.of(
+                (b, p) -> {
+                    b.writeLong(p.session);
+                    b.writeVarInt(p.keys.length);
+                    for (int i = 0; i < p.keys.length; i++) {
+                        b.writeVarLong(p.keys[i]);
+                        b.writeVarLong(p.revisions[i]);
+                    }
+                }, b -> {
+                    long session = b.readLong();
+                    int count = b.readVarInt();
+                    if (session == 0 || count < 0 || count > CHUNKS)
+                        throw new IllegalArgumentException("Known surface count/session");
+                    long[] keys = new long[count], revisions = new long[count];
+                    var seen = new BitSet();
+                    for (int i = 0; i < count; i++) {
+                        keys[i] = b.readVarLong();
+                        revisions[i] = b.readVarLong();
+                        if (keys[i] < 0 || keys[i] >= CHUNKS || revisions[i] < 0
+                                || seen.get((int) keys[i]))
+                            throw new IllegalArgumentException("Known surface key/revision");
+                        seen.set((int) keys[i]);
+                    }
+                    return new Known(session, keys, revisions);
+                });
 
         @Override
-        public Type<Request> type() {
-            return TYPE;
-        }
-    }
-
-    public record Image(
-            long session, GroundChunkSnapshot chunk, List<GroundDisplayEntities.Image> entities)
-            implements CustomPacketPayload {
-        public Image(long session, GroundChunkSnapshot chunk) {
-            this(session, chunk, List.of());
-        }
-
-        public Image {
-            if (session == 0 || chunk == null || entities == null || entities.size() > 1024)
-                throw new IllegalArgumentException("Native view image");
-            entities = List.copyOf(entities);
-            var seen = new HashSet<net.minecraft.core.BlockPos>();
-            for (var entity : entities)
-                if (!chunk.owns(entity.pos())
-                        || !seen.add(entity.pos())
-                        || !chunk.state(entity.pos()).hasBlockEntity())
-                    throw new IllegalArgumentException("Native display entity owner");
-        }
-
-        public static final Type<Image> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v2_view_image"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Image> CODEC =
-                StreamCodec.of(
-                        (b, p) -> {
-                            b.writeLong(p.session);
-                            p.chunk.write(b);
-                            b.writeVarInt(p.entities.size());
-                            for (var entity : p.entities) {
-                                b.writeBlockPos(entity.pos());
-                                b.writeResourceLocation(entity.type());
-                                b.writeNbt(entity.update());
-                            }
-                        },
-                        b -> {
-                            long session = b.readLong();
-                            var chunk = GroundChunkSnapshot.read(b);
-                            int count = b.readVarInt();
-                            if (count < 0 || count > 1024)
-                                throw new IllegalArgumentException("Native entity image count");
-                            var entities = new ArrayList<GroundDisplayEntities.Image>(count);
-                            var quota = net.minecraft.nbt.NbtAccounter.create(128 * 1024);
-                            for (int i = 0; i < count; i++) {
-                                var pos = b.readBlockPos();
-                                var type = b.readResourceLocation();
-                                var tag = b.readNbt(quota);
-                                if (!(tag instanceof net.minecraft.nbt.CompoundTag compound))
-                                    throw new IllegalArgumentException("Native display tag");
-                                entities.add(new GroundDisplayEntities.Image(pos, type, compound));
-                            }
-                            return new Image(session, chunk, entities);
-                        });
-
-        @Override
-        public Type<Image> type() {
-            return TYPE;
-        }
+        public Type<Known> type() { return TYPE; }
     }
 
     public record Delta(long session, long epoch, net.minecraft.core.BlockPos pos, int state)
@@ -173,33 +98,7 @@ public final class GroundViewPackets {
         }
     }
 
-    public record Event(long session, net.minecraft.core.BlockPos pos, int id, int data)
-            implements CustomPacketPayload {
-        public Event {
-            if (session == 0 || pos == null || !GroundTopology.address(pos).owner().equals(pos))
-                throw new IllegalArgumentException("Native display event");
-            pos = pos.immutable();
-        }
-
-        public static final Type<Event> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v2_block_event"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Event> CODEC =
-                StreamCodec.of(
-                        (b, p) -> {
-                            b.writeLong(p.session);
-                            b.writeBlockPos(p.pos);
-                            b.writeInt(p.id);
-                            b.writeInt(p.data);
-                        },
-                        b -> new Event(b.readLong(), b.readBlockPos(), b.readInt(), b.readInt()));
-
-        @Override
-        public Type<Event> type() {
-            return TYPE;
-        }
-    }
-
-    public record Coverage(long session, long revision, boolean flat, long[] changed)
+    public record Coverage(long session, long identity, long revision, boolean flat, long[] changed)
             implements CustomPacketPayload {
         public Coverage {
             if (session == 0
@@ -222,12 +121,14 @@ public final class GroundViewPackets {
                 StreamCodec.of(
                         (b, p) -> {
                             b.writeLong(p.session);
+                            b.writeLong(p.identity);
                             b.writeVarLong(p.revision);
                             b.writeBoolean(p.flat);
                             b.writeLongArray(p.changed);
                         },
                         b ->
                                 new Coverage(
+                                        b.readLong(),
                                         b.readLong(),
                                         b.readVarLong(),
                                         b.readBoolean(),
@@ -239,61 +140,63 @@ public final class GroundViewPackets {
         }
     }
 
-    public record Surface(long session, long key, GroundViewCache.Surface image)
+    public record Surface(long session, long key, int algorithmVersion,long revision,GroundSurface image)
             implements CustomPacketPayload {
+        public Surface(long session,long key,GroundSurface image) {
+            this(session,key,dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION,image.revision(),image);
+        }
+        public static Surface removal(long session,long key,long revision) {
+            return new Surface(session,key,dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION,revision,null);
+        }
+        public boolean compatible() { return algorithmVersion==dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION; }
         public Surface {
-            if (session == 0 || key < 0 || key >= CHUNKS || image == null)
+            if (session == 0 || key < 0 || key >= CHUNKS || algorithmVersion<1 || revision<0
+                    || image!=null && image.revision()!=revision)
                 throw new IllegalArgumentException("Native surface packet");
         }
 
         public static final Type<Surface> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_ground_v2_surface"));
+                new Type<>(ResourceLocation.parse("starfold:native_ground_v7_surface"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Surface> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
                             b.writeLong(p.session);
                             b.writeVarLong(p.key);
-                            b.writeVarLong(p.image.revision());
-                            b.writeVarIntArray(p.image.heights());
-                            b.writeVarIntArray(p.image.states());
+                            b.writeVarInt(p.algorithmVersion);
+                            b.writeVarInt(GroundSurfaceIndex.SURFACE_FORM);
+                            b.writeVarLong(p.revision);
+                            b.writeBoolean(p.image!=null);
+                            if(p.image!=null) {
+                                b.writeByteArray(GroundSurfaceCodec.pack(p.image));
+                                GroundVoxelCodec.write(b, p.image.voxels());
+                            }
                         },
-                        b ->
-                                new Surface(
-                                        b.readLong(),
-                                        b.readVarLong(),
-                                        new GroundViewCache.Surface(
-                                                b.readVarLong(),
-                                                b.readVarIntArray(256),
-                                                b.readVarIntArray(256))));
+                        b -> {
+                            long session = b.readLong(),key=b.readVarLong();
+                            int algorithm=b.readVarInt(),form=b.readVarInt();
+                            if(form!=GroundSurfaceIndex.SURFACE_FORM) throw new IllegalArgumentException("Surface form");
+                            long revision=b.readVarLong();
+                            if(!b.readBoolean()) return new Surface(session,key,algorithm,revision,null);
+                            var columns =
+                                    GroundSurfaceCodec.unpack(
+                                            revision,
+                                            b.readByteArray(GroundSurfaceCodec.MAX_BYTES));
+                            var voxels = GroundVoxelCodec.read(b);
+                            return new Surface(
+                                    session,
+                                    key,algorithm,revision,
+                                    voxels == null
+                                            ? columns
+                                            : new GroundSurface(
+                                                    revision,
+                                                    columns.heights(),
+                                                    columns.states(),
+                                                    voxels));
+                        });
 
         @Override
         public Type<Surface> type() {
             return TYPE;
-        }
-    }
-
-    /** Replacement subscription, not an unbounded backlog. The client sends one request per
-     * REQUEST_TICKS; half that interval is tolerated so tick jitter cannot drop every other request. */
-    public static final class Subscription {
-        private final ArrayDeque<Tile> queue = new ArrayDeque<>();
-        private long received = Long.MIN_VALUE;
-
-        public boolean replace(Request request, long tick) {
-            if (tick < 0
-                    || received != Long.MIN_VALUE
-                            && tick - received < GroundStreaming.REQUEST_TICKS / 2) return false;
-            received = tick;
-            queue.clear();
-            queue.addAll(request.tiles());
-            return true;
-        }
-
-        public Tile poll() {
-            return queue.pollFirst();
-        }
-
-        public int size() {
-            return queue.size();
         }
     }
 

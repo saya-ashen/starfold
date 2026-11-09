@@ -8,8 +8,7 @@ import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.probe.ArrivalProbe;
-import dev.starfold.probe.RelightProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.Space;
 
 import io.netty.buffer.Unpooled;
@@ -52,6 +51,8 @@ public final class ImageStream {
         final Map<Long, Plan> sent = new HashMap<>();
         final ArrayDeque<Long> pending = new ArrayDeque<>();
         final RelightQueue light = new RelightQueue();
+        final Map<Long, LightChanges> lightChanges = new HashMap<>();
+        final Map<Long, Column[]> lightColumns = new HashMap<>();
         Set<Long> owners = Set.of();
         final Map<Long, byte[]> probeLight = new HashMap<>();
 
@@ -62,7 +63,7 @@ public final class ImageStream {
 
     private static final Map<ServerPlayer, View> VIEWS = new WeakHashMap<>();
     private static final Map<ServerLevel, Set<BlockPos>> DIRTY = new WeakHashMap<>();
-    private static final Map<ServerLevel, Set<Long>> LIT = new WeakHashMap<>();
+    private static final Map<ServerLevel, Map<Long, LightChanges>> LIT = new WeakHashMap<>();
     public static final int CHUNKS_PER_TICK = 24;
     public static final long BUDGET_NS = 6_000_000;
     static final long RELIGHT_BUDGET_NS = BUDGET_NS / 2;
@@ -170,20 +171,25 @@ public final class ImageStream {
     /** A real block changed: forward it to every image (the vanilla storage-keyed broadcast is dropped). */
     public static void changed(ServerLevel level, BlockPos owner) {
         DIRTY.computeIfAbsent(level, l -> new LinkedHashSet<>()).add(owner.immutable());
-        RelightProbe.changed(level, owner);
+        DevelopmentHooks.relight.changed(level, owner);
     }
 
-    /** Server light of an owner chunk changed. */
-    public static void lit(ServerLevel level, ChunkPos owner) {
-        LIT.computeIfAbsent(level, l -> new HashSet<>()).add(owner.toLong());
+    /** Published structural light only: solar time/brightness never dirties these nibbles. */
+    public static void lit(ServerLevel level, LightLayer layer, SectionPos section) {
+        var engine = level.getLightEngine();
+        int index = section.y() - engine.getMinLightSection();
+        if (index < 0 || index >= engine.getLightSectionCount()) return;
+        LIT.computeIfAbsent(level, l -> new HashMap<>())
+                .computeIfAbsent(ChunkPos.asLong(section.x(), section.z()), k -> new LightChanges())
+                .mark(layer == LightLayer.SKY, index);
     }
 
     public static void tick(ServerLevel level) {
-        long start = ArrivalProbe.start();
+        long start = DevelopmentHooks.arrival.start();
         try {
             tickMeasured(level);
         } finally {
-            ArrivalProbe.end("image", start);
+            DevelopmentHooks.arrival.end("image", start);
         }
     }
 
@@ -213,7 +219,7 @@ public final class ImageStream {
                 if (!center.equals(view.center))
                     PacketMap.raw(
                             player, new ClientboundSetChunkCacheCenterPacket(center.x, center.z));
-                long windowStart = ArrivalProbe.start();
+                long windowStart = DevelopmentHooks.arrival.start();
                 view.center = center;
                 view.radius = radius;
                 view.frame = frame;
@@ -247,20 +253,25 @@ public final class ImageStream {
                         if (key >= 0) owners.add(key);
                     }
                 view.owners = owners;
-                ArrivalProbe.end("imageWindow", windowStart);
+                DevelopmentHooks.arrival.end("imageWindow", windowStart);
             }
             // Forget/reframe drops old image work; a newly sent chunk already includes its current
             // light.
             view.light.retain(view.sent.keySet());
+            view.lightChanges.keySet().retainAll(view.sent.keySet());
+            view.lightColumns.keySet().retainAll(view.sent.keySet());
             view.probeLight.keySet().retainAll(view.sent.keySet());
             if (dirty != null) for (var owner : dirty) forward(level, player, view, owner, now);
             if (lit != null)
                 for (var e : view.sent.entrySet())
-                    for (long owner : e.getValue().owners)
-                        if (lit.contains(owner)) {
+                    for (long owner : e.getValue().owners) {
+                        var changes = lit.get(owner);
+                        if (changes != null) {
+                            view.lightChanges.computeIfAbsent(e.getKey(), k -> new LightChanges())
+                                    .merge(changes);
                             view.light.mark(e.getKey(), now, now);
-                            break;
                         }
+                    }
             long start = System.nanoTime(), deadline = start + BUDGET_NS;
             int queued = view.light.size();
             // Reserve half for lighting so new chunks cannot starve it; unused time goes to new
@@ -276,7 +287,12 @@ public final class ImageStream {
                             System::nanoTime,
                             start + RELIGHT_BUDGET_NS,
                             CHUNKS_PER_TICK - 1,
-                            image -> relight(level, player, frame, new ChunkPos(image)));
+                            image -> {
+                                if (!relight(level, player, frame, new ChunkPos(image),
+                                        view.lightChanges.get(image))) return false;
+                                view.lightChanges.remove(image);
+                                return true;
+                            });
             long relightNanos = System.nanoTime() - start;
             int count = 0, attempts = processed;
             for (var it = view.pending.iterator();
@@ -291,7 +307,7 @@ public final class ImageStream {
                     count++;
                 }
             }
-            RelightProbe.stream(
+            DevelopmentHooks.relight.stream(
                     player,
                     queued,
                     processed,
@@ -301,7 +317,7 @@ public final class ImageStream {
                     view.light.size(),
                     dirty == null ? 0 : dirty.size(),
                     lit == null ? 0 : lit.size(),
-                    RelightProbe.ENABLED ? view.light.oldestAge(now) : 0);
+                    DevelopmentHooks.relight.enabled() ? view.light.oldestAge(now) : 0);
         }
     }
 
@@ -339,11 +355,11 @@ public final class ImageStream {
     /** @return false while any owner is not yet loaded. */
     private static boolean send(
             ServerLevel level, ServerPlayer player, ObserverFrame frame, ChunkPos image) {
-        long start = ArrivalProbe.start();
+        long start = DevelopmentHooks.arrival.start();
         try {
             return sendMeasured(level, player, frame, image);
         } finally {
-            ArrivalProbe.end("imageSend", start);
+            DevelopmentHooks.arrival.end("imageSend", start);
         }
     }
 
@@ -351,6 +367,7 @@ public final class ImageStream {
             ServerLevel level, ServerPlayer player, ObserverFrame frame, ChunkPos image) {
         var columns = columns(level, frame, image);
         if (columns == null) return false;
+        VIEWS.get(player).lightColumns.put(image.toLong(), columns);
         if (identity(columns)) {
             var packet =
                     new ClientboundLevelChunkWithLightPacket(
@@ -360,7 +377,7 @@ public final class ImageStream {
                 access.starfold$coverX(image.x);
                 access.starfold$coverZ(image.z);
             }
-            if (RelightProbe.ENABLED) {
+            if (DevelopmentHooks.relight.enabled()) {
                 var lightBuffer = new FriendlyByteBuf(Unpooled.buffer());
                 try {
                     packet.getLightData().write(lightBuffer);
@@ -459,43 +476,45 @@ public final class ImageStream {
 
     /** The owners' real light, column by column. Vanilla light at the image position is the empty halo's. */
     private static void light(ServerLevel level, Column[] columns, FriendlyByteBuf buffer) {
+        light(level, columns, buffer, null, false);
+    }
+
+    private static void light(ServerLevel level, Column[] columns, FriendlyByteBuf buffer,
+            LightChanges changes, boolean identity) {
         var engine = level.getLightEngine();
         int count = engine.getLightSectionCount(), min = engine.getMinLightSection();
         var masks = new BitSet[] {new BitSet(), new BitSet(), new BitSet(), new BitSet()};
         var updates = List.of(new ArrayList<byte[]>(), new ArrayList<byte[]>());
         var pos = new BlockPos.MutableBlockPos();
+        var cache = new IdentityHashMap<LevelChunk, DataLayer>();
         for (int layer = 0; layer < 2; layer++) {
             var listener = engine.getLayerListener(layer == 0 ? LightLayer.SKY : LightLayer.BLOCK);
-            for (int s = 0; s < count; s++) {
+            var selected = changes == null ? null : changes.layer(layer);
+            for (int s = selected == null ? 0 : selected.nextSetBit(0);
+                    s >= 0 && s < count;
+                    s = selected == null ? s + 1 : selected.nextSetBit(s + 1)) {
+                cache.clear();
+                if (identity) {
+                    var source = listener.getDataLayerData(
+                            SectionPos.of(columns[0].chunk.getPos(), min + s));
+                    if (source != null) {
+                        identitySection(source, s, masks[layer], masks[2 + layer], updates.get(layer));
+                        continue;
+                    }
+                }
                 var out = new DataLayer();
                 boolean lit = false;
-                var cache = new IdentityHashMap<LevelChunk, Optional<DataLayer>>();
                 for (int i = 0; i < 256; i++) {
                     var c = columns[i];
                     final int section = min + s;
-                    var source =
-                            cache.computeIfAbsent(
-                                            c.chunk,
-                                            k ->
-                                                    Optional.ofNullable(
-                                                            listener.getDataLayerData(
-                                                                    SectionPos.of(
-                                                                            k.getPos(), section))))
-                                    .orElse(null);
-                    for (int y = 0; y < 16; y++) {
-                        int value =
-                                source != null
-                                        ? source.get(c.x, y, c.z)
-                                        : listener.getLightValue(
-                                                pos.set(
-                                                        c.chunk.getPos().getMinBlockX() + c.x,
-                                                        SectionPos.sectionToBlockCoord(section) + y,
-                                                        c.chunk.getPos().getMinBlockZ() + c.z));
-                        if (value != 0) {
-                            out.set(i & 15, y, i >> 4, value);
-                            lit = true;
-                        }
+                    var source = cache.get(c.chunk);
+                    if (source == null && !cache.containsKey(c.chunk)) {
+                        source = listener.getDataLayerData(SectionPos.of(c.chunk.getPos(), section));
+                        cache.put(c.chunk, source);
                     }
+                    lit |= sampleColumn(out, i, source, c.x, c.z, listener, pos,
+                            c.chunk.getPos().getMinBlockX() + c.x, section * 16,
+                            c.chunk.getPos().getMinBlockZ() + c.z);
                 }
                 // An absent owner layer must replace any light the client still holds.
                 lightSection(out, lit, s, masks[layer], masks[2 + layer], updates.get(layer));
@@ -507,6 +526,26 @@ public final class ImageStream {
         buffer.writeBitSet(masks[3]);
         buffer.writeCollection(updates.get(0), (b, a) -> b.writeByteArray(a));
         buffer.writeCollection(updates.get(1), (b, a) -> b.writeByteArray(a));
+    }
+
+    static boolean sampleColumn(DataLayer out, int column, DataLayer source, int x, int z,
+            net.minecraft.world.level.lighting.LayerLightEventListener listener,
+            BlockPos.MutableBlockPos pos, int worldX, int baseY, int worldZ) {
+        boolean lit = false;
+        for (int y = 0; y < 16; y++) {
+            int value = source != null ? source.get(x, y, z)
+                    : listener.getLightValue(pos.set(worldX, baseY + y, worldZ));
+            if (value != 0) {
+                out.set(column & 15, y, column >> 4, value);
+                lit = true;
+            }
+        }
+        return lit;
+    }
+
+    static void identitySection(DataLayer source, int section, BitSet values, BitSet empty,
+            List<byte[]> updates) {
+        lightSection(source.copy(), !source.isEmpty(), section, values, empty, updates);
     }
 
     static void lightSection(
@@ -523,20 +562,59 @@ public final class ImageStream {
     }
 
     private static boolean relight(
-            ServerLevel level, ServerPlayer player, ObserverFrame frame, ChunkPos image) {
-        var columns = columns(level, frame, image);
-        if (columns == null) return false;
+            ServerLevel level, ServerPlayer player, ObserverFrame frame, ChunkPos image,
+            LightChanges changes) {
+        var view = VIEWS.get(player);
+        var columns = view.lightColumns.get(image.toLong());
+        // A cached mapping owns no tickets: validate chunk identities after unload/reload.
+        for (long owner : view.sent.get(image.toLong()).owners) {
+            var chunk = level.getChunkSource().getChunkNow(ChunkPos.getX(owner), ChunkPos.getZ(owner));
+            if (chunk == null) return false;
+            for (var c : columns)
+                if (c.chunk.getPos().toLong() == owner && c.chunk != chunk) {
+                    columns = columns(level, frame, image);
+                    if (columns == null) return false;
+                    view.lightColumns.put(image.toLong(), columns);
+                    break;
+                }
+        }
+        boolean identity = identity(columns);
         var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
         try {
             buffer.writeVarInt(image.x);
             buffer.writeVarInt(image.z);
             int lightStart = buffer.writerIndex();
-            light(level, columns, buffer);
+            long sampleStart = DevelopmentHooks.relight.enabled() ? System.nanoTime() : 0;
+            light(level, columns, buffer, changes, identity);
+            if (DevelopmentHooks.relight.enabled())
+                org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
+                        "PROBE LIGHT_SEND game {} image {} bytes {} sampleNs {} identity {}",
+                        level.getGameTime(), image.toLong(), buffer.writerIndex() - lightStart,
+                        System.nanoTime() - sampleStart, identity);
+            if (DevelopmentHooks.relight.enabled()) auditSelection(level, columns, changes, buffer, lightStart);
             rememberLight(player, image, buffer, lightStart);
             PacketMap.raw(player, ClientboundLightUpdatePacket.STREAM_CODEC.decode(buffer));
             return true;
         } finally {
             buffer.release();
+        }
+    }
+
+    private static void auditSelection(ServerLevel level, Column[] columns, LightChanges changes,
+            FriendlyByteBuf emitted, int start) {
+        var reference = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            light(level, columns, reference, changes, false);
+            var a = new byte[emitted.writerIndex() - start];
+            var b = new byte[reference.writerIndex()];
+            emitted.getBytes(start, a);
+            reference.getBytes(0, b);
+            boolean same = LightPayload.same(a, b);
+            org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
+                    "PROBE LIGHT_SELECTION game {} same {}", level.getGameTime(), same);
+            if (!same) throw new IllegalStateException("Incremental light differs from full sampler selection");
+        } finally {
+            reference.release();
         }
     }
 
@@ -567,15 +645,20 @@ public final class ImageStream {
 
     private static void rememberLight(
             ServerPlayer player, ChunkPos image, FriendlyByteBuf buffer, int start) {
-        if (!RelightProbe.ENABLED) return;
+        if (!DevelopmentHooks.relight.enabled()) return;
         var bytes = new byte[buffer.writerIndex() - start];
         buffer.getBytes(start, bytes);
-        VIEWS.get(player).probeLight.put(image.toLong(), bytes);
+        var state = VIEWS.get(player).probeLight;
+        var previous = state.get(image.toLong());
+        state.put(image.toLong(), previous == null ? bytes : LightPayload.apply(previous, bytes));
+        org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
+                "PROBE RELIGHT_PACKET game {} image {} first {} same {}",
+                player.level().getGameTime(), image.toLong(), previous == null, Arrays.equals(previous, bytes));
     }
 
     /** Probe-only, explicit settled-state comparison of emitted light against the unchanged unbudgeted sampler. */
     public static void auditLight(ServerPlayer player) {
-        if (!RelightProbe.ENABLED) return;
+        if (!DevelopmentHooks.relight.enabled()) return;
         var view = VIEWS.get(player);
         var log = org.slf4j.LoggerFactory.getLogger("starfold-probe");
         if (view == null || !view.pending.isEmpty() || view.light.size() != 0) {
@@ -601,7 +684,7 @@ public final class ImageStream {
                     if (LightPayload.same(expected, actual)) equivalentEncodings++;
                     else {
                         mismatches++;
-                        RelightProbe.mismatch(
+                        DevelopmentHooks.relight.mismatch(
                                 PlanetSystem.planet(player),
                                 image,
                                 identity(cols),

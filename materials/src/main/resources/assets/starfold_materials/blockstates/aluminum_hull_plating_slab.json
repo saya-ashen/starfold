@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "starfold_materials:block/aluminum_hull_plating_slab"
+    },
+    "type=top": {
+      "model": "starfold_materials:block/aluminum_hull_plating_slab_top"
+    },
+    "type=double": {
+      "model": "starfold_materials:block/aluminum_hull_plating"
+    }
+  }
+}

@@ -64,8 +64,7 @@ public final class PlanetStorage {
 
         public long key() {
             return planet * (long) CHUNKS_PER_PLANET
-                    + cell.u() / 16
-                    + 128L * (cell.v() / 16 + 128L * cell.face().ordinal());
+                    + ChunkKeys.faceLocal(cell.face().ordinal(), cell.u() / 16, cell.v() / 16);
         }
     }
 

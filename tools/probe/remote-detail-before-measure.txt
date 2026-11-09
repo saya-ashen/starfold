@@ -1,0 +1,26 @@
+# Reload a copy of the authored Hearth world produced by remote-detail-before.txt.
+waitworld
+wait 600
+look free
+skylook 1
+wait 1
+nav before-normal
+log before-normal
+shot remote-detail-before-normal
+frames before-normal 600
+wait 400
+cmd item replace entity @s weapon.mainhand with minecraft:spyglass
+wait 20
+key use on
+scope on
+wait 400
+skylook 1
+wait 1
+nav before-zoom
+log before-zoom
+shot remote-detail-before-zoom
+frames before-zoom 600
+wait 400
+key use off
+scope off
+quit

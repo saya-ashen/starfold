@@ -1,0 +1,48 @@
+# Second/final resource attempt: acknowledged visit, forced 5x5 chunk sample.
+strict
+waitworld
+wait 180
+pause off
+cmd gamemode creative
+# Static correction after run b: Anvil's 65x65x310 box exceeds one million.
+# Not run a third time; saved chunks independently prove its osmium and diamonds.
+cmd gamerule commandModificationBlockLimit 2000000
+cmd gamerule sendCommandFeedback true
+cmd packprobe visit 3
+wait 600
+check anvil-slot if entity @s[x=49660,z=8700,dx=8,dz=8]
+cmd forceload add 49632 8672 49696 8736
+wait 160
+check anvil-loaded if loaded 49696 0 8736
+nav r3b-anvil
+cmd tellraw @s "SAMPLE anvil mekanism:osmium_ore radius32 y=-197..112"
+cmd fill 49632 -197 8672 49696 112 8736 minecraft:air replace mekanism:osmium_ore
+wait 40
+cmd tellraw @s "SAMPLE anvil mekanism:deepslate_osmium_ore radius32 y=-197..112"
+cmd fill 49632 -197 8672 49696 112 8736 minecraft:air replace mekanism:deepslate_osmium_ore
+wait 40
+cmd tellraw @s "SAMPLE anvil minecraft:deepslate_diamond_ore radius32 y=-197..112"
+cmd fill 49632 -197 8672 49696 112 8736 minecraft:air replace minecraft:deepslate_diamond_ore
+wait 40
+shot r3b-resources-anvil
+cmd forceload remove 49632 8672 49696 8736
+cmd packprobe visit 10
+wait 600
+check crystal-slot if entity @s[x=115068,z=8572,dx=8,dz=8]
+cmd forceload add 115040 8544 115104 8608
+wait 160
+check crystal-loaded if loaded 115104 0 8608
+nav r3b-crystal
+cmd tellraw @s "SAMPLE crystal mekanism:fluorite_ore radius32 y=-115..112"
+cmd fill 115040 -115 8544 115104 112 8608 minecraft:air replace mekanism:fluorite_ore
+wait 40
+cmd tellraw @s "SAMPLE crystal mekanism:deepslate_fluorite_ore radius32 y=-115..112"
+cmd fill 115040 -115 8544 115104 112 8608 minecraft:air replace mekanism:deepslate_fluorite_ore
+wait 40
+cmd tellraw @s "SAMPLE crystal minecraft:deepslate_diamond_ore radius32 y=-115..112"
+cmd fill 115040 -115 8544 115104 112 8608 minecraft:air replace minecraft:deepslate_diamond_ore
+wait 40
+shot r3b-resources-crystal
+cmd forceload remove 115040 8544 115104 8608
+shot r3b-resources-final
+quit

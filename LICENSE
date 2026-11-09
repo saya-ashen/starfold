@@ -20,5 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Third-party dependencies (Fabric, Fabric API, Immersive Portals, DimLib,
-Minecraft) are NOT included and retain their own licenses.
+Third-party dependencies (including Minecraft, NeoForge, Sable, Create,
+Create Aeronautics and optional content dependencies) are not relicensed by
+this license and retain their own licenses. Audio attribution is recorded in
+src/main/resources/assets/starfold/sounds/credits.txt. Generated-art provenance
+is recorded in biotech/art/PROVENANCE.md.

@@ -1,0 +1,16 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="starfold_materials"
+version="${version}"
+displayName="Starfold: Materials"
+description='''Lightweight plating and pressure hull components for Starfold. Balance values are provisional.'''
+
+[[dependencies.starfold_materials]]
+modId="starfold"
+type="required"
+versionRange="[0,)"
+ordering="AFTER"
+side="BOTH"

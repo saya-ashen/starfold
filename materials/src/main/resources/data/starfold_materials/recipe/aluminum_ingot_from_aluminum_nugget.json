@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AAA",
+    "AAA",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:nuggets/aluminum"
+    }
+  },
+  "result": {
+    "id": "starfold_materials:aluminum_ingot",
+    "count": 1
+  }
+}

@@ -183,7 +183,7 @@ public final class HullBottom {
         }
 
         private HullLanding.Surface surface(int x, int z) {
-            long key = ((long) x << 32) ^ (z & 0xffffffffL);
+            long key = net.minecraft.world.level.ChunkPos.asLong(z, x);
             int mask = keys.length - 1, i = slot(key, mask);
             while (surfaces[i] != null) {
                 if (keys[i] == key) return surfaces[i];

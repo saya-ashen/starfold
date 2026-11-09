@@ -28,9 +28,4 @@ class GroundHostTest {
             GroundHost.install(previous);
         }
     }
-
-    @Test
-    void standaloneDeathHookNeedsNoUpperLayer() {
-        assertDoesNotThrow(() -> new GroundHost() {}.afterDeath(null));
-    }
 }

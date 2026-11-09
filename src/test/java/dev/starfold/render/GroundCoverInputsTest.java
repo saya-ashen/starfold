@@ -3,7 +3,7 @@ package dev.starfold.render;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrain;
 
@@ -16,15 +16,15 @@ import java.util.Map;
 class GroundCoverInputsTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
-    private static GroundViewCache.Surface surface(long revision, int height, int state) {
+    private static GroundSurface surface(long revision, int height, int state) {
         var heights = new int[256];
         var states = new int[256];
         java.util.Arrays.fill(heights, height);
         java.util.Arrays.fill(states, state);
-        return new GroundViewCache.Surface(revision, heights, states);
+        return new GroundSurface(revision, heights, states);
     }
 
     @Test
@@ -33,7 +33,10 @@ class GroundCoverInputsTest {
         var newer = surface(20, 127, 0);
         assertFalse(a.sameAs(newer), "revision-aware consumers retain their old contract");
         assertTrue(a.sameColumns(newer));
-        var snapshot = new GroundCoverSnapshot(null, Map.of(0L, a), new BitSet());
+        var inputs = new java.util.HashMap<>(Map.of(0L, a));
+        var snapshot = new GroundCoverSnapshot(null, inputs, new BitSet());
+        inputs.clear();
+        assertSame(a, snapshot.surface(0));
         assertTrue(
                 snapshot.sameInputs(
                         new GroundCoverSnapshot(null, Map.of(0L, newer), new BitSet())));
@@ -97,7 +100,7 @@ class GroundCoverInputsTest {
 
     @Test
     void reusedRemoteBuffersAreNotClosedOrRebuiltAndMaskChangesInvalidate() throws Exception {
-        var remote = dev.starfold.Sources.text("PlanetRemoteRenderer");
+        var remote = dev.starfold.Sources.text("RemotePlanetMeshes");
         assertTrue(remote.contains("next.sameInputs(inputs[cursor])"));
         assertTrue(remote.contains("mask.equals(inputMasks[cursor])"));
         assertTrue(remote.contains("staging[cursor] = meshes[cursor]"));
@@ -106,7 +109,9 @@ class GroundCoverInputsTest {
         assertTrue(remote.contains("inputSource.biome().equals(building.biome())"));
         var ground = dev.starfold.Sources.text("GroundRenderer");
         assertTrue(ground.contains("Arrays.fill(coverInputs, null)"));
-        assertTrue(
-                ground.contains("coverJob.builders.cover.sameInputs(coverInputs(coverJob.patch))"));
+        assertTrue(ground.contains("GroundViewClient.overlays(),GroundViewClient.changed()"));
+        assertTrue(ground.contains("coverCohort.farPatch("));
+        assertTrue(ground.contains("dirty.latch()"));
+        assertTrue(ground.contains("dirty.promote()"));
     }
 }

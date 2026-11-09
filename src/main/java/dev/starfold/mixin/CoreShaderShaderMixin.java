@@ -20,6 +20,7 @@ public abstract class CoreShaderShaderMixin {
         original.call();
         var shader = (ShaderInstance) (Object) this;
         dev.starfold.render.GroundClient.apply(shader);
+        dev.starfold.api.PlanetSurfaceRender.apply(shader);
     }
 
     @Inject(method = "updateLocations", at = @At("HEAD"))

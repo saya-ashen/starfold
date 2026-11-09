@@ -26,7 +26,7 @@ def number(line, key):
         return math.nan
 
 
-def verdict(text, target=4):
+def verdict(text, target=8):
     lines = text.splitlines()
     snapshots, positions = {}, {}
     duplicate = ""
@@ -139,7 +139,7 @@ def main():
     except OSError as error:
         print(error, file=sys.stderr)
         return 2
-    results = verdict(text, target=2 if len(sys.argv) == 3 else 4)
+    results = verdict(text, target=2 if len(sys.argv) == 3 else 8)
     for name, ok, informational, line in results:
         suffix = " [INFORMATIONAL: terrain-dependent, not a regression gate]" if informational else ""
         print(f"{'PASS' if ok else 'FAIL'} {name}{suffix} | {line}")

@@ -1,4 +1,5 @@
 # Full-trip: hard gates through descent; terrain-dependent landing is informational.
+# Hearth (0) -> Fleck (8), its nearest landable moon in the single-star experience.
 # No hull teleport, terrain preparation, or production behaviour changes.
 waitworld
 wait 300
@@ -17,13 +18,14 @@ until region 6000
 press 32 0
 nav s-space
 wait 40
-shipaim 4 700
+shipaim 8 700
 nav s-aimed
 press 70 1
 wait 2
 press 70 0
 wait 40
 lock s-lock
+navplanets trip-lock
 wait 30
 press 87 1
 press 341 1
@@ -32,8 +34,9 @@ wait 100
 press 341 0
 press 87 0
 wait 20
-shipaim 4 300
+shipaim 8 300
 nav s-cruise
+navplanets trip-cruise
 until notice 1600
 nav s-notice
 until chart 1200

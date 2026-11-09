@@ -5,10 +5,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.worldgen.PlanetBiomes;
-import dev.starfold.worldgen.PlanetClimate;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetMinerals;
-import dev.starfold.worldgen.PlanetPalette;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import net.minecraft.core.Holder;
@@ -25,208 +23,77 @@ import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
 import java.util.List;
 import java.util.Optional;
 
-/** A kind of planet, defined by a data pack (data/<namespace>/starfold/planet_type/<name>.json): the range
- *  of sizes its planets have, how deep they go, what they are made of and how their ground is shaped. A type is read
- *  when a world is made; each planet is then saved with the values it was given, so a world keeps its planets
- *  whatever becomes of the pack. A type is rocky (algorithm rocky or rocky_craters) or temperate (algorithm ecology,
- *  with seas, soil and growth, and the biomes of its regions). */
+/** Data-pack recipe and physical/population policy, resolved once into a saved planet. */
 public record PlanetType(
-        Holder<Biome> biome,
-        int minSize,
-        int maxSize,
-        double depthRatio,
-        String algorithm,
-        double relief,
-        double oreBias,
-        double caveWidth,
-        String shell,
-        PlanetPalette palette,
-        Optional<Life> life,
-        PlanetMinerals minerals,
-        PlanetClimate climate,
-        Optional<Double> ocean,
-        boolean creatures,
-        boolean features,
-        boolean structures) {
-    /** The biomes of the regions of a temperate planet. */
-    public record Life(
-            Holder<Biome> forest, Holder<Biome> plains, Holder<Biome> desert, Holder<Biome> ocean) {
-        static final Codec<Life> CODEC =
-                RecordCodecBuilder.create(
-                        i ->
-                                i.group(
-                                                Biome.CODEC
-                                                        .fieldOf("forest")
-                                                        .forGetter(Life::forest),
-                                                Biome.CODEC
-                                                        .fieldOf("plains")
-                                                        .forGetter(Life::plains),
-                                                Biome.CODEC
-                                                        .fieldOf("desert")
-                                                        .forGetter(Life::desert),
-                                                Biome.CODEC.fieldOf("ocean").forGetter(Life::ocean))
-                                        .apply(i, Life::new));
-    }
-
-    public static final String ECOLOGY = "ecology";
-
-    public boolean temperate() {
-        return algorithm.equals(ECOLOGY);
-    }
-
+        PlanetTypeShape shape,
+        PlanetTypeTerrain terrain,
+        PlanetTypeLife life,
+        PlanetTypeEnvironment environment) {
     public static final ResourceKey<Registry<PlanetType>> KEY =
             ResourceKey.createRegistryKey(
                     ResourceLocation.fromNamespaceAndPath("starfold", "planet_type"));
-
-    private record Sizes(int min, int max) {
-        static final Codec<Sizes> CODEC =
-                RecordCodecBuilder.create(
-                        i ->
-                                i.group(
-                                                Codec.INT.fieldOf("min").forGetter(Sizes::min),
-                                                Codec.INT.fieldOf("max").forGetter(Sizes::max))
-                                        .apply(i, Sizes::new));
-    }
-
     public static final Codec<PlanetType> CODEC =
             RecordCodecBuilder.create(
                     i ->
                             i.group(
-                                            Biome.CODEC
-                                                    .fieldOf("biome")
-                                                    .forGetter(PlanetType::biome),
-                                            Sizes.CODEC
-                                                    .fieldOf("size")
-                                                    .forGetter(
-                                                            t -> new Sizes(t.minSize, t.maxSize)),
-                                            Codec.DOUBLE
-                                                    .optionalFieldOf("depth_ratio", .5)
-                                                    .forGetter(PlanetType::depthRatio),
-                                            Codec.STRING
-                                                    .optionalFieldOf("algorithm", "rocky_craters")
-                                                    .forGetter(PlanetType::algorithm),
-                                            Codec.DOUBLE
-                                                    .optionalFieldOf("relief")
-                                                    .forGetter(t -> Optional.of(t.relief)),
-                                            Codec.DOUBLE
-                                                    .optionalFieldOf("ore_bias")
-                                                    .forGetter(t -> Optional.of(t.oreBias)),
-                                            Codec.DOUBLE
-                                                    .optionalFieldOf("cave_width")
-                                                    .forGetter(t -> Optional.of(t.caveWidth)),
-                                            Codec.STRING
-                                                    .optionalFieldOf(
-                                                            "shell", PlanetGeneration.CORE_SHELL)
-                                                    .forGetter(PlanetType::shell),
-                                            PlanetPalette.CODEC
-                                                    .optionalFieldOf("palette", PlanetPalette.ROCK)
-                                                    .forGetter(PlanetType::palette),
-                                            Life.CODEC
-                                                    .optionalFieldOf("biomes")
+                                            PlanetTypeShape.CODEC
+                                                    .fieldOf("shape")
+                                                    .forGetter(PlanetType::shape),
+                                            PlanetTypeTerrain.CODEC
+                                                    .fieldOf("terrain")
+                                                    .forGetter(PlanetType::terrain),
+                                            PlanetTypeLife.CODEC
+                                                    .fieldOf("life")
                                                     .forGetter(PlanetType::life),
-                                            PlanetMinerals.CODEC
+                                            PlanetTypeEnvironment.CODEC
                                                     .optionalFieldOf(
-                                                            "minerals", PlanetMinerals.NONE)
-                                                    .forGetter(PlanetType::minerals),
-                                            PlanetClimate.CODEC
-                                                    .optionalFieldOf("climate", PlanetClimate.MILD)
-                                                    .forGetter(PlanetType::climate),
-                                            Codec.doubleRange(0, .95)
-                                                    .optionalFieldOf("ocean")
-                                                    .forGetter(PlanetType::ocean),
-                                            Codec.BOOL
-                                                    .optionalFieldOf("creatures")
-                                                    .forGetter(t -> Optional.of(t.creatures)),
-                                            Codec.BOOL
-                                                    .optionalFieldOf("features")
-                                                    .forGetter(t -> Optional.of(t.features)),
-                                            Codec.BOOL
-                                                    .optionalFieldOf("structures")
-                                                    .forGetter(t -> Optional.of(t.structures))
-                                            // What is left unsaid is what its kind of planet has
-                                            // always had; and a planet with seas and growth has the
-                                            // creatures of its biomes, where a bare one has none
-                                            // unless its type says so.
-                                            )
-                                    .apply(
-                                            i,
-                                            (biome,
-                                                    size,
-                                                    depth,
-                                                    algorithm,
-                                                    relief,
-                                                    ore,
-                                                    cave,
-                                                    shell,
-                                                    palette,
-                                                    life,
-                                                    minerals,
-                                                    climate,
-                                                    ocean,
-                                                    creatures,
-                                                    features,
-                                                    structures) -> {
-                                                boolean temperate = algorithm.equals(ECOLOGY);
-                                                return new PlanetType(
-                                                        biome,
-                                                        size.min(),
-                                                        size.max(),
-                                                        depth,
-                                                        algorithm,
-                                                        relief.orElse(1.0),
-                                                        ore.orElse(temperate ? 0 : .035),
-                                                        cave.orElse(temperate ? .115 : .085),
-                                                        shell,
-                                                        palette,
-                                                        life,
-                                                        minerals,
-                                                        climate,
-                                                        ocean,
-                                                        creatures.orElse(temperate),
-                                                        features.orElse(temperate),
-                                                        structures.orElse(temperate));
-                                            }));
+                                                            "environment",
+                                                            PlanetTypeEnvironment.DEFAULT)
+                                                    .forGetter(PlanetType::environment))
+                                    .apply(i, PlanetType::new));
+
+    // Retain the existing query API; new properties belong to their section, not this facade.
+    public Holder<Biome> biome() {
+        return life.biome();
+    }
+
+    public int minSize() {
+        return shape.size().min();
+    }
+
+    public int maxSize() {
+        return shape.size().max();
+    }
+
+    public double depthRatio() {
+        return shape.depthRatio();
+    }
+
+    public String shell() {
+        return shape.shell();
+    }
+
+    public boolean creatures() { return life.creatures().orElse(true); }
+    public boolean features() { return life.features().orElse(true); }
+    public boolean structures() { return life.structures().orElse(true); }
 
     /** A planet names its type, or carries one written out in its place. */
     public static final Codec<Holder<PlanetType>> HOLDER = RegistryFileCodec.create(KEY, CODEC);
 
     public PlanetType {
-        if (biome == null || life == null || life.isPresent() != algorithm.equals(ECOLOGY))
-            throw new IllegalArgumentException(
-                    "A temperate planet, and only one, has the biomes of its regions");
-        if (ocean == null
-                || ocean.isPresent()
-                        && (!algorithm.equals(ECOLOGY)
-                                || climate.land() != 0
-                                || !(ocean.get() >= 0 && ocean.get() <= .95)))
-            throw new IllegalArgumentException(
-                    "A share of ocean is for a planet with a sea, and in place of a height of land");
-        if (minSize > maxSize || !Double.isFinite(depthRatio) || depthRatio < 0 || depthRatio > .75)
-            throw new IllegalArgumentException("Planet type sizes/depth");
-        new PlanetShape(minSize);
-        new PlanetShape(maxSize);
-        // The same checks a saved planet passes, made once here for both ends of the range.
-        for (int size : new int[] {minSize, maxSize})
-            new PlanetGeneration(
-                    algorithm.equals(ECOLOGY) ? "temperate" : "rocky",
-                    algorithm,
-                    1,
-                    relief,
-                    oreBias,
-                    caveWidth,
-                    size,
-                    depth(size, depthRatio),
-                    shell,
-                    palette,
-                    minerals,
-                    climate);
-        // The biomes of a temperate planet are checked as they are for a planet written out.
-        life.ifPresent(l -> new PlanetBiomes(0, l.forest(), l.plains(), l.desert(), l.ocean()));
+        java.util.Objects.requireNonNull(shape);
+        java.util.Objects.requireNonNull(terrain);
+        java.util.Objects.requireNonNull(life);
+        java.util.Objects.requireNonNull(environment);
+        for (int size : new int[] {shape.size().min(), shape.size().max()}) {
+            depth(size, shape.depthRatio());
+            environment.resolve(true, size);
+        }
     }
 
     /** How deep a planet of this type and size goes: its share of the radius, never less than the vanilla range. */
     public int depth(int size) {
-        return depth(size, depthRatio);
+        return depth(size, depthRatio());
     }
 
     private static int depth(int size, double ratio) {
@@ -247,69 +114,29 @@ public record PlanetType(
 
     /** The size a seed gives a planet of this type: any multiple of sixteen in the range, as likely as any other. */
     public int size(long seed) {
-        int steps = (maxSize - minSize) / 16 + 1;
+        int steps = (maxSize() - minSize()) / 16 + 1;
         long mixed = (seed ^ 0x9E3779B97F4A7C15L) * 0xBF58476D1CE4E5B9L;
         mixed ^= mixed >>> 31;
-        return minSize + 16 * (int) Long.remainderUnsigned(mixed, steps);
+        return minSize() + 16 * (int) Long.remainderUnsigned(mixed, steps);
     }
 
     public PlanetGeneration generation(int size) {
-        if (size < minSize || size > maxSize)
+        if (size < minSize() || size > maxSize())
             throw new IllegalArgumentException(
-                    "Planet size " + size + " outside its type's " + minSize + " to " + maxSize);
-        return new PlanetGeneration(
-                temperate() ? "temperate" : "rocky",
-                algorithm,
-                1,
-                relief,
-                oreBias,
-                caveWidth,
-                size,
-                depth(size),
-                shell,
-                palette,
-                minerals,
-                climate,
-                creatures,
-                features,
-                structures);
+                    "Planet size "
+                            + size
+                            + " outside its type's "
+                            + minSize()
+                            + " to "
+                            + maxSize());
+        return new PlanetGeneration("recipe",PlanetGeneration.SURFACE_VERSION,terrain.recipe(),size,depth(size),shell(),creatures(),features(),structures(),environment.resolve(true,size));
     }
 
-    /** One planet of this type: the size it is given, or the one its seed gives it. */
     public PlanetChunkGenerator planet(long seed, Optional<Integer> size) {
-        var settings =
-                new FlatLevelGeneratorSettings(Optional.of(HolderSet.direct()), biome, List.of());
-        settings.getLayersInfo().add(new FlatLayerInfo(1, Blocks.BEDROCK));
-        settings.updateLayers();
-        var generation = generation(size.orElseGet(() -> size(seed)));
-        if (temperate()) {
-            var l = life.get();
-            // The share of ocean a type asks for is met on each planet as its own seed makes it,
-            // and saved as the height
-            // its ground was raised by.
-            if (ocean.isPresent())
-                generation =
-                        generation.withClimate(
-                                climate.withLand(
-                                        new PlanetTerrain(
-                                                        seed,
-                                                        PlanetTerrain.ECOLOGY_VERSION,
-                                                        generation)
-                                                .landFor(ocean.get())));
-            return new PlanetChunkGenerator(
-                    settings,
-                    seed,
-                    PlanetTerrain.ECOLOGY_VERSION,
-                    Optional.of(
-                            new PlanetBiomes(seed, l.forest(), l.plains(), l.desert(), l.ocean())),
-                    Optional.of(generation));
-        }
-        return new PlanetChunkGenerator(
-                settings,
-                seed,
-                PlanetTerrain.ROCK_VERSION,
-                Optional.empty(),
-                Optional.of(generation));
+        var settings=new FlatLevelGeneratorSettings(Optional.of(HolderSet.direct()),biome(),List.of());
+        settings.getLayersInfo().add(new FlatLayerInfo(1,Blocks.BEDROCK));settings.updateLayers();
+        var generation=generation(size.orElseGet(()->size(seed)));
+        return new PlanetChunkGenerator(settings,seed,PlanetTerrain.VERSION,Optional.of(new PlanetBiomes(seed,terrain.biomes())),Optional.of(generation));
     }
 
     /** Resolve a type once, retaining its registry identity in the saved generator, not a live pack dependency. */

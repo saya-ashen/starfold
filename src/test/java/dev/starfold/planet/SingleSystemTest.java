@@ -17,7 +17,7 @@ import java.util.List;
 class SingleSystemTest {
     @org.junit.jupiter.api.BeforeAll
     static void boot() {
-        dev.starfold.worldgen.PlanetEcologyTest.boot();
+        dev.starfold.worldgen.PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -29,7 +29,6 @@ class SingleSystemTest {
         planets.remove(1);
         var orbit = planets.get(0).getAsJsonObject().getAsJsonObject("orbit");
         orbit.addProperty("radius", 12000);
-        orbit.addProperty("period", 30000);
         var made = AuthoredSystemTest.read(d).materialize(7);
         assertEquals(1, made.planets().size());
         assertEquals(List.of(1), made.sky().groups());
@@ -116,7 +115,7 @@ class SingleSystemTest {
         var layout =
                 UniverseLayout.CODEC
                         .parse(
-                                PlanetTypeTest.ops(),
+                                PlanetTypeFixtures.ops(),
                                 com.google.gson.JsonParser.parseString(
                                         java.nio.file.Files.readString(
                                                 java.nio.file.Path.of(

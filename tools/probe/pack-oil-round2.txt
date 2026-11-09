@@ -1,0 +1,112 @@
+# Full pinned Ponder pumpjack; command-built/glued, ordinary right-click assembly.
+# Native bedrock and chunk oil are used; no prefilled crude or diesel tank.
+strict
+waitworld
+wait 180
+cmd gamemode creative
+cmd gamerule sendCommandFeedback true
+cmd tp @s 5305.5 147 845.5 0 20
+fly on
+wait 80
+cmd fill 5298 140 848 5316 140 862 minecraft:stone
+cmd fill 5300 141 850 5315 151 860 minecraft:air
+cmd cdg oil get
+cmd setblock 5303 145 854 create:zinc_block
+cmd setblock 5304 145 851 create:industrial_iron_block
+cmd setblock 5304 145 854 create:industrial_iron_block
+cmd setblock 5303 142 854 create:andesite_scaffolding[waterlogged=false,distance=0,bottom=false]
+cmd setblock 5305 142 854 create:andesite_scaffolding[waterlogged=false,distance=0,bottom=false]
+cmd setblock 5303 143 854 create:andesite_scaffolding[waterlogged=false,distance=0,bottom=false]
+cmd setblock 5305 143 854 create:andesite_scaffolding[waterlogged=false,distance=0,bottom=false]
+cmd setblock 5303 144 854 create:andesite_scaffolding[waterlogged=false,distance=0,bottom=false]
+cmd setblock 5305 144 854 create:andesite_scaffolding[waterlogged=false,distance=0,bottom=false]
+cmd setblock 5304 145 850 createdieselgenerators:pumpjack_head[waterlogged=false,facing=north]
+cmd setblock 5304 145 852 create:metal_girder[waterlogged=false,top=false,bottom=false,x=false,z=true,axis=z]
+cmd setblock 5304 145 853 create:metal_girder[waterlogged=false,top=false,bottom=false,x=false,z=true,axis=z]
+cmd setblock 5304 145 855 create:metal_girder[waterlogged=false,top=false,bottom=false,x=false,z=true,axis=z]
+cmd setblock 5304 145 856 create:metal_girder[waterlogged=false,top=false,bottom=false,x=false,z=true,axis=z]
+cmd setblock 5304 145 857 create:metal_girder[waterlogged=false,top=false,bottom=false,x=false,z=true,axis=z]
+cmd setblock 5303 141 859 create:cogwheel[waterlogged=false,axis=z]
+cmd setblock 5309 141 853 create:fluid_pipe[east=false,waterlogged=false,south=false,north=false,west=false,up=true,down=true]
+cmd setblock 5309 141 855 create:large_cogwheel[waterlogged=false,axis=x]
+cmd setblock 5304 142 850 createdieselgenerators:pumpjack_hole[east=true,south=true,north=true,west=true,up=true,down=true]
+cmd setblock 5304 142 851 create:fluid_pipe[east=false,waterlogged=false,south=true,north=true,west=false,up=false,down=false]
+cmd setblock 5304 142 852 create:fluid_pipe[east=false,waterlogged=false,south=true,north=true,west=false,up=false,down=false]
+cmd setblock 5304 142 853 create:fluid_pipe[east=true,waterlogged=false,south=false,north=true,west=false,up=false,down=false]
+cmd setblock 5304 142 858 createdieselgenerators:pumpjack_crank[facing=north]
+cmd setblock 5304 142 859 create:large_cogwheel[waterlogged=false,axis=z]
+cmd setblock 5305 142 853 create:fluid_pipe[east=true,waterlogged=false,south=false,north=false,west=true,up=false,down=false]
+cmd setblock 5306 142 853 create:fluid_pipe[east=true,waterlogged=false,south=false,north=false,west=true,up=false,down=false]
+cmd setblock 5307 142 853 create:mechanical_pump[waterlogged=false,facing=east]
+cmd setblock 5307 142 854 create:cogwheel[waterlogged=false,axis=x]
+cmd setblock 5308 142 853 create:fluid_pipe[east=true,waterlogged=false,south=false,north=false,west=true,up=false,down=false]
+cmd setblock 5308 142 854 create:shaft[waterlogged=false,axis=x]
+cmd setblock 5309 142 853 create:fluid_pipe[east=false,waterlogged=false,south=false,north=false,west=true,up=false,down=true]
+cmd setblock 5309 142 854 create:cogwheel[waterlogged=false,axis=x]
+cmd setblock 5304 145 858 createdieselgenerators:pumpjack_bearing_b[facing=north]
+cmd setblock 5305 145 854 createdieselgenerators:pumpjack_bearing[facing=west]
+check natural-core-floor if block 5304 -525 850 starfold:core_shell
+cmd fill 5304 -524 850 5304 141 850 create:fluid_pipe[up=true,down=true]
+cmd summon create:super_glue 5304 145 854 {From:[5304.0d,145.0d,850.0d],To:[5305.0d,146.0d,859.0d]}
+cmd setblock 5310 142 854 create:creative_motor[facing=west]{ScrollValue:32}
+cmd setblock 5304 142 860 create:creative_motor[facing=north]{ScrollValue:32}
+cmd setblock 5309 142 853 create:fluid_pipe[west=true,east=true]
+cmd setblock 5310 142 853 create:fluid_pipe[west=true,east=true]
+cmd setblock 5311 142 853 create:fluid_pipe[west=true,east=true]
+cmd setblock 5312 142 853 create:fluid_tank
+cmd setblock 5312 142 854 create:fluid_tank
+cmd setblock 5313 142 853 create:fluid_tank
+cmd setblock 5313 142 854 create:fluid_tank
+cmd setblock 5312 143 853 create:fluid_tank
+cmd setblock 5312 143 854 create:fluid_tank
+cmd setblock 5313 143 853 create:fluid_tank
+cmd setblock 5313 143 854 create:fluid_tank
+cmd setblock 5312 144 853 create:fluid_tank
+cmd setblock 5312 144 854 create:fluid_tank
+cmd setblock 5313 144 853 create:fluid_tank
+cmd setblock 5313 144 854 create:fluid_tank
+cmd setblock 5312 141 853 create:blaze_burner[blaze=smouldering]
+cmd item replace entity @s weapon.mainhand with createdieselgenerators:distillation_controller 12
+wait 40
+guide state tower-controller-selected
+cmd tp @s 5310.5 142 850.5 0 15
+wait 40
+guide aim 5312.5 142.5 853.0
+wait 5
+usehit tower-convert
+wait 60
+cmd data get block 5312 142 853
+shot r2-oil-conversion
+cmd item replace entity @s weapon.mainhand with minecraft:coal 32
+wait 40
+guide aim 5312.5 141.5 853.0
+wait 5
+usehit heat-burner
+wait 40
+cmd clear @s
+cmd tp @s 5307.5 145 852.5 0 0
+wait 40
+guide aim 5305.5 145.5 854.5
+wait 5
+usehit pumpjack-assemble
+wait 400
+cmd data get block 5304 142 860
+cmd data get block 5304 142 858
+cmd data get block 5310 142 854
+cmd data get block 5305 145 854
+cmd data get block 5304 142 850
+cmd data get block 5312 142 853
+cmd data get block 5312 143 853
+cmd data get block 5312 144 853
+cmd cdg oil get
+shot r2-oil-pumpjack
+wait 400
+cmd data get block 5304 142 850
+cmd data get block 5312 142 853
+cmd data get block 5312 143 853
+cmd data get block 5312 144 853
+cmd tp @s 5310.5 144 849.5 0 15
+wait 30
+guide aim 5312.5 143.5 853.5
+shot r2-oil-distillation
+quit

@@ -2,6 +2,7 @@ package dev.starfold.worldgen;
 
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.storage.ChunkKeys;
 
 import java.util.*;
 
@@ -18,7 +19,7 @@ public final class PlanetHeightCache {
     }
 
     public int ground(Face face, int u, int v) {
-        long key = u / 16 + 128L * (v / 16 + 128L * face.ordinal());
+        long key = ChunkKeys.faceLocal(face.ordinal(), u / 16, v / 16);
         var tile = columns.get(key);
         if (tile == null) {
             tile = new int[256];
@@ -28,10 +29,7 @@ public final class PlanetHeightCache {
         }
         int i = (u & 15) + 16 * (v & 15);
         if (tile[i] == Integer.MIN_VALUE) {
-            tile[i] =
-                    terrain.version() == PlanetTerrain.ECOLOGY_VERSION
-                            ? terrain.surfaceY(face, u, v)
-                            : terrain.groundY(face, u, v);
+            tile[i] = terrain.surfaceY(face,u,v);
             samples++;
         }
         return tile[i];
@@ -53,23 +51,26 @@ public final class PlanetHeightCache {
         return terrain.sea();
     }
 
+    public PlanetTerrain.Sea liquid(Face face, int u, int v) {
+        return terrain.liquid(face, u, v);
+    }
+
     public PlanetShape shape() {
         return terrain.shape();
     }
 
     public double surfaceNode(Face face, int u, int v) {
-        return surfaceHeight(node(face, u, v));
+        return surfaceHeight(face, u, v, node(face, u, v));
     }
 
     /** Visible height: the ground, or the body's own sea above it. A dry valley stays a valley. */
-    public double surfaceHeight(double height) {
-        var sea = terrain.sea();
-        return sea == null ? height : Math.max(sea.elevation(), height);
+    public double surfaceHeight(Face face, int u, int v, double height) {
+        var liquid = terrain.liquid(face, u, v);
+        return liquid == null ? height : Math.max(liquid.elevation(), height);
     }
 
     public int surfaceY(Face face, int u, int v) {
-        int ground = ground(face, u, v);
-        return terrain.ecology() == null ? terrain.surfaceTop(ground) : ground;
+        return terrain.surfaceY(face,u,v);
     }
 
     public net.minecraft.world.level.block.state.BlockState surfaceState(Face face, int u, int v) {

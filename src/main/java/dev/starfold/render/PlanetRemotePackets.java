@@ -48,7 +48,7 @@ public final class PlanetRemotePackets {
         }
 
         public static final Type<Summary> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_remote_v2_summary"));
+                new Type<>(ResourceLocation.parse("starfold:native_remote_v7_summary"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Summary> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
@@ -80,7 +80,7 @@ public final class PlanetRemotePackets {
         }
 
         public static final Type<Surface> TYPE =
-                new Type<>(ResourceLocation.parse("starfold:native_remote_v1_surface"));
+                new Type<>(ResourceLocation.parse("starfold:native_remote_v6_surface"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Surface> CODEC =
                 StreamCodec.of(
                         (b, p) -> {
@@ -89,8 +89,7 @@ public final class PlanetRemotePackets {
                         },
                         b ->
                                 new Surface(
-                                        b.readVarInt(),
-                                        GroundViewPackets.Surface.CODEC.decode(b)));
+                                        b.readVarInt(), GroundViewPackets.Surface.CODEC.decode(b)));
 
         @Override
         public Type<Surface> type() {

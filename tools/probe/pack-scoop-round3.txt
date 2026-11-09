@@ -1,0 +1,52 @@
+# Requires build/pi/round3-scoop-fixture.js ONLY in run/kubejs/server_scripts/.
+# Build within native height limits, then relocate the small hull into Amber.
+# This is a machine fixture, not a flown approach. No fluid is injected.
+strict
+waitworld
+wait 180
+pause off
+cmd gamemode creative
+cmd gamerule sendCommandFeedback true
+cmd tp @s 5288.5 145 862.5 90 20
+wait 60
+cmd fill 5285 140 855 5300 140 870 minecraft:stone
+cmd fill 5285 141 855 5300 155 870 minecraft:air
+cmd setblock 5290 141 860 minecraft:iron_block
+cmd setblock 5291 141 860 minecraft:iron_block
+cmd setblock 5290 142 860 create:fluid_tank
+cmd setblock 5291 142 860 starfold:gas_scoop[facing=east]
+wait 20
+check empty-tank if data block 5290 142 860 TankContent
+cmd data get block 5290 142 860
+cmd sable assemble area 5290 141 860 5291 142 860
+wait 40
+hullblocks r3-scoop-built
+cmd sable teleport @n -16384 8192 -16384
+wait 20
+cmd r3amber
+wait 5
+cmd tp @s -16380.5 8194 -16389.5 0 20
+wait 10
+cmd r3tanks
+cmd data get block 20481032 -103 20481032
+helmstate r3-scoop-early
+looklocal 0 1 0
+shot r3-scoop-early
+wait 200
+cmd r3tanks
+cmd data get block 20481032 -103 20481032
+helmstate r3-scoop-later
+cmd tp @s -16380.5 8194 -16389.5 0 20
+wait 10
+looklocal 0 1 0
+shot r3-scoop-later
+wait 200
+cmd r3tanks
+cmd data get block 20481032 -103 20481032
+helmstate r3-scoop-final
+hullblocks r3-scoop-final
+cmd tp @s -16380.5 8194 -16389.5 0 20
+wait 10
+looklocal 0 1 0
+shot r3-scoop-final
+quit

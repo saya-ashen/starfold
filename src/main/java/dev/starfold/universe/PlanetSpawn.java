@@ -19,14 +19,14 @@ public final class PlanetSpawn {
         PlanetShape.valid(planet);
         var generator =
                 ((SystemChunkGenerator) level.getChunkSource().getGenerator()).planet(planet);
-        int[] location = dryLand(generator.terrain(), CubeSurfaceTopology.Face.values()[face]);
+        int[] location = dryLand(generator.terrain(), CubeSurfaceTopology.Face.VALUES[face]);
         int x = PlanetStorage.offset(planet) + face * 4096 + location[0],
                 z = PlanetStorage.offsetZ(planet) + location[1];
         // Level.getHeight does not load an absent chunk: it returns min build height.
         // Request the FULL native chunk first, then read its authoritative heightmap.
         var chunk = level.getChunk(x >> 4, z >> 4);
         int y = entryY(chunk, x, z);
-        if (generator.version() == PlanetTerrain.ECOLOGY_VERSION) y = ecologyEntryY(chunk, x, z);
+        y = ecologyEntryY(chunk, x, z);
         if (y + 2 >= level.getMaxBuildHeight()
                 || !level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                 || !level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir())

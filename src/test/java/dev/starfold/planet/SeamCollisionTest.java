@@ -8,7 +8,7 @@ import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundTerrain;
 import dev.starfold.render.GroundChunkSnapshot;
 import dev.starfold.render.GroundViewCache;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -25,7 +25,7 @@ import java.util.*;
 class SeamCollisionTest {
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     @Test
@@ -163,18 +163,8 @@ class SeamCollisionTest {
     @Test
     void collisionReadDoesNotInventMissingColumnsFromTheGenerator() throws Exception {
         var source = Sources.text("GroundViewClient");
-        int start =
-                source.indexOf(
-                        "static net.minecraft.world.level.block.state.BlockState collisionState(");
-        int end = source.indexOf("private static final Map<Long,Map<", start);
-        assertTrue(start >= 0 && end > start);
-        var method = source.substring(start, end);
-        assertTrue(method.contains("cache.canonical(owner)"));
-        assertTrue(method.contains("if(state==null)return null"));
-        assertTrue(method.contains("deltas.get(owner)"));
-        assertFalse(method.contains("generated("));
-        assertTrue(
-                source.contains(
-                        "world==level&&samePlanet(owner)?collisionState(GroundClient.local(owner)):null"));
+        assertFalse(source.contains("GroundSeams.clientCollisionRead("));
+        assertFalse(source.contains("generated("));
+        assertTrue(Sources.text("GroundSeams").contains("clientCollisionRead=(l,p)->null"));
     }
 }

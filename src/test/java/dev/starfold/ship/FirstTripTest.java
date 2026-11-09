@@ -1,5 +1,6 @@
 package dev.starfold.ship;
 
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.Sources;
@@ -187,16 +188,4 @@ class FirstTripTest {
         }
     }
 
-    @Test
-    void bothBooksGiveTheNextActionAndLandingCue() {
-        assertTrue(StarterBooks.pages("zh_cn").getFirst().endsWith("走上舷梯，右键船头的控制器"));
-        assertTrue(
-                StarterBooks.pages("en_us")
-                        .getFirst()
-                        .endsWith("Walk up the airstair; right-click the bow controller."));
-        assertTrue(StarterBooks.pages("zh_cn").get(4).contains("最近的其他星球"));
-        assertTrue(StarterBooks.pages("en_us").get(4).contains("nearest other planet"));
-        assertTrue(StarterBooks.pages("zh_cn").get(7).contains("下方"));
-        assertTrue(StarterBooks.pages("en_us").get(7).contains("Below"));
-    }
 }

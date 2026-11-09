@@ -2,7 +2,7 @@ package dev.starfold.ground;
 
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.Space;
 
 import net.minecraft.core.BlockPos;
@@ -22,8 +22,6 @@ public final class GroundTickets {
     private static final TicketType<Long> SPACE =
             TicketType.create("starfold_space_view", Long::compare);
     private static final Map<ServerLevel, Set<Long>> space = new HashMap<>();
-    // Retained empty per-level bookkeeping; no stream values are inserted here.
-    private static final Map<ServerLevel, Map<UUID, Object>> streams = new HashMap<>();
 
     public static boolean contains(ServerLevel level, ChunkPos pos) {
         return tickets.getOrDefault(level, Set.of())
@@ -49,8 +47,6 @@ public final class GroundTickets {
         var desired = new HashSet<Long>();
         var loaded = new HashSet<Long>();
         int radius = Math.clamp(level.getServer().getPlayerList().getSimulationDistance(), 2, 32);
-        var worldStreams = streams.computeIfAbsent(level, l -> new HashMap<UUID, Object>());
-        var present = new HashSet<UUID>();
         var region = new HashSet<Long>();
         for (var player : level.players()) {
             if (Space.in(player)) {
@@ -102,7 +98,7 @@ public final class GroundTickets {
             if (!previousSpace.contains(key))
                 level.getChunkSource().addRegionTicket(SPACE, new ChunkPos(key), 0, key);
         space.put(level, retained);
-        if (ArrivalProbe.ENABLED && !previousSpace.equals(retained))
+        if (DevelopmentHooks.arrival.enabled() && !previousSpace.equals(retained))
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
                             "PROBE REGION_TICKETS tick {} wanted {} held {} removed {}",
@@ -111,7 +107,6 @@ public final class GroundTickets {
                             retained.size(),
                             previousSpace.stream().filter(key -> !retained.contains(key)).count());
         loaded.addAll(ImageStream.owners(level));
-        worldStreams.keySet().retainAll(present);
         var priorViews = views.getOrDefault(level, Set.of());
         for (long key : priorViews)
             if (!loaded.contains(key))
@@ -119,7 +114,7 @@ public final class GroundTickets {
         for (long key : loaded)
             if (!priorViews.contains(key))
                 level.getChunkSource().addRegionTicket(VIEW, access.chunk(key), 0, key);
-        views.put(level, Set.copyOf(loaded));
+        views.put(level, loaded);
         var previous = tickets.getOrDefault(level, Set.of());
         for (long key : previous)
             if (!desired.contains(key))
@@ -127,7 +122,7 @@ public final class GroundTickets {
         for (long key : desired)
             if (!previous.contains(key))
                 level.getChunkSource().addRegionTicket(TYPE, access.chunk(key), 2, key);
-        tickets.put(level, Set.copyOf(desired));
+        tickets.put(level, desired);
     }
 
     public static void clear() {
@@ -148,7 +143,6 @@ public final class GroundTickets {
                         .getChunkSource()
                         .removeRegionTicket(VIEW, PlanetAccess.of(e.getKey()).chunk(key), 0, key);
         views.clear();
-        streams.clear();
     }
 
     private GroundTickets() {}

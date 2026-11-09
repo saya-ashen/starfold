@@ -1,6 +1,5 @@
 package dev.starfold.render;
 
-import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
@@ -82,7 +81,7 @@ public final class GroundExteriorMesh {
         int count = 0, half = shape.size() / 2;
         var cube = face.normal.scale(half).add(face.u.scale(x - half)).add(face.v.scale(z - half));
         // Enumerate unique incident columns globally: 4 normally, 3 at cube corners.
-        for (var f : Face.values())
+        for (var f : Face.VALUES)
             if (cube.dot(f.normal) == half) {
                 int u = (int) (half + cube.dot(f.u)), v = (int) (half + cube.dot(f.v));
                 for (int dx = -1; dx <= 0; dx++)
@@ -130,11 +129,6 @@ public final class GroundExteriorMesh {
                     .add(node(shape, source, face, x + 1, z + 1))
                     .scale(.25);
         return position(shape, face, x + .5, z + .5, height);
-    }
-
-    /** Hysteresis entirely within full curvature; never keeps an exterior in the blend. */
-    public static boolean select(boolean previous, boolean eligible, double eyeHeight) {
-        return eligible && eyeHeight >= (previous ? GroundOrbit.END : GroundOrbit.END + 64);
     }
 
     private GroundExteriorMesh() {}

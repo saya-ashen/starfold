@@ -16,6 +16,24 @@ public final class GroundTextureFilter implements AutoCloseable {
     private final boolean anisotropic, samplers, changed;
     private final float anisotropy, minLod, maxLod, bias;
 
+    static void invalidateResources() {
+        cachedAtlas = -1;
+        cachedLast = 0;
+    }
+
+    static int lastMip(int atlas, int maxLevel, java.util.function.IntUnaryOperator width) {
+        if (cachedAtlas != atlas) {
+            int last = 0;
+            for (int i = 1; i <= Math.min(16, maxLevel); i++) {
+                if (width.applyAsInt(i) == 0) break;
+                last = i;
+            }
+            cachedLast = last;
+            cachedAtlas = atlas;
+        }
+        return cachedLast;
+    }
+
     public static GroundTextureFilter open() {
         return new GroundTextureFilter();
     }
@@ -47,17 +65,8 @@ public final class GroundTextureFilter implements AutoCloseable {
                                     GL11.GL_TEXTURE_2D,
                                     EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT)
                             : 1;
-            if (cachedAtlas != atlas) {
-                cachedAtlas = atlas;
-                cachedLast = 0;
-                int max = Math.min(16, maxLevel);
-                for (int i = 1; i <= max; i++) {
-                    if (GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, i, GL11.GL_TEXTURE_WIDTH)
-                            == 0) break;
-                    cachedLast = i;
-                }
-            }
-            lastMip = cachedLast;
+            lastMip = lastMip(atlas, maxLevel,
+                    i -> GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, i, GL11.GL_TEXTURE_WIDTH));
             if (changed) {
                 GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, lastMip);
                 GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MIN_LOD, 0);

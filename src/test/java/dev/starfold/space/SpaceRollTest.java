@@ -19,7 +19,7 @@ class SpaceRollTest {
         assertEquals(0, HelmCommand.roll(HelmCommand.LEFT | HelmCommand.RIGHT));
         assertEquals(1, HelmCommand.roll(HelmCommand.LEFT | HelmCommand.SPRINT));
         var turn =
-                SpaceServer.attitude(
+                SpaceFlightMath.attitude(
                         Space.Frame.IDENTITY,
                         SpaceTest.tilted(),
                         0,

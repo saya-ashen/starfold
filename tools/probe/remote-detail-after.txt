@@ -1,0 +1,35 @@
+# Reload the same authored Hearth starting save as remote-detail-before-measure.txt.
+waitworld
+wait 600
+look free
+skylook 1
+wait 1
+nav after-normal
+log after-normal
+shot remote-detail-after-normal
+frames after-normal 600
+wait 400
+cmd item replace entity @s weapon.mainhand with minecraft:spyglass
+wait 20
+key use on
+scope on
+wait 20
+nav after-zoom-building
+shot remote-detail-after-zoom-building
+wait 380
+skylook 1
+wait 1
+nav after-zoom
+log after-zoom
+shot remote-detail-after-zoom
+frames after-zoom 600
+wait 400
+key use off
+scope off
+wait 400
+skylook 1
+wait 1
+nav after-unzoom
+log after-unzoom
+shot remote-detail-after-unzoom
+quit

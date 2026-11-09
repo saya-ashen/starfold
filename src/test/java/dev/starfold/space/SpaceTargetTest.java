@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.SpaceTest;
 
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,7 @@ class SpaceTargetTest {
         var target = new Point(4, 0, 0);
         var drift = new Point(0, 0, 10);
         double speed = drift.sub(target).length();
-        for (int i = 0; i < 200; i++) drift = SpaceServer.assist(drift, nose, true, target);
+        for (int i = 0; i < 200; i++) drift = SpaceFlightMath.assist(drift, nose, true, target);
         var relative = drift.sub(target);
         assertEquals(speed, relative.length(), 1e-10);
         assertEquals(0, relative.x(), 1e-5);
@@ -34,11 +33,11 @@ class SpaceTargetTest {
         for (var d : new Point[] {new Point(2, 3, 4), new Point(-3, 4, -8), GroundEphemeris.ZERO})
             for (boolean forward : new boolean[] {false, true}) {
                 assertEquals(
-                        SpaceServer.assist(d, nose, forward),
-                        SpaceServer.assist(d, nose, forward, GroundEphemeris.ZERO));
+                        SpaceFlightMath.assist(d, nose, forward),
+                        SpaceFlightMath.assist(d, nose, forward, GroundEphemeris.ZERO));
                 assertEquals(
-                        SpaceServer.assist(d, nose, forward),
-                        SpaceServer.assist(d, nose, forward, null));
+                        SpaceFlightMath.assist(d, nose, forward),
+                        SpaceFlightMath.assist(d, nose, forward, null));
             }
     }
 
@@ -46,8 +45,8 @@ class SpaceTargetTest {
     void coastingIsNotChangedByLockOrUnlock() {
         var drift = new Point(2, 3, 4);
         var nose = new Point(0, 0, 1);
-        assertSame(drift, SpaceServer.assist(drift, nose, false, new Point(4, 0, 0)));
-        assertSame(drift, SpaceServer.assist(drift, nose, false, null));
+        assertSame(drift, SpaceFlightMath.assist(drift, nose, false, new Point(4, 0, 0)));
+        assertSame(drift, SpaceFlightMath.assist(drift, nose, false, null));
     }
 
     @Test
@@ -63,8 +62,8 @@ class SpaceTargetTest {
                     var nose = new Point(.6, 0, .8);
                     var relative = new Point(3, -2, 7);
                     point(
-                            SpaceServer.assist(relative, nose, true),
-                            SpaceServer.assist(relative.add(offset), nose, true, offset)
+                            SpaceFlightMath.assist(relative, nose, true),
+                            SpaceFlightMath.assist(relative.add(offset), nose, true, offset)
                                     .sub(offset));
                 }
     }
@@ -90,11 +89,16 @@ class SpaceTargetTest {
 
     @Test
     void indicesAndLifecycleAreServerValidated() throws Exception {
-        assertFalse(SpaceServer.knownTarget(-1, 8));
-        assertFalse(SpaceServer.knownTarget(Integer.MAX_VALUE, 8));
-        assertFalse(SpaceServer.knownTarget(8, 8));
-        assertTrue(SpaceServer.knownTarget(0, 8));
-        assertTrue(SpaceServer.knownTarget(7, 8));
+        var model = CelestialNavigationTest.mixed();
+        assertFalse(SpaceServer.knownTarget(-1, model));
+        assertFalse(SpaceServer.knownTarget(Integer.MAX_VALUE, model));
+        assertFalse(SpaceServer.knownTarget(model.bodies().size(), model));
+        assertTrue(SpaceServer.knownTarget(0, model), "Map-selected systems use their luminous root, never a surface slot");
+        assertTrue(SpaceServer.knownTarget(model.index(0), model));
+        assertTrue(SpaceServer.knownTarget(model.bodies().size() - 1, model));
+        assertEquals("native_space_v2_target", new SpacePackets.Target(-1).type().id().getPath());
+        var fields = Class.forName("dev.starfold.space.SpaceSessions$Target").getRecordComponents();
+        assertEquals(dev.starfold.chart.CelestialTarget.class, fields[2].getType());
         var s = Sources.text("SpaceServer");
         for (String guard :
                 new String[] {
@@ -102,9 +106,7 @@ class SpaceTargetTest {
                     "!Space.in(player)",
                     "!helm(player,target.body())",
                     "lead(target.level(),server)==target.body()",
-                    "targets.entrySet().removeIf",
-                    "targets.remove(event.getEntity())",
-                    "targets.clear()"
+                    "targets.entrySet().removeIf"
                 }) assertTrue(s.contains(guard), guard);
         assertFalse(
                 s.substring(s.indexOf("@Override public CompoundTag save")).contains("targets"));

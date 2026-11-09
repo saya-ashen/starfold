@@ -37,12 +37,13 @@ class CelestialCodecTest {
                         0,
                         false,
                         home.count(),
-                        512));
+                        512,
+                        GroundEphemeris.Appearance.SURFACE));
         return new GroundEphemeris.Model(bodies);
     }
 
     @Test
-    void jsonNbtSaveAndWireUseTheSameBodySchemaAndPreserveParentsSlotsAndFrozenSpins() {
+    void diskAndWirePreserveParentsSlotsAppearancesAndFrozenSpins() {
         var model = moon();
         var json = SystemSkyCodec.MODEL.encodeStart(JsonOps.INSTANCE, model).getOrThrow();
         assertEquals(model, SystemSkyCodec.MODEL.parse(JsonOps.INSTANCE, json).getOrThrow());
@@ -51,7 +52,9 @@ class CelestialCodecTest {
         assertEquals(model, GroundEphemerisSave.model((CompoundTag) nbt));
         var save = new GroundEphemerisSave(model, 456);
         var tag = save.save(new CompoundTag(), null);
-        assertEquals(nbt, tag.getCompound("motion"));
+        assertEquals(
+                SystemSkyCodec.SAVED_MODEL.encodeStart(NbtOps.INSTANCE, model).getOrThrow(),
+                tag.getCompound("motion"));
         var loaded = GroundEphemerisSave.load(tag, null);
         assertEquals(456, loaded.tick());
         assertEquals(model, loaded.model);
@@ -74,7 +77,7 @@ class CelestialCodecTest {
     @Test
     void oldAndMalformedModelsAreRejectedInsteadOfDefaulted() {
         var tag = GroundEphemerisSave.modelTag(moon());
-        for (int version : new int[] {0, 1, 2, 3, 4, 6}) {
+        for (int version : new int[] {0, 1, 2, 3, 4, 5, 6, 7, 9}) {
             var old = tag.copy();
             old.putInt("format", version);
             assertThrows(IllegalArgumentException.class, () -> GroundEphemerisSave.model(old));

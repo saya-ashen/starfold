@@ -26,7 +26,7 @@ class GroundCoverageOwnerTest {
 
     @Test
     void coverageAndInvalidationsAreNotConsumedBeforeOwnershipIsReady() throws Exception {
-        for (String name : List.of("refreshCoverage", "prepareDetails")) {
+        for (String name : List.of("refreshCoverage", "prepareSurfaceUpdates")) {
             var instructions = method("GroundRenderer", name).instructions;
             MethodInsnNode first = null;
             for (var i : instructions)
@@ -51,28 +51,23 @@ class GroundCoverageOwnerTest {
                 List.of(
                         "dirty.all()",
                         "priorCoverage.clear()",
-                        "dirtyDetails.clear()",
-                        "wanted=Set.of()",
-                        "window=Set.of()",
-                        "publishedWindow=Set.of()"))
+                        "window=Set.of()"))
             assertTrue(renderer.contains(cleared), cleared);
         var client = Sources.text("GroundViewClient");
         assertTrue(
                 client.contains(
-                        "level==world&&session==id&&boundPlanet==planet&&boundShape.equals(shape))return"));
+                        "state.matches(world,id,planet,shape))return"));
         assertTrue(
                 client.contains(
-                        "boundPlanet==GroundClient.planet()&&boundShape.equals(GroundClient.shape())&&coverageRevision>=0"));
-        assertTrue(client.contains("heights.shape().equals(boundShape)"));
+                        "state.planet==GroundClient.planet()&&state.shape.equals(GroundClient.shape())&&coverageRevision>=0"));
+        assertTrue(client.contains("heights.shape().equals(state.shape)"));
         assertTrue(client.contains("session==GroundFlightClient.session()"));
         for (String cleared :
                 List.of(
-                        "changed.clear()",
-                        "invalidated.clear()",
-                        "cache.clear()",
+                        "state.clear()",
                         "windowStamp=Long.MIN_VALUE"))
             assertTrue(client.contains(cleared), cleared);
-        assertTrue(client.contains("new GroundViewCache(()->boundShape,"));
+        assertTrue(client.contains("state.invalidated.surface(state.shape,key)"));
         assertFalse(client.contains("neighbours(GroundClient.shape(),key)"));
     }
 
@@ -94,10 +89,10 @@ class GroundCoverageOwnerTest {
         var binding = client.substring(bind, preview);
         assertTrue(
                 binding.indexOf("clear();")
-                        < binding.indexOf("boundPlanet=planet;boundShape=shape;"));
+                        < binding.indexOf("state.bind(world,id,planet,shape);"));
         assertTrue(
-                binding.indexOf("boundPlanet=planet;boundShape=shape;")
-                        < binding.indexOf("PlanetRemoteRenderer.seedOwn(boundPlanet,id)"));
+                binding.indexOf("state.bind(world,id,planet,shape);")
+                        < binding.indexOf("PlanetRemoteRenderer.seedOwn(state.planet,id)"));
         assertTrue(client.contains("coverageRevision=0;previewed=true"));
         assertTrue(client.contains("(previewed||!coverageReady())"));
         var remote = Sources.text("PlanetRemoteRenderer");

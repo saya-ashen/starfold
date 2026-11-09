@@ -8,24 +8,25 @@ import java.util.*;
 /** Bounded read-only cache, isolated by flight session and planet, never a block ledger. */
 public final class PlanetRemoteView {
     private PlanetPackets.Profile profile;
+    private PlanetTerrain terrain;
     private int planet = -1;
     private long revision = -1, generation;
     private BitSet changed = new BitSet(), unknown = new BitSet();
-    private final LinkedHashMap<Long, GroundViewCache.Surface> surfaces =
-            new LinkedHashMap<>(16, .75f, true);
+    private final GroundSurfaceCache surfaces = new GroundSurfaceCache();
+    private final Map<Long, Long> surfaceRevisions = new HashMap<>();
 
     public record Snapshot(
             int planet,
             PlanetTerrain terrain,
             BitSet changed,
-            Map<Long, GroundViewCache.Surface> surfaces,
+            Map<Long, GroundSurface> surfaces,
             long generation,
             net.minecraft.resources.ResourceLocation biome) {
         public Snapshot(
                 int planet,
                 PlanetTerrain terrain,
                 BitSet changed,
-                Map<Long, GroundViewCache.Surface> surfaces,
+                Map<Long, GroundSurface> surfaces,
                 long generation) {
             this(
                     planet,
@@ -38,6 +39,7 @@ public final class PlanetRemoteView {
     }
 
     public boolean summary(PlanetRemotePackets.Summary packet) {
+        if (!packet.profile().surfaceCompatible()) return false;
         if (profile != null
                 && profile.equals(packet.profile())
                 && planet == packet.planet()
@@ -51,28 +53,34 @@ public final class PlanetRemoteView {
                         || revision != packet.revision()
                         || !changed.equals(next)
                         || !unknown.equals(missing);
-        if (identity) surfaces.clear();
+        if (identity) {
+            surfaces.clear();
+            surfaceRevisions.clear();
+        }
+        if (identity) terrain = packet.profile().terrain();
         profile = packet.profile();
         planet = packet.planet();
         revision = packet.revision();
         changed = next;
         unknown = missing;
-        surfaces.keySet().removeIf(k -> !changed.get(k.intValue()) || unknown.get(k.intValue()));
+        for (long key : List.copyOf(surfaces.keySet()))
+            if (!changed.get((int) key) || unknown.get((int) key)) {
+                surfaces.remove(key);
+                surfaceRevisions.remove(key);
+            }
         if (dirty) generation++;
         return dirty;
     }
 
     public boolean surface(PlanetRemotePackets.Surface packet) {
         var s = packet.surface();
-        if (profile == null
-                || packet.planet() != planet
-                || s.session() != profile.session()
-                || !changed.get((int) s.key())
-                || unknown.get((int) s.key())) return false;
-        var old = surfaces.get(s.key());
-        if (old != null && old.revision() >= s.image().revision()) return false;
-        surfaces.put(s.key(), s.image());
-        while (surfaces.size() > 4096) surfaces.remove(surfaces.keySet().iterator().next());
+        if (profile == null || !s.compatible()
+                || packet.planet() != planet || s.session() != profile.session()
+                || s.image()!=null && (!changed.get((int)s.key()) || unknown.get((int)s.key()))) return false;
+        if (surfaceRevisions.getOrDefault(s.key(), -1L) >= s.revision()) return false;
+        surfaceRevisions.put(s.key(),s.revision());
+        if(s.image()==null) surfaces.remove(s.key());
+        else surfaces.put(s.key(), s.image());
         generation++;
         return true;
     }
@@ -82,8 +90,9 @@ public final class PlanetRemoteView {
             PlanetPackets.Profile told,
             int id,
             BitSet marked,
-            Map<Long, GroundViewCache.Surface> held) {
-        var known = new HashMap<Long, GroundViewCache.Surface>();
+            Map<Long, GroundSurface> held) {
+        if(!told.surfaceCompatible()) return false;
+        var known = new HashMap<Long, GroundSurface>();
         for (var e : held.entrySet())
             if (marked.get(e.getKey().intValue())) known.put(e.getKey(), e.getValue());
         if (profile != null
@@ -91,25 +100,31 @@ public final class PlanetRemoteView {
                 && planet == id
                 && changed.equals(marked)
                 && surfaces.equals(known)) return false;
+        if (profile == null || !profile.equals(told)) terrain = told.terrain();
         profile = told;
         planet = id;
         revision = -1;
         changed = marked;
         unknown = new BitSet();
         surfaces.clear();
+        surfaceRevisions.clear();
         surfaces.putAll(known);
         generation++;
         return true;
     }
+
+    public PlanetPackets.Profile profile() { return profile; }
+
+    public PlanetTerrain terrain() { return terrain; }
 
     public Snapshot snapshot() {
         return profile == null
                 ? null
                 : new Snapshot(
                         planet,
-                        new PlanetTerrain(profile.seed(), profile.version(), profile.generation()),
+                        terrain,
                         (BitSet) changed.clone(),
-                        Map.copyOf(surfaces),
+                        surfaces.isEmpty() ? Map.of() : Collections.unmodifiableMap(new HashMap<>(surfaces)),
                         generation,
                         profile.biome());
     }

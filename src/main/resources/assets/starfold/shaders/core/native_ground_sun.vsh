@@ -2,7 +2,7 @@
 in vec3 Position;
 uniform mat4 ModelViewMat, ProjMat;
 uniform vec3 SpaceLens, DrawCenter, ChartU, ChartUp, ChartV, SunBody;
-uniform float DrawRadius, SunRadius, Background, Halo;
+uniform float DrawRadius, SunRadius, Background, Halo, HaloWidth, DepthFar;
 out vec3 sunPoint, sphereUnit;
 out float spaceFacing;
 vec4 spaceProject(vec4 view) {
@@ -22,10 +22,10 @@ vec4 spaceProject(vec4 view) {
     return mix(ordinary,stereo,SpaceLens.x);
 }
 void main(){
-    float halo=1.0+0.12*Halo;
+    float halo=1.0+HaloWidth*Halo;
     vec3 unit=vec3(dot(Position,ChartU),dot(Position,ChartUp),dot(Position,ChartV));
     gl_Position=spaceProject(ModelViewMat*vec4(DrawCenter+unit*DrawRadius*halo,1.0));
-    gl_Position.z=mix(gl_Position.z,gl_Position.w*(1.0-0.00001),Background);
+    gl_Position.z=mix(gl_Position.z,gl_Position.w*(1.0-0.00001)*DepthFar,Background);
     sunPoint=SunBody+Position*SunRadius*halo;
     sphereUnit=Position;
 }

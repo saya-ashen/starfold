@@ -16,7 +16,7 @@ import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.nbt.CompoundTag;
 
@@ -27,6 +27,11 @@ import java.nio.file.Files;
 
 /** A world's seed makes a universe of its layout once; the world keeps it. */
 class UniverseTest {
+    static dev.starfold.sky.BodyIdAllocator reloadedIds(Universe universe) {
+        return dev.starfold.sky.BodyIdAllocator.load(
+                universe.allocator().save(new CompoundTag(), null), null);
+    }
+
     @Test
     void growthNotificationKeepsSystemClockAndPlayerPublicationInOrder() throws Exception {
         var universe = Sources.text("Universe");
@@ -34,7 +39,7 @@ class UniverseTest {
         assertFalse(universe.contains("dev.starfold.flight.GroundFlightServer"));
         assertTrue(
                 universe.contains(
-                        "system.bind(universe.planets());grown.accept(level,system,()->{varclock=GroundClock.get(level);clock.clock.model=universe.model(home);clock.setDirty();returnclock;});returntrue;"));
+                        "system.bind(universe.planets());dev.starfold.worldgen.plan.PlanetPlanStore.bind(level,system);grown.accept(level,system,()->{varclock=GroundClock.get(level);clock.clock.model=universe.model(home);clock.setDirty();returnclock;});returntrue;"));
         var server = Sources.text("StarfoldServer");
         assertTrue(
                 server.contains(
@@ -54,16 +59,16 @@ class UniverseTest {
 
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     static UniverseLayout layout(String name) throws Exception {
         return UniverseLayout.CODEC
                 .parse(
-                        PlanetTypeTest.ops(),
+                        PlanetTypeFixtures.ops(),
                         JsonParser.parseString(
                                 Files.readString(
-                                        PlanetTypeTest.DATA.resolve(
+                                        PlanetTypeFixtures.DATA.resolve(
                                                 "starfold/universe/" + name + ".json"))))
                 .getOrThrow();
     }
@@ -80,6 +85,40 @@ class UniverseTest {
         assertTrue(body.light());
         return new GroundEphemeris.Star(
                 ((GroundEphemeris.Fixed) body.motion()).position(), body.radius());
+    }
+
+    @Test
+    void generatedAndDiscoveredBodiesKeepTheirDeclaredAppearance() throws Exception {
+        for (String name : new String[] {"small", "default"}) {
+            var layout = layout(name);
+            var universe = Universe.generate(12345, layout, HOME);
+            if (name.equals("default")) {
+                int before = universe.catalog().size();
+                universe.explore(12345, layout, HOME, 3, 3, 2, 900);
+                assertTrue(universe.catalog().size() > before);
+            }
+            assertFalse(universe.catalog().isEmpty());
+            for (var body : universe.catalog())
+                assertEquals(
+                        body.slot() >= 0
+                                ? GroundEphemeris.Appearance.SURFACE
+                                : GroundEphemeris.Appearance.LIGHT,
+                        body.appearance());
+            var model = universe.model(HOME);
+            assertEquals(model.everyStar(), model.visibleStars());
+            for (int n = 0; n < universe.catalog().size(); n++)
+                assertEquals(
+                        universe.catalog().get(n).appearance(),
+                        model.bodies().get(HOME.bodies().size() + n).appearance());
+            var tag = universe.save(new CompoundTag(), PlanetTypeFixtures.lookup());
+            assertEquals(
+                    universe.catalog(),
+                    Universe.load(tag, PlanetTypeFixtures.lookup(), reloadedIds(universe)).catalog());
+            tag.putInt("format", 4);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> Universe.load(tag, PlanetTypeFixtures.lookup(), reloadedIds(universe)));
+        }
     }
 
     @Test
@@ -116,19 +155,23 @@ class UniverseTest {
             var perStar = new java.util.HashMap<Integer, Integer>();
             for (var body : u.bodies()) {
                 perStar.merge(body.parent(), 1, Integer::sum);
+                long siblings =
+                        u.bodies().stream().filter(b -> b.parent() == body.parent()).count();
                 assertEquals(
-                        HOME.orbit(0).radius() + (perStar.get(body.parent()) - 1) * layout.ring(),
+                        HOME.orbit(0).radius()
+                                + (siblings == 2 ? 0 : perStar.get(body.parent()) - 1)
+                                        * layout.ring(),
                         body.radius(),
                         1e-9,
-                        "rings in order");
-                assertTrue(body.period() >= 12000);
+                        "pairs share a ring; larger systems have ordered rings");
+                assertEquals(
+                        new SystemDefinition.Path(body.radius(), 0).period(SystemDefinition.STAR_GM),
+                        body.period());
                 var g = body.planet().generation();
                 assertTrue(g.coreShell());
                 sizes.add(g.size());
                 covers.add(
-                        g.rocky()
-                                ? g.palette().cover().map(Object::toString).orElse("rock")
-                                : "temperate");
+                        body.planet().typeId().orElseThrow().toString());
             }
             assertEquals(stars, perStar.size());
             for (int n : perStar.values())
@@ -163,17 +206,17 @@ class UniverseTest {
                 assertEquals(HOME.at(id, 5000).center(), model.at(id, 5000).center());
         }
         assertEquals(java.util.Set.of(2, 3, 4), counts, "every count the layout allows turns up");
-        assertEquals(4, covers.size(), "every kind turns up: " + covers);
-        assertTrue(covers.contains("temperate"));
+        assertEquals(8, covers.size(), "every kind turns up: " + covers);
+        assertTrue(covers.contains("starfold:temperate"));
         assertTrue(sizes.size() > 40, "sizes vary: " + sizes.size());
     }
 
     @Test
     void aUniverseIsSavedWholeAndReadBackTheSame() throws Exception {
         var u = Universe.generate(987654321L, layout(), HOME);
-        var lookup = PlanetTypeTest.lookup();
+        var lookup = PlanetTypeFixtures.lookup();
         var tag = u.save(new CompoundTag(), lookup);
-        var back = Universe.load(tag, lookup);
+        var back = Universe.load(tag, lookup, reloadedIds(u));
         assertEquals(u.stars(), back.stars());
         assertEquals(u.bodies().size(), back.bodies().size());
         for (int i = 0; i < u.bodies().size(); i++) {
@@ -188,12 +231,31 @@ class UniverseTest {
         }
         assertEquals(tag, back.save(new CompoundTag(), lookup));
         assertEquals(u.model(HOME), back.model(HOME));
-        var broken = tag.copy();
-        broken.putInt("format", 1);
-        assertThrows(IllegalArgumentException.class, () -> Universe.load(broken, lookup));
+        assertEquals(8, tag.getInt("format"));
+        for (int format : new int[] {0, 1, 2, 3, 4, 5, 6, 7, 9}) {
+            var broken = tag.copy();
+            broken.putInt("format", format);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> Universe.load(broken, lookup, reloadedIds(u)));
+        }
+        for (String field : new String[] {"format", "bodies", "planets"}) {
+            var missing = tag.copy();
+            missing.remove(field);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> Universe.load(missing, lookup, reloadedIds(u)));
+        }
+        var wrongType = tag.copy();
+        wrongType.putString("format", "8");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> Universe.load(wrongType, lookup, reloadedIds(u)));
         var orphan = tag.copy();
         orphan.getList("bodies", 10).getCompound(1).getCompound("motion").putInt("parent", 99);
-        assertThrows(IllegalArgumentException.class, () -> Universe.load(orphan, lookup));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> Universe.load(orphan, lookup, reloadedIds(u)));
     }
 
     @Test
@@ -201,34 +263,34 @@ class UniverseTest {
         var json =
                 JsonParser.parseString(
                                 Files.readString(
-                                        PlanetTypeTest.DATA.resolve(
+                                        PlanetTypeFixtures.DATA.resolve(
                                                 "starfold/universe/small.json")))
                         .getAsJsonObject();
         var near = json.deepCopy();
         near.addProperty("star_gap", 49152);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> UniverseLayout.CODEC.parse(PlanetTypeTest.ops(), near));
+                () -> UniverseLayout.CODEC.parse(PlanetTypeFixtures.ops(), near));
         var many = json.deepCopy();
         many.getAsJsonObject("planets").addProperty("max", 5);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> UniverseLayout.CODEC.parse(PlanetTypeTest.ops(), many));
+                () -> UniverseLayout.CODEC.parse(PlanetTypeFixtures.ops(), many));
         var none = json.deepCopy();
         none.add("types", new com.google.gson.JsonArray());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> UniverseLayout.CODEC.parse(PlanetTypeTest.ops(), none));
-        assertEquals(98304, UniverseLayout.minimumGap(2, 12288));
+                () -> UniverseLayout.CODEC.parse(PlanetTypeFixtures.ops(), none));
+        assertEquals(68368, UniverseLayout.minimumGap(2, 12288));
         assertEquals(98304, layout().gap());
     }
 
     @Test
     void aSystemWithALayoutCountsItsUniverseOnceBoundAndSavesTheLayoutWrittenOut()
             throws Exception {
-        var ops = PlanetTypeTest.ops();
+        var ops = PlanetTypeFixtures.ops();
         var codec = SystemChunkGenerator.CODEC.codec();
-        var g = codec.parse(ops, PlanetTypeTest.preset("native_universe")).getOrThrow();
+        var g = codec.parse(ops, PlanetTypeFixtures.preset("native_universe")).getOrThrow();
         assertTrue(g.universe().isPresent());
         assertEquals(2, g.count());
         assertArrayEquals(new int[] {2}, g.groups());
@@ -261,15 +323,14 @@ class UniverseTest {
                 codec.encodeStart(ops, back).getOrThrow(),
                 "the same layout, read back from what was written out");
         assertEquals(2, back.count());
-        // Experience is additional: the original universe remains first; experimental presets still
-        // wait behind Alt.
+        // Core offers its own universe; the optional pack adds experience separately.
         var normal =
                 Files.readString(
                                 java.nio.file.Path.of(
                                         "src/main/resources/data/minecraft/tags/worldgen/world_preset/normal.json"))
                         .strip();
         assertEquals(
-                "{\"replace\":false,\"values\":[\"starfold:native_universe\",\"starfold_pack:experience\"]}",
+                "{\"replace\":false,\"values\":[\"starfold:native_universe\"]}",
                 normal);
         assertNotNull(
                 net.minecraft.tags.TagFile.CODEC
@@ -428,7 +489,7 @@ class UniverseTest {
         assertFalse(u.explore(5, layout, HOME, 0, 0, 3, 0));
         assertEquals(0, u.bodies().size());
         int empty = u.explored();
-        assertTrue(empty > 0 && empty < 48, "only the cells without a sun were settled: " + empty);
+        assertEquals(0, empty, "density one has no empty cells to settle without capacity");
         assertTrue(u.explore(5, layout, HOME, 0, 0, 3, 900));
         assertEquals(48, u.explored());
     }
@@ -440,7 +501,7 @@ class UniverseTest {
         var choices =
                 java.util.List.of(
                         new UniverseLayout.Choice(
-                                net.minecraft.core.Holder.direct(PlanetTypeTest.type("rocky")), 1));
+                                net.minecraft.core.Holder.direct(PlanetTypeFixtures.type("rocky")), 1));
         var single = new UniverseLayout(0, 0, 1, 1, 98304, 12288, choices, 1);
         var pair = new UniverseLayout(0, 0, 2, 2, 98304, 12288, choices, 1);
         var u = new Universe(java.util.List.of(), java.util.List.of());
@@ -469,7 +530,7 @@ class UniverseTest {
         var system =
                 SystemChunkGenerator.CODEC
                         .codec()
-                        .parse(PlanetTypeTest.ops(), PlanetTypeTest.preset("native_universe"))
+                        .parse(PlanetTypeFixtures.ops(), PlanetTypeFixtures.preset("native_universe"))
                         .getOrThrow();
         system.bind(u.planets());
         int last = Universe.CAPACITY - 1;
@@ -482,7 +543,7 @@ class UniverseTest {
         }
         for (int id = 0; id < beforeCatalog.size(); id++)
             assertSame(beforeCatalog.get(id), u.catalog().get(id));
-        var lookup = PlanetTypeTest.lookup();
+        var lookup = PlanetTypeFixtures.lookup();
         var full = u.save(new CompoundTag(), lookup);
         u.setDirty(false);
         assertFalse(
@@ -501,7 +562,7 @@ class UniverseTest {
                 () -> PlanetStorage.column(PlanetStorage.MAX_PLANETS));
         // Even after reload the refused cell is still available if the caller supplies more room;
         // no runtime cap change.
-        var back = Universe.load(full, lookup);
+        var back = Universe.load(full, lookup, reloadedIds(u));
         assertTrue(back.explore(7, single, HOME, capacity + 1, 0, 0, capacity + 1));
         assertEquals(Universe.CAPACITY + 1, back.model(HOME).count());
     }
@@ -511,9 +572,9 @@ class UniverseTest {
         var layout = layout("default");
         var u = Universe.generate(31, layout, HOME);
         u.explore(31, layout, HOME, 4, -2, 1, 900);
-        var lookup = PlanetTypeTest.lookup();
+        var lookup = PlanetTypeFixtures.lookup();
         var tag = u.save(new CompoundTag(), lookup);
-        var back = Universe.load(tag, lookup);
+        var back = Universe.load(tag, lookup, reloadedIds(u));
         assertEquals(u.explored(), back.explored());
         assertEquals(u.stars(), back.stars());
         assertEquals(tag, back.save(new CompoundTag(), lookup));
@@ -531,22 +592,22 @@ class UniverseTest {
         var json =
                 JsonParser.parseString(
                                 Files.readString(
-                                        PlanetTypeTest.DATA.resolve(
+                                        PlanetTypeFixtures.DATA.resolve(
                                                 "starfold/universe/small.json")))
                         .getAsJsonObject();
         json.addProperty("density", .5);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> UniverseLayout.CODEC.parse(PlanetTypeTest.ops(), json));
+                () -> UniverseLayout.CODEC.parse(PlanetTypeFixtures.ops(), json));
         var endless =
                 JsonParser.parseString(
                                 Files.readString(
-                                        PlanetTypeTest.DATA.resolve(
+                                        PlanetTypeFixtures.DATA.resolve(
                                                 "starfold/universe/default.json")))
                         .getAsJsonObject();
         assertFalse(endless.has("stars"));
         endless.addProperty("density", 1.5);
-        assertTrue(UniverseLayout.CODEC.parse(PlanetTypeTest.ops(), endless).isError());
+        assertTrue(UniverseLayout.CODEC.parse(PlanetTypeFixtures.ops(), endless).isError());
     }
 
     @Test
@@ -563,7 +624,12 @@ class UniverseTest {
         var model = Universe.generate(7, layout("default"), HOME).model(HOME);
         GroundPackets.Sky.CODEC.encode(buffer, new GroundPackets.Sky(4322, model));
         int whole = buffer.readableBytes();
-        assertEquals(model, GroundPackets.Sky.CODEC.decode(buffer).model());
+        var wireModel = GroundPackets.Sky.CODEC.decode(buffer).model();
+        assertEquals(
+                dev.starfold.sky.GroundEphemerisSave.modelTag(model),
+                dev.starfold.sky.GroundEphemerisSave.modelTag(wireModel));
+        for (int slot = 0; slot < model.count(); slot++)
+            assertEquals(model.at(slot, 4322), wireModel.at(slot, 4322));
         assertTrue(whole > bare * 20);
         var server = Sources.text("GroundServer");
         assertTrue(server.contains("new GroundPackets.Sky(clock.clock.tick(),whole?model:null)"));
@@ -572,7 +638,7 @@ class UniverseTest {
         assertTrue(
                 Sources.text("GroundClient")
                         .contains(
-                                "if(packet.model()!=null){level=net.minecraft.client.Minecraft.getInstance().level;model=packet.model();}if(model==null||level!=net.minecraft.client.Minecraft.getInstance().level)return;"));
+                                "if(packet.model()!=null){level=net.minecraft.client.Minecraft.getInstance().level;observer.model=packet.model();}if(observer.model==null||level!=net.minecraft.client.Minecraft.getInstance().level)return;"));
     }
 
     @Test
@@ -603,10 +669,92 @@ class UniverseTest {
                 assertNotEquals(changedHome.spin(1), remapped.spin());
             } else assertEquals(original.motion(), appended.motion());
         }
-        var lookup = PlanetTypeTest.lookup();
-        var restored = Universe.load(universe.save(new CompoundTag(), lookup), lookup);
+        var lookup = PlanetTypeFixtures.lookup();
+        var restored =
+                Universe.load(
+                        universe.save(new CompoundTag(), lookup), lookup, reloadedIds(universe));
         assertEquals(local, restored.catalog());
         assertEquals(combined, restored.model(changedHome));
+    }
+
+    @Test
+    void bodyRegionsFollowDiscoveryOrderAndAreNeverReusedAfterReload() throws Exception {
+        var choices = layout("default").types();
+        var full = new UniverseLayout(0, 0, 2, 2, 98304, 12288, choices, 1);
+        var empty = new UniverseLayout(0, 0, 2, 2, 98304, 12288, choices, Double.MIN_VALUE);
+        var universe = new Universe(java.util.List.of(), java.util.List.of());
+        assertFalse(universe.discover(7, full, HOME, 10, 10, 0));
+        assertEquals(0, universe.explored(), "capacity refusal allocates no region");
+        assertFalse(universe.discover(7, empty, HOME, 11, 10, 10));
+        assertTrue(universe.discover(7, full, HOME, 10, 10, 10));
+        for (int n = 0; n < 3; n++)
+            assertEquals(new dev.starfold.chart.BodyId(2, n), universe.catalog().get(n).id());
+        var lookup = PlanetTypeFixtures.lookup();
+        var tag = universe.save(new CompoundTag(), lookup);
+        assertEquals(1, tag.getList("cells", 10).getCompound(0).getInt("region"));
+        assertEquals(
+                Universe.cell(11, 10), tag.getList("cells", 10).getCompound(0).getLong("cell"));
+        var loaded = Universe.load(tag, lookup, reloadedIds(universe));
+        assertEquals(new dev.starfold.chart.BodyId(2, 3), loaded.allocator().allocate(2));
+        assertEquals(new dev.starfold.chart.BodyId(1, 0), loaded.allocator().allocate(1));
+        assertFalse(loaded.discover(7, full, HOME, 10, 10, 10));
+        assertTrue(loaded.discover(7, full, HOME, -10, 10, 10));
+        for (int n = 0; n < 3; n++) {
+            assertEquals(universe.catalog().get(n).id(), loaded.catalog().get(n).id());
+            assertEquals(new dev.starfold.chart.BodyId(3, n), loaded.catalog().get(n + 3).id());
+        }
+        assertEquals(
+                loaded.catalog(),
+                Universe.load(loaded.save(new CompoundTag(), lookup), lookup, reloadedIds(loaded))
+                        .catalog());
+        tag.putInt("format", 3);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> Universe.load(tag, lookup, reloadedIds(universe)));
+    }
+
+    @Test
+    void authoredAndFiniteGeneratedBodiesAllKeepRegionZeroWithoutCollisions() throws Exception {
+        var universe = Universe.generate(7, layout("small"), HOME);
+        var combined = universe.model(HOME);
+        for (int n = 0; n < combined.bodies().size(); n++) {
+            var body = combined.bodies().get(n);
+            assertEquals(new dev.starfold.chart.BodyId(0, n), body.id());
+            assertEquals(n, combined.index(body.id()));
+        }
+        var lookup = PlanetTypeFixtures.lookup();
+        var loaded =
+                Universe.load(
+                        universe.save(new CompoundTag(), lookup), lookup, reloadedIds(universe));
+        assertEquals(combined, loaded.model(HOME));
+        assertEquals(
+                new dev.starfold.chart.BodyId(0, combined.bodies().size()),
+                loaded.allocator().allocate(0));
+        var again = reloadedIds(loaded);
+        assertEquals(
+                new dev.starfold.chart.BodyId(0, combined.bodies().size() + 1), again.allocate(0));
+        assertEquals(
+                combined.bodies().stream().map(GroundEphemeris.Body::id).toList(),
+                GroundEphemeris.spinning(combined, false, 50).bodies().stream()
+                        .map(GroundEphemeris.Body::id)
+                        .toList());
+    }
+
+    @Test
+    void universeRejectsRewoundCountersAndPreviousFormat() throws Exception {
+        var universe = Universe.generate(7, layout("small"), HOME);
+        var tag = universe.save(new CompoundTag(), PlanetTypeFixtures.lookup());
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        Universe.load(
+                                tag,
+                                PlanetTypeFixtures.lookup(),
+                                new dev.starfold.sky.BodyIdAllocator()));
+        tag.putInt("format", 5);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> Universe.load(tag, PlanetTypeFixtures.lookup(), reloadedIds(universe)));
     }
 
     @Test

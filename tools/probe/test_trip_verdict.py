@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CPU regression checks for the log verdict; no Minecraft needed."""
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 
@@ -13,8 +14,8 @@ def fixture():
     rows = []
 
     def snap(label, space=False, clearance=0, **overrides):
-        fields = dict(space=str(space).lower(), phase="CRUISE", locked=4, helm="true",
-                      chart=str(not space).lower(), planet=4, clearance=clearance,
+        fields = dict(space=str(space).lower(), phase="CRUISE", locked=8, helm="true",
+                      chart=str(not space).lower(), planet=8, clearance=clearance,
                       stair="true", resting=50)
         fields.update(overrides)
         rows.append("PROBE TRIP " + label + " " + " ".join(f"{k} {v}" for k, v in fields.items())
@@ -22,9 +23,9 @@ def fixture():
 
     rows.append("PROBE until region 0.0 -> met")
     snap("s-space", True)
-    rows.append("PROBE SHIPAIM planet 4 error 0.2 0.1 remaining 630")
+    rows.append("PROBE SHIPAIM planet 8 error 0.2 0.1 remaining 630")
     snap("s-aimed", True)
-    rows.append("PROBE LOCK s-lock locked 4 main air")
+    rows.append("PROBE LOCK s-lock locked 8 main air")
     snap("s-cruise", True)
     rows.append("PROBE until notice 0.0 -> met")
     snap("s-notice", True, phase="NOTICE")
@@ -49,8 +50,20 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(len(module.verdict(fixture())), 9)
         self.assertTrue(all(row[1] for row in module.verdict(fixture())))
 
+    def test_canonical_route_targets_the_experience_home_moon(self):
+        root = Path(__file__).resolve().parents[2]
+        system = json.loads((root / "worlds/src/main/resources/data/starfold_worlds/starfold/system/experience.json").read_text())
+        sun = system["suns"][system["home"]["sun"]]
+        home = sun["planets"][system["home"]["planet"]]
+        self.assertEqual(home["moons"][0]["name"], "planet.starfold_worlds.fleck")
+        # Surface moons are appended after the authored planets (home is reordered to slot 0).
+        self.assertEqual(len(sun["planets"]), 8)
+        script = (root / "tools/probe/trip.txt").read_text()
+        self.assertEqual([line for line in script.splitlines() if line.startswith("shipaim ")],
+                         ["shipaim 8 700", "shipaim 8 300"])
+
     def test_moon_uses_the_same_gates_for_appended_slot_two(self):
-        moon = fixture().replace("planet 4", "planet 2").replace("locked 4", "locked 2")
+        moon = fixture().replace("planet 8", "planet 2").replace("locked 8", "locked 2")
         self.assertTrue(all(row[1] for row in module.verdict(moon, target=2)))
         self.assertFalse(all(row[1] for row in module.verdict(moon)))
         for old, new, stage in (("LOCK s-lock locked 2", "LOCK s-lock locked 0", "aim and lock"),
@@ -85,8 +98,8 @@ class VerdictTests(unittest.TestCase):
         self.assertTrue(self.gate("\n".join(rows), "hand-over and helm"))
 
     def test_wrong_lock_planet_or_lost_helm(self):
-        for old, new, stage in (("LOCK s-lock locked 4", "LOCK s-lock locked 3", "aim and lock"),
-                                ("planet 4", "planet 3", "hand-over and helm"),
+        for old, new, stage in (("LOCK s-lock locked 8", "LOCK s-lock locked 4", "aim and lock"),
+                                ("planet 8", "planet 4", "hand-over and helm"),
                                 ("helm true", "helm false", "hand-over and helm"),
                                 ("clearance 59", "clearance NaN", "descent"),
                                 ("clearance 59", "clearance 61", "descent"),

@@ -66,7 +66,7 @@ class CubeSurfaceTopologyTest {
                     assertEquals(3, route.cell().h());
                     assertEquals(route, topology.canonical(c));
                     for (Delta d : DIRECTIONS)
-                        assertEquals(d, route.untransport(route.transport(d)));
+                        assertEquals(d, CubeSurfaceTopology.rotate(route.transport(d), -route.turns()));
                 }
     }
 

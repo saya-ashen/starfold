@@ -48,6 +48,14 @@ public final class ShipDormancy {
         return record != null && record.state() instanceof ShipRecord.InSpace;
     }
 
+    /** An explicit recovery target uses the same current-place readiness path as a nearby crew. */
+    public static void requestWake(ServerLevel level, UUID ship) {
+        if (!managed(level, ship)) return;
+        var container = ServerSubLevelContainer.getContainer(level);
+        if (container != null && container.getSubLevel(ship) == null)
+            requested.computeIfAbsent(level, l -> new HashSet<>()).add(ship);
+    }
+
     /** Unexpected snatch callers must wait for the current destination's columns too. */
     public static boolean defer(ServerLevel level, UUID ship) {
         if (!managed(level, ship) || loading.getOrDefault(level, Set.of()).contains(ship))
@@ -103,21 +111,31 @@ public final class ShipDormancy {
                                                                             at.position().y(),
                                                                             at.position().z())
                                                             <= wake * wake)) continue;
-            var original = read(container, record);
-            if (original == null || !original.dependencies().isEmpty()) continue;
-            var data = repose(original, space.place(), at);
+            var groupData = new HashMap<UUID, SubLevelData>();
+            var group = dependencyGroup(record.uuid(), id -> {
+                var member = ShipSave.get(level).find(id);
+                if (member == null || !(member.state() instanceof ShipRecord.InSpace inSpace)
+                        || member.locator().isEmpty() || container.getSubLevel(id) != null
+                        || !pointer(member).chunkPos().equals(pointer(record).chunkPos())) return null;
+                var original = read(container, member);
+                if (original == null) return null;
+                var motion = ShipParking.toLevel(clock.model,
+                        ShipHost.get().surroundingsFrame(level), inSpace.place(), clock.tick());
+                var data = repose(original, inSpace.place(), motion);
+                if (!fits(data.bounds())) return null;
+                groupData.put(id, data);
+                return original.dependencies();
+            });
+            if (group == null) continue;
+            pending.putAll(groupData);
+        }
+        for (var data : pending.values()) {
             var box = data.bounds();
-            if (!fits(box)) continue;
-            pending.put(record.uuid(), data);
             var columns = new HashSet<Long>();
-            SableTickets.columns(
-                    columns,
-                    new net.minecraft.world.phys.AABB(
-                                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ)
-                            .inflate(32));
-            inputs.add(
-                    new ShipLeases.Input(
-                            record.uuid(), columns, Set.of(ShipLeases.Reason.WAKING), Set.of()));
+            SableTickets.columns(columns, new net.minecraft.world.phys.AABB(
+                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ).inflate(32));
+            inputs.add(new ShipLeases.Input(data.uuid(), columns,
+                    Set.of(ShipLeases.Reason.WAKING), Set.of()));
         }
         waking.put(level, pending);
         return inputs;
@@ -125,24 +143,37 @@ public final class ShipDormancy {
 
     static void finish(ServerLevel level, ServerSubLevelContainer container) {
         if (!ShipHost.get().spaceDormancy() || container == null) return;
-        for (var entry : waking.getOrDefault(level, Map.of()).entrySet()) {
-            var columns = SableTickets.held(level, entry.getKey());
-            if (columns.isEmpty()
-                    || columns.stream()
-                            .anyMatch(
-                                    k ->
-                                            !PhysicsChunkTicketManager.isChunkLoadedEnough(
-                                                    level, ChunkPos.getX(k), ChunkPos.getZ(k))))
-                continue;
+        var pending = waking.getOrDefault(level, Map.of());
+        var attempted = new HashSet<UUID>();
+        for (var entry : pending.entrySet()) {
+            if (attempted.contains(entry.getKey()) || container.getSubLevel(entry.getKey()) != null) continue;
+            var group = dependencyGroup(entry.getKey(), id -> {
+                var data = pending.get(id);
+                return data == null ? null : data.dependencies();
+            });
+            if (group == null || group.stream().anyMatch(id -> {
+                var columns = SableTickets.held(level, id);
+                return columns.isEmpty() || columns.stream().anyMatch(k ->
+                        !PhysicsChunkTicketManager.isChunkLoadedEnough(
+                                level, ChunkPos.getX(k), ChunkPos.getZ(k)));
+            })) continue;
             var record = ShipSave.get(level).find(entry.getKey());
             var active = loading.computeIfAbsent(level, l -> new HashSet<>());
-            active.add(record.uuid());
+            active.addAll(group);
+            attempted.addAll(group);
             try {
                 container.getHoldingChunkMap().snatchAndLoad(pointer(record), record.uuid());
             } finally {
-                active.remove(record.uuid());
+                active.removeAll(group);
             }
-            requested.getOrDefault(level, new HashSet<>()).remove(record.uuid());
+            var missing = group.stream().filter(id -> container.getSubLevel(id) == null).toList();
+            if (!missing.isEmpty())
+                org.slf4j.LoggerFactory.getLogger("starfold")
+                        .error("Space ship group did not fully load; root={} missing={}", record.uuid(), missing);
+            var requests = requested.get(level);
+            if (requests != null)
+                for (var id : group)
+                    if (container.getSubLevel(id) != null) requests.remove(id);
         }
         for (var body : List.copyOf(container.getAllSubLevels())) {
             var at = body.logicalPose().position();
@@ -156,6 +187,31 @@ public final class ShipDormancy {
                             body,
                             new ChunkPos((int) Math.floor(at.x) >> 4, (int) Math.floor(at.z) >> 4));
         }
+    }
+
+    /** Validate Sable's flattened saved group, rejecting missing members and partial snatches. */
+    static Set<UUID> dependencyGroup(UUID root,
+            java.util.function.Function<UUID, ? extends Collection<UUID>> dependencies) {
+        var group = new HashSet<UUID>();
+        var saved = new HashMap<UUID, Collection<UUID>>();
+        var todo = new ArrayDeque<UUID>();
+        todo.add(root);
+        while (!todo.isEmpty()) {
+            var id = todo.removeFirst();
+            if (!group.add(id)) continue;
+            var next = dependencies.apply(id);
+            if (next == null) return null;
+            saved.put(id, next);
+            todo.addAll(next);
+        }
+        // Sable snatches the root and its direct list, rather than walking recursively.
+        // Normal saves flatten the group; reject incomplete or non-flat data before snatching.
+        for (var entry : saved.entrySet()) {
+            var flat = new HashSet<>(entry.getValue());
+            flat.add(entry.getKey());
+            if (!flat.equals(group)) return null;
+        }
+        return group;
     }
 
     static boolean fits(BoundingBox3d box) {
@@ -255,7 +311,7 @@ public final class ShipDormancy {
                 ShipParking.fromLevel(
                         clock.model,
                         ShipHost.get().surroundingsFrame(level),
-                        place.body(),
+                        clock.model.index(place.body()),
                         a,
                         new Point(at.x, at.y, at.z),
                         new Quaterniond(hull.logicalPose().orientation()),

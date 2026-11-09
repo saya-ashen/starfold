@@ -8,7 +8,7 @@ import dev.starfold.ground.GroundSeams;
 import dev.starfold.planet.Anomaly;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -46,8 +46,8 @@ public abstract class GroundTopologyLevelMixin {
             if (!pos.equals(address.owner()))
                 return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
         }
-        if (ArrivalProbe.ENABLED)
-            ArrivalProbe.missingRead(
+        if (DevelopmentHooks.arrival.enabled())
+            DevelopmentHooks.arrival.missingRead(
                     (net.minecraft.server.level.ServerLevel) level, pos, address.owner());
         return address.read(original.call(address.owner()));
     }

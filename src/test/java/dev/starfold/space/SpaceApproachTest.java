@@ -252,8 +252,8 @@ class SpaceApproachTest {
         assertTrue(
                 Sources.text("SpaceServer")
                         .contains(
-                                "if(bodies.isEmpty()){clearEmptyRegion(level,container);return;}"));
-        assertTrue(Sources.text("SpaceServer").contains("LevelEvent.Unload"));
+                                "if(bodies.isEmpty()){dev.starfold.ship.GasShipDamage.release(level);clearEmptyRegion(level,container);return;}"));
+        assertTrue(Sources.text("SpaceSessions").contains("LevelEvent.Unload"));
         assertTrue(
                 Sources.text("SableFrames")
                         .contains(
@@ -262,8 +262,8 @@ class SpaceApproachTest {
                 calls("GroundTickets", "clear")
                         .contains("dev/starfold/ground/GroundHost.clearArrival"));
         assertTrue(
-                Sources.text("StarfoldServer")
-                        .contains("public void clearArrival(){SpaceApproach.clear();}"));
+                calls("StarfoldHostBindings", "install")
+                        .contains("dev/starfold/StarfoldHostBindings.installGroundHost"));
     }
 
     @Test
@@ -310,12 +310,15 @@ class SpaceApproachTest {
     void approachDataIsStagedWithoutAChartOrFlightSession() throws Exception {
         assertTrue(
                 Sources.text("PlanetRemoteServer").contains("SpaceApproach.destination(player)"));
+        var views = Sources.text("GroundViewServer");
+        assertTrue(views.contains("refreshSlots(PlanetSystem.count(level),"));
+        assertTrue(views.contains(".filter(Space::in).mapToInt(SpaceApproach::destination)"));
         assertTrue(
-                Sources.text("GroundViewServer")
-                        .contains("if(destination>=0)ticked.add(destination)"));
+                calls("GroundViewServer", "refreshIndices")
+                        .contains("dev/starfold/render/GroundViewServer.refreshSlots"));
         assertTrue(
                 Sources.text("GroundViewClient")
-                        .contains("PlanetRemoteRenderer.seedOwn(boundPlanet,id)"));
+                        .contains("PlanetRemoteRenderer.seedOwn(state.planet,id)"));
         assertTrue(Sources.text("GroundViewClient").contains("(previewed||!coverageReady())"));
         assertTrue(
                 calls("PlanetRemoteRenderer", "seedOwn")

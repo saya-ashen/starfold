@@ -292,8 +292,6 @@ class PlanetRoundedGeometryTest {
                         var normal = s.project(f, u, h + 1, v).sub(p);
                         assertTrue(normal.dot(s.up(p)) > .9999);
                         assertEquals(h, s.altitude(s.onRay(p, h)), 1e-12);
-                        var moved = s.rounded.onAltitude(p.add(f.u.scale(.2)), h);
-                        assertEquals(h, s.altitude(moved), 1e-12);
                     }
     }
 

@@ -14,9 +14,12 @@ public final class Weather {
         return y - GroundCoordinates.FLOOR >= GroundOrbit.END;
     }
 
+    /** Canonical storage coordinates; the client checks its atmosphere before converting to storage. */
     public static boolean absent(Level level, BlockPos pos) {
         return PlanetLevels.is(level)
                 && (Space.holds(pos.getX(), pos.getZ())
+                        || !level.isClientSide
+                                && dev.starfold.planet.PlanetConditions.airless(level, pos)
                         || aboveAir(pos.getY()) && PlanetAccess.of(level).inChart(pos));
     }
 

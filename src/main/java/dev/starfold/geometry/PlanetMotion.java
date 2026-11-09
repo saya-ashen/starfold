@@ -13,8 +13,7 @@ public final class PlanetMotion {
     public static final double RADIUS = .3,
             HALF = .6,
             SKIN = .002,
-            MIN_DISTANCE = 2,
-            MAX_DISTANCE = 256;
+            MIN_DISTANCE = 2;
     public static final Point ZERO = new Point(0, 0, 0);
 
     private PlanetMotion() {}

@@ -13,9 +13,12 @@ import dev.starfold.worldgen.PlanetTerrain;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.*;
+import java.util.Set;
 
 /** Numeric reproductions of open height strips and the 183.1-altitude view disk cut. */
 class GroundTransitionTest {
+    private static final double R = GroundOrbit.RADIUS;
+
     @Test
     void original183AltitudeClipCutsAFrontFacingVisibleGroundPoint() throws Exception {
         var eye = new Point(1024, 183.1, 1024);
@@ -25,7 +28,7 @@ class GroundTransitionTest {
         double distance = Math.hypot(p.x() - eye.x(), p.z() - eye.z());
         assertTrue(GroundOrbit.direction(Face.SOUTH, source.x(), source.z()).dot(orbit.normal) > 0);
         assertTrue(distance > orbit.clip);
-        assertTrue(distance < GroundTransition.clip(eye.y(), orbit.clip, 128));
+        assertTrue(distance < GroundTransition.clip(eye.y(), orbit.clip, 128, R));
         assertEquals(163.3, orbit.clip, 1);
         var out = Path.of("build/native-transition");
         Files.createDirectories(out);
@@ -36,32 +39,61 @@ class GroundTransitionTest {
                         "{\"eye_height\":183.1,\"face\":4,\"view\":128,\"old_clip\":%.9f,\"sample_distance\":%.9f,\"new_clip\":%.9f,\"front_facing\":true,\"exact_screenshot_reproduced\":false,\"gpu_verified\":false}\n",
                         orbit.clip,
                         distance,
-                        GroundTransition.clip(eye.y(), orbit.clip, 128)));
+                        GroundTransition.clip(eye.y(), orbit.clip, 128, R)));
     }
 
     @Test
-    void nativeRangeExtendsSmoothlyWithoutTouchingTheAcceptedNearGroundRange() {
-        for (double y : new double[] {0, 30, 64, 127, 128})
-            assertEquals(152, GroundTransition.clip(y, 152, 128));
-        assertTrue(GroundTransition.clip(144, 152, 128) > 152);
-        assertTrue(GroundTransition.clip(160, 152, 128) < 400);
-        assertTrue(GroundTransition.clip(320, 152, 128) > 2800);
+    void rangeFogStartsBeyondTheHorizonOnEveryPlanetSize() {
+        // Saya 2026-10-20: descending through 150–250 the far ground faded out before the horizon.
+        for (int size : new int[] {416, 1024, 2048})
+            for (int view : new int[] {128, 256, 512})
+                for (int y = 128; y <= 1088; y++) {
+                    double radius = size * 2 / Math.PI;
+                    double clip = GroundTransition.clip(y, view + 24, view, radius);
+                    assertTrue(clip * .75 > GroundTransition.horizon(y, radius), size + " " + y);
+                }
+    }
+
+    @Test
+    void projectionContainsTheHorizonDiskAndRelief() throws Exception {
+        for (int size : new int[] {256, 1024, 2048})
+            for (int view : new int[] {512, 704, 1024})
+                for (double height : new double[] {0, 73.62, 153.62, GroundOrbit.START}) {
+                    double radius = new dev.starfold.chart.PlanetShape(size).radius();
+                    double reach = GroundTransition.clip(height, view + 24, view, radius);
+                    float far = GroundTransition.depthFar(height, view, radius);
+                    assertTrue(far > Math.hypot(reach, height + 192));
+                    assertTrue(far < 4096); // Ground does not need celestial depth range.
+                }
+        assertTrue(Sources.text("GroundFlightRenderMixin").contains("GroundTransition.depthFar("));
+    }
+
+    @Test
+    void surfaceRangeExtendsWithoutIncreasingTheNativeChunkWindow() {
+        for (int view : new int[] {32, 80, 128, 256, 512}) {
+            assertEquals(512, GroundTransition.surfaceView(view));
+            for (double y : new double[] {0, 30, 64, 127, 128, 144, 160})
+                assertTrue(GroundTransition.clip(y, view + 24, view, R) >= 536);
+        }
+        assertEquals(1024, GroundTransition.surfaceView(1024));
+        assertEquals(1048, GroundTransition.clip(0, 1048, 1024, R));
+        assertTrue(GroundTransition.clip(320, 152, 128, R) > 2800);
         for (int y = 129; y <= 320; y++)
             assertTrue(
-                    GroundTransition.clip(y, 152, 128) - GroundTransition.clip(y - 1, 152, 128)
+                    GroundTransition.clip(y, 152, 128, R)
+                                    - GroundTransition.clip(y - 1, 152, 128, R)
                             < 32);
-        assertEquals(1e30, GroundTransition.clip(2000, Double.POSITIVE_INFINITY, 128));
+        assertEquals(1e30, GroundTransition.clip(2000, Double.POSITIVE_INFINITY, 128, R));
         double prior = 0;
         for (int y = 128; y <= 1088; y++) {
-            double clip = GroundTransition.clip(y, 152, 128);
+            double clip = GroundTransition.clip(y, 152, 128, R);
             assertTrue(clip >= prior);
             prior = clip;
         }
     }
 
     @Test
-    void realBlocksDissolveIntoTheFarTerrainInsideTheLoadedSquareAndBeforeVanillaFog()
-            throws Exception {
+    void realBlocksHandOverInsideTheLoadedSquareOnlyWhenFallbackIsReady() throws Exception {
         for (int far : new int[] {32, 128, 192, 512, 1024}) {
             float[] f = GroundClient.fade(far);
             assertTrue(0 < f[0] && f[0] < f[1] && f[1] <= far - 16);
@@ -75,7 +107,26 @@ class GroundTransitionTest {
                         "smoothstep(CPNativeFade.x,CPNativeFade.y,length(cpNativeRelative.xz))*CPNativeFadeMix"));
         assertTrue(
                 shader.contains("smoothstep(CPNativeFade.z,CPNativeFade.w,-cpNativeRelative.y)"));
-        assertTrue(shader.contains("cpNativeRelative=relative;"));
+        assertTrue(shader.contains("cpNativeRelative=point-CPNativeEye;"));
+        assertTrue(shader.contains("bool deep=far>=1.0,lod=deep;"));
+        assertFalse(GroundShaderSource.FADE.contains("cpNativeDither"));
+        assertTrue(shader.contains("CPNativeLodPass>0.5&&cpNativeDither()>=CPNativeLodFade"));
+        assertFalse(shader.contains("if(CPNativeCoarse<0.5&&cpNativeDither()<far)discard"));
+        assertTrue(shader.contains("if(CPNativeCover>0.5&&owner>0.1)discard;"));
+        assertTrue(shader.contains("-cpNativeRelative.y)*CPNativeFadeMix"));
+        assertTrue(
+                Sources.text("GroundProjectionUniforms")
+                        .contains(
+                                "GroundRenderer.selectionReady()&&GroundRenderer.covered()?(float)GroundTransition.fade(e.y()):0f"));
+    }
+
+    @Test
+    void submittedNativeOwnsWholeColumnsInsteadOfPermanentScreenDoorFade() {
+        for (boolean submitted : new boolean[] {false, true}) {
+            var atlas = GroundOwnership.atlas(GroundOwnership.empty(), submitted ? Set.of(0L) : Set.of());
+            boolean coverDrawn = Byte.toUnsignedInt(atlas[1 + GroundOwnership.SIDE]) < 26;
+            assertNotEquals(submitted, coverDrawn);
+        }
     }
 
     @Test
@@ -120,6 +171,7 @@ class GroundTransitionTest {
         assertEquals(0xffffff, GroundAlbedo.average(new int[] {0xffffffff, 0x00000000}, 0xffffff));
         assertEquals(0xbcbcbc, GroundAlbedo.average(new int[] {0xffffffff, 0xff000000}, 0xffffff));
         assertEquals(0xff00ff, GroundAlbedo.average(new int[] {0}, 0xffffff));
+        assertEquals(0x80c040,GroundAlbedo.average(new int[]{0xffffffff,0x10000000},0x80c040));
     }
 
     @Test
@@ -135,15 +187,18 @@ class GroundTransitionTest {
         var exterior = Sources.text("GroundExterior");
         assertFalse(exterior.contains(".getMapColor("));
         assertTrue(exterior.contains("GroundAlbedo.clear()"));
-        assertTrue(exterior.contains("GroundAlbedo.color(state"));
+        assertTrue(Sources.text("GroundRenderer").contains("GroundAlbedo.color(q.material()"));
     }
 
     @Test
     void rendererClosesColumnSidesAndCachesReadySelectionBorderStrips() throws Exception {
         var source = Sources.text("GroundRenderer");
-        assertTrue(source.contains("columnWalls(builders,face"));
+        assertTrue(source.contains("builders.cover.withTerraces(face,quads,step)"));
+        assertTrue(source.contains("Math.min(h,a)-64"));
+        assertTrue(Sources.text("GroundFarMesh").contains("VoxelMesher.boxes("));
+        assertTrue(Sources.text("VoxelMesher").contains("booleanboundary="));
         assertTrue(source.contains("stitchJob.step(deadline)"));
-        assertTrue(source.contains("!ownership.sameAs(available)"));
+        assertTrue(source.contains("!coverage.ownership.sameAs(available)"));
         assertTrue(source.contains("&&mesh!=stitches[face]"));
         assertTrue(source.contains("stitches[i]=pendingStitches[i]"));
     }
@@ -152,10 +207,14 @@ class GroundTransitionTest {
     void rangeExtensionSharesUniformsWithVertexClipAndReturnsToSkyBeforeTheCut() throws Exception {
         var shader = Sources.text("GroundShaderSource");
         var client = Sources.text("GroundClient");
-        assertTrue(client.contains("GroundTransition.clip(e.y(),gap.clip,view())"));
-        assertTrue(client.contains("GroundTransition.clip(e.y(),orbit.clip,view())"));
+        assertTrue(
+                client.contains("GroundTransition.clip(e.y(),gap.clip,view(),shape().radius())"));
+        assertTrue(
+                client.contains("GroundTransition.clip(e.y(),orbit.clip,view(),shape().radius())"));
         assertTrue(shader.contains("smoothstep(CPNativeRange.x,CPNativeRange.y"));
-        assertTrue(shader.contains("mix(fragColor.rgb,FogColor.rgb,cpNativeRangeFog)"));
+        assertTrue(
+                shader.contains(
+                        "mix(fragColor.rgb,FogColor.rgb,cpNativeRangeFog*CPAtmosphereFog)"));
         assertTrue(
                 shader.contains(
                         "length(point.xz-CPNativeEye.xz)*(1.0-smoothstep(128.0,160.0,CPNativeEye.y))"));

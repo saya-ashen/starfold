@@ -19,6 +19,26 @@ class WeatherTest {
     }
 
     @Test
+    void atmosphereChecksDoNotConvertTheClientPositionTwice() throws Exception {
+        var client = Sources.text("WeatherClient");
+        assertTrue(client.contains("PlanetConditions.airless(level,mc.player.blockPosition())"));
+        assertTrue(
+                client.indexOf("PlanetConditions.airless(")
+                        < client.indexOf("SkyHost.client().storage("));
+        var storage = Sources.text("Weather");
+        assertTrue(
+                storage.contains(
+                        "!level.isClientSide&&dev.starfold.planet.PlanetConditions.airless(level,pos)"));
+        var wiring = Sources.text("StarfoldClient");
+        assertTrue(
+                wiring.contains(
+                        "frame.toStorage(pos),frame.planet(),profile.generation().environment()"));
+        assertTrue(
+                wiring.contains(
+                        "profile.session()!=dev.starfold.flight.GroundFlightClient.session()"));
+    }
+
+    @Test
     void lightningHookIsOnlyTheWeatherPlacementGate() throws Exception {
         var text = Sources.text("WeatherThunderMixin");
         assertTrue(text.contains("method=\"tickChunk\""));

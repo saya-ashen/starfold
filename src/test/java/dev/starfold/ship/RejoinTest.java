@@ -15,7 +15,9 @@ import org.objectweb.asm.tree.*;
 import java.nio.file.*;
 import java.util.*;
 
-/** Regression contracts do not stand in for a real disconnect and client collision reacquisition. */
+/**
+ * Regression contracts do not stand in for a real disconnect and client collision reacquisition.
+ */
 class RejoinTest {
     private static ClassNode type(String name) throws Exception {
         var node = new ClassNode();
@@ -35,7 +37,7 @@ class RejoinTest {
 
     @Test
     void retainedJobsNeverReadTheCurrentObserverMask() throws Exception {
-        var job = type("PlanetRemoteRenderer$Job");
+        var job = type("render/RemotePlanetMeshes$Job");
         assertTrue(
                 job.fields.stream()
                         .anyMatch(
@@ -52,13 +54,13 @@ class RejoinTest {
                                             "dev/starfold/flight/GroundFlightClient")
                                     .contains(call.owner),
                             "a retained job must not consult the new observer");
-        assertTrue(calls("PlanetRemoteRenderer$Job", "<init>").contains("requireNonNull"));
+        assertTrue(calls("render/RemotePlanetMeshes$Job", "<init>").contains("requireNonNull"));
         var s = Sources.text("PlanetRemoteRenderer");
-        assertTrue(s.contains("void work(long deadline){if(mask==null)return;"));
-        assertTrue(s.contains("new Job(building,cursor,mask)"));
+        var meshes = Sources.text("RemotePlanetMeshes");
+        assertTrue(meshes.contains("void work(long deadline){if(mask==null)return;"));
         assertTrue(s.contains("body.mask=mask(profile.session())"));
         assertTrue(s.contains("if(mask!=null)body.mask=mask"));
-        assertTrue(s.contains("mask=null;view=new PlanetRemoteView()"));
+        assertTrue(meshes.contains("mask=null;view=new PlanetRemoteView()"));
     }
 
     @Test

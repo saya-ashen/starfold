@@ -1,0 +1,1112 @@
+{
+  "host": [
+    {
+      "bone": "abdomen",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "bone": "thorax",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        32,
+        0,
+        64,
+        32
+      ]
+    },
+    {
+      "bone": "eggs",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        64,
+        0,
+        96,
+        32
+      ]
+    },
+    {
+      "bone": "neck",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        96,
+        0,
+        128,
+        32
+      ]
+    },
+    {
+      "bone": "head",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        128,
+        0,
+        160,
+        32
+      ]
+    },
+    {
+      "bone": "mouth",
+      "material": "tip",
+      "color_rgba": [
+        27,
+        13,
+        21,
+        255
+      ],
+      "rectangle": [
+        160,
+        0,
+        192,
+        32
+      ]
+    },
+    {
+      "bone": "lips",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        0,
+        224,
+        32
+      ]
+    },
+    {
+      "bone": "teeth",
+      "material": "shell",
+      "color_rgba": [
+        67,
+        43,
+        31,
+        255
+      ],
+      "rectangle": [
+        224,
+        0,
+        256,
+        32
+      ]
+    },
+    {
+      "bone": "rock_0",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        0,
+        32,
+        32,
+        64
+      ]
+    },
+    {
+      "bone": "rock_1",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        32,
+        32,
+        64,
+        64
+      ]
+    },
+    {
+      "bone": "rock_2",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        64,
+        32,
+        96,
+        64
+      ]
+    },
+    {
+      "bone": "rock_3",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        96,
+        32,
+        128,
+        64
+      ]
+    },
+    {
+      "bone": "rock_4",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        128,
+        32,
+        160,
+        64
+      ]
+    },
+    {
+      "bone": "rock_5",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        160,
+        32,
+        192,
+        64
+      ]
+    },
+    {
+      "bone": "rock_6",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        32,
+        224,
+        64
+      ]
+    },
+    {
+      "bone": "rock_7",
+      "material": "rock",
+      "color_rgba": [
+        43,
+        38,
+        36,
+        255
+      ],
+      "rectangle": [
+        224,
+        32,
+        256,
+        64
+      ]
+    },
+    {
+      "bone": "engine_l",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        0,
+        64,
+        32,
+        96
+      ]
+    },
+    {
+      "bone": "ribs_l",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        32,
+        64,
+        64,
+        96
+      ]
+    },
+    {
+      "bone": "blaze_l",
+      "material": "engine",
+      "color_rgba": [
+        246,
+        115,
+        155,
+        255
+      ],
+      "rectangle": [
+        64,
+        64,
+        96,
+        96
+      ]
+    },
+    {
+      "bone": "vent_l",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        96,
+        64,
+        128,
+        96
+      ]
+    },
+    {
+      "bone": "legs_l",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        128,
+        64,
+        160,
+        96
+      ]
+    },
+    {
+      "bone": "thruster_l",
+      "material": "engine",
+      "color_rgba": [
+        246,
+        115,
+        155,
+        255
+      ],
+      "rectangle": [
+        160,
+        64,
+        192,
+        96
+      ]
+    },
+    {
+      "bone": "thruster_ribs_l",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        64,
+        224,
+        96
+      ]
+    },
+    {
+      "bone": "engine_r",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        224,
+        64,
+        256,
+        96
+      ]
+    },
+    {
+      "bone": "ribs_r",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        0,
+        96,
+        32,
+        128
+      ]
+    },
+    {
+      "bone": "blaze_r",
+      "material": "engine",
+      "color_rgba": [
+        246,
+        115,
+        155,
+        255
+      ],
+      "rectangle": [
+        32,
+        96,
+        64,
+        128
+      ]
+    },
+    {
+      "bone": "vent_r",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        64,
+        96,
+        96,
+        128
+      ]
+    },
+    {
+      "bone": "legs_r",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        96,
+        96,
+        128,
+        128
+      ]
+    },
+    {
+      "bone": "thruster_r",
+      "material": "engine",
+      "color_rgba": [
+        246,
+        115,
+        155,
+        255
+      ],
+      "rectangle": [
+        128,
+        96,
+        160,
+        128
+      ]
+    },
+    {
+      "bone": "thruster_ribs_r",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        160,
+        96,
+        192,
+        128
+      ]
+    },
+    {
+      "bone": "ground_0",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        96,
+        224,
+        128
+      ]
+    },
+    {
+      "bone": "ground_tip_0",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        224,
+        96,
+        256,
+        128
+      ]
+    },
+    {
+      "bone": "hang_0",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        0,
+        128,
+        32,
+        160
+      ]
+    },
+    {
+      "bone": "hang_tip_0",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        32,
+        128,
+        64,
+        160
+      ]
+    },
+    {
+      "bone": "ground_1",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        64,
+        128,
+        96,
+        160
+      ]
+    },
+    {
+      "bone": "ground_tip_1",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        96,
+        128,
+        128,
+        160
+      ]
+    },
+    {
+      "bone": "hang_1",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        128,
+        128,
+        160,
+        160
+      ]
+    },
+    {
+      "bone": "hang_tip_1",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        160,
+        128,
+        192,
+        160
+      ]
+    },
+    {
+      "bone": "ground_2",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        128,
+        224,
+        160
+      ]
+    },
+    {
+      "bone": "ground_tip_2",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        224,
+        128,
+        256,
+        160
+      ]
+    },
+    {
+      "bone": "hang_2",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        0,
+        160,
+        32,
+        192
+      ]
+    },
+    {
+      "bone": "hang_tip_2",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        32,
+        160,
+        64,
+        192
+      ]
+    },
+    {
+      "bone": "ground_3",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        64,
+        160,
+        96,
+        192
+      ]
+    },
+    {
+      "bone": "ground_tip_3",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        96,
+        160,
+        128,
+        192
+      ]
+    },
+    {
+      "bone": "hang_3",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        128,
+        160,
+        160,
+        192
+      ]
+    },
+    {
+      "bone": "hang_tip_3",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        160,
+        160,
+        192,
+        192
+      ]
+    },
+    {
+      "bone": "ground_4",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        160,
+        224,
+        192
+      ]
+    },
+    {
+      "bone": "ground_tip_4",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        224,
+        160,
+        256,
+        192
+      ]
+    },
+    {
+      "bone": "hang_4",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        0,
+        192,
+        32,
+        224
+      ]
+    },
+    {
+      "bone": "hang_tip_4",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        32,
+        192,
+        64,
+        224
+      ]
+    },
+    {
+      "bone": "ground_5",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        64,
+        192,
+        96,
+        224
+      ]
+    },
+    {
+      "bone": "ground_tip_5",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        96,
+        192,
+        128,
+        224
+      ]
+    },
+    {
+      "bone": "hang_5",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        128,
+        192,
+        160,
+        224
+      ]
+    },
+    {
+      "bone": "hang_tip_5",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        160,
+        192,
+        192,
+        224
+      ]
+    },
+    {
+      "bone": "ground_6",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        192,
+        192,
+        224,
+        224
+      ]
+    },
+    {
+      "bone": "ground_tip_6",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        224,
+        192,
+        256,
+        224
+      ]
+    },
+    {
+      "bone": "hang_6",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        0,
+        224,
+        32,
+        256
+      ]
+    },
+    {
+      "bone": "hang_tip_6",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        32,
+        224,
+        64,
+        256
+      ]
+    },
+    {
+      "bone": "ground_7",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        64,
+        224,
+        96,
+        256
+      ]
+    },
+    {
+      "bone": "ground_tip_7",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        96,
+        224,
+        128,
+        256
+      ]
+    },
+    {
+      "bone": "hang_7",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        128,
+        224,
+        160,
+        256
+      ]
+    },
+    {
+      "bone": "hang_tip_7",
+      "material": "tendon",
+      "color_rgba": [
+        78,
+        22,
+        36,
+        255
+      ],
+      "rectangle": [
+        160,
+        224,
+        192,
+        256
+      ]
+    }
+  ],
+  "host_sac": [
+    {
+      "bone": "sac",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "bone": "collar",
+      "material": "shell",
+      "color_rgba": [
+        67,
+        43,
+        31,
+        255
+      ],
+      "rectangle": [
+        32,
+        0,
+        64,
+        32
+      ]
+    },
+    {
+      "bone": "cap",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        64,
+        0,
+        96,
+        32
+      ]
+    }
+  ],
+  "host_drone": [
+    {
+      "bone": "body",
+      "material": "flesh",
+      "color_rgba": [
+        108,
+        28,
+        43,
+        255
+      ],
+      "rectangle": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "bone": "shell",
+      "material": "shell",
+      "color_rgba": [
+        67,
+        43,
+        31,
+        255
+      ],
+      "rectangle": [
+        32,
+        0,
+        64,
+        32
+      ]
+    },
+    {
+      "bone": "wing_l",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        64,
+        0,
+        96,
+        32
+      ]
+    },
+    {
+      "bone": "wing_r",
+      "material": "membrane",
+      "color_rgba": [
+        186,
+        64,
+        99,
+        255
+      ],
+      "rectangle": [
+        96,
+        0,
+        128,
+        32
+      ]
+    }
+  ]
+}

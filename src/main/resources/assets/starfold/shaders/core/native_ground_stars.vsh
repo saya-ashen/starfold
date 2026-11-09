@@ -3,6 +3,7 @@ in vec3 Position;
 in vec4 Color;
 uniform mat4 ModelViewMat, ProjMat;
 uniform vec3 SpaceLens;
+uniform float DepthFar;
 out float spaceFacing;
 out vec4 vertexColor;
 vec4 spaceProject(vec4 view) {
@@ -23,6 +24,6 @@ vec4 spaceProject(vec4 view) {
 }
 void main() {
     gl_Position=spaceProject(ModelViewMat*vec4(Position,1));
-    gl_Position.z=gl_Position.w*(1.0-0.000001);
+    gl_Position.z=gl_Position.w*(1.0-0.000001)*DepthFar;
     vertexColor=Color;
 }

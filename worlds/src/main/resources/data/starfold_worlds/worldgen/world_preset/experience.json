@@ -1,0 +1,23 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "minecraft:noise",
+        "settings": "minecraft:overworld",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:overworld"
+        }
+      }
+    },
+    "starfold:native_planet": {
+      "type": "starfold:native_deep",
+      "generator": {
+        "type": "starfold:native_system",
+        "storage_layout": "six_face_square_v2",
+        "system": "starfold_worlds:experience"
+      }
+    }
+  }
+}

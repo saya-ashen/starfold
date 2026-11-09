@@ -1,0 +1,21 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "starfold_biotech:block/resin"
+      },
+      {
+        "model": "starfold_biotech:block/resin",
+        "y": 90
+      },
+      {
+        "model": "starfold_biotech:block/resin",
+        "y": 180
+      },
+      {
+        "model": "starfold_biotech:block/resin",
+        "y": 270
+      }
+    ]
+  }
+}

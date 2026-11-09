@@ -1,0 +1,11 @@
+wait 300
+createworld
+wait 100
+createworld go
+waitworld
+cmd starfold status
+nav first
+wait 200
+nav later
+shot spawn-planet-first
+quit

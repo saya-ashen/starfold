@@ -2,9 +2,6 @@ package dev.starfold.ship;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
-import dev.ryanhcode.sable.network.packets.ClientboundSableSnapshotDualPacket;
-import dev.ryanhcode.sable.network.packets.tcp.ClientboundRecentlySplitSubLevelPacket;
-import dev.ryanhcode.sable.network.packets.tcp.ClientboundStartTrackingSubLevelPacket;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.ChartLabSpace;
@@ -13,12 +10,11 @@ import dev.starfold.ground.GroundSeams;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.ground.PacketMap;
-import dev.starfold.ground.PayloadMap;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 
@@ -26,8 +22,6 @@ import net.minecraft.server.level.ServerPlayer;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
-import org.joml.Vector3fc;
 
 import java.util.ArrayList;
 
@@ -63,8 +57,7 @@ public final class SableFrames {
                 (net.neoforged.neoforge.event.server.ServerStoppedEvent event) -> {
                     RELIABLE.clear();
                     CARRYING.clear();
-                    WEIGHING.clear();
-                    FLOATING.clear();
+                    HullPhysics.clear();
                     ABOARD_OF.clear();
                     SableTickets.clear();
                 });
@@ -103,56 +96,11 @@ public final class SableFrames {
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent event) ->
-                        weighPre(event.getPhysicsSystem(), event.getTimeStep()));
+                        HullPhysics.weighPre(event.getPhysicsSystem(), event.getTimeStep()));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (dev.ryanhcode.sable.neoforge.event.ForgeSablePostPhysicsTickEvent event) ->
-                        weighPost(event.getPhysicsSystem()));
-        PayloadMap.register(
-                ClientboundStartTrackingSubLevelPacket.class,
-                (p, f, s) -> {
-                    var last = pose(p, f, s.lastPose());
-                    var now = pose(p, f, s.pose());
-                    return last == s.lastPose() && now == s.pose()
-                            ? s
-                            : new ClientboundStartTrackingSubLevelPacket(
-                                    s.plotCoordinate(),
-                                    s.subLevelID(),
-                                    last,
-                                    new Pose3d(now),
-                                    s.bounds(),
-                                    s.name(),
-                                    s.gameTick());
-                });
-        PayloadMap.register(
-                ClientboundRecentlySplitSubLevelPacket.class,
-                (p, f, s) -> {
-                    var at = pose(p, f, s.pose());
-                    return at == s.pose()
-                            ? s
-                            : new ClientboundRecentlySplitSubLevelPacket(
-                                    s.splitSubLevelID(), s.splitFromID(), new Pose3d(at));
-                });
-        PayloadMap.register(
-                ClientboundSableSnapshotDualPacket.class,
-                (p, f, s) -> {
-                    var entries = new ArrayList<ClientboundSableSnapshotDualPacket.Entry>();
-                    for (var e : s.entries()) {
-                        var at = pose(p, f, e.pose());
-                        int t = turns(p, f, e.pose());
-                        // UDP encodes later. Even an identity observer needs a copy: move mutates
-                        // the live pose in place.
-                        entries.add(
-                                new ClientboundSableSnapshotDualPacket.Entry(
-                                        e.plotCoordinate(),
-                                        new Pose3d(at),
-                                        turn(e.linearVelocity(), t),
-                                        turn(e.angularVelocity(), t)));
-                    }
-                    return new ClientboundSableSnapshotDualPacket(
-                            ((dev.starfold.mixin.SableSnapshotAccess) (Object) s)
-                                    .starfold$interpolationTick(),
-                            entries);
-                });
+                        HullPhysics.weighPost(event.getPhysicsSystem()));
+        SableObserverPackets.register();
     }
 
     /** Whom a body carries: whoever stands on it, and for a moment after whoever stood on it and is still by it. A jump,
@@ -168,8 +116,11 @@ public final class SableFrames {
     public static dev.ryanhcode.sable.sublevel.ServerSubLevel aboard(
             net.minecraft.world.entity.Entity entity) {
         long tick = entity.level().getGameTime();
+        // An emptied body is marked removed and loses its Rapier body before the container drops
+        // it; tracking can still name it. Callers read its velocity, so it is nobody's hull.
         if (dev.ryanhcode.sable.Sable.HELPER.getTrackingSubLevel(entity)
-                instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+                        instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel body
+                && !body.isRemoved()) {
             ABOARD_OF.put(entity, new Aboard(body, tick));
             return body;
         }
@@ -201,6 +152,27 @@ public final class SableFrames {
             return null;
         }
         return was.body();
+    }
+
+    /** Whether a live hull's world box, as this player's chart draws it, is within distance. */
+    public static boolean near(ServerPlayer player, double distance) {
+        var container =
+                dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(player.level());
+        if (container == null) return false;
+        for (var candidate : container.getAllSubLevels()) {
+            if (!(candidate instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel body)
+                    || body.isRemoved()) continue;
+            var b = body.boundingBox();
+            var image =
+                    GroundSeams.box(
+                            player.level(),
+                            new net.minecraft.world.phys.AABB(
+                                    b.minX(), b.minY(), b.minZ(), b.maxX(), b.maxY(), b.maxZ()),
+                            player.getX(),
+                            player.getZ());
+            if (image != null && SableTickets.near(image, player.position(), distance)) return true;
+        }
+        return false;
     }
 
     /** Test in plot coordinates: the bounds follow the full pose, not a fixed radius or a world-axis box. */
@@ -254,202 +226,6 @@ public final class SableFrames {
         return ticks <= ABOARD && distance <= REACH;
     }
 
-    /** Position weight of Sable 2.0.5's native step: two 0.025 s sub-steps, gravity 11.
-     *  PRE-only rose 0.130005 blocks/s over 60 s with velocity ~0: a=0.130005/0.275=0.47275.
-     *  The 42 sub-step pose measurements averaged 0.47267 (spread 0.0236 from float quantisation).
-     *  tools/probe/rocket-hover.txt re-measures the drift this cancellation is meant to remove. */
-    static final double POSITION_WEIGHT = 0.47275;
-
-    /** POST consumes PRE's world impulse snapshot: same lost weight, mass, gravity, drag and dt in both phases. */
-    private static final java.util.Map<
-                    dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem,
-                    java.util.Map<dev.ryanhcode.sable.sublevel.ServerSubLevel, Vector3d>>
-            WEIGHING = new java.util.WeakHashMap<>();
-
-    private static final java.util.Map<dev.ryanhcode.sable.sublevel.ServerSubLevel, Double>
-            FLOATING = new java.util.WeakHashMap<>();
-
-    private static void weighPre(
-            dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics, double step) {
-        WEIGHING.remove(physics);
-        var level = physics.getLevel();
-        if (!PlanetLevels.is(level)) return;
-        var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
-        if (container == null) return;
-        var pending =
-                new java.util.IdentityHashMap<
-                        dev.ryanhcode.sable.sublevel.ServerSubLevel, Vector3d>();
-        double c =
-                dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
-                                .getUniversalDrag(level)
-                        * step;
-        for (var body : container.getAllSubLevels()) {
-            if (body.isRemoved() || pending.containsKey(body)) continue;
-            var at = body.logicalPose().position();
-            double weight = HullWeight.at(level, new BentStripGeometry.Point(at.x, at.y, at.z));
-            double lost = 1 - weight * LiftControl.HULL_GRAVITY;
-            double mass = body.getMassTracker().getMass();
-            var impulses =
-                    weighPair(
-                            dev.ryanhcode.sable.physics.config.dimension_physics
-                                    .DimensionPhysicsData.getGravity(level),
-                            lost,
-                            mass,
-                            step,
-                            c);
-            pending.put(body, impulses.post());
-            if (lost > 0) weigh(physics, body, impulses.pre());
-            LiftServer.pre(physics, body, step, c);
-            // Only actual fluid contact may supply external support; no airborne velocity clamp.
-            land(level, container, body, false, mass > 0 ? impulses.pre().y / mass : 0);
-        }
-        WEIGHING.put(physics, pending);
-    }
-
-    private static void weighPost(
-            dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics) {
-        var pending = WEIGHING.remove(physics);
-        if (pending == null) return;
-        for (var entry : pending.entrySet()) {
-            var body = entry.getKey();
-            Double floor = FLOATING.remove(body);
-            if (body.isRemoved()) continue;
-            if (entry.getValue().lengthSquared() > 0) weigh(physics, body, entry.getValue());
-            LiftServer.post(physics, body);
-            // Enforce zero downward displacement too: native float integration can creep despite
-            // zero speed.
-            // This is the preceding submerged pose, never a lift to the water height (including a
-            // sunken start).
-            if (floor != null) {
-                var at = body.logicalPose().position();
-                if (at.y < floor)
-                    physics.getPipeline()
-                            .teleport(
-                                    body,
-                                    new Vector3d(at.x, HullLanding.supportedY(floor, at.y), at.z),
-                                    body.logicalPose().orientation());
-            }
-        }
-    }
-
-    record WeightPair(Vector3d pre, Vector3d post) {}
-
-    static WeightPair weighPair(Vector3d gravity, double lost, double mass, double step, double c) {
-        var G = new Vector3d(gravity).mul(-lost * mass * step);
-        var p =
-                new Vector3d(G)
-                        .mul(
-                                (1 - POSITION_WEIGHT)
-                                        / (POSITION_WEIGHT * (1 + c) + (1 - POSITION_WEIGHT)));
-        var q = new Vector3d(G).sub(p).div(1 + c);
-        return new WeightPair(p, q);
-    }
-
-    private static void weigh(
-            dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics,
-            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
-            Vector3d impulse) {
-        physics.getPhysicsHandle(body)
-                .applyLinearImpulse(
-                        body.logicalPose().transformNormalInverse(impulse, new Vector3d()));
-    }
-
-    /** Hold drift once per game tick, outside gravity; let upward thrust gather climb speed, not horizontal speed. */
-    private static void damp(
-            net.minecraft.server.level.ServerLevel level,
-            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
-            dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
-        var at = body.logicalPose().position();
-        double weight = HullWeight.at(level, new BentStripGeometry.Point(at.x, at.y, at.z));
-        boolean steadied = Thrusters.steadied(body, level.getGameTime());
-        if (steadied && weight > 0) {
-            var held = container.physicsSystem().getPipeline();
-            boolean chart =
-                    !Space.holds(at.x, at.z)
-                            && PlanetAccess.of(level)
-                                    .inChart(
-                                            net.minecraft.core.BlockPos.containing(
-                                                    at.x, GroundCoordinates.FLOOR, at.z));
-            var push = Thrusters.push(body, level.getGameTime());
-            held.addLinearAndAngularVelocity(
-                    body,
-                    drift(
-                            held.getLinearVelocity(body, new Vector3d()),
-                            weight,
-                            chart
-                                    ? horizontalHold(body.logicalPose().orientation(), push)
-                                    : Thrusters.HOLD),
-                    new Vector3d());
-        }
-    }
-
-    /** Unlike drift holding, landing protection also works above the air and without a pilot. */
-    private static void land(
-            net.minecraft.server.level.ServerLevel level,
-            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
-            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
-            boolean sample) {
-        land(level, container, body, sample, 0);
-    }
-
-    private static void land(
-            net.minecraft.server.level.ServerLevel level,
-            dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
-            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
-            boolean sample,
-            double weightCancellation) {
-        var at = body.logicalPose().position();
-        if (Space.holds(at.x, at.z)
-                || !Thrusters.steadied(body, level.getGameTime())
-                || !PlanetAccess.of(level)
-                        .inChart(
-                                net.minecraft.core.BlockPos.containing(
-                                        at.x, GroundCoordinates.FLOOR, at.z))) return;
-        var box = HullLanding.bounds(body);
-        var ground = HullLanding.ground(body);
-        double clearance = ground.clearance();
-        var pipeline = container.physicsSystem().getPipeline();
-        var velocity = pipeline.getLinearVelocity(body, new Vector3d());
-        // At fluid contact preserve the PRE weight cancellation: native gravity has yet to
-        // integrate it.
-        if (!ground.fluid() || clearance > 0) return;
-        double support = weightCancellation;
-        if (support > 0) FLOATING.put(body, at.y);
-        double allowed = -support;
-        if (allowed < -velocity.y)
-            pipeline.addLinearAndAngularVelocity(
-                    body, new Vector3d(0, -allowed - velocity.y, 0), new Vector3d());
-        if (sample && Boolean.getBoolean("starfold.carryProbe") && level.getGameTime() % 10 == 0)
-            org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                    .info(
-                            "PROBE LAND tick {} pos {} {} {} bottom {} clearance {} vy {} allowed {} horizontal {} up {}",
-                            level.getGameTime(),
-                            at.x,
-                            at.y,
-                            at.z,
-                            box.minY(),
-                            clearance,
-                            velocity.y,
-                            allowed,
-                            Math.hypot(velocity.x, velocity.z),
-                            body.logicalPose().orientation().transform(new Vector3d(0, 1, 0)).y);
-    }
-
-    static final double HOLD_STILL = 4;
-
-    /** Read the summed push in the body's axes: deck tilt is not a request to cruise sideways. */
-    static double horizontalHold(org.joml.Quaterniondc orientation, BentStripGeometry.Point push) {
-        var local = orientation.transformInverse(new Vector3d(push.x(), push.y(), push.z()));
-        return local.lengthSquared() == 0 || Math.hypot(local.x, local.z) < .1 * local.length()
-                ? HOLD_STILL
-                : Thrusters.HOLD;
-    }
-
-    static Vector3d drift(Vector3d velocity, double weight, double horizontalHold) {
-        return new Vector3d(velocity.x * horizontalHold, 0, velocity.z * horizontalHold)
-                .mul(-weight / 20);
-    }
-
     /** A body that has drifted into its chart's halo is moved to the chart that owns the place, whole: pose, motion
      *  and everyone standing on it, by one transport. */
     static void cross(net.minecraft.server.level.ServerLevel level) {
@@ -463,8 +239,8 @@ public final class SableFrames {
         for (var body : java.util.List.copyOf(container.getAllSubLevels())) {
             if (body.isRemoved()) continue;
             var at = body.logicalPose().position();
-            damp(level, container, body);
-            land(level, container, body, true);
+            HullPhysics.damp(level, container, body);
+            HullPhysics.land(level, container, body, true);
             if (Boolean.getBoolean("starfold.carryProbe")
                     && level.getGameTime() % 20 == 0
                     && !body.getTrackingPlayers().isEmpty()) {
@@ -531,7 +307,7 @@ public final class SableFrames {
         int planet = access.storagePlanet(at.x, at.z);
         if (!Space.leaves(clock.model.body(planet), point.y())) return;
         var pose =
-                new PlanetShape.Pose(CubeSurfaceTopology.Face.values()[access.face(at.x)], point);
+                new PlanetShape.Pose(CubeSurfaceTopology.Face.VALUES[access.face(at.x)], point);
         var universe =
                 Space.out(
                         clock.model,
@@ -581,7 +357,7 @@ public final class SableFrames {
         var anchor = access.bodyAnchor(planet, arrival.pose());
         boolean full = ShipHost.get().landingLoaded(level, anchor);
         if (!ShipHost.get().landingReady(clock.model.body(planet), height, full)) return;
-        if (ArrivalProbe.ENABLED)
+        if (DevelopmentHooks.arrival.enabled())
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
                             "PROBE ARRIVAL_HANDOVER wall {} tick {} game {} planet {} height {} full {} branch {} column {}",
@@ -593,7 +369,7 @@ public final class SableFrames {
                             full,
                             full ? "full" : "emergency",
                             ShipHost.get().landingColumn(anchor));
-        long start = ArrivalProbe.start();
+        long start = DevelopmentHooks.arrival.start();
         try {
             move(
                     level,
@@ -604,7 +380,7 @@ public final class SableFrames {
             ShipHost.get().hullEnteredChart(level, body.getUniqueId().toString());
             ShipHost.get().hullArrived(level, body);
         } finally {
-            ArrivalProbe.end("carry", start);
+            DevelopmentHooks.arrival.end("carry", start);
         }
     }
 
@@ -834,25 +610,14 @@ public final class SableFrames {
         return Math.hypot(f.x, f.z) < 1e-6 ? yaw : (float) Math.toDegrees(Math.atan2(-f.x, f.z));
     }
 
-    private static int turns(ServerPlayer p, ObserverFrame f, Pose3dc pose) {
-        var at = pose.position();
-        return PacketMap.turns(PlanetAccess.of(p.level()), f, at.x(), at.y(), at.z());
-    }
-
     /** A quarter turn of the plane as a rotation: {@link ChartLabSpace#rotate} carries +X to +Z. */
     static Quaterniond turn(int turns) {
         return new Quaterniond().rotateY(-Math.PI / 2 * Math.floorMod(turns, 4));
     }
 
-    private static Vector3fc turn(Vector3fc v, int turns) {
-        var r = ChartLabSpace.rotate(new BentStripGeometry.Point(v.x(), v.y(), v.z()), turns);
-        return new Vector3f((float) r.x(), (float) r.y(), (float) r.z());
-    }
-
     /** The same pose where the observer sees it as the server holds it, or where their chart does not show that place. */
-    static Pose3dc pose(ServerPlayer p, ObserverFrame f, Pose3dc pose) {
-        var at = pose.position();
-        return pose(PacketMap.plane(p, f, at.x(), at.y(), at.z()), turns(p, f, pose), pose);
+    static Pose3dc pose(ServerPlayer player, ObserverFrame frame, Pose3dc pose) {
+        return SableObserverPackets.pose(player, frame, pose);
     }
 
     public static Pose3dc pose(BentStripGeometry.Point image, int t, Pose3dc pose) {

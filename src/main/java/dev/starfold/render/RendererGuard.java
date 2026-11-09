@@ -17,6 +17,16 @@ public final class RendererGuard {
         return RendererCompatibility.supported(loader::isLoaded);
     }
 
+    /** Vanilla's camera fog type only knows water, lava and powder snow; modded fluids count as submerged too. */
+    public static boolean submerged(net.minecraft.client.Camera camera) {
+        if (camera.getFluidInCamera() != net.minecraft.world.level.material.FogType.NONE) return true;
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) return false;
+        var pos = camera.getBlockPosition();
+        var fluid = level.getFluidState(pos);
+        return !fluid.isEmpty() && camera.getPosition().y < pos.getY() + fluid.getHeight(level, pos);
+    }
+
     public static void initialize() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Post cpEvent) -> {

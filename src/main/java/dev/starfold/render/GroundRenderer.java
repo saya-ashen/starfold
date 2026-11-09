@@ -1,11 +1,20 @@
 package dev.starfold.render;
 
+import dev.starfold.storage.ChunkKeys;
+
+import static dev.starfold.render.GroundMeshVertices.*;
+import static dev.starfold.render.GroundTerrainMeshes.*;
+
+import static dev.starfold.render.GroundMeshScheduler.completed;
+import static dev.starfold.render.GroundMeshScheduler.lodFov;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.PlanetChart;
+import dev.starfold.chart.PlanetGap;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.flight.GroundFlightServer;
@@ -13,12 +22,12 @@ import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.planet.Anomaly;
 import dev.starfold.planet.GroundTopology;
-import dev.starfold.probe.ArrivalClientState;
-import dev.starfold.probe.ArrivalProbe;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.space.RenderFrame;
 import dev.starfold.universe.PlanetPackets;
 import dev.starfold.worldgen.PlanetTerrain;
 import dev.starfold.worldgen.PlanetTint;
+import dev.starfold.worldgen.lod.*;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.*;
@@ -31,6 +40,7 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.AABB;
 
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.*;
@@ -39,77 +49,137 @@ import java.util.*;
 
 /** Derived native models plus conservative surface coverage. No material/name placement ledger. */
 public final class GroundRenderer {
-    private record Mesh(
-            long revision,
-            Map<RenderType, VertexBuffer> layers,
-            long bytes,
-            GroundViewCache.Surface surface,
-            GroundCoverSnapshot cover) {
-        void close() {
-            for (var buffer : layers.values()) buffer.close();
-        }
+    private static void changedLod(long key, LodTile tile) {
+        int groupKey = GroundLodGroup.key(key);
+        var group = lodGroups.computeIfAbsent(groupKey, k -> new GroundLodGroup<>());
+        group.update(key, tile);
+        lodDrawCache.invalidate(group);
+        if (group.members.isEmpty()) {
+            lodGroups.remove(groupKey);
+            lodCompactions.remove(group);
+        } else lodCompactions.add(group);
+    }
+    private static final LinkedHashSet<Long> lodMaintenance = new LinkedHashSet<>();
+    private static final ArrayDeque<Long> lodFades = new ArrayDeque<>();
+    private static final PriorityQueue<GroundLodSelection.Tile> lodRequests =
+            new PriorityQueue<>(GroundLodSelection.REBUILD_ORDER);
+    private static final Set<Long> lodQueued = new HashSet<>();
+    private static final BitSet lodComplete = new BitSet();
+    private static GroundLodSelection lodSelection = new GroundLodSelection();
+    private static GroundLodSelection.Refresh lodRefresh = new GroundLodSelection.Refresh();
+    private static PlanetShape.Pose selectionPose;
+    private static BentStripGeometry.Point selectionCamera;
+    private static long selectionVersion, selectionNow;
+    private static int farRemaining, maintenanceRemaining;
+    private static boolean selectionChanged, lodStarted;
+    // CPU meshing runs off the render thread; only GL upload stays here.
+    private static final int LOD_THREADS =
+            Math.clamp(Runtime.getRuntime().availableProcessors() / 3, 1, 6);
+    private static final GroundMeshScheduler lodWorkers = GroundMeshScheduler.shared;
+    private static final List<LodJob> lodJobs = new ArrayList<>();
+    private static long lodBytes;
+    private static boolean lodAtlasDirty;
+    private static double lodPressure = Double.POSITIVE_INFINITY;
+
+    private static long lodBytes(Mesh mesh) {
+        if (mesh == null) return 0;
+        return mesh.bytes
+                + (mesh.surface == null
+                        ? 0
+                        : mesh.surface.memoryBytes()
+                                + (mesh.surface.voxels() == null
+                                        ? 0
+                                        : mesh.surface.voxels().memoryBytes()));
     }
 
-    private static final Map<Long, Mesh> detail = new LinkedHashMap<>(),
-            stagedDetails = new LinkedHashMap<>();
-    private static final Set<Long> dirtyDetails = new HashSet<>();
-    private static final Map<Long, Long> measuredDetails = new HashMap<>();
-
-    private static void clearDetails() {
-        for (var m : detail.values()) m.close();
-        detail.clear();
-        for (var m : stagedDetails.values()) m.close();
-        stagedDetails.clear();
-        dirtyDetails.clear();
-        measuredDetails.clear();
+    private static void closeLodMesh(Mesh mesh) {
+        if (mesh == null) return;
+        lodBytes -= lodBytes(mesh) - mesh.bytes;
+        mesh.close();
     }
 
-    /** Closure meshes: 0-5 each face's own squares, 6-11 the wedge an unfolded plane leaves open beside them. */
-    private static final Mesh[] masks = new Mesh[12],
-            stitches = new Mesh[6],
-            parents = new Mesh[6],
-            patches = new Mesh[GroundViewPolicy.PATCH_COUNT],
-            staging = new Mesh[GroundViewPolicy.PATCH_COUNT];
+    private static void clearLod() {
+        for (var job : lodJobs) job.close();
+        lodJobs.clear();
+        clearLodBuffers();
+        lodMaintenance.clear();
+        lodFades.clear();
+        lodRequests.clear();
+        lodQueued.clear();
+        lodComplete.clear();
+        lodBytes = 0;
+        lodSelection = new GroundLodSelection();
+        lodRefresh = new GroundLodSelection.Refresh();
+        farRemaining = maintenanceRemaining = 0;
+        lodStarted = false;
+        lodAtlasDirty = true;
+        lodPressure = Double.POSITIVE_INFINITY;
+    }
+
+
+    // Only pure current geometry is cached: packed buffers never accumulate older generations.
+    // shortcut: faded vertices remain in the buffer; compact only if vertex bandwidth is measured
+    // as a bottleneck.
+    private static final Map<Integer, List<VoxelMesher.Quad>> patchQuads = new HashMap<>(),
+            stagedQuads = new HashMap<>();
+    private static final boolean[] patchPaired = new boolean[GroundViewPolicy.PATCH_COUNT],
+            stagedPaired = new boolean[GroundViewPolicy.PATCH_COUNT];
+
+    private static final long[] patchCommitted = new long[GroundViewPolicy.PATCH_COUNT];
+    private static final int[] patchLevels = new int[GroundViewPolicy.PATCH_COUNT],
+            builtLevels = new int[GroundViewPolicy.PATCH_COUNT],
+            drawnLevels = new int[GroundViewPolicy.PATCH_COUNT];
 
     private static final GroundCoverSnapshot[] coverInputs =
             new GroundCoverSnapshot[GroundViewPolicy.PATCH_COUNT];
     private static ParentJob parentJob;
     private static Mesh[] pendingStitches;
     private static StitchJob pendingJob;
-    private static GroundOwnership.Snapshot ownership = GroundOwnership.empty();
+    private static GroundOwnership.Snapshot residentOwnership = GroundOwnership.empty();
+    private static GroundOwnership.Snapshot availableOwnership = GroundOwnership.empty();
     private static long coverEpoch, stagedEpoch;
     private static int nativeFace = -1;
     private static boolean selectionActive;
     private static long selectionWork;
-    private static final GroundViewPolicy.DirtyPatches dirty =
-            new GroundViewPolicy.DirtyPatches(GroundClient::shape);
+    /** Development probe switch: the far view neither builds nor draws, vanilla terrain only. */
+    public static boolean probeOff;
+    /** Development probe totals over a sampling window: CPU and GPU time of the far draw, draws, tiles visited. */
+    public static boolean probeTiming;
+    public static long probeCpuNanos, probeGpuNanos, probeMultiNanos, probeSkyNanos, probePrepNanos;
+    public static int probeDraws, probeTiles, probeSubDraws, probeGroups, probeCompactGroups;
+    private static final int[] probeQueries = new int[8];
+    private static int probeQuery;
+    private static final GroundViewPolicy.CohortPatches dirty =
+            new GroundViewPolicy.CohortPatches(GroundClient::shape);
+    private static GroundCoverSnapshot coverCohort;
     private static BitSet priorCoverage = new BitSet();
-    private static Set<Long> wanted = Set.of(), window = Set.of(), publishedWindow = Set.of();
-    private static DetailJob job;
-    private static CoverJob coverJob;
+    private static Set<Long> window = Set.of();
+    // Several far patches in flight: one at a time costs a few frames each, about a minute per cohort.
+    private static final List<CoverJob> coverJobs = new ArrayList<>();
     private static StitchJob stitchJob;
     private static boolean stitchDirty = true;
     private static long frameWork, lastCells;
-    private static int uploads, coverageTexture;
+    private static int uploads;
+    private static final GroundCoverage coverage = new GroundCoverage();
     private static net.minecraft.client.multiplayer.ClientLevel level;
     private static GroundSpace.Config mask;
     private static boolean ready;
     private static int planet = -1;
 
     public static boolean covered() {
-        return level == Minecraft.getInstance().level && ready && GroundExterior.ready();
+        return level == Minecraft.getInstance().level
+                && planet == GroundClient.planet()
+                && GroundClient.shape().equals(shape)
+                && ready
+                && GroundExterior.ready();
     }
 
     public static boolean selectionReady() {
-        return selectionActive && coverageTexture != 0;
-    }
-
-    public static boolean replacesNative() {
-        return GroundClient.replacesNative();
+        return selectionActive && coverage.texture() != 0;
     }
 
     public static int coverageTexture() {
-        return coverageTexture;
+        return coverage.texture();
     }
 
     public static boolean nativeVolume(int face) {
@@ -118,45 +188,61 @@ public final class GroundRenderer {
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
         GroundExterior.initialize(modBus);
+        GroundCompact.initialize(modBus);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.client.event.ViewportEvent.ComputeFov event) -> {
+                    // Vanilla's FOV interpolation starts at zero before its first client tick.
+                    if(event.usedConfiguredFov() && event.getFOV()>0) lodFov=event.getFOV();
+                });
         // Selection and connectors become visible before vanilla terrain draws, not mid-frame.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.RenderLevelStageEvent cpEvent) -> {
                     if (cpEvent.getStage()
                             != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage
-                                    .AFTER_SKY) return;
+                                    .AFTER_SKY || probeOff) return;
                     long start = System.nanoTime();
                     if (GroundClient.ready() && RendererGuard.pipelineSupported()) ensureState();
                     selectionActive =
                             GroundClient.ready()
                                     && RendererGuard.pipelineSupported()
                                     && level == Minecraft.getInstance().level
-                                    && (ready || GroundPipeline.complete(parents));
+                                    && (ready || parentsComplete());
                     if (GroundClient.ready()
                             && RendererGuard.pipelineSupported()
-                            && level == Minecraft.getInstance().level) prepareDetails();
+                            && level == Minecraft.getInstance().level) prepareSurfaceUpdates();
                     if (selectionActive) updateExclusions();
+                    else if (level == Minecraft.getInstance().level && GroundClient.ready()) {
+                        // Partial startup cover must yield to submitted vanilla, not cover it.
+                        window = GroundNativeCoverage.visible();
+                        publishOwnership(coverage.ownership);
+                    }
                     selectionWork = System.nanoTime() - start;
+                    if (probeTiming) probeSkyNanos += selectionWork;
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.RenderLevelStageEvent cpEvent) -> {
                     if (cpEvent.getStage()
                             != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage
-                                    .AFTER_ENTITIES) return;
+                                    .AFTER_ENTITIES || probeOff) return;
                     var c = new RenderFrame(cpEvent);
                     if (!GroundClient.ready()
                             || !RendererGuard.pipelineSupported()
                             || c.matrixStack() == null) return;
+                    refreshNativeDraws();
                     draw(c, false);
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.RenderLevelStageEvent cpEvent) -> {
                     if (cpEvent.getStage()
                             != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage
-                                    .AFTER_PARTICLES) return;
+                                    .AFTER_PARTICLES || probeOff) return;
                     var c = new RenderFrame(cpEvent);
                     if (GroundClient.ready()
                             && RendererGuard.pipelineSupported()
-                            && c.matrixStack() != null) draw(c, true);
+                            && c.matrixStack() != null) {
+                        refreshNativeDraws();
+                        draw(c, true);
+                    }
                 });
         ClientPlayLifecycle();
         modBus.addListener(
@@ -171,7 +257,9 @@ public final class GroundRenderer {
                                         .ResourceManagerReloadListener() {
                                     @Override
                                     public void onResourceManagerReload(ResourceManager manager) {
+                                        GroundTextureFilter.invalidateResources();
                                         clear();
+                                        GroundMeshResources.endReload();
                                     }
                                 }));
     }
@@ -188,7 +276,18 @@ public final class GroundRenderer {
                 });
     }
 
+    private static volatile long meshSession;
+
+    static long meshSession() { return meshSession; }
+
     public static void clear() {
+        meshSession++;
+        lodSourceTerrain = null;
+        lodSource = null;
+        farPyramids.clear();
+        Arrays.fill(farVersions, 0);
+        Arrays.fill(overlayVersions, 0);
+        Arrays.fill(builtFarVersions, 0);
         selectionActive = false;
         selectionWork = 0;
         if (pendingStitches != null) {
@@ -196,49 +295,36 @@ public final class GroundRenderer {
             pendingStitches = null;
         }
         pendingJob = null;
-        ownership = GroundOwnership.empty();
         coverEpoch = stagedEpoch = 0;
         nativeFace = -1;
         clearParents();
-        for (int i = 0; i < staging.length; i++) {
-            if (staging[i] != null) staging[i].close();
-            staging[i] = null;
-        }
+        closeSlots(staging);
+        patchQuads.clear();
+        stagedQuads.clear();
+        Arrays.fill(patchPaired, false);
+        Arrays.fill(stagedPaired, false);
+        Arrays.fill(patchLevels, 0);
+        Arrays.fill(builtLevels, 0);
+        Arrays.fill(drawnLevels, 0);
         GroundExterior.clear();
         Arrays.fill(coverInputs, null);
         if (stitchJob != null) {
             stitchJob.close();
             stitchJob = null;
         }
-        for (int i = 0; i < 6; i++) {
-            if (stitches[i] != null) stitches[i].close();
-            stitches[i] = null;
-        }
+        closeSlots(stitches);
         stitchDirty = true;
-        if (coverJob != null) {
-            coverJob.close();
-            coverJob = null;
-        }
-        if (job != null) {
-            job.close();
-            job = null;
-        }
-        clearDetails();
-        for (int i = 0; i < masks.length; i++) {
-            if (masks[i] != null) masks[i].close();
-            masks[i] = null;
-        }
-        for (int i = 0; i < patches.length; i++) {
-            if (patches[i] != null) patches[i].close();
-            patches[i] = null;
-        }
-        if (coverageTexture != 0) GL11.glDeleteTextures(coverageTexture);
-        coverageTexture = 0;
+        coverJobs.forEach(CoverJob::close);
+        coverJobs.clear();
+        clearLod();
+        closeSlots(masks);
+        closeSlots(patches);
+        GroundCompact.clear();
+        coverage.close();
         dirty.all();
+        coverCohort = null;
         priorCoverage.clear();
-        wanted = Set.of();
         window = Set.of();
-        publishedWindow = Set.of();
         level = null;
         planet = -1;
         mask = null;
@@ -246,34 +332,75 @@ public final class GroundRenderer {
     }
 
     public static int probeParentTiles() {
-        return parentJob == null
-                ? -1
-                : parentJob.face * parentJob.across * parentJob.across + parentJob.tile;
+        return parentJob == null ? -1 : parentJob.finished * 256;
     }
 
     public static int probeParents() {
         int n = 0;
-        for (var parent : parents) if (parent != null) n++;
+        for (int face = 0; face < 6; face++) {
+            boolean complete = true;
+            for (int p = face * 64; p < (face + 1) * 64; p++)
+                if (GroundViewPolicy.exists(GroundClient.shape(), p) && parents[p] == null)
+                    complete = false;
+            if (complete) n++;
+        }
         return n;
     }
 
     public static String performance() {
         return "Parent coverage "
-                + Arrays.stream(parents).filter(Objects::nonNull).count()
+                + probeParents()
                 + "/6 | derived build "
                 + String.format(java.util.Locale.ROOT, "%.2f", frameWork / 1e6)
                 + "ms | uploads "
                 + uploads
                 + " | dirty tiles "
                 + dirty.count()
-                + " | detail "
-                + detail.size()
-                + "/"
-                + wanted.size()
-                + " | resident "
-                + GroundViewClient.residentTiles().size()
+                + " | LOD "
+                + lodTiles.size()
+                + " / "
+                + String.format(java.util.Locale.ROOT, "%.1f MiB", lodBytes / 1048576.0)
+                + " | LOD queue "
+                + lodRequests.size()
                 + " | scanned "
                 + lastCells;
+    }
+
+    /** Vertex payloads (driver overhead/shared index buffers excluded) and packed CPU payloads. */
+    public static String memory() {
+        var meshes=Collections.newSetFromMap(new IdentityHashMap<Mesh,Boolean>());
+        for(var group:new Mesh[][]{masks,stitches,parents,patches,staging})
+            for(var mesh:group) if(mesh!=null) meshes.add(mesh);
+        var bands=new TreeMap<Integer,Integer>();
+        for(var tile:lodTiles.values()) {
+            meshes.add(tile.current); if(tile.previous!=null) meshes.add(tile.previous);
+            bands.merge(tile.requested,1,Integer::sum);
+        }
+        var farBands=new TreeMap<Integer,Integer>();
+        var stagedBands=new TreeMap<Integer,Integer>();
+        int coarseParents=0;
+        for(int p=0;p<patches.length;p++) {
+            if(patches[p]!=null) farBands.merge(drawnLevels[p],1,Integer::sum);
+            if(staging[p]!=null) stagedBands.merge(builtLevels[p],1,Integer::sum);
+            if(parents[p]!=null) coarseParents++;
+        }
+        long gpu=meshes.stream().mapToLong(m->m.bytes).sum()+GroundExterior.gpuBytes()+GroundCompact.gpuBytes();
+        long edits=GroundViewClient.overlays().values().stream().mapToLong(GroundSurface::memoryBytes).sum();
+        long quads=patchQuads.values().stream().mapToLong(List::size).sum()+stagedQuads.values().stream().mapToLong(List::size).sum();
+        var runtime=Runtime.getRuntime();
+        return "LOD_MEMORY basePackedBytes="+GroundBaseCache.retainedBytes()+" fineLruBytes="+GroundBaseCache.fineBytes()+" overlayPackedBytes="+edits
+                +" gpuVertexBytes="+gpu+" retainedPatchQuads="+quads
+                +" heapUsedBytes="+(runtime.totalMemory()-runtime.freeMemory())
+                +" heapCommittedBytes="+runtime.totalMemory()+" residentAccountedBytes="+lodBytes
+                +" residentBands="+bands+" farBands="+farBands+" stagedFarBands="+stagedBands+" L64Parents="+coarseParents
+                +" farBuild="+(coverJobs.isEmpty() ? "idle":coverJobs.size()+" building")
+                +" fov="+lodFov+" windowHeight="+Minecraft.getInstance().getWindow().getHeight()
+                +" edits="+GroundViewClient.overlays().entrySet().stream().map(e->{
+                    var tile=lodTiles.get(e.getKey());
+                    return e.getKey()+":"+Arrays.stream(e.getValue().heights()).max().orElse(-1)+":"
+                            +(tile==null ? "absent":tile.current.surface==null ? "base":tile.current.surface.revision())
+                            +"/"+e.getValue().revision();
+                }).toList();
     }
 
     private static PlanetShape shape;
@@ -291,14 +418,12 @@ public final class GroundRenderer {
                 for (int far = 0; far < 2; far++) {
                     int x = low == 0 ? 0 : size - 1, z = far == 0 ? 0 : size - 1;
                     long key = tileKey(face, x, z);
-                    if (!window.contains(key) && !drawDetail(key)) continue;
-                    var state =
-                            GroundViewClient.cache()
-                                    .canonical(new BlockPos(face * 4096 + x, 128, z));
+                    if (!window.contains(key)) continue;
+                    BlockState state = null;
                     var point =
                             GroundClient.planePoint(
                                     planet,
-                                    CubeSurfaceTopology.Face.values()[face],
+                                    CubeSurfaceTopology.Face.VALUES[face],
                                     new BentStripGeometry.Point(x + .5, 0, z + .5));
                     if (window.contains(key) && point != null) {
                         var pos = BlockPos.containing(point.x(), point.y(), point.z());
@@ -314,6 +439,12 @@ public final class GroundRenderer {
                 masks[face] = masks[face + 6] = null;
             }
         }
+    }
+
+    private static boolean parentsComplete() {
+        for (int p = 0; p < parents.length; p++)
+            if (GroundViewPolicy.exists(shape, p) && parents[p] == null) return false;
+        return true;
     }
 
     /** Every patch the observed planet has is built. */
@@ -343,6 +474,7 @@ public final class GroundRenderer {
             clearParents();
             stitchDirty = true;
             dirty.all();
+            coverCohort = null;
             if (stitchJob != null) {
                 stitchJob.close();
                 stitchJob = null;
@@ -352,48 +484,68 @@ public final class GroundRenderer {
                 pendingStitches = null;
             }
             pendingJob = null;
-            if (coverJob != null) {
-                coverJob.close();
-                coverJob = null;
-            }
+            coverJobs.forEach(CoverJob::close);
+            coverJobs.clear();
             for (int i = 0; i < masks.length; i++) {
                 if (masks[i] != null) masks[i].close();
                 masks[i] = null;
             }
-            if (job != null) {
-                job.close();
-                job = null;
-            }
-            clearDetails();
+                clearLod();
         }
     }
 
     private static void draw(RenderFrame c, boolean translucent) {
         var mc = Minecraft.getInstance();
+        long prep = System.nanoTime();
         ensureState();
+        if (GroundViewClient.terrain() == null || lodSource(GroundViewClient.terrain()) == null) return;
         refreshCoverage();
         closureCoverage();
         if (!translucent) updateMeshes();
+        if (probeTiming) probePrepNanos += System.nanoTime() - prep;
+        if (!probeTiming) {
+            drawLayers(c, translucent);
+            return;
+        }
+        if (probeQueries[0] == 0) GL15.glGenQueries(probeQueries);
+        int query = probeQueries[probeQuery++ % probeQueries.length];
+        // The slot was last used a few frames ago; its result is ready or nearly so.
+        if (probeQuery > probeQueries.length)
+            probeGpuNanos += GL33.glGetQueryObjecti64(query, GL15.GL_QUERY_RESULT);
+        long start = System.nanoTime();
+        GL15.glBeginQuery(GL33.GL_TIME_ELAPSED, query);
         drawLayers(c, translucent);
+        GL15.glEndQuery(GL33.GL_TIME_ELAPSED);
+        probeCpuNanos += System.nanoTime() - start;
     }
 
     private static void updateMeshes() {
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.MESH);
+        try {
         long start = System.nanoTime();
         // Near volumes are the only terrain shown on the ground: while any is meshing or
         // waiting to
         // commit, spend the larger near budget. Idle frames and background cover keep the base
         // budget.
-        boolean parentsReady = GroundPipeline.complete(parents);
+        boolean parentsReady = parentsComplete();
         long deadline =
                 start
                         + (!parentsReady
-                                        || job != null
+                                        || !lodJobs.isEmpty()
                                         || stitchJob != null
-                                        || !stagedDetails.isEmpty()
                                 ? GroundViewPolicy.NEAR_BUDGET_NS
                                 : GroundViewPolicy.FRAME_BUDGET_NS);
         uploads = 0;
         lastCells = 0;
+        long readyBytes = 0;
+        for (var resident : lodJobs)
+            if (resident.quads.state() == java.util.concurrent.Future.State.SUCCESS)
+                readyBytes += resident.quads.resultNow().size() * 4L * GroundCompact.FORMAT.getVertexSize();
+        for (var cover : coverJobs)
+            if (cover.done()) readyBytes += (cover.quads.size() + cover.previous.size()) * 96L;
+        lodWorkers.readyBytes(readyBytes);
+        selectionPose = shape.canonical(CubeSurfaceTopology.Face.VALUES[GroundClient.face()], GroundClient.eye()).pose();
+        selectionCamera = shape.position(selectionPose);
         for (int face = 0; face < 6 && System.nanoTime() < deadline; face++)
             if (masks[face] == null) {
                 masks[face] = buildMask(face, false);
@@ -403,116 +555,685 @@ public final class GroundRenderer {
         // Build the first complete cover promptly; refinements then return to their background
         // share.
         long coverDeadline = start + GroundViewPolicy.coverBudget(parentsReady);
+        // Commit/build before optional discovery, which can otherwise consume the whole share.
         updateCover(coverDeadline);
-        long detailDeadline = stitchJob == null ? deadline : deadline - (deadline - start) / 4;
-        updateDetails(detailDeadline);
+        var look = Minecraft.getInstance().gameRenderer.getMainCamera().getLookVector();
+        selectionNow = System.nanoTime();
+        selectionChanged = lodRefresh.update(selectionPose, lodFov,
+                Minecraft.getInstance().getWindow().getHeight(), selectionVersion,
+                look.x(), look.y(), look.z(), selectionNow);
+        if (selectionChanged) {
+            farRemaining = GroundViewPolicy.PATCH_COUNT;
+            maintenanceRemaining = lodMaintenance.size();
+        }
+        selectFarLevels(coverDeadline);
+        // Own budget: earlier cover/parent work must not starve resident scheduling and drains.
+        if (parentsReady) updateLod(System.nanoTime() + GroundViewPolicy.NEAR_BUDGET_NS / 2);
         ready = GroundViewClient.coverageReady() && patchesComplete();
         updateStitches(deadline);
+        // Only G changes here. Vanilla's R ownership was fixed before its draw began.
+        if (lodAtlasDirty && coverage.texture() != 0) publishOwnership(coverage.ownership);
         frameWork = System.nanoTime() - start + selectionWork;
+        } finally {
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.MESH);
+        }
     }
 
     private static void updateCover(long coverDeadline) {
+        farPyramids.focus(selectionCamera);
+        farPyramids.poll().stream()
+                .forEach(
+                        p -> {
+                            farVersions[p]++;
+                            selectionVersion++;
+                            dirty.patch(p);
+                        });
+        var overlays = farPyramids.polledOverlays();
+        for (int p = overlays.nextSetBit(0); p >= 0; p = overlays.nextSetBit(p + 1)) overlayVersions[p]++;
         if (GroundViewClient.coverageReady()
-                && !GroundPipeline.complete(parents)
+                && !parentsComplete()
                 && System.nanoTime() < coverDeadline) {
-            long parentStart = ArrivalProbe.start();
+            long parentStart = DevelopmentHooks.arrival.start();
             if (parentJob == null) parentJob = new ParentJob();
             parentJob.step(coverDeadline);
-            if (ArrivalProbe.ENABLED)
-                ArrivalClientState.parentNanos += System.nanoTime() - parentStart;
+            if (DevelopmentHooks.arrival.enabled())
+                DevelopmentHooks.parentNanos += System.nanoTime() - parentStart;
             if (parentJob.done()) {
-                var meshes = parentJob.finish();
+                parentJob.close();
                 parentJob = null;
-                System.arraycopy(meshes, 0, parents, 0, 6);
                 stitchDirty = true;
             }
         }
         if (GroundViewClient.coverageReady()
-                && GroundPipeline.complete(parents)
+                && parentsComplete()
                 && System.nanoTime() < coverDeadline) {
-            if (coverJob == null) {
+            // A latched cohort polls each patch once, so jobs in flight never share a patch.
+            int polled = 0;
+            while (coverJobs.size() < LOD_THREADS && lodWorkers.canSubmit(true)
+                    && polled++ < 64 && System.nanoTime() < coverDeadline) {
+                if (coverCohort == null && dirty.count() != 0) {
+                    coverCohort =
+                            GroundCoverSnapshot.far(
+                                    GroundViewClient.heights(),
+                                    GroundViewClient.overlays(),
+                                    GroundViewClient.changed());
+                    dirty.latch();
+                }
                 int patch = dirty.poll();
-                if (patch >= 0) {
-                    var inputs = coverInputs(patch);
-                    if (!inputs.sameInputs(coverInputs[patch]))
-                        coverJob = new CoverJob(patch, inputs);
+                if (patch < 0) break;
+                if (patchPaired[patch]
+                        && VoxelLodPolicy.fade(patchCommitted[patch], System.nanoTime()) < 1) {
+                    dirty.tile(
+                            tileKey(
+                                    GroundViewPolicy.face(patch),
+                                    GroundViewPolicy.x(patch),
+                                    GroundViewPolicy.z(patch)));
+                    break;
                 }
+                var inputs =
+                        coverCohort.farPatch(
+                                GroundViewPolicy.face(patch),
+                                GroundViewPolicy.x(patch),
+                                GroundViewPolicy.z(patch));
+                if (!inputs.sameInputs(coverInputs[patch])
+                        || builtLevels[patch] != patchLevels[patch]
+                        || builtFarVersions[patch] != farVersions[patch])
+                    coverJobs.add(new CoverJob(patch, inputs));
             }
-            if (coverJob != null) {
+            for (var it = coverJobs.iterator(); it.hasNext(); ) {
+                var coverJob = it.next();
                 coverJob.step(coverDeadline);
-                if (coverJob.done()) {
-                    int patch = coverJob.patch;
-                    var inputs = coverJob.builders.cover;
-                    var mesh = coverJob.finish();
-                    coverInputs[patch] = inputs;
-                    coverJob = null;
-                    var old = staging[patch];
-                    staging[patch] = mesh;
-                    stagedEpoch++;
-                    if (old != null) old.close();
-                    uploads++;
-                }
-            }
-        }
-    }
-
-    private static GroundCoverSnapshot coverInputs(int patch) {
-        return GroundCoverSnapshot.patch(
-                GroundViewClient.heights(),
-                GroundViewClient.changed(),
-                GroundViewPolicy.face(patch),
-                GroundViewPolicy.x(patch),
-                GroundViewPolicy.z(patch),
-                GroundViewClient::surface);
-    }
-
-    private static void updateDetails(long detailDeadline) {
-        if (job == null
-                && stagedDetails.values().stream().mapToLong(Mesh::bytes).sum()
-                        <= GroundViewPolicy.STAGING_BYTES - GroundStreaming.MAX_MESH_BYTES
-                && System.nanoTime() < detailDeadline) {
-            var cache = GroundViewClient.cache();
-            // Nearest first, but only once the resident neighbours it is culled/lit against
-            // have arrived.
-            long key =
-                    GroundStreaming.next(
-                            GroundClient.shape(),
-                            wanted,
-                            k ->
-                                    cache.detailed(k)
-                                            && !stagedDetails.containsKey(k)
-                                            && (!detail.containsKey(k) || dirtyDetails.contains(k)),
-                            cache::detailed,
-                            GroundViewClient.residentTiles(),
-                            GroundViewClient.stalled());
-            if (key >= 0) job = new DetailJob(cache.image(key));
-        }
-        if (job != null && System.nanoTime() < detailDeadline) {
-            lastCells = job.step(detailDeadline);
-            if (job.done()) {
-                var image = job.image;
-                var mesh = job.finish();
-                job = null;
-                measuredDetails.put(
-                        image.key(),
-                        Math.max(
-                                mesh.bytes,
-                                detail.containsKey(image.key())
-                                        ? detail.get(image.key()).bytes
-                                        : 0));
-                if (GroundStreaming.admit(
-                                GroundViewClient.residentTiles(),
-                                measuredDetails,
-                                GroundViewPolicy.DETAIL_BYTES,
-                                wanted)
-                        .contains(image.key())) {
-                    stagedDetails.put(image.key(), mesh);
-                    dirtyDetails.remove(image.key());
-                    stitchDirty = true;
-                } else mesh.close();
+                if (!coverJob.done()) continue;
+                it.remove();
+                int patch = coverJob.patch;
+                var inputs = coverJob.builders.cover;
+                var mesh = coverJob.finish();
+                coverInputs[patch] = inputs;
+                builtLevels[patch] = coverJob.step;
+                builtFarVersions[patch] = coverJob.farVersion;
+                stagedQuads.put(patch, coverJob.quads);
+                stagedPaired[patch] = !coverJob.previous.isEmpty();
+                var old = staging[patch];
+                staging[patch] = mesh;
+                stagedEpoch++;
+                if (old != null) old.close();
                 uploads++;
             }
+            if (coverCohort != null
+                    && dirty.count() == 0
+                    && coverJobs.isEmpty()
+                    && Arrays.stream(staging).allMatch(Objects::isNull)) {
+                coverCohort = null;
+                dirty.promote();
+            }
         }
+    }
+
+    private static final GroundMipCache farPyramids = new GroundMipCache();
+    private static final long[] farVersions = new long[GroundViewPolicy.PATCH_COUNT];
+    // Captured-column changes only: L1/L2 tiles read fine columns, never the coarse base mips.
+    private static final long[] overlayVersions = new long[GroundViewPolicy.PATCH_COUNT];
+    private static final long[] builtFarVersions = new long[GroundViewPolicy.PATCH_COUNT];
+    private static int farCursor;
+
+    private static void selectFarLevels(long deadline) {
+        if (!GroundViewClient.coverageReady()) return;
+        var camera = selectionCamera;
+        // Complete a bounded sweep only when its spatial/projection/data inputs changed.
+        for (int work = 0; work < 8 && farRemaining > 0 && System.nanoTime() < deadline; work++, farRemaining--) {
+            int p = farCursor;
+            farCursor = (farCursor + 1) % GroundViewPolicy.PATCH_COUNT;
+            if (!GroundViewPolicy.exists(shape, p)) continue;
+            var mesh = patches[p] == null ? parents[p] : patches[p];
+            double distance =
+                    mesh == null ? Double.POSITIVE_INFINITY : mesh.cover.distance(shape, camera, p);
+            if (!Double.isFinite(distance)) {
+                var heights = GroundViewClient.heights();
+                double h =
+                        heights == null
+                                ? 0
+                                : heights.surfaceNode(
+                                        CubeSurfaceTopology.Face.VALUES[GroundViewPolicy.face(p)],
+                                        Math.min(shape.size(), GroundViewPolicy.x(p) + 128),
+                                        Math.min(shape.size(), GroundViewPolicy.z(p) + 128));
+                distance = GroundFarMesh.distance(shape, camera, p, h);
+            }
+            int next = Double.isFinite(distance) ? GroundFarMesh.level(distance, patchLevels[p],lodFov,
+                    Minecraft.getInstance().getWindow().getHeight()) : 64;
+            if (next != patchLevels[p]) {
+                patchLevels[p] = next;
+                dirty.tile(
+                        tileKey(
+                                GroundViewPolicy.face(p),
+                                GroundViewPolicy.x(p),
+                                GroundViewPolicy.z(p)));
+            }
+        }
+    }
+
+    static java.util.concurrent.Future<List<VoxelMesher.Quad>> farMesh(
+            PlanetShape observed,
+            int patch,
+            int step,
+            PlanetTerrain terrain,
+            GroundCoverSnapshot cover,
+            GroundMipCache pyramids) {
+        var field = pyramids==farPyramids
+                ? pyramids.field(observed,terrain,GroundViewClient::overlay,patch)
+                : pyramids.field(observed, terrain, cover, patch);
+        return lodWorkers.farMesh(observed, patch, step, field);
+    }
+
+    private static double lodHeight(long key) {
+        var image = GroundViewClient.surface(key);
+        if (image != null) return image.height(8, 8) + 1 - 128;
+        return GroundTransition.generated(
+                GroundViewClient.heights(),
+                CubeSurfaceTopology.Face.VALUES[(int) (key / 16384)],
+                key % 128 * 16 + 8,
+                key / 128 % 128 * 16 + 8);
+    }
+
+    /** In orbit the drawn disk is flatter than the sphere and reaches far past its horizon: use the
+     *  orbit shader's own facing and range clip. Near the ground the sphere horizon stays. */
+    private static java.util.function.LongPredicate displayed(BentStripGeometry.Point camera) {
+        var e = GroundClient.eye();
+        if (e.y() <= GroundOrbit.START)
+            return key ->
+                    VoxelLodPolicy.horizonVisible(
+                            shape,
+                            camera,
+                            CubeSurfaceTopology.Face.VALUES[(int) (key / 16384)],
+                            (int) (key % 128) * 16,
+                            (int) (key / 128 % 128) * 16);
+        var orbit = GroundClient.orbit();
+        // Half a tile diagonal beyond the clip, so edge tiles are not left coarse.
+        double range = GroundClient.range(e, orbit, GroundClient.gap()) + 12;
+        return key -> {
+            var face = CubeSurfaceTopology.Face.VALUES[(int) (key / 16384)];
+            var p =
+                    new BentStripGeometry.Point(
+                            key % 128 * 16 + 8, lodHeight(key), key / 128 % 128 * 16 + 8);
+            if (shape.direction(face, p.x(), p.z()).dot(orbit.normal) < orbit.minimumFacing - .01)
+                return false;
+            var q = orbit.point(face, p);
+            return Math.hypot(q.x() - e.x(), q.z() - e.z()) <= range;
+        };
+    }
+
+    private static void requestLod(GroundLodSelection.Tile tile, int step) {
+        var old = lodTiles.get(tile.key());
+        if (old != null
+                && (old.retiring
+                        || old.fadeQueued
+                        || old.requested == step
+                                && !lodInputsChanged(old, GroundViewClient.surface(tile.key()))))
+            return;
+        double priority=tile.distance();
+        if(lodFov<30) {
+            var chart = GroundClient.projectedFrame() ? GroundClient.gap().chart
+                    : new PlanetChart(shape,CubeSurfaceTopology.Face.VALUES[GroundClient.face()]);
+            var plot=chart.tile(CubeSurfaceTopology.Face.VALUES[(int)(tile.key()/16384)]);
+            if(plot!=null) {
+                var target=plot.point(new BentStripGeometry.Point(tile.key()%128*16+8,lodHeight(tile.key()),tile.key()/128%128*16+8))
+                        .sub(GroundClient.eye());
+                var look=Minecraft.getInstance().gameRenderer.getMainCamera().getLookVector();
+                priority+=(1-(target.x()*look.x()+target.y()*look.y()+target.z()*look.z())/target.length())*100000;
+            } else priority+=200000;
+        }
+        if (lodQueued.size() < VoxelLodPolicy.RESIDENT_TILES && lodQueued.add(tile.key()))
+            lodRequests.add(new GroundLodSelection.Tile(tile.key(),priority,GroundViewClient.overlay(tile.key())!=null));
+    }
+
+    private static boolean lodInputsChanged(LodTile tile, GroundSurface image) {
+        if (tile.observed != image) {
+            tile.observed = image;
+            tile.dirty =
+                    tile.current.surface == null
+                            ? image != null
+                            : image == null || !tile.current.surface.sameColumns(image);
+        }
+        return tile.dirty || tile.mipVersion != mipVersion(tile.mipPatch, tile.requested);
+    }
+
+    /** A rebuild input version for a tile at {@code step}; base-mip progress cannot change L1/L2. */
+    private static long mipVersion(int patch, int step) {
+        return step >= 4 ? farVersions[patch] : overlayVersions[patch];
+    }
+
+    private static void retireLod(long key, LodTile tile, long now) {
+        if (tile.retiring) return;
+        changedLod(key, tile);
+        // The coarse layer is already committed. Restore it before fading/releasing the resident.
+        lodComplete.clear((int) key);
+        lodAtlasDirty = true;
+        closeLodMesh(tile.previous);
+        tile.previous = null;
+        tile.retiring = true;
+        tile.committed = now;
+        if (!tile.fadeQueued) {
+            lodFades.add(key);
+            tile.fadeQueued = true;
+        }
+    }
+
+    private static void updateLod(long deadline) {
+        if (!GroundViewClient.coverageReady()) return;
+        if (!lodStarted) {
+            selectionChanged = true;
+            lodStarted = true;
+        }
+        var camera = selectionCamera;
+        if (selectionChanged) {
+            lodSelection.visible(displayed(camera));
+            lodSelection.projection(lodFov,Minecraft.getInstance().getWindow().getHeight(),selectionNow);
+        }
+        if (selectionChanged && lodSelection.move(shape, selectionPose, camera, GroundRenderer::lodHeight)) {
+            lodRequests.clear();
+            lodQueued.clear();
+            lodPressure = Double.POSITIVE_INFINITY;
+            lodJobs.removeIf(
+                    job -> {
+                        double distance =
+                                GroundLodSelection.distance(
+                                        shape, camera, job.key, lodHeight(job.key));
+                        int step = lodSelection.level(job.key, distance);
+                        if (step != 0 && step <= job.requested && !window.contains(job.key))
+                            return false;
+                        job.close();
+                        return true;
+                    });
+        }
+        long now = System.nanoTime();
+        // Poll transitions separately: stable far residents must not delay a half-second swap.
+        int fading = Math.min(128, lodFades.size());
+        while (fading-- > 0 && System.nanoTime() < deadline) {
+            long key = lodFades.remove();
+            var tile = lodTiles.get(key);
+            if (tile == null) continue;
+            if (VoxelLodPolicy.fade(tile.committed, now) < 1) {
+                lodFades.add(key);
+                continue;
+            }
+            tile.fadeQueued = false;
+            closeLodMesh(tile.previous);
+            tile.previous = null;
+            if (tile.retiring) {
+                closeLodMesh(tile.current);
+                lodTiles.remove(key);
+                changedLod(key, null);
+                lodMaintenance.remove(key);
+            } else {
+                changedLod(key, tile);
+                lodComplete.set((int) key);
+                lodAtlasDirty = true;
+                maintenanceRemaining = lodMaintenance.size();
+            }
+        }
+        // Bound housekeeping too; retained geometry is safe if fast motion outruns this queue.
+        int count = Math.min(128, Math.min(maintenanceRemaining, lodMaintenance.size()));
+        while (count-- > 0 && System.nanoTime() < deadline) {
+            maintenanceRemaining--;
+            long key = lodMaintenance.removeFirst();
+            var tile = lodTiles.get(key);
+            if (tile == null) continue;
+            lodMaintenance.add(key);
+            if (tile.retiring) continue;
+            double distance = GroundLodSelection.distance(shape, camera, key, lodHeight(key));
+            int step = lodSelection.level(key, distance);
+            if (step == 0 || distance > Math.max(256, lodPressure + 64)) retireLod(key, tile, now);
+            else if (!tile.fadeQueued) requestLod(new GroundLodSelection.Tile(key, distance), step);
+        }
+        // Discovery gets at most a quarter of this frame's existing base budget.
+        lodSelection.step(
+                shape,
+                Math.min(deadline, System.nanoTime() + GroundViewPolicy.FRAME_BUDGET_NS / 4),
+                System::nanoTime,
+                GroundRenderer::lodHeight,
+                GroundRenderer::requestLod);
+        while (lodJobs.size() < 4 * LOD_THREADS
+                && lodWorkers.canSubmit(false)
+                && !lodRequests.isEmpty()
+                && System.nanoTime() < deadline) {
+            var next = lodRequests.peek();
+            double distance =
+                    GroundLodSelection.distance(shape, camera, next.key(), lodHeight(next.key()));
+            int step = lodSelection.level(next.key(), distance);
+            var prior = lodTiles.get(next.key());
+            var image = GroundViewClient.surface(next.key());
+            if (step == 0
+                    || window.contains(next.key())
+                    || prior != null
+                            && (prior.retiring
+                                    || prior.fadeQueued
+                                    || prior.requested == step && !lodInputsChanged(prior, image))
+                    || image == null && GroundViewClient.terrain() == null
+                    || GroundViewClient.isChanged(next.key()) && image == null
+                    || lodJobs.stream().anyMatch(j -> j.key == next.key())) {
+                lodRequests.remove();
+                lodQueued.remove(next.key());
+                continue;
+            }
+            if (!VoxelLodPolicy.admits(
+                    lodBytes + lodJobs.size() * VoxelLodPolicy.TILE_BYTES,
+                    VoxelLodPolicy.TILE_BYTES,
+                    lodTiles.size() + lodJobs.size())) {
+                lodPressure = distance;
+                break;
+            }
+            lodPressure = Double.POSITIVE_INFINITY;
+            lodRequests.remove();
+            lodQueued.remove(next.key());
+            lodJobs.add(new LodJob(next.key(), step, image));
+        }
+        if (lodRequests.isEmpty()) lodPressure = Double.POSITIVE_INFINITY;
+        for (var it = lodJobs.iterator(); it.hasNext() && System.nanoTime() < deadline; ) {
+            var job = it.next();
+            if (!job.drain(deadline)) continue;
+            it.remove();
+            if (job.failed()) {
+                job.close();
+                continue;
+            }
+            {
+                long key = job.key;
+                int step = job.requested;
+                var mesh = job.finish();
+                if (mesh == null) continue; // Arena capacity hit the resident byte ceiling.
+                // Current + fading previous + one candidate share the same byte ceiling.
+                if (VoxelLodPolicy.admits(lodBytes, lodBytes(mesh), lodTiles.size())) {
+                    var old = lodTiles.get(key);
+                    if (old != null) closeLodMesh(old.previous);
+                    var tile =
+                            new LodTile(
+                                    mesh,
+                                    old == null ? null : old.current,
+                                    step,
+                                    System.nanoTime(),
+                                    key,
+                                    job.mipVersion);
+                    if (old == null || !old.fadeQueued) lodFades.add(key);
+                    tile.fadeQueued = true;
+                    lodTiles.put(key, tile);
+                    changedLod(key, tile);
+                    lodBytes += lodBytes(mesh) - mesh.bytes;
+                    if (old == null) lodMaintenance.add(key);
+                    uploads++;
+                } else mesh.close();
+            }
+        }
+    }
+
+    private static PlanetTerrain lodSourceTerrain;
+    private static dev.starfold.worldgen.surface.SurfaceFunction lodSource;
+
+    private static dev.starfold.worldgen.surface.SurfaceFunction lodSource(PlanetTerrain terrain) {
+        if (terrain == null) return null;
+        var ready = terrain.readySurface();
+        if (ready != null) {
+            GroundBaseCache.observe(terrain);
+            lodSourceTerrain = terrain;
+            lodSource = ready;
+        }
+        return terrain == lodSourceTerrain ? lodSource : null;
+    }
+
+    private static final class LodJob implements AutoCloseable {
+        final long key;
+        final int requested, face, x, z;
+        final long mipVersion;
+        final Builders builders = new Builders(true, true);
+        final java.util.concurrent.Future<List<VoxelMesher.Quad>> quads;
+        List<VoxelMesher.Quad> ready;
+        private final GroundMeshLease lease = new GroundMeshLease(builders::close);
+
+        LodJob(long key, int requested, GroundSurface image) {
+            this.key = key;
+            this.requested = requested;
+            mipVersion = mipVersion(GroundViewPolicy.patch(key), requested);
+            face = (int) (key / 16384);
+            x = (int) (key % 128) * 16;
+            z = (int) (key / 128 % 128) * 16;
+            builders.surfaceFace = face;
+            builders.lodKey = key;
+            builders.image = image;
+            builders.cover = GroundCoverSnapshot.parent(GroundViewClient.heights(), new BitSet());
+            var observed = shape;
+            int patch = GroundViewPolicy.patch(key);
+            // Freeze captured column inputs here; workers never access the live view or height
+            // cache.
+            var field =
+                    farPyramids.field(
+                            observed,
+                            GroundViewClient.terrain(),
+                            GroundViewClient::overlay,
+                            patch);
+            // Vertex building (models, atlas, biome tint) runs on the worker like vanilla section
+            // compiles; the render thread only uploads.
+            quads =
+                    lodWorkers.submit(
+                            () -> {
+                                var built =
+                                        GroundFarMesh.build(
+                                                observed,
+                                                CubeSurfaceTopology.Face.VALUES[face],
+                                                x,
+                                                z,
+                                                16,
+                                                requested,
+                                                field);
+                                if (!lease.begin()) return List.<VoxelMesher.Quad>of();
+                                try {
+                                    GroundMeshResources.read(builders.context.resources(), () -> {
+                                    for (var q : built)
+                                        surfacePolygon(
+                                                builders,
+                                                q.material(),
+                                                q.points(),
+                                                x,
+                                                z,
+                                                true,
+                                                GroundShaderSource.patchTag(false, GroundFarMesh.side(q)),
+                                                q.rgb());
+                                    });
+                                } finally {
+                                    lease.end();
+                                }
+                                return built;
+                            });
+        }
+
+        /** True once the worker has built and fed the tile (or failed). */
+        boolean drain(long deadline) {
+            if (ready == null) {
+                if (!quads.isDone()) return false;
+                try {
+                    ready = quads.get();
+                } catch (Exception failure) {
+                    org.slf4j.LoggerFactory.getLogger("starfold")
+                            .warn("LOD tile {} failed", key, failure);
+                    ready = List.of();
+                }
+            }
+            return true;
+        }
+
+        boolean failed() {
+            return ready == null || ready.isEmpty();
+        }
+
+        Mesh finish() {
+            try {
+                return builders.upload(0);
+            } finally {
+                close();
+            }
+        }
+
+        public void close() {
+            quads.cancel(false);
+            lease.close();
+        }
+    }
+
+    // Repaired grid nodes for this frame's gap; kept across frames only for its capacity.
+    private static final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<BentStripGeometry.Point> lodNodes =
+            new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+
+    private static boolean compactLod(GroundLodGroup<LodTile> group) {
+        var counts = new LinkedHashMap<RenderType, Integer>();
+        AABB bounds = null;
+        for (var tile : group.members.values()) {
+            var mesh = tile.current;
+            if (mesh.bounds != null) bounds = bounds == null ? mesh.bounds : bounds.minmax(mesh.bounds);
+            for (var e : mesh.lodLayers.entrySet()) counts.merge(e.getKey(), e.getValue().vertices(), Integer::sum);
+        }
+        // Reserve every destination before freeing any source: same-buffer copies cannot overlap.
+        var blocks = new LinkedHashMap<RenderType, GroundLodArena.Range>();
+        int face = (int)(group.members.keySet().iterator().next() / 16384);
+        for (var e : counts.entrySet()) {
+            var target = lodArenas.get(face).get(e.getKey());
+            long before = target.bytes();
+            var block = target.allocate(e.getValue(), VoxelLodPolicy.RESIDENT_BYTES - lodBytes);
+            lodBytes += target.bytes() - before;
+            if (block == null) {
+                for (var allocated : blocks.values()) allocated.close();
+                return false;
+            }
+            blocks.put(e.getKey(), block);
+        }
+        for (var e : blocks.entrySet()) {
+            int offset = 0;
+            for (var tile : group.members.values()) {
+                var ranges = tile.current.lodLayers;
+                var source = ranges.get(e.getKey());
+                if (source == null) continue;
+                var range = e.getValue().slice(offset, source.vertices());
+                source.arena().copy(source, range);
+                source.close();
+                ranges.put(e.getKey(), range);
+                offset += range.vertices();
+            }
+        }
+        group.layers.putAll(blocks);
+        group.bounds = bounds;
+        group.compact = true;
+        lodDrawCache.invalidate(group);
+        return true;
+    }
+
+    private static void compactLods() {
+        long now = System.nanoTime();
+        // Round-robin, including budget failures: at most four groups (64 members) checked/copied.
+        int count = Math.min(4, lodCompactions.size());
+        while (count-- > 0) {
+            var group = lodCompactions.removeFirst();
+            boolean settled = true;
+            for (var tile : group.members.values()) {
+                probeTiles++;
+                if (tile.previous != null || tile.retiring || VoxelLodPolicy.fade(tile.committed, now) != 1) {
+                    settled = false;
+                    break;
+                }
+            }
+            if (!settled || !compactLod(group)) lodCompactions.add(group);
+        }
+    }
+
+    private static boolean visibleLod(RenderFrame c, int face, AABB bounds, PlanetGap gap) {
+        if (gap == null || bounds == null) return true;
+        bounds = GroundLodBounds.planar(bounds, gap, CubeSurfaceTopology.Face.VALUES[face], lodNodes);
+        if (bounds == null) return true;
+        var frame = GroundClient.frame();
+        var origin = GroundClient.origin();
+        var a = frame.toClient(origin.add(new BentStripGeometry.Point(bounds.minX, bounds.minY, bounds.minZ)));
+        var b = frame.toClient(origin.add(new BentStripGeometry.Point(bounds.maxX, bounds.maxY, bounds.maxZ)));
+        bounds = new AABB(a.x(), a.y(), a.z(), b.x(), b.y(), b.z());
+        var eye = c.camera().getPosition();
+        // Closure walls are pushed along the eye ray in the shader.
+        double dx = Math.max(Math.abs(bounds.minX-eye.x), Math.abs(bounds.maxX-eye.x));
+        double dy = Math.max(Math.abs(bounds.minY-eye.y), Math.abs(bounds.maxY-eye.y));
+        double dz = Math.max(Math.abs(bounds.minZ-eye.z), Math.abs(bounds.maxZ-eye.z));
+        double radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        double scale = 1 + Math.max(.002, 3e-6 * radius);
+        var pushed = new AABB(eye.x + (bounds.minX-eye.x)*scale, eye.y + (bounds.minY-eye.y)*scale, eye.z + (bounds.minZ-eye.z)*scale,
+                eye.x + (bounds.maxX-eye.x)*scale, eye.y + (bounds.maxY-eye.y)*scale, eye.z + (bounds.maxZ-eye.z)*scale);
+        return c.event().getFrustum().isVisible(bounds.minmax(pushed).inflate(1));
+    }
+
+    private static void prepareLodDraws(RenderFrame c) {
+        compactLods();
+        // Above the ground chart the shader changes the screen lens too; vanilla's frustum
+        // cannot conservatively test those positions. Keep them until a lens-aware culler exists.
+        var gap = GroundClient.eye().y() <= GroundOrbit.START && !GroundFlightClient.controlled()
+                ? GroundClient.gap() : null;
+        lodNodes.clear();
+        // The orbital path has no camera culling; only mesh/fade/group changes affect its draws.
+        if (lodDrawCache.prepare(lodGroups, gap != null, !lodFades.isEmpty(),
+                (face, bounds) -> visibleLod(c, face, bounds, gap))) {
+            probeTiles += lodDrawCache.visited;
+            probeGroups += lodDrawCache.groups;
+            probeCompactGroups += lodDrawCache.compact;
+        }
+    }
+
+    private static void drawLods(RenderFrame c, int face, RenderType layer) {
+        var tiles = lodDrawCache.faces.get(face).get(layer);
+        if (tiles == null || tiles.isEmpty()) return;
+        var arena = lodArenas.get(face).get(layer);
+        if (arena == null) return;
+        var shader = GroundCompact.shader();
+        if (shader == null) return;
+        GroundClient.source(face, true, true);
+        GroundClient.cover(true);
+        GroundClient.lod(0, 1);
+        var matrix =
+                GroundClient.place(
+                        new Matrix4f(RenderSystem.getModelViewMatrix())
+                                .mul(c.matrixStack().last().pose()),
+                        face,
+                        c.camera().getPosition());
+        // All resident buffers use the same format/program and face transform. Do not upload
+        // the entire ground/atmosphere uniform set for every 16-block tile.
+        shader.setDefaultUniforms(
+                VertexFormat.Mode.QUADS,
+                matrix,
+                RenderSystem.getProjectionMatrix(),
+                Minecraft.getInstance().getWindow());
+        boolean rebuild = arena.begin(tiles.size(), lodDrawCache.epoch);
+        long now = System.nanoTime();
+        try {
+            shader.apply();
+            if (rebuild) for (var draw : tiles) {
+                probeTiles++;
+                var tile = draw.tile();
+                var range = draw.range();
+                if (tile == null) {
+                    arena.add(range);
+                    continue;
+                }
+                float fade = VoxelLodPolicy.fade(tile.committed, now);
+                if (range != null && tile.previous == null && !tile.retiring && fade == 1) {
+                    arena.add(range);
+                    continue;
+                }
+                if (tile.previous != null) drawLodMesh(tile.previous, shader, 1, layer);
+                drawLodMesh(tile.current, shader, tile.retiring ? 1 - fade : fade, layer);
+            }
+            ShaderUniforms.set(shader, "CPNativeLodFade", 1);
+            arena.draw();
+        } finally {
+            shader.clear();
+            VertexBuffer.unbind();
+            GroundClient.sourceEnd();
+        }
+    }
+
+    private static void drawLodMesh(Mesh mesh, ShaderInstance shader, float fade, RenderType layer) {
+        var range = mesh.lodLayers.get(layer);
+        if (range == null || fade <= 0) return;
+        ShaderUniforms.set(shader, "CPNativeLodFade", fade);
+        range.arena().draw(range);
     }
 
     private static void updateStitches(long deadline) {
@@ -528,151 +1249,82 @@ public final class GroundRenderer {
     }
 
     private static void drawLayers(RenderFrame c, boolean translucent) {
-        if (replacesNative()) {
-            if (!translucent) GroundExterior.draw(c);
-            return;
-        }
-        if (ArrivalProbe.ENABLED
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.FAR);
+        try {
+        if (!translucent) prepareLodDraws(c);
+        if (DevelopmentHooks.arrival.enabled()
                 && !translucent
                 && selectionReady()
-                && (ready || GroundPipeline.complete(parents))) ArrivalClientState.own = true;
-        var shader = RenderSystem.getShader();
-        var color = RenderSystem.getShaderColor().clone();
-        int[] textures = {
-            RenderSystem.getShaderTexture(0),
-            RenderSystem.getShaderTexture(1),
-            RenderSystem.getShaderTexture(2)
-        };
-        int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        GL13.glActiveTexture(GL13.GL_TEXTURE3);
-        int boundCoverage = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        boolean samplers =
-                GL.getCapabilities().OpenGL33 || GL.getCapabilities().GL_ARB_sampler_objects;
-        int coverageSampler =
-                samplers ? GL30.glGetIntegeri(ARBSamplerObjects.GL_SAMPLER_BINDING, 3) : 0;
-        GL13.glActiveTexture(activeTexture);
-        boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
-                cull = GL11.glIsEnabled(GL11.GL_CULL_FACE),
-                blend = GL11.glIsEnabled(GL11.GL_BLEND),
-                write = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
-        int sr = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
-                dr = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
-                sa = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
-                da = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+                && (ready || parentsComplete())) DevelopmentHooks.ownDraw = true;
+        var pass = new RenderPassState(true, true, false);
+        int texture0 = RenderSystem.getShaderTexture(0),
+                texture1 = RenderSystem.getShaderTexture(1),
+                texture2 = RenderSystem.getShaderTexture(2);
+        int activeTexture = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
+        var coverage = new CoverageBinding();
+        boolean orbitalChart = GroundClient.eye().y() > GroundOrbit.START;
+        var chart = orbitalChart ? null : GroundClient.projectedFrame() ? GroundClient.gap().chart
+                : new PlanetChart(GroundClient.shape(), CubeSurfaceTopology.Face.VALUES[GroundClient.face()]);
         try (var filtering = GroundTextureFilter.open()) {
-            for (var layer : RenderType.chunkBufferLayers()) {
-                if ((layer == RenderType.translucent() || layer == RenderType.tripwire())
-                        != translucent) continue;
-                layer.setupRenderState();
-                try {
-                    for (int face = 0; face < 6; face++) {
-                        boolean orbitalChart = GroundClient.eye().y() > GroundOrbit.START;
-                        if (!orbitalChart
-                                && (new PlanetChart(
-                                                        GroundClient.shape(),
-                                                        CubeSurfaceTopology.Face.values()[
-                                                                GroundClient.face()])
-                                                .tile(CubeSurfaceTopology.Face.values()[face])
-                                        == null)) continue;
-                        render(c, face, masks[face], layer);
-                        // On the plane the three faces' columns leave a quarter open; the sphere
-                        // has none.
-                        if (!orbitalChart && face == GroundClient.face())
-                            render(c, face, masks[face + 6], layer);
-                        render(c, face, stitches[face], layer, true);
-                        // Never expose a partial globe or mixed fine-patch generation.
-                        if (selectionReady() && ready) {
-                            for (int p = face * 64; p < (face + 1) * 64; p++)
-                                render(c, face, patches[p], layer, true);
-                        } else if (selectionReady() && GroundPipeline.complete(parents))
-                            render(c, face, parents[face], layer, true);
-                        for (var e : detail.entrySet())
-                            if (e.getKey() / 16384 == face && drawDetail(e.getKey()))
-                                render(c, face, e.getValue(), layer);
-                    }
-                } finally {
-                    layer.clearRenderState();
-                }
-            }
+            GroundDrawPlan.draw(translucent, orbitalChart, GroundClient.face(),
+                    selectionReady() && ready,
+                    face -> chart.tile(CubeSurfaceTopology.Face.VALUES[face]) != null,
+                    new GroundDrawPlan.Draw() {
+                        private RenderType layer;
+                        public void begin(RenderType value) {
+                            layer = value;
+                            layer.setupRenderState();
+                        }
+                        public void mask(int face, boolean residual) {
+                            render(c, face, masks[face + (residual ? 6 : 0)], layer);
+                        }
+                        public void stitch(int face) { render(c, face, stitches[face], layer, true); }
+                        public void surface(int face, int patch, boolean ready) {
+                            if (ready) renderPatch(c, face, patch, layer);
+                            else render(c, face, parents[patch], layer, true);
+                        }
+                        public void lod(int face) { drawLods(c, face, layer); }
+                        public void end(RenderType value) { value.clearRenderState(); }
+                    });
             if (!translucent) {
-                drawEntities(c);
                 drawResidual(c);
             }
         } finally {
-            GroundClient.sourceEnd();
-            GL13.glActiveTexture(GL13.GL_TEXTURE3);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundCoverage);
-            if (samplers) ARBSamplerObjects.glBindSampler(3, coverageSampler);
-            GL13.glActiveTexture(activeTexture);
-            RenderSystem.blendFuncSeparate(sr, dr, sa, da);
-            RenderSystem.depthMask(write);
-            if (depth) RenderSystem.enableDepthTest();
-            else RenderSystem.disableDepthTest();
-            if (cull) RenderSystem.enableCull();
-            else RenderSystem.disableCull();
-            if (blend) RenderSystem.enableBlend();
-            else RenderSystem.disableBlend();
-            RenderSystem.setShaderColor(color[0], color[1], color[2], color[3]);
-            for (int i = 0; i < 3; i++) RenderSystem.setShaderTexture(i, textures[i]);
-            if (shader != null) RenderSystem.setShader(() -> shader);
+            try {
+                GroundClient.sourceEnd();
+                coverage.close();
+                com.mojang.blaze3d.platform.GlStateManager._activeTexture(activeTexture);
+                RenderSystem.setShaderTexture(0, texture0);
+                RenderSystem.setShaderTexture(1, texture1);
+                RenderSystem.setShaderTexture(2, texture2);
+            } finally {
+                pass.close();
+            }
+        }
+        } finally {
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.FAR);
         }
     }
 
-    private static void prepareDetails() {
+    private static void prepareSurfaceUpdates() {
         if (!GroundViewClient.coverageReady()) return;
         refreshCoverage();
         var mc = Minecraft.getInstance();
         int next = GroundFlightClient.controlled() ? -1 : GroundClient.face();
         // A face crossing changes projection only. No mesh/owner rebase or native promotion.
         nativeFace = next;
-        var resident = GroundViewClient.residentTiles();
-        measuredDetails.keySet().retainAll(resident);
-        wanted =
-                GroundStreaming.admit(
-                        resident, measuredDetails, GroundViewPolicy.DETAIL_BYTES, wanted);
         for (long key : GroundViewClient.drainInvalidated()) {
             stitchDirty = true;
             // Cover geometry reads a tile's surface only while its coverage bit is set; an unedited
             // volume arriving must not restart the patch being built around it.
-            boolean cover = GroundViewClient.isChanged(key) || priorCoverage.get((int) key);
-            if (cover) dirtyHalo(key);
-            dirtyDetails.add(key);
-            if (measuredDetails.getOrDefault(key, 0L) > GroundStreaming.MAX_MESH_BYTES)
-                measuredDetails.remove(key);
-            var staged = stagedDetails.remove(key);
-            if (staged != null) staged.close();
-            if (job != null && job.image.key() == key) {
-                job.close();
-                job = null;
+            dirtyHalo(key);
+            // Edited structures must not wait behind thousands of optional procedural refinements.
+            var lod=lodTiles.get(key);
+            if(lod!=null) {
+                lod.dirty=true;
+                lodRequests.removeIf(t->t.key()==key); lodQueued.remove(key);
+                requestLod(new GroundLodSelection.Tile(key,0,true),lod.requested);
             }
-            if (cover
-                    && coverJob != null
-                    && coverJob.patch == GroundViewPolicy.patch(key)
-                    && !coverJob.builders.cover.sameInputs(coverInputs(coverJob.patch))) {
-                coverJob.close();
-                coverJob = null;
-            }
-        }
-        var iterator = detail.entrySet().iterator();
-        while (iterator.hasNext()) {
-            var e = iterator.next();
-            if (!wanted.contains(e.getKey())) {
-                e.getValue().close();
-                iterator.remove();
-            }
-        }
-        var pending = stagedDetails.entrySet().iterator();
-        while (pending.hasNext()) {
-            var e = pending.next();
-            if (!wanted.contains(e.getKey())) {
-                e.getValue().close();
-                pending.remove();
-            }
-        }
-        dirtyDetails.retainAll(resident);
-        if (job != null && !wanted.contains(job.image.key())) {
-            job.close();
-            job = null;
         }
     }
 
@@ -684,98 +1336,90 @@ public final class GroundRenderer {
                 key = priorCoverage.nextSetBit(key + 1)) if (!changed.get(key)) dirtyHalo(key);
         for (int key = changed.nextSetBit(0); key >= 0; key = changed.nextSetBit(key + 1))
             if (!priorCoverage.get(key)) dirtyHalo(key);
-        if (coverJob != null
-                && GroundViewPolicy.coverageChanged(priorCoverage, changed, coverJob.patch)
-                && !coverJob.builders.cover.sameInputs(coverInputs(coverJob.patch))) {
-            coverJob.close();
-            coverJob = null;
-        }
         dirty.coverage(priorCoverage, changed);
         priorCoverage = changed;
     }
 
     private static void dirtyHalo(long key) {
+        selectionVersion++;
         int face = (int) (key / 16384),
                 x = (int) (key % 128) * 16,
                 z = (int) (key / 128 % 128) * 16;
-        for (int dx = -16; dx <= 16; dx += 16)
-            for (int dz = -16; dz <= 16; dz += 16) {
+        for (int dx = -64; dx <= 64; dx += 64)
+            for (int dz = -64; dz <= 64; dz += 64) {
                 var cell =
                         GroundClient.shape()
                                 .topology()
                                 .canonical(
                                         new CubeSurfaceTopology.Cell(
-                                                CubeSurfaceTopology.Face.values()[face],
+                                                CubeSurfaceTopology.Face.VALUES[face],
                                                 x + dx,
                                                 0,
                                                 z + dz))
                                 .cell();
                 dirty.tile(tileKey(cell.face().ordinal(), cell.u(), cell.v()));
             }
-        if (coverJob != null) {
-            int p = coverJob.patch;
-            if (dirty.contains(p)) {
-                coverJob.close();
-                coverJob = null;
-            }
-        }
-    }
-
-    private static boolean drawDetail(long key) {
-        return selectionReady() && ownership.owner(key) == GroundOwnership.Owner.DETAIL;
     }
 
     private static boolean coversPending() {
-        return GroundPipeline.publish(dirty.count(), coverJob != null, patches, staging);
+        return GroundPipeline.publish(dirty.count(), !coverJobs.isEmpty(), patches, staging,
+                p->GroundViewPolicy.exists(shape,p));
     }
 
     private static GroundCoverSnapshot[] coverSnapshots(boolean pending) {
         var result = new GroundCoverSnapshot[patches.length];
         for (int p = 0; p < result.length; p++) {
-            var mesh =
-                    pending && staging[p] != null
-                            ? staging[p]
-                            : ready ? patches[p] : parents[p / 64];
-            result[p] = mesh.cover;
+            var mesh = pending && staging[p] != null ? staging[p] : ready ? patches[p] : parents[p];
+            result[p] = mesh == null ? null : mesh.cover;
         }
         return result;
     }
 
     private static void commitCovers() {
+        boolean firstCover = !ready;
         for (int p = 0; p < patches.length; p++)
             if (staging[p] != null) {
-                var old = patches[p];
+                if (patches[p] != null) patches[p].close();
+                patchQuads.put(p, stagedQuads.remove(p));
+                patchPaired[p] = stagedPaired[p];
                 patches[p] = staging[p];
+                drawnLevels[p] = builtLevels[p];
                 staging[p] = null;
-                if (old != null) old.close();
+                patchCommitted[p] = System.nanoTime();
             }
         coverEpoch++;
+        selectionVersion++;
         GroundExterior.commit();
+        coverCohort = null;
+        dirty.promote();
         ready = GroundViewClient.coverageReady() && patchesComplete();
+        // Initial parents use 64-block tops; rebuild their resident edge skirts once patches take
+        // over.
+        if (firstCover && ready) for (var tile : lodTiles.values()) tile.dirty = true;
+    }
+
+    /** Run after vanilla's layer draws, never infer this frame's coverage at AFTER_SKY. */
+    private static void refreshNativeDraws() {
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.NATIVE);
+        try {
+            window = GroundNativeCoverage.visible();
+            publishOwnership(coverage.ownership);
+        } finally {
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.NATIVE);
+        }
     }
 
     private static void updateExclusions() {
-        var mc = Minecraft.getInstance();
-        var nativeReady = new BitSet();
-        var columns = new HashMap<Long, GroundViewCache.Surface>();
-        // Vanilla draws every chart chunk in its view window (halo images included): hide cover
-        // there.
-        window = replacesNative() ? Set.of() : GroundViewClient.window();
-        for (var e : detail.entrySet())
-            if (!columns.containsKey(e.getKey())) columns.put(e.getKey(), e.getValue().surface);
-        var residentNative = (BitSet) nativeReady.clone();
-        var resident = new GroundOwnership.Snapshot(columns, residentNative);
+        // No native draw has happened at AFTER_SKY: do not walk last frame's visible list.
+        window = GroundNativeCoverage.visible();
         // A dirty replacement is staged; the currently drawn mesh and strips remain valid.
-        publishOwnership(ownership.retainCompatible(resident));
-        for (var e : stagedDetails.entrySet())
-            if (!nativeReady.get(e.getKey().intValue()))
-                columns.put(e.getKey(), e.getValue().surface);
-        var available = new GroundOwnership.Snapshot(columns, nativeReady);
+        publishOwnership(coverage.ownership.retainCompatible(residentOwnership));
+        var available = availableOwnership;
         if (pendingStitches != null) {
             var retained = pendingJob.selection.retainCompatible(available);
             // Never trim an already displayed owner to COVER merely because its adapter is
             // changing.
-            boolean preserves = GroundHandoff.preservesSelected(ownership, retained, available);
+            boolean preserves = GroundHandoff.preservesSelected(coverage.ownership, retained, available);
             if (preserves
                     && GroundOwnership.canCommit(
                             pendingJob.nextCover,
@@ -787,7 +1431,6 @@ public final class GroundRenderer {
                             retained,
                             available)) {
                 if (pendingJob.nextCover) commitCovers();
-                commitDetails(retained);
                 for (int i = 0; i < 6; i++) {
                     var old = stitches[i];
                     stitches[i] = pendingStitches[i];
@@ -799,10 +1442,10 @@ public final class GroundRenderer {
             pendingStitches = null;
             pendingJob = null;
         }
-        if (coverageTexture == 0) publishOwnership(ownership);
+        if (coverage.texture() == 0) publishOwnership(coverage.ownership);
         if (stitchJob == null
                 && pendingJob == null
-                && (stitchDirty || coversPending() || !ownership.sameAs(available))) {
+                && (stitchDirty || coversPending() || !coverage.ownership.sameAs(available))) {
             stitchDirty = false;
             boolean next = coversPending();
             stitchJob =
@@ -810,82 +1453,23 @@ public final class GroundRenderer {
         }
     }
 
-    private static void commitDetails(GroundOwnership.Snapshot selected) {
-        var iterator = stagedDetails.entrySet().iterator();
-        while (iterator.hasNext()) {
-            var e = iterator.next();
-            if (GroundOwnership.same(e.getValue().surface, selected.surface(e.getKey()))) {
-                var old = detail.put(e.getKey(), e.getValue());
-                if (old != null) old.close();
-                measuredDetails.put(e.getKey(), e.getValue().bytes);
-                iterator.remove();
-            }
-        }
-    }
+    // Each render stage sees its own native window (translucent sections draw after entities),
+    // so one frame publishes up to three atlases; repack only when ownership or LOD coverage moves.
 
     private static void publishOwnership(GroundOwnership.Snapshot next) {
-        if (coverageTexture != 0 && ownership.sameAs(next) && publishedWindow.equals(window))
-            return;
-        ownership = next;
-        publishedWindow = window;
-        var data = GroundOwnership.atlas(GroundClient.shape(), next, window);
-        var bytes = org.lwjgl.system.MemoryUtil.memAlloc(data.length);
-        int previous = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D),
-                alignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT),
-                rowLength = GL11.glGetInteger(GL11.GL_UNPACK_ROW_LENGTH),
-                skipRows = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_ROWS),
-                skipPixels = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_PIXELS);
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.OWNERSHIP);
         try {
-            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
-            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
-            bytes.put(data).flip();
-            if (coverageTexture == 0) {
-                coverageTexture = GL11.glGenTextures();
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, coverageTexture);
-                GL11.glTexParameteri(
-                        GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
-                GL11.glTexParameteri(
-                        GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-                GL11.glTexParameteri(
-                        GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-                GL11.glTexParameteri(
-                        GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-                GL11.glTexImage2D(
-                        GL11.GL_TEXTURE_2D,
-                        0,
-                        GL30.GL_R8,
-                        GroundOwnership.SIDE,
-                        GroundOwnership.HEIGHT,
-                        0,
-                        GL11.GL_RED,
-                        GL11.GL_UNSIGNED_BYTE,
-                        bytes);
-            } else {
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, coverageTexture);
-                GL11.glTexSubImage2D(
-                        GL11.GL_TEXTURE_2D,
-                        0,
-                        0,
-                        0,
-                        GroundOwnership.SIDE,
-                        GroundOwnership.HEIGHT,
-                        GL11.GL_RED,
-                        GL11.GL_UNSIGNED_BYTE,
-                        bytes);
-            }
+            coverage.publish(GroundClient.shape(), next, window, lodComplete, lodAtlasDirty);
+            lodAtlasDirty = false;
         } finally {
-            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, alignment);
-            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, rowLength);
-            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, skipRows);
-            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, skipPixels);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
-            org.lwjgl.system.MemoryUtil.memFree(bytes);
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.OWNERSHIP);
         }
     }
 
-    /** Diagnostic for the part of the corner gap the repair leaves open; the closure stands on it, so only draw it without one. */
+    /**
+     * Diagnostic for the part of the corner gap the repair leaves open; the closure stands on it,
+     * so only draw it without one.
+     */
     private static void drawResidual(RenderFrame c) {
         if (GroundFlightClient.controlled() || mask != null && mask.core() > 0) return;
         var map = GroundClient.gap();
@@ -913,61 +1497,6 @@ public final class GroundRenderer {
         }
         var mesh = out.build();
         if (mesh != null) BufferUploader.drawWithShader(mesh);
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void drawEntities(RenderFrame c) {
-        var mc = Minecraft.getInstance();
-        var dispatcher = mc.getBlockEntityRenderDispatcher();
-        var buffer = mc.renderBuffers().bufferSource();
-        for (var be : GroundViewClient.entities()) {
-            int face = GroundClient.access().face(be.getBlockPos().getX());
-            var renderer = dispatcher.getRenderer(be);
-            if (renderer == null) continue;
-            if (Anomaly.mask(
-                    GroundClient.shape(), mask, GroundClient.access().cell(be.getBlockPos())))
-                continue;
-            if (level.getChunkSource()
-                            .hasChunk(be.getBlockPos().getX() >> 4, be.getBlockPos().getZ() >> 4)
-                    && level.getChunkAt(be.getBlockPos())
-                            .getBlockEntities()
-                            .containsKey(be.getBlockPos())
-                    && renderer.shouldRender(be, c.camera().getPosition())) continue;
-            var point =
-                    new BentStripGeometry.Point(
-                            be.getBlockPos().getX() - GroundClient.storageOffset() - face * 4096,
-                            be.getBlockPos().getY() - 128,
-                            be.getBlockPos().getZ() - GroundClient.storageOffsetZ());
-            if (!GroundFlightClient.controlled()) {
-                var map = GroundClient.gap();
-                if (map.chart.tile(CubeSurfaceTopology.Face.values()[face]) == null
-                        || map.point(CubeSurfaceTopology.Face.values()[face], point)
-                                        .sub(GroundClient.eye())
-                                        .length()
-                                > GroundClient.view() + 24) continue;
-            }
-            var poses = c.matrixStack();
-            poses.pushPose();
-            var camera = c.camera().getPosition();
-            poses.translate(
-                    be.getBlockPos().getX() - camera.x,
-                    be.getBlockPos().getY() - camera.y,
-                    be.getBlockPos().getZ() - camera.z);
-            GroundClient.source(face, true);
-            try {
-                renderer.render(
-                        be,
-                        c.tickCounter().getGameTimeDeltaPartialTick(false),
-                        poses,
-                        buffer,
-                        LevelRenderer.getLightColor(level, be.getBlockPos()),
-                        net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
-                buffer.endBatch();
-            } finally {
-                GroundClient.sourceEnd();
-                poses.popPose();
-            }
-        }
     }
 
     private static Mesh buildMask(int face, boolean wedge) {
@@ -1069,7 +1598,10 @@ public final class GroundRenderer {
         }
     }
 
-    /** The four walls between a square (a,b,size) at height h and another at height high, each split along its length. */
+    /**
+     * The four walls between a square (a,b,size) at height h and another at height high, each split
+     * along its length.
+     */
     private static void frustum(
             BufferBuilder out,
             TextureAtlasSprite sprite,
@@ -1150,12 +1682,22 @@ public final class GroundRenderer {
                     .setNormal(nx, 0, nz);
     }
 
+    private static void renderPatch(RenderFrame c, int face, int p, RenderType layer) {
+        float fade = patchPaired[p] ? VoxelLodPolicy.fade(patchCommitted[p], System.nanoTime()) : 1;
+        render(c, face, patches[p], layer, true, fade);
+    }
+
     private static void render(RenderFrame c, int face, Mesh mesh, RenderType layer) {
         render(c, face, mesh, layer, mesh == masks[face] || mesh == masks[face + 6]);
     }
 
     private static void render(
             RenderFrame c, int face, Mesh mesh, RenderType layer, boolean coarse) {
+        render(c, face, mesh, layer, coarse, 1);
+    }
+
+    private static void render(
+            RenderFrame c, int face, Mesh mesh, RenderType layer, boolean coarse, float fade) {
         if (mesh == null) return;
         var gpu = mesh.layers.get(layer);
         if (gpu == null) return;
@@ -1163,303 +1705,94 @@ public final class GroundRenderer {
         GroundClient.cover(
                 coarse && mesh != masks[face] && mesh != masks[face + 6] && mesh != stitches[face]);
         GroundClient.stitch(mesh == stitches[face]);
+        GroundClient.patchFade(fade);
         var matrix =
                 GroundClient.place(
                         new Matrix4f(RenderSystem.getModelViewMatrix())
                                 .mul(c.matrixStack().last().pose()),
                         face,
                         c.camera().getPosition());
-        var shader = RenderSystem.getShader();
+        var shader = mesh.compact ? GroundCompact.shader() : RenderSystem.getShader();
         if (shader == null) return;
         gpu.bind();
         try {
             gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
+            probeDraws++;
         } finally {
             VertexBuffer.unbind();
             GroundClient.sourceEnd();
         }
     }
 
-    private static final class Builders implements AutoCloseable {
-        final Map<RenderType, ByteBufferBuilder> memory = new LinkedHashMap<>();
-        final Map<RenderType, BufferBuilder> buffers = new LinkedHashMap<>();
-        final boolean surface;
-        int surfaceFace;
-        GroundViewCache.Surface image;
-        GroundCoverSnapshot cover;
-
-        Builders() {
-            this(false);
-        }
-
-        Builders(boolean surface) {
-            this.surface = surface;
-        }
-
-        BufferBuilder get(RenderType layer) {
-            return buffers.computeIfAbsent(
-                    layer,
-                    l -> {
-                        var bytes = new ByteBufferBuilder(l.bufferSize());
-                        memory.put(l, bytes);
-                        return new BufferBuilder(bytes, l.mode(), l.format());
-                    });
-        }
+    private static final class Builders extends GroundMeshVertices.Buffers {
+        Builders() { super(); }
+        Builders(boolean surface) { super(surface); }
+        Builders(boolean surface, boolean compact) { super(surface, compact); }
 
         Mesh upload(long version) {
+            if (!context.current()) return null;
             var out = new LinkedHashMap<RenderType, VertexBuffer>();
+            var lodOut = new LinkedHashMap<RenderType, GroundLodArena.Range>();
             long size = 0;
+            AABB bounds = null;
             try {
                 for (var e : buffers.entrySet()) {
                     var data = e.getValue().build();
                     if (data == null) continue;
-                    size += data.vertexBuffer().remaining();
-                    var gpu = new VertexBuffer(VertexBuffer.Usage.STATIC);
-                    gpu.bind();
-                    try {
-                        gpu.upload(data);
-                    } catch (RuntimeException failure) {
-                        gpu.close();
-                        throw failure;
-                    } finally {
-                        VertexBuffer.unbind();
+                    if (lodKey >= 0) {
+                        var vertices = data.vertexBuffer();
+                        for (int i = 0; i < data.drawState().vertexCount(); i++) {
+                            int p = i * 32;
+                            double x = Math.round(vertices.getFloat(p) * 16) / 16.0;
+                            double y = Math.round((vertices.getFloat(p + 4) + 2048.0) * 16) / 16.0 - 2048;
+                            double z = Math.round(vertices.getFloat(p + 8) * 16) / 16.0;
+                            var point = new AABB(x, y, z, x, y, z);
+                            bounds = bounds == null ? point : bounds.minmax(point);
+                        }
                     }
-                    out.put(e.getKey(), gpu);
+                    try (var packed = new ByteBufferBuilder(4096)) {
+                        if (compact) data = GroundCompact.pack(data, packed, e.getKey(), surfaceFace, lodKey);
+                        size += data.vertexBuffer().remaining();
+                        if (lodKey >= 0) {
+                            var arena = lodArenas.get(surfaceFace).computeIfAbsent(e.getKey(), l -> new GroundLodArena());
+                            long before = arena.bytes();
+                            try (var upload = data) {
+                                var range = arena.upload(upload, VoxelLodPolicy.RESIDENT_BYTES - lodBytes);
+                                if (range == null) {
+                                    for (var prior : lodOut.values()) prior.close();
+                                    return null;
+                                }
+                                lodOut.put(e.getKey(), range);
+                            } finally {
+                                lodBytes += arena.bytes() - before;
+                            }
+                            continue;
+                        }
+                        var gpu = new VertexBuffer(VertexBuffer.Usage.STATIC);
+                        gpu.bind();
+                        try {
+                            gpu.upload(data);
+                        } catch (RuntimeException failure) {
+                            gpu.close();
+                            throw failure;
+                        } finally {
+                            VertexBuffer.unbind();
+                        }
+                        out.put(e.getKey(), gpu);
+                    }
                 }
-                return new Mesh(version, out, size, image, cover);
+                return new Mesh(version, out, lodOut, size, image, cover, compact, bounds);
             } catch (RuntimeException failure) {
                 for (var gpu : out.values()) gpu.close();
+                for (var range : lodOut.values()) range.close();
                 throw failure;
             }
         }
 
-        @Override
-        public void close() {
-            for (var bytes : memory.values()) bytes.close();
-        }
-    }
-
-    private static BlockAndTintGetter view(GroundChunkSnapshot own) {
-        return new BlockAndTintGetter() {
-            @Override
-            public BlockState getBlockState(BlockPos pos) {
-                var address = GroundTopology.address(GroundClient.shape(), pos);
-                var cell = GroundTopology.cell(address.owner());
-                if (Anomaly.mask(GroundClient.shape(), mask, cell))
-                    return Blocks.BEDROCK.defaultBlockState();
-                if (own.owns(address.owner()))
-                    return address.read(GroundViewClient.updatedState(own, address.owner()));
-                var state = GroundViewClient.state(address.owner());
-                if (state != null) return address.read(state);
-                long key = cell.u() / 16 + 128L * (cell.v() / 16 + 128L * cell.face().ordinal());
-                if (GroundViewClient.coverageReady()
-                        && GroundViewClient.flat()
-                        && !GroundViewClient.isChanged(key)) {
-                    int y = pos.getY();
-                    return y < -64 || y >= 128
-                            ? Blocks.AIR.defaultBlockState()
-                            : y == -64
-                                    ? Blocks.BEDROCK.defaultBlockState()
-                                    : y < 124
-                                            ? Blocks.STONE.defaultBlockState()
-                                            : y < 127
-                                                    ? Blocks.DIRT.defaultBlockState()
-                                                    : Blocks.GRASS_BLOCK.defaultBlockState();
-                }
-                return Blocks.BEDROCK.defaultBlockState();
-            }
-
-            @Override
-            public FluidState getFluidState(BlockPos pos) {
-                return getBlockState(pos).getFluidState();
-            }
-
-            @Override
-            public BlockEntity getBlockEntity(BlockPos pos) {
-                return level.getBlockEntity(
-                        GroundClient.storage(
-                                GroundTopology.address(GroundClient.shape(), pos).owner()));
-            }
-
-            @Override
-            public int getHeight() {
-                return level.getHeight();
-            }
-
-            @Override
-            public int getMinBuildHeight() {
-                return level.getMinBuildHeight();
-            }
-
-            @Override
-            public float getShade(Direction direction, boolean shade) {
-                return level.getShade(direction, shade);
-            }
-
-            @Override
-            public net.minecraft.world.level.lighting.LevelLightEngine getLightEngine() {
-                return level.getLightEngine();
-            }
-
-            @Override
-            public int getBlockTint(BlockPos pos, ColorResolver resolver) {
-                var owner = GroundTopology.address(GroundClient.shape(), pos).owner();
-                var terrain = GroundViewClient.terrain();
-                if (terrain != null && terrain.ecology() != null) {
-                    var cell = GroundTopology.cell(owner);
-                    var key =
-                            terrain.sea() != null
-                                            && terrain.groundY(cell.face(), cell.u(), cell.v())
-                                                    < terrain.sea().level()
-                                    ? net.minecraft.world.level.biome.Biomes.OCEAN
-                                    : switch (terrain.ecology()
-                                            .region(cell.face(), cell.u(), cell.v())) {
-                                        case FOREST ->
-                                                net.minecraft.world.level.biome.Biomes.FOREST;
-                                        case PLAINS ->
-                                                net.minecraft.world.level.biome.Biomes.PLAINS;
-                                        case DESERT ->
-                                                net.minecraft.world.level.biome.Biomes.DESERT;
-                                    };
-                    var biome =
-                            level.registryAccess()
-                                    .registryOrThrow(net.minecraft.core.registries.Registries.BIOME)
-                                    .getHolderOrThrow(key);
-                    return resolver.getColor(biome.value(), owner.getX(), owner.getZ());
-                }
-                return level.getBlockTint(GroundClient.storage(owner), resolver);
-            }
-
-            @Override
-            public int getBrightness(LightLayer layer, BlockPos pos) {
-                var owner = GroundTopology.address(GroundClient.shape(), pos).owner();
-                if (own.owns(owner)) return own.light(layer, owner);
-                var image =
-                        GroundViewClient.cache()
-                                .image(
-                                        GroundSurfaceIndex.key(
-                                                owner.getX() >> 4, owner.getZ() >> 4));
-                return image != null
-                        ? image.light(layer, owner)
-                        : level.hasChunk(
-                                        (owner.getX() + GroundClient.storageOffset()) >> 4,
-                                        owner.getZ() >> 4)
-                                ? level.getBrightness(layer, GroundClient.storage(owner))
-                                : layer == LightLayer.SKY ? 15 : 0;
-            }
-        };
-    }
-
-    private static final class DetailJob implements AutoCloseable {
-        final GroundChunkSnapshot image;
-        final Builders builders = new Builders();
-        final BlockAndTintGetter getter;
-        final PoseStack poses = new PoseStack();
-        final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        final RandomSource random = RandomSource.create(0);
-        final boolean clean;
-        final int limit;
-        int cursor;
-
-        DetailJob(GroundChunkSnapshot image) {
-            this.image = image;
-            clean = !GroundViewClient.hasDeltas(image.key());
-            limit =
-                    clean
-                            ? Math.min(
-                                    GroundChunkSnapshot.VALUES,
-                                    (image.top() + 1 - GroundChunkSnapshot.MIN_Y) * 256)
-                            : GroundChunkSnapshot.VALUES;
-            builders.image = GroundViewCache.surfaceImage(image);
-            getter = view(image);
-        }
-
-        long step(long deadline) {
-            long cells = 0;
-            var mc = Minecraft.getInstance();
-            while (cursor < limit) {
-                if ((cursor & 7) == 0 && System.nanoTime() >= deadline) break;
-                int i = cursor++, x = i & 15, z = i >> 4 & 15, y = (i >> 8) - 64;
-                cells++;
-                if (clean && image.enclosed(x, y, z)) continue;
-                pos.set(image.face() * 4096 + image.u() * 16 + x, y, image.v() * 16 + z);
-                var state = GroundViewClient.updatedState(image, pos);
-                if (state.isAir()
-                        || !state.is(Anomaly.CORE_BLOCK)
-                                && Anomaly.mask(
-                                        GroundClient.shape(), mask, GroundTopology.cell(pos)))
-                    continue;
-                if (state.getRenderShape() == RenderShape.MODEL) {
-                    var layer = ItemBlockRenderTypes.getChunkRenderType(state);
-                    poses.pushPose();
-                    poses.translate(image.u() * 16 + x, y - 128, image.v() * 16 + z);
-                    try {
-                        mc.getBlockRenderer()
-                                .renderBatched(
-                                        state,
-                                        pos,
-                                        getter,
-                                        poses,
-                                        builders.get(layer),
-                                        true,
-                                        random);
-                    } finally {
-                        poses.popPose();
-                    }
-                }
-                var fluid = state.getFluidState();
-                if (!fluid.isEmpty()) {
-                    var layer = ItemBlockRenderTypes.getRenderLayer(fluid);
-                    mc.getBlockRenderer()
-                            .renderLiquid(
-                                    pos,
-                                    getter,
-                                    new OffsetConsumer(
-                                            builders.get(layer),
-                                            image.u() * 16,
-                                            (y & ~15) - 128,
-                                            image.v() * 16),
-                                    state,
-                                    fluid);
-                }
-            }
-            return cells;
-        }
-
-        boolean done() {
-            return cursor >= limit;
-        }
-
-        Mesh finish() {
-            try {
-                return builders.upload(image.revision());
-            } finally {
-                close();
-            }
-        }
-
-        public void close() {
-            builders.close();
-        }
     }
 
     private static long tileKey(int face, int x, int z) {
-        return x / 16 + 128L * (z / 16 + 128L * face);
-    }
-
-    private static void baselineTop(
-            Builders builders, int face, int x, int z, int size, boolean unknown) {
-        if (GroundViewClient.terrain() != null)
-            planetTop(builders, GroundViewClient.terrain(), face, x, z, size);
-        else
-            top(
-                    builders,
-                    Blocks.GRASS_BLOCK.defaultBlockState(),
-                    x,
-                    0,
-                    z,
-                    size,
-                    unknown || !GroundViewClient.flat());
+        return ChunkKeys.faceLocal(face, x / 16, z / 16);
     }
 
     // Source-chart edges: neighbour column, edge origin, edge delta, outward normal.
@@ -1470,105 +1803,10 @@ public final class GroundRenderer {
         {0, 1, 0, 1, 1, 0, 0, 1}
     };
 
-    private static void columnWalls(
-            Builders builders, int face, int x, int z, double h, BlockState state) {
-        for (var e : EDGES) {
-            double a = builders.cover.height(face, x + e[0], z + e[1], x + e[2], z + e[3]),
-                    b =
-                            builders.cover.height(
-                                    face, x + e[0], z + e[1], x + e[2] + e[4], z + e[3] + e[5]);
-            boolean coarse = !builders.cover.column(GroundOwnership.key(face, x + e[0], z + e[1]));
-            if (!coarse && h <= a) continue;
-            // Inset only the wall by 1/1000 block so its mask belongs to its own source column.
-            var bridge =
-                    GroundTransition.bridge(
-                            x + e[2] - e[6] * .001, z + e[3] - e[7] * .001, e[4], e[5], h, a, b);
-            surfaceWall(builders, state, bridge, face, x, z, e[6], e[7], coarse);
-        }
-    }
-
-    private static void surfaceWall(
-            Builders builders,
-            BlockState state,
-            List<BentStripGeometry.Point> points,
-            int face,
-            int x,
-            int z,
-            int nx,
-            int nz,
-            boolean twoSided) {
-        if (points.isEmpty()) return;
-        var level = surfaceTint();
-        var mc = Minecraft.getInstance();
-        var model = mc.getBlockRenderer().getBlockModel(state);
-        var side = Direction.fromDelta(nx, 0, nz);
-        var quads = model.getQuads(state, side, RandomSource.create(0));
-        var pos =
-                GroundClient.storage(
-                        new BlockPos(
-                                face * 4096 + x, 128 + (int) Math.floor(points.getFirst().y()), z));
-        var fluid = state.getFluidState();
-        var handler =
-                fluid.isEmpty()
-                        ? null
-                        : net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
-                                .of(fluid.getType());
-        if (handler
-                == net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
-                        .DEFAULT) handler = null;
-        var sprite =
-                handler != null
-                        ? mc.getTextureAtlas(
-                                        net.minecraft.client.renderer.texture.TextureAtlas
-                                                .LOCATION_BLOCKS)
-                                .apply(handler.getStillTexture(fluid, level, pos))
-                        : quads.isEmpty() ? model.getParticleIcon() : quads.getFirst().getSprite();
-        int color =
-                handler != null
-                        ? handler.getTintColor(fluid, level, pos)
-                        : !quads.isEmpty() && quads.getFirst().isTinted()
-                                ? mc.getBlockColors()
-                                        .getColor(
-                                                state, level, pos, quads.getFirst().getTintIndex())
-                                : 0xffffff;
-        int albedo = builders.surface ? GroundAlbedo.color(state, pos, level) : 0;
-        var out =
-                builders.get(
-                        builders.surface
-                                ? RenderType.solid()
-                                : handler == null
-                                        ? ItemBlockRenderTypes.getChunkRenderType(state)
-                                        : ItemBlockRenderTypes.getRenderLayer(fluid));
-        var normal =
-                points.get(1).sub(points.getFirst()).cross(points.get(2).sub(points.getFirst()));
-        boolean reverse = normal.x() * nx + normal.z() * nz < 0;
-        for (int pass = 0; pass < (twoSided ? 2 : 1); pass++) {
-            boolean flip = reverse ^ (pass == 1);
-            for (int j = 0; j < 4; j++) {
-                int i = flip ? 3 - j : j;
-                var p = points.get(i);
-                out.addVertex((float) p.x(), (float) p.y(), (float) p.z())
-                        .setColor(
-                                color >> 16 & 255,
-                                color >> 8 & 255,
-                                color & 255,
-                                builders.surface
-                                        ? (nx < 0 ? 0 : nx > 0 ? 252 : nz < 0 ? 253 : 254)
-                                        : 255)
-                        .setUv(
-                                i < 2 ? sprite.getU0() : sprite.getU1(),
-                                i == 0 || i == 3 ? sprite.getV0() : sprite.getV1())
-                        .setUv2(240, 240)
-                        .setNormal(
-                                builders.surface ? GroundPipeline.channel(albedo, 16) : nx,
-                                builders.surface ? GroundPipeline.channel(albedo, 8) : 0,
-                                builders.surface ? GroundPipeline.channel(albedo, 0) : nz);
-            }
-        }
-    }
-
-    /** Cached strips between actually drawn native/detail tiles and the simplified cover.
-     * An exclusion bit removes a surface; it is not by itself a geometric stitch. */
+    /**
+     * Cached strips between actually drawn native/detail tiles and the simplified cover. An
+     * exclusion bit removes a surface; it is not by itself a geometric stitch.
+     */
     private static final class StitchJob implements AutoCloseable {
         final GroundOwnership.Snapshot selection;
         final GroundCoverSnapshot[] covers;
@@ -1631,9 +1869,9 @@ public final class GroundRenderer {
                                     z + v + e[3] - e[7] * .02,
                                     e[4],
                                     e[5],
-                                    h,
-                                    a,
-                                    b);
+                                    Math.max(h, Math.max(a, b)),
+                                    Math.min(h, a) - 64,
+                                    Math.min(h, b) - 64);
                     var owner = new BlockPos(face * 4096 + x + u, (int) h + 127, z + v);
                     var state = fine.state(u, v);
                     if (!state.isAir()
@@ -1687,112 +1925,191 @@ public final class GroundRenderer {
             parentJob.close();
             parentJob = null;
         }
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < parents.length; i++) {
             if (parents[i] != null) parents[i].close();
             parents[i] = null;
         }
     }
 
-    /** Complete shared-16-node baseline, published as six faces together. */
+    /** Startup terraces use the existing distance levels, nearest first, one patch per commit. */
     private static final class ParentJob implements AutoCloseable {
-        final Builders[] builders = new Builders[6];
-        final Mesh[] built = new Mesh[6];
-        final BitSet changed = GroundViewClient.changed();
-        final int across = GroundClient.shape().chunks();
-        int face, tile;
-        boolean transferred;
-
-        ParentJob() {
-            var snapshot = GroundCoverSnapshot.parent(GroundViewClient.heights(), changed);
-            for (int i = 0; i < 6; i++) {
-                builders[i] = new Builders(true);
-                builders[i].surfaceFace = i;
-                builders[i].cover = snapshot;
-            }
-        }
+        final GroundCoverSnapshot snapshot =
+                GroundCoverSnapshot.parent(GroundViewClient.heights(), new BitSet());
+        final List<Integer> order = new ArrayList<>();
+        final Map<Integer, java.util.concurrent.Future<List<VoxelMesher.Quad>>> prefetched =
+                new LinkedHashMap<>();
+        final GroundFarMesh.Field field =
+                farPyramids.initialField(GroundViewClient.terrain());
+        final Map<Integer, Integer> steps = new HashMap<>();
+        Builders builders;
+        List<VoxelMesher.Quad> quads;
+        int patch = -1, step, fed, finished;
 
         void step(long deadline) {
-            while (face < 6 && System.nanoTime() < deadline) {
-                int x = (tile % across) * 16, z = (tile / across) * 16;
-                baselineTop(builders[face], face, x, z, 16, changed.get((int) tileKey(face, x, z)));
-                if (++tile == across * across) {
-                    built[face] = builders[face].upload(0);
-                    builders[face].close();
-                    builders[face] = null;
-                    uploads++;
-                    tile = 0;
-                    face++;
+            // Re-sort unscheduled work when the camera moves; already submitted work stays bounded.
+            var pose =
+                    shape.canonical(
+                                    CubeSurfaceTopology.Face.VALUES[GroundClient.face()],
+                                    GroundClient.eye())
+                            .pose();
+            order.clear();
+            order.addAll(GroundViewPolicy.nearestPatches(shape, shape.position(pose)));
+            order.removeIf(p -> parents[p] != null || prefetched.containsKey(p));
+            while (!done() && System.nanoTime() < deadline) {
+                while (prefetched.size() < LOD_THREADS
+                        && !order.isEmpty()
+                        && System.nanoTime() < deadline) {
+                    int p = order.removeFirst();
+                    var observed = shape;
+                    var heights = GroundViewClient.heights();
+                    double h = heights == null ? 0 : heights.surfaceNode(
+                            CubeSurfaceTopology.Face.VALUES[GroundViewPolicy.face(p)],
+                            Math.min(shape.size(), GroundViewPolicy.x(p) + 128),
+                            Math.min(shape.size(), GroundViewPolicy.z(p) + 128));
+                    int selected = GroundFarMesh.level(
+                            GroundFarMesh.distance(shape, shape.position(pose), p, h), 64,
+                            lodFov, Minecraft.getInstance().getWindow().getHeight());
+                    steps.put(p, selected);
+                    var source=GroundViewClient.overlays().isEmpty() ? field : farPyramids.field(
+                            observed,GroundViewClient.terrain(),GroundViewClient::overlay,p);
+                    prefetched.put(
+                            p,
+                            lodWorkers.submitFirst(() -> GroundFarMesh.build(observed, p, selected, source)));
                 }
+                if (patch < 0) {
+                    patch =
+                            prefetched.entrySet().stream()
+                                    .filter(e -> e.getValue().isDone())
+                                    .mapToInt(Map.Entry::getKey)
+                                    .findFirst()
+                                    .orElse(-1);
+                    if (patch < 0) return;
+                    quads = completed(prefetched.get(patch));
+                    step = steps.remove(patch);
+                    builders = new Builders(true, true);
+                    builders.surfaceFace = GroundViewPolicy.face(patch);
+                    builders.cover = snapshot;
+                }
+                while (fed < quads.size() && System.nanoTime() < deadline) {
+                    var q = quads.get(fed++);
+                    surfacePolygon(
+                            builders,
+                            q.material(),
+                            q.points(),
+                            GroundViewPolicy.x(patch),
+                            GroundViewPolicy.z(patch),
+                            true,
+                            GroundShaderSource.patchTag(false, GroundFarMesh.side(q)),q.rgb());
+                }
+                if (fed < quads.size()) return;
+                builders.cover = snapshot.withTerraces(GroundViewPolicy.face(patch), quads, step);
+                parents[patch] = builders.upload(0);
+                patchQuads.put(patch, quads);
+                builders.close();
+                builders = null;
+                prefetched.remove(patch);
+                patch = -1;
+                quads = null;
+                fed = 0;
+                finished++;
+                uploads++;
             }
         }
 
         boolean done() {
-            return face == 6;
-        }
-
-        Mesh[] finish() {
-            if (!done()) throw new IllegalStateException("Incomplete parent coverage");
-            transferred = true;
-            close();
-            return built;
+            return parentsComplete();
         }
 
         public void close() {
-            for (var b : builders) if (b != null) b.close();
-            if (!transferred) for (var mesh : built) if (mesh != null) mesh.close();
+            prefetched.values().forEach(f -> f.cancel(false));
+            if (builders != null) builders.close();
         }
     }
 
     private static final class CoverJob implements AutoCloseable {
-        final int patch, face, x0, z0;
-        final Builders builders = new Builders(true);
+        final int patch, face, x0, z0, step;
+        final long farVersion;
+        final Builders builders = new Builders(true, true);
         final GroundExterior.Job exterior;
-        int tile, pixel;
+        final java.util.concurrent.Future<List<VoxelMesher.Quad>> future;
+        final List<VoxelMesher.Quad> previous;
+        List<VoxelMesher.Quad> quads;
+        java.util.concurrent.Future<?> fill;
+        private final GroundMeshLease lease;
 
         CoverJob(int patch, GroundCoverSnapshot inputs) {
             this.patch = patch;
+            farVersion = farVersions[patch];
             face = GroundViewPolicy.face(patch);
             x0 = GroundViewPolicy.x(patch);
             z0 = GroundViewPolicy.z(patch);
+            step = patchLevels[patch] == 0 ? 16 : patchLevels[patch];
             builders.surfaceFace = face;
             builders.cover = inputs;
-            exterior = new GroundExterior.Job(patch, mask);
+            exterior = new GroundExterior.Job(patch, shape, mask);
+            lease = new GroundMeshLease(() -> {
+                builders.close();
+                exterior.close();
+            });
+            previous = patchQuads.getOrDefault(patch, List.of());
+            future =
+                    farMesh(
+                            shape,
+                            patch,
+                            step,
+                            GroundViewClient.terrain(),
+                            coverCohort,
+                            farPyramids);
         }
 
+        /** Vertices are written on a worker; the render thread only uploads in {@link #finish()}. */
         void step(long deadline) {
-            exterior.step(deadline);
-            while (tile < 256 && System.nanoTime() < deadline) {
-                int x = x0 + tile % 16 * 16, z = z0 + tile / 16 * 16;
-                long key = tileKey(face, x, z);
-                var surface = builders.cover.surface(key);
-                if (surface == null) {
-                    baselineTop(builders, face, x, z, 16, builders.cover.unknown(key));
-                    tile++;
-                    continue;
-                }
-                int u = pixel & 15, v = pixel >> 4;
-                var state = surface.state(u, v);
-                if (!state.isAir()) {
-                    top(builders, state, x + u, surface.height(u, v) + 1 - 128, z + v, 1, false);
-                    columnWalls(
-                            builders, face, x + u, z + v, surface.height(u, v) + 1 - 128, state);
-                }
-                if (++pixel == 256) {
-                    pixel = 0;
-                    tile++;
-                }
-            }
+            if (fill != null || !future.isDone() || !lodWorkers.canSubmit(true)) return;
+            quads = completed(future);
+            fill =
+                    lodWorkers.submitRefinement(
+                            () -> {
+                                if (!lease.begin()) return null;
+                                try {
+                                    GroundMeshResources.read(builders.context.resources(), () -> {
+                                        for (var q : quads) emit(q, false);
+                                        for (var q : previous) emit(q, true);
+                                    });
+                                } finally {
+                                    lease.end();
+                                }
+                                return null;
+                            });
+        }
+
+        private void emit(VoxelMesher.Quad q, boolean old) {
+            surfacePolygon(
+                    builders,
+                    q.material(),
+                    q.points(),
+                    x0,
+                    z0,
+                    true,
+                    GroundShaderSource.patchTag(old, GroundFarMesh.side(q)),q.rgb());
+            var pos=builders.context.storage(GroundAlbedo.position(face,q.points()));
+            var p=q.points(); var normal=p.get(1).sub(p.getFirst()).cross(p.get(2).sub(p.getFirst()));
+            int rgb=GroundAlbedo.color(q.material(),pos,builders.context.tint(),Direction.getNearest((float)normal.x(),(float)normal.y(),(float)normal.z()));
+            if(q.rgb()>=0) rgb=GroundAlbedo.calibrate(q.rgb(),
+                    dev.starfold.worldgen.surface.SurfaceColor.color(q.material()),rgb);
+            exterior.emit(q, rgb, old);
         }
 
         boolean done() {
-            return tile == 256 && exterior.done();
+            return fill != null && fill.isDone();
         }
 
         Mesh finish() {
             try {
+                completed(fill);
+                builders.cover = builders.cover.withTerraces(face, quads, step);
                 var mesh = builders.upload(0);
                 try {
-                    GroundExterior.replace(patch, exterior.finish());
+                    GroundExterior.replace(patch, exterior.finish(), !previous.isEmpty());
                     return mesh;
                 } catch (RuntimeException failure) {
                     mesh.close();
@@ -1804,265 +2121,24 @@ public final class GroundRenderer {
         }
 
         public void close() {
-            builders.close();
-            exterior.close();
+            future.cancel(false);
+            if (fill != null) fill.cancel(false);
+            lease.close();
         }
     }
 
-    private static void planetTop(
-            Builders buffers, PlanetTerrain terrain, int face, int x, int z, int size) {
-        if (size != GroundSurfaceMesh.GRID)
-            throw new IllegalArgumentException("Projection tile must share 16-block nodes");
-        var heights = buffers.cover == null ? GroundViewClient.heights() : buffers.cover.heights();
-        for (var polygon :
-                GroundSurfaceMesh.tile(heights, CubeSurfaceTopology.Face.values()[face], x, z)) {
-            surfacePolygon(
-                    buffers,
-                    polygon.water()
-                            ? heights.sea().fluid()
-                            : heights.surfaceState(
-                                    CubeSurfaceTopology.Face.values()[face], x + 8, z + 8),
-                    polygon.points(),
-                    x,
-                    z);
-        }
-    }
-
-    private static PlanetPackets.Profile tintProfile;
-    private static BlockAndTintGetter tintView;
-    private static Object tintLevel;
-    private static int tintPlanet;
-
-    static BlockAndTintGetter surfaceTint() {
-        var profile = GroundViewClient.profile();
-        int planet = GroundClient.planet();
-        if (profile == null) return level;
-        if (tintProfile != profile || tintLevel != level || tintPlanet != planet) {
-            tintProfile = profile;
-            tintLevel = level;
-            tintPlanet = planet;
-            tintView =
-                    PlanetTint.view(
-                            level,
-                            level.registryAccess(),
-                            planet,
-                            GroundViewClient.terrain(),
-                            profile.biome());
-        }
-        return tintView;
-    }
-
-    private static void surfacePolygon(
-            Builders builders,
-            BlockState state,
-            List<BentStripGeometry.Point> points,
-            int x,
-            int z) {
-        var level = surfaceTint();
-        var mc = Minecraft.getInstance();
-        var fluid = state.getFluidState();
-        var handler =
-                fluid.isEmpty()
-                        ? null
-                        : net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
-                                .of(fluid.getType());
-        if (handler
-                == net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
-                        .DEFAULT) handler = null;
-        var layer =
-                handler == null
-                        ? ItemBlockRenderTypes.getChunkRenderType(state)
-                        : ItemBlockRenderTypes.getRenderLayer(fluid);
-        var model = mc.getBlockRenderer().getBlockModel(state);
-        var tops = model.getQuads(state, Direction.UP, RandomSource.create(0));
-        var pos = GroundClient.storage(new BlockPos(builders.surfaceFace * 4096 + x, 128, z));
-        var sprite =
-                handler != null
-                        ? mc.getTextureAtlas(
-                                        net.minecraft.client.renderer.texture.TextureAtlas
-                                                .LOCATION_BLOCKS)
-                                .apply(handler.getStillTexture(fluid, level, pos))
-                        : tops.isEmpty() ? model.getParticleIcon() : tops.getFirst().getSprite();
-        int color =
-                handler != null
-                        ? handler.getTintColor(fluid, level, pos)
-                        : !tops.isEmpty() && tops.getFirst().isTinted()
-                                ? mc.getBlockColors()
-                                        .getColor(state, level, pos, tops.getFirst().getTintIndex())
-                                : 0xffffff;
-        int albedo = GroundAlbedo.color(state, pos, level);
-        var out = builders.get(builders.surface ? RenderType.solid() : layer);
-        if (points.size() == 4) {
-            for (var p : points) surfaceVertex(out, sprite, color, albedo, p, x, z);
-        } else
-            for (int i = 1; i < points.size() - 1; i++) {
-                surfaceVertex(out, sprite, color, albedo, points.getFirst(), x, z);
-                surfaceVertex(out, sprite, color, albedo, points.get(i), x, z);
-                surfaceVertex(out, sprite, color, albedo, points.get(i + 1), x, z);
-                surfaceVertex(out, sprite, color, albedo, points.get(i + 1), x, z);
-            }
-    }
-
-    private static void surfaceVertex(
-            BufferBuilder out,
-            TextureAtlasSprite sprite,
-            int color,
-            int albedo,
-            BentStripGeometry.Point p,
-            int x,
-            int z) {
-        out.addVertex((float) p.x(), (float) p.y(), (float) p.z())
-                .setColor(color >> 16 & 255, color >> 8 & 255, color & 255, 16)
-                .setUv(
-                        sprite.getU0()
-                                + (sprite.getU1() - sprite.getU0()) * (float) ((p.x() - x) / 16),
-                        sprite.getV0()
-                                + (sprite.getV1() - sprite.getV0()) * (float) ((p.z() - z) / 16))
-                .setUv2(240, 240)
-                .setNormal(
-                        GroundPipeline.channel(albedo, 16),
-                        GroundPipeline.channel(albedo, 8),
-                        GroundPipeline.channel(albedo, 0));
-    }
-
-    private static void top(
-            Builders buffers,
-            BlockState state,
-            float x,
-            float y,
-            float z,
-            float size,
-            boolean unknown) {
-        top(buffers, state, x, y, z, size, size, unknown);
-    }
-
-    private static void top(
-            Builders buffers,
-            BlockState state,
-            float x,
-            float y,
-            float z,
-            float width,
-            float depth,
-            boolean unknown) {
-        topHeights(buffers, state, x, z, width, depth, new float[] {y, y, y, y}, unknown);
-    }
-
-    private static void topHeights(
-            Builders buffers,
-            BlockState state,
-            float x,
-            float z,
-            float width,
-            float depth,
-            float[] heights,
-            boolean unknown) {
-        float y = heights[0];
-        var level = surfaceTint();
-        var mc = Minecraft.getInstance();
-        var fluid = state.getFluidState();
-        var handler =
-                fluid.isEmpty()
-                        ? null
-                        : net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
-                                .of(fluid.getType());
-        if (handler
-                == net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
-                        .DEFAULT) handler = null;
-        var layer =
-                unknown
-                        ? RenderType.solid()
-                        : handler == null
-                                ? ItemBlockRenderTypes.getChunkRenderType(state)
-                                : ItemBlockRenderTypes.getRenderLayer(fluid);
-        var model = mc.getBlockRenderer().getBlockModel(state);
-        var tops = model.getQuads(state, Direction.UP, RandomSource.create(0));
-        var pos =
-                GroundClient.storage(
-                        new BlockPos(buffers.surfaceFace * 4096 + (int) x, (int) y + 128, (int) z));
-        TextureAtlasSprite sprite =
-                handler != null
-                        ? mc.getTextureAtlas(
-                                        net.minecraft.client.renderer.texture.TextureAtlas
-                                                .LOCATION_BLOCKS)
-                                .apply(handler.getStillTexture(fluid, level, pos))
-                        : tops.isEmpty() ? model.getParticleIcon() : tops.getFirst().getSprite();
-        var out = buffers.get(buffers.surface ? RenderType.solid() : layer);
-        int albedo =
-                buffers.surface ? (unknown ? 0xff3333 : GroundAlbedo.color(state, pos, level)) : 0;
-        int color =
-                unknown
-                        ? 0xff3333
-                        : handler != null
-                                ? handler.getTintColor(fluid, level, pos)
-                                : !tops.isEmpty() && tops.getFirst().isTinted()
-                                        ? mc.getBlockColors()
-                                                .getColor(
-                                                        state,
-                                                        level,
-                                                        pos,
-                                                        tops.getFirst().getTintIndex())
-                                        : 0xffffff;
-        float[][] p = {
-            {x, heights[0], z},
-            {x, heights[1], z + depth},
-            {x + width, heights[2], z + depth},
-            {x + width, heights[3], z}
-        };
-        float[] us = {sprite.getU0(), sprite.getU0(), sprite.getU1(), sprite.getU1()},
-                vs = {sprite.getV0(), sprite.getV1(), sprite.getV1(), sprite.getV0()};
-        for (int i = 0; i < 4; i++)
-            out.addVertex(p[i][0], p[i][1], p[i][2])
-                    .setColor(
-                            color >> 16 & 255,
-                            color >> 8 & 255,
-                            color & 255,
-                            buffers.surface ? Math.max(1, (int) width) : 255)
-                    .setUv(us[i], vs[i])
-                    .setUv2(240, 240)
-                    .setNormal(
-                            buffers.surface ? GroundPipeline.channel(albedo, 16) : 0,
-                            buffers.surface ? GroundPipeline.channel(albedo, 8) : 1,
-                            buffers.surface ? GroundPipeline.channel(albedo, 0) : 0);
-    }
-
-    private record OffsetConsumer(VertexConsumer target, float x, float y, float z)
-            implements VertexConsumer {
-        @Override
-        public VertexConsumer addVertex(float a, float b, float c) {
-            target.addVertex(a + x, b + y, c + z);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setColor(int r, int g, int b, int a) {
-            target.setColor(r, g, b, a);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv(float u, float v) {
-            target.setUv(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv1(int u, int v) {
-            target.setUv1(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv2(int u, int v) {
-            target.setUv2(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setNormal(float a, float b, float c) {
-            target.setNormal(a, b, c);
-            return this;
-        }
+    static int surfaceLight(int face, BlockPos pos) {
+        var storage = GroundClient.storage(pos);
+        if (level.getChunkSource().hasChunk(storage.getX() >> 4, storage.getZ() >> 4)
+                && level.getLightEngine().lightOnInSection(net.minecraft.core.SectionPos.of(storage)))
+            return level.getBrightness(LightLayer.BLOCK, storage) * 16
+                    | level.getBrightness(LightLayer.SKY, storage) * 4096;
+        var terrain = GroundViewClient.terrain();
+        var liquid = terrain == null ? null : terrain.liquid(CubeSurfaceTopology.Face.VALUES[face], pos.getX() - face * 4096, pos.getZ());
+        int depth = liquid == null
+                || terrain.groundY(CubeSurfaceTopology.Face.VALUES[face], pos.getX() - face * 4096, pos.getZ()) >= liquid.level()
+                ? 0 : liquid.level() + 1 - pos.getY();
+        return GroundFarTexture.sky(depth) * 4096;
     }
 
     private GroundRenderer() {}

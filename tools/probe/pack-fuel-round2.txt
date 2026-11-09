@@ -1,0 +1,98 @@
+# Command-built 24.5-mass Minimal-A derivative, landed on a platform.
+# Pack data only: navigation scope available before osmium. No advancement grants.
+strict
+waitworld
+wait 180
+cmd gamerule sendCommandFeedback true
+cmd gamemode creative
+cmd tp @s 5288.5 145 862.5 90 20
+fly on
+wait 80
+cmd fill 5285 140 855 5300 140 870 minecraft:smooth_stone
+cmd fill 5285 141 855 5300 155 870 minecraft:air
+cmd setblock 5290 141 860 minecraft:oak_planks
+cmd setblock 5291 141 860 starfold:thruster[facing=north]
+cmd setblock 5292 141 860 starfold:airstair[facing=north]
+cmd setblock 5293 141 860 starfold:thruster[facing=north]
+cmd setblock 5294 141 860 minecraft:oak_planks
+cmd setblock 5290 141 861 starfold:thruster[facing=west]
+cmd setblock 5291 141 861 minecraft:oak_planks
+cmd setblock 5292 141 861 starfold:thruster[facing=down]
+cmd setblock 5293 141 861 minecraft:oak_planks
+cmd setblock 5294 141 861 starfold:thruster[facing=east]
+cmd setblock 5290 141 862 minecraft:oak_planks
+cmd setblock 5291 141 862 starfold:thruster[facing=up]
+cmd setblock 5292 141 862 minecraft:oak_planks
+cmd setblock 5293 141 862 starfold:thruster[facing=up]
+cmd setblock 5294 141 862 minecraft:oak_planks
+cmd setblock 5290 141 863 starfold:thruster[facing=west]
+cmd setblock 5291 141 863 minecraft:oak_planks
+cmd setblock 5292 141 863 starfold:thruster[facing=down]
+cmd setblock 5293 141 863 minecraft:oak_planks
+cmd setblock 5294 141 863 starfold:thruster[facing=east]
+cmd setblock 5290 141 864 minecraft:oak_planks
+cmd setblock 5291 141 864 starfold:thruster[facing=south]
+cmd setblock 5292 141 864 starfold:airstair[facing=south]
+cmd setblock 5293 141 864 starfold:thruster[facing=south]
+cmd setblock 5294 141 864 minecraft:oak_planks
+cmd setblock 5290 142 862 starfold:gyro
+cmd setblock 5292 142 862 starfold:helm[facing=west]
+cmd setblock 5294 142 862 starfold:gyro
+cmd setblock 5290 143 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5292 143 862 starfold:scope_nav[facing=west]
+cmd setblock 5294 143 862 minecraft:lever[face=floor,facing=north,powered=true]
+cmd setblock 5293 142 863 create:fluid_tank{TankContent:{Fluid:{id:"createdieselgenerators:diesel",amount:8000}}}
+wait 40
+cmd sable assemble area 5290 141 860 5294 143 864
+wait 100
+cmd tp @s 5293.5 142.2 863.5 90 30
+fly off
+wait 60
+cmd gamemode survival
+wait 40
+find starfold:helm
+wait 5
+usehit helm
+wait 40
+requirehelm
+look free
+press 340 1
+until clearance< 0.15 400
+press 340 0
+wait 100
+helmstate r2-landed
+hullblocks r2-landed
+nav r2-landed
+shot r2-fuel-landed
+# Plot coordinates verified by hullblocks in the fresh single-hull fixture.
+cmd data get block 20481035 -103 20481035 TankContent
+press 32 1
+until clearance> 1100 600
+shot r2-fuel-1100
+nav r2-fuel-1100
+cmd data get block 20481035 -103 20481035 TankContent
+until region 600
+press 32 0
+shot r2-fuel-space
+nav r2-fuel-space
+cmd data get block 20481035 -103 20481035 TankContent
+helmstate r2-fuel-space
+# S reduces space throttle; active braking still consumes fuel.
+press 83 1
+wait 400
+press 83 0
+cmd data get block 20481035 -103 20481035 TankContent
+helmstate r2-fuel-braked
+shot r2-fuel-braked
+press 87 1
+wait 500
+cmd data get block 20481035 -103 20481035 TankContent
+helmstate r2-fuel-empty-a
+shot r2-fuel-empty-a
+wait 100
+cmd data get block 20481035 -103 20481035 TankContent
+helmstate r2-fuel-empty-b
+shot r2-fuel-empty-b
+press 87 0
+shot r2-fuel-final
+quit

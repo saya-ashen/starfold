@@ -12,6 +12,11 @@ import org.spongepowered.asm.mixin.injection.callback.*;
 
 @Mixin(Entity.class)
 public abstract class GroundTopologyEntityMixin {
+    @ModifyVariable(method = "move", at = @At("HEAD"), argsOnly = true)
+    private Vec3 starfold$sunWall(Vec3 motion) {
+        return dev.starfold.space.SpaceServer.sunMotion((Entity) (Object) this, motion);
+    }
+
     @Inject(method = "move", at = @At("RETURN"))
     // A move made for a client (the player itself, or the vehicle it steers) is finished by its
     // network handler,

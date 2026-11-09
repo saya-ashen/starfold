@@ -3,7 +3,6 @@ package dev.starfold;
 import dev.starfold.chart.GroundAir;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.dev.DevProbe;
 import dev.starfold.flight.FlightClientHost;
 import dev.starfold.flight.OrbitFlightControls;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -15,7 +14,7 @@ import dev.starfold.render.RendererGuard;
 import dev.starfold.ship.AircraftDockRenderer;
 import dev.starfold.ship.AirstairRenderer;
 import dev.starfold.ship.ShipClientHost;
-import dev.starfold.ship.SpacePackets;
+import dev.starfold.space.SpacePackets;
 import dev.starfold.ship.ThrusterRenderer;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.SkyHost;
@@ -35,13 +34,31 @@ import net.neoforged.fml.common.Mod;
 
 @Mod(value = "starfold", dist = Dist.CLIENT)
 public final class StarfoldClient {
+    private final dev.starfold.render.ClientWorldSession worldSession;
     public StarfoldClient(net.neoforged.bus.api.IEventBus modBus) {
         installSkyHost();
+        dev.starfold.planet.PlanetConditions.installClient(
+                pos -> {
+                    var mc = net.minecraft.client.Minecraft.getInstance();
+                    if (mc.level == null || !GroundClient.active() || SpaceClient.present())
+                        return null;
+                    var profile = GroundViewClient.profile();
+                    if (profile == null
+                            || profile.session()
+                                    != dev.starfold.flight.GroundFlightClient.session())
+                        return null;
+                    var frame = GroundClient.frame();
+                    return dev.starfold.planet.PlanetConditions.observedAt(
+                            frame.toStorage(pos),
+                            frame.planet(),
+                            profile.generation().environment());
+                });
         installShipHost();
         installFlightHost();
         installSpaceHost();
         installWaypointHost();
         initializeClientSystems(modBus);
+        worldSession = new dev.starfold.render.ClientWorldSession();
     }
 
     private static void installSkyHost() {
@@ -189,6 +206,11 @@ public final class StarfoldClient {
                     }
 
                     @Override
+                    public void groundTarget(net.minecraft.client.gui.GuiGraphics graphics, String name, dev.starfold.geometry.BentStripGeometry.Point destination) {
+                        WaypointClient.destination(graphics, name, destination);
+                    }
+
+                    @Override
                     public int launchPlanet() {
                         var launch = WaypointClient.active();
                         return launch == null ? -1 : launch.planet();
@@ -242,10 +264,10 @@ public final class StarfoldClient {
     }
 
     private static void initializeClientSystems(net.neoforged.bus.api.IEventBus modBus) {
-        DevProbe.initialize();
         RendererGuard.initialize();
         OrbitFlightControls.initialize(modBus);
         GroundClient.initialize(modBus);
+        dev.starfold.space.GasPlayerExposureClient.initialize();
         AirstairRenderer.initialize(modBus);
         AircraftDockRenderer.initialize(modBus);
         modBus.addListener(

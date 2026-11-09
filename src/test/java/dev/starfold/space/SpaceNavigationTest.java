@@ -173,7 +173,7 @@ class SpaceNavigationTest {
         assertTrue(s.contains("if(!chart&&!visible())return"));
         assertTrue(
                 s.contains(
-                        "if(mc.options.hideGui||mc.screen!=null||HelmClient.body()==null)return"));
+                        "if(mc.options.hideGui||mc.screen!=null)return;renderGroundTarget(g);if(HelmClient.body()==null)return"));
         assertTrue(
                 s.contains("FlightWidgets.view(g,HelmClient.viewLabel(),HelmClient.viewFlash())"));
         assertTrue(s.contains("if(snapshot==null||level!=mc.level)return"));
@@ -191,7 +191,7 @@ class SpaceNavigationTest {
                         > s.indexOf("FlightWidgets.render(g,snapshot)"));
         assertTrue(s.contains("mc.level.getGameTime()-drawnTick<=2?receipt"));
         assertTrue(
-                Sources.text("DevProbe")
+                Sources.textPaths("probes/src/main/java/dev/starfold/dev/ProbeSession.java", "probes/src/main/java/dev/starfold/dev/ProbeSamples.java")
                         .contains("space(q.position())+SpaceNavigationClient.probeReading()"));
         assertTrue(
                 Sources.text("GroundClient").contains("SpaceNavigationClient.initialize(modBus)"));

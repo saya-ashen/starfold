@@ -65,19 +65,27 @@ public final class GroundEphemerisSave extends SavedData {
     }
 
     public static GroundEphemerisSave load(CompoundTag tag, HolderLookup.Provider lookup) {
-        if (!tag.contains("format", 3) || tag.getInt("format") != SystemSkyCodec.FORMAT)
-            throw new IllegalArgumentException(
-                    "Unsupported ephemeris format; expected 5 (old saves are not supported)");
+        if (!tag.contains("format", 3) || tag.getInt("format") != SystemSkyCodec.SAVE_FORMAT)
+            throw new IllegalArgumentException("Unsupported ephemeris format");
         if (!tag.contains("tick", 4) || !tag.contains("motion", 10))
             throw new IllegalArgumentException("Missing ephemeris tick or motion");
-        return new GroundEphemerisSave(model(tag.getCompound("motion")), tag.getLong("tick"));
+        var motion = tag.getCompound("motion");
+        if (!motion.contains("format", 3) || motion.getInt("format") != tag.getInt("format"))
+            throw new IllegalArgumentException("Ephemeris outer/catalog formats disagree");
+        return new GroundEphemerisSave(
+                SystemSkyCodec.SAVED_MODEL
+                        .parse(NbtOps.INSTANCE, tag.getCompound("motion"))
+                        .getOrThrow(IllegalArgumentException::new),
+                tag.getLong("tick"));
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider lookup) {
-        tag.putInt("format", SystemSkyCodec.FORMAT);
+        tag.putInt("format", SystemSkyCodec.SAVE_FORMAT);
         tag.putLong("tick", tick);
-        tag.put("motion", modelTag(model));
+        tag.put(
+                "motion",
+                SystemSkyCodec.SAVED_MODEL.encodeStart(NbtOps.INSTANCE, model).getOrThrow());
         return tag;
     }
 }

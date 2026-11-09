@@ -1,0 +1,299 @@
+// All task counts and reward quantities are first guesses to tune in play.
+{
+  "id": "1000000000080000",
+  "group": "",
+  "order_index": 8,
+  "quests": [
+    {
+      "id": "1000000000080100",
+      "x": 0.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000080101",
+          "type": "item",
+          "item": {
+            "id": "mekanism:ingot_steel",
+            "count": 1
+          },
+          "count": 32
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080102",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000070B00"
+      ]
+    },
+    {
+      "id": "1000000000080200",
+      "x": 2.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000080201",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_block",
+            "count": 1
+          },
+          "count": 16
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080202",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080100"
+      ]
+    },
+    {
+      "id": "1000000000080300",
+      "x": 4.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000080301",
+          "type": "item",
+          "item": {
+            "id": "mekanism:elite_control_circuit",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080302",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080200"
+      ]
+    },
+    {
+      "id": "1000000000080400",
+      "x": 6.0,
+      "y": 0.0,
+      "tasks": [
+        {
+          "id": "1000000000080401",
+          "type": "item",
+          "item": {
+            "id": "mekanism:ultimate_fluid_tank",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080402",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080300"
+      ]
+    },
+    {
+      "id": "1000000000080900",
+      "x": 0.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000080901",
+          "type": "item",
+          "item": {
+            "id": "starfold_materials:osmium_pressure_hull",
+            "count": 1
+          },
+          "count": 4
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080902",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080400"
+      ]
+    },
+    {
+      "id": "1000000000080500",
+      "x": 2.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000080501",
+          "type": "item",
+          "item": {
+            "id": "starfold:gas_scoop",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080502",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080900"
+      ]
+    },
+    {
+      "id": "1000000000080600",
+      "x": 4.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000080601",
+          "type": "item",
+          "item": {
+            "id": "mekanismgenerators:deuterium_bucket",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080602",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080500"
+      ]
+    },
+    {
+      "id": "1000000000080700",
+      "x": 6.0,
+      "y": 2.0,
+      "tasks": [
+        {
+          "id": "1000000000080701",
+          "type": "checkmark"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080702",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080600"
+      ]
+    },
+    {
+      "id": "1000000000080A00",
+      "x": 0.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000080A01",
+          "type": "item",
+          "item": {
+            "id": "starfold:interstellar_drive",
+            "count": 1
+          },
+          "count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080A02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080700",
+        "1000000000070A00"
+      ]
+    },
+    {
+      "id": "1000000000080800",
+      "x": 2.0,
+      "y": 4.0,
+      "tasks": [
+        {
+          "id": "1000000000080801",
+          "type": "checkmark"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000080802",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000080A00"
+      ]
+    }
+  ]
+}

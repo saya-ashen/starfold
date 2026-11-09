@@ -1,4 +1,4 @@
-# DESTRUCTIVE: disposable devworld-create1 only. What threw Saya off: in space, the left-turn lever of the starter
+# DESTRUCTIVE: disposable devworld-create1 only. What threw the tester off: in space, the left-turn lever of the starter
 # rocket with the pilot on deck, pulled all the way. Then what a pilot who has left the deck can do.
 waitworld
 wait 100

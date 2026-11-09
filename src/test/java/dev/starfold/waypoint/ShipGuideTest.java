@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.*;
 
 import dev.starfold.flight.FlightPermitTest;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +48,26 @@ class ShipGuideTest {
     }
 
     @Test
+    void interstellarRequiresAnObservedPoweredCrossingNotBoardingOutsideOrCoasting() throws Exception {
+        for (boolean observed : List.of(false, true))
+            for (boolean before : List.of(false, true))
+                for (boolean after : List.of(false, true))
+                    for (boolean powered : List.of(false, true))
+                        assertEquals(observed && !before && after && powered,
+                                ShipGuide.crossed(observed, before, after, powered));
+        var all = data();
+        for (var step : List.of("skim", "interstellar")) {
+            var advancement = all.get("starfold:ship/" + step);
+            assertNotNull(advancement);
+            assertFalse(advancement.has("neoforge:conditions"), "FTB ids exist even without workshop mods");
+            assertEquals("minecraft:impossible", advancement.getAsJsonObject("criteria")
+                    .getAsJsonObject("earned").get("trigger").getAsString());
+        }
+        assertTrue(dev.starfold.Sources.text("GasScoop").contains(
+                "ThrusterFuel.fill(body,newFluidStack(BuiltInRegistries.FLUID.get(definition.fluid()),whole))>0)"));
+    }
+
+    @Test
     void parentsResolveForEveryOptionalModCombination() throws Exception {
         var all = data();
         for (var mods :
@@ -76,10 +96,10 @@ class ShipGuideTest {
 
     @Test
     void translationsFitAndEveryRecipeExistsAndParses() throws Exception {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        com.mojang.serialization.JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        com.mojang.serialization.JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         for (var a : data().values()) {
             if (a.has("display"))
                 for (var language : List.of("en_us", "zh_cn")) {
@@ -119,10 +139,10 @@ class ShipGuideTest {
 
     @Test
     void advancementCodecAndItemReferences() throws Exception {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
         var ops =
                 net.minecraft.resources.RegistryOps.create(
-                        com.mojang.serialization.JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+                        com.mojang.serialization.JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         boolean mods = Files.isDirectory(Path.of("run/mods"));
         for (var a : data().values()) {
             // Unit runtime has no optional Create/Simulated. Where the optional mods are in

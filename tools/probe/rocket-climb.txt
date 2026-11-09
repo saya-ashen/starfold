@@ -1,5 +1,5 @@
-# DESTRUCTIVE: disposable devworld-create1 only. Saya: "到达一定高度空格就没法继续上升了". Space held from the pad, and
-# how high it goes. The key goes through the client's keyboard handler, as Saya's does.
+# DESTRUCTIVE: disposable devworld-create1 only. Reported symptom: "到达一定高度空格就没法继续上升了". Space held from the pad, and
+# how high it goes. The key goes through the client's keyboard handler, as the tester's does.
 waitworld
 wait 100
 waitworld

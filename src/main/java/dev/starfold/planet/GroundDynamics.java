@@ -22,11 +22,19 @@ public final class GroundDynamics {
     public static final double HANDOFF = GroundCameraAim.LOOK_START;
     public static final GroundGuidance.Options OFF = new GroundGuidance.Options(0, false, false);
 
+    public static double handoff(GroundSpace.Config mask) {
+        return GroundCameraAim.start(mask);
+    }
+
     /** Implementations must query native voxel shapes, not material IDs or a proxy GroundWorld. */
     public interface Terrain {
         boolean clear(PlanetShape.Pose pose);
 
         double clearance(PlanetShape.Pose pose);
+
+        default double handoff() {
+            return HANDOFF;
+        }
 
         default boolean clear(int planet, PlanetShape.Pose pose) {
             return clear(pose);
@@ -67,7 +75,7 @@ public final class GroundDynamics {
             GroundEphemeris.point(position);
             GroundEphemeris.point(velocity);
             GroundEphemeris.quaternion(orientation);
-            if (position.length() > 200000
+            if (position.length() > 1e9
                     || velocity.length() > 256
                     || space == (local != null)
                     || guidance == null
@@ -367,12 +375,61 @@ public final class GroundDynamics {
                 frame.vector(GroundGuidance.limitVelocity(v, up, terrain.clearance(id, pose))));
     }
 
-    private static int steps(GroundEphemeris.Model model, Point velocity) {
-        double motion =
-                velocity.length()
-                        + model.drift()
-                        + model.turn() * (GroundOrbit.RADIUS + GroundOrbit.LIMIT);
-        return Math.max(1, (int) Math.ceil(motion / .2));
+    /** One tick's swept envelope. A local vessel and its own terrain share the same moving frame. */
+    static final class Sweep {
+        private final GroundEphemeris.Model model;
+        private final Terrain terrain;
+        private final int reference;
+        private final int[] bodies;
+        private int size;
+        final int steps;
+
+        Sweep(GroundEphemeris.Model model, Terrain terrain, State state, Point velocity) {
+            this.model = model;
+            this.terrain = terrain;
+            reference = state.space ? -1 : state.planet;
+            bodies = new int[model.count()];
+            var world = position(model, state, state.tick);
+            double travel = velocity.length();
+            if (reference >= 0)
+                travel += model.speed(reference)
+                        + model.spin(reference).angular().length()
+                                * (state.position.length() + velocity.length());
+            double motion = 0;
+            for (int id = 0; id < model.count(); id++) {
+                double radius = PlanetShape.of(id).radius() + GroundOrbit.LIMIT;
+                if (id == reference) {
+                    bodies[size++] = id;
+                    motion = Math.max(motion, velocity.length());
+                } else if (world.sub(model.at(id, state.tick).center()).length()
+                        <= radius + travel + model.speed(id)) {
+                    bodies[size++] = id;
+                    motion = Math.max(motion, travel + model.speed(id)
+                            + model.spin(id).angular().length() * radius);
+                }
+            }
+            steps = Math.max(1, (int) Math.ceil(motion / .2));
+        }
+
+        boolean clear(Point position, double time) {
+            Point world = null;
+            for (int i = 0; i < size; i++) {
+                int id = bodies[i];
+                Point local;
+                if (id == reference) local = position;
+                else {
+                    if (world == null)
+                        world = reference < 0 ? position : model.at(reference, time).world(position);
+                    local = model.at(id, time).local(world);
+                }
+                var shape = PlanetShape.of(id);
+                double height = local.length() - shape.radius();
+                if (height < GroundSpace.MIN + 1) return false;
+                if (height <= GroundOrbit.LIMIT
+                        && !terrain.clear(id, GroundTopology.locate(shape, local))) return false;
+            }
+            return true;
+        }
     }
 
     public static State step(
@@ -382,7 +439,7 @@ public final class GroundDynamics {
             PlanetMotion.Input input,
             boolean toggle) {
         active(model, old);
-        if (!old.space && old.local.point().y() <= HANDOFF)
+        if (!old.space && old.local.point().y() <= terrain.handoff())
             throw new IllegalStateException("Native MC owns movement below handoff");
         long tick = old.tick + 1;
         GroundEphemeris.time(tick);
@@ -394,7 +451,7 @@ public final class GroundDynamics {
             var q = frame.rotation().conjugate().mul(input.orientation()).normalize();
             var up = PlanetSpace.unit(old.position);
             double height = old.local.point().y(),
-                    blend = GroundGap.smooth(HANDOFF, GroundOrbit.END, height);
+                    blend = GroundGap.smooth(terrain.handoff(), GroundOrbit.END, height);
             double speed =
                     (input.fast() ? 1.2 : .35) * (1 - blend)
                             + UniverseMotion.speed(height, input.fast()) * blend;
@@ -415,18 +472,19 @@ public final class GroundDynamics {
                                 desired, up, terrain.clearance(old.planet, old.local));
             var v = approach(old.velocity, desired);
             var p = old.position;
-            int count = steps(model, v);
+            var sweep = new Sweep(model, terrain, old, v);
+            int count = sweep.steps;
             var part = v.scale(1.0 / count);
             for (int i = 0; i < count; i++) {
                 var next = p.add(part);
                 double t = old.tick + (i + 1.0) / count;
-                if (!clear(model, terrain, model.at(old.planet, t).world(next), t)) {
+                if (!sweep.clear(next, t)) {
                     v = GroundEphemeris.ZERO;
                     break;
                 }
                 p = next;
             }
-            if (!clear(model, terrain, frame.world(p), tick))
+            if (!sweep.clear(p, tick))
                 throw new IllegalStateException("Native moving terrain collision");
             var pose = GroundTopology.locate(PlanetShape.of(old.planet), p);
             var result = localPlanet(tick, old.planet, pose, v, q, true, old.guidance);
@@ -451,22 +509,24 @@ public final class GroundDynamics {
                                                 old.tick)
                                         : old.velocity;
         desired = assistedVelocity(model, terrain, old, desired, old.tick);
-        var v = approach(old.velocity, desired);
+        var v =
+                dev.starfold.chart.SunBoundary.clip(
+                        model, old.position, approach(old.velocity, desired), old.tick, 1);
         var p = old.position;
-        int count =
-                height - v.length() - model.drift() - 64 > GroundOrbit.LIMIT ? 1 : steps(model, v);
+        var sweep = new Sweep(model, terrain, old, v);
+        int count = sweep.steps;
         var part = v.scale(1.0 / count);
         for (int i = 0; i < count; i++) {
             var next = p.add(part);
             double t = old.tick + (i + 1.0) / count;
             if (next.sub(model.origin()).length() > model.extent()
-                    || !clear(model, terrain, next, t)) {
+                    || !sweep.clear(next, t)) {
                 v = GroundEphemeris.ZERO;
                 break;
             }
             p = next;
         }
-        if (!clear(model, terrain, p, tick))
+        if (!sweep.clear(p, tick))
             throw new IllegalStateException("Native moving terrain collision");
         int id = select(model, p, old.planet, tick);
         var result = new State(tick, true, p, v, q, null, true, brake, old.guidance, id);

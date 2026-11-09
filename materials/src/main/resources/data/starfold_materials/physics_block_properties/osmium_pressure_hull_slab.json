@@ -1,0 +1,12 @@
+{
+  "priority": 1002,
+  "selector": "starfold_materials:osmium_pressure_hull_slab",
+  "properties": {
+    "sable:mass": 2.0
+  },
+  "overrides": {
+    "type=double": {
+      "sable:mass": 4
+    }
+  }
+}

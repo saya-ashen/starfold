@@ -1,0 +1,24 @@
+# Supervisor-only visual check; not executed by flesh-planet worker.
+# Fresh starfold_worlds:experience world; Biotech installed; Flesh slot 12, seed 20261101, size 768.
+# Requires server JAVA_TOOL_OPTIONS: -Dstarfold.helmProbe=true -Dstarfold.packProbe=true.
+# Storage slot 12: column 0, row 3. Nest is on SOUTH (4), unit centre
+# (0.13771908354991086,-0.03917753728164486,0.9896962031849562), radius 58.67710222827394.
+waitworld
+wait 300
+cmd gamemode creative
+cmd packprobe visit 12 4
+wait 600
+cmd tp @s 16584.5 160 24776.5 45 15
+wait 600
+look 45 15
+shot flesh-surface
+cmd tp @s 16821.4347 142 25022.2487 180 40
+wait 600
+look 180 40
+shot flesh-nest-rim
+cmd packprobe orbit 12 4 3.7
+wait 2000
+skylook 12
+wait 40
+shot flesh-space
+quit

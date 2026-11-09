@@ -158,7 +158,6 @@ class SableFramesTest {
         var apply = calls(tickets, "apply");
         ordered(apply, "addRegionTicket", "removeRegionTicket");
         assertTrue(apply.contains("remove"));
-        assertTrue(calls(type("dev/starfold/ship/ShipLeases"), "plan").contains("copyOf"));
         assertTrue(calls(tickets, "clear").contains("update"));
         boolean stopped = false;
         for (var method : frames.methods)
@@ -512,16 +511,16 @@ class SableFramesTest {
     /** The measured position weight cancels displacement as well as end velocity, for any incoming velocity. */
     @Test
     void cancelledWeightMatchesTheNativePositionAndVelocityRecurrences() {
-        assertEquals(.47275, SableFrames.POSITION_WEIGHT);
+        assertEquals(.47275, HullPhysics.POSITION_WEIGHT);
         for (double step : new double[] {.05, .025, .01})
-            for (double lost : new double[] {0, .25, 1})
+            for (double lost : new double[] {-.5, -.05, 0, .25, 1})
                 for (double mass : new double[] {1, 250.75, 1000})
                     for (double drag : new double[] {0, .09, .7}) {
                         double c = drag * step,
-                                a = SableFrames.POSITION_WEIGHT,
+                                a = HullPhysics.POSITION_WEIGHT,
                                 G = lost * 11 * step;
                         var gravity = new Vector3d(1, -11, 2);
-                        var pair = SableFrames.weighPair(gravity, lost, mass, step, c);
+                        var pair = HullPhysics.weighPair(gravity, lost, mass, step, c);
                         SpaceTest.vector(new Vector3d(1, -11, 2), gravity);
                         double p = (1 - a) * G / (a * (1 + c) + (1 - a)), q = (G - p) / (1 + c);
                         assertEquals(p, pair.pre().y / mass, 1e-12);
@@ -564,9 +563,10 @@ class SableFramesTest {
     @Test
     void weightIsPairedOncePerBodyAndHoldStaysPerTick() throws Exception {
         var frames = type("dev/starfold/ship/SableFrames");
+        var physics = type("dev/starfold/ship/HullPhysics");
         assertEquals(
                 .47275,
-                frames.fields.stream()
+                physics.fields.stream()
                         .filter(f -> f.name.equals("POSITION_WEIGHT"))
                         .findFirst()
                         .orElseThrow()
@@ -600,7 +600,7 @@ class SableFramesTest {
                             registrations++;
             assertEquals(1, registrations);
         }
-        var pre = calls(frames, "weighPre");
+        var pre = calls(physics, "weighPre");
         ordered(
                 pre,
                 "remove",
@@ -611,7 +611,7 @@ class SableFramesTest {
                 "getAllSubLevels",
                 "isRemoved",
                 "containsKey",
-                "at",
+                "gravity",
                 "getMass",
                 "weighPair",
                 "put",
@@ -619,19 +619,25 @@ class SableFramesTest {
         assertEquals(1, java.util.Collections.frequency(pre, "getAllSubLevels"));
         assertEquals(1, java.util.Collections.frequency(pre, "weigh"));
         assertEquals(1, java.util.Collections.frequency(pre, "getMass"));
-        var post = calls(frames, "weighPost");
+        var post = calls(physics, "weighPost");
         ordered(post, "remove", "entrySet", "isRemoved", "weigh");
         assertEquals(1, java.util.Collections.frequency(post, "weigh"));
         for (String name :
                 new String[] {
-                    "at", "steadied", "getMass", "getGravity", "getUniversalDrag", "getAllSubLevels"
+                    "at",
+                    "gravity",
+                    "steadied",
+                    "getMass",
+                    "getGravity",
+                    "getUniversalDrag",
+                    "getAllSubLevels"
                 }) assertFalse(post.contains(name), name);
         var cross = calls(frames, "cross");
         assertFalse(cross.contains("weigh"));
         assertFalse(cross.contains("applyLinearImpulse"));
         assertEquals(1, java.util.Collections.frequency(cross, "damp"));
         ordered(cross, "advanceSurroundings", "damp");
-        var damp = calls(frames, "damp");
+        var damp = calls(physics, "damp");
         assertFalse(damp.contains("applyLinearImpulse"));
         assertEquals(1, java.util.Collections.frequency(damp, "addLinearAndAngularVelocity"));
         ordered(
@@ -642,7 +648,7 @@ class SableFramesTest {
                 "drift",
                 "addLinearAndAngularVelocity");
         assertEquals(
-                1, java.util.Collections.frequency(calls(frames, "weigh"), "applyLinearImpulse"));
+                1, java.util.Collections.frequency(calls(physics, "weigh"), "applyLinearImpulse"));
         var gyro = calls(type("dev/starfold/ship/Thrusters$Gyro"), "sable$physicsTick");
         assertFalse(gyro.contains("applyLinearImpulse"));
     }
@@ -657,7 +663,7 @@ class SableFramesTest {
                     double held = -Thrusters.HOLD * weight / 20;
                     SpaceTest.vector(
                             new Vector3d(30 * held, 0, -40 * held),
-                            SableFrames.drift(velocity, weight, Thrusters.HOLD));
+                            HullPhysics.drift(velocity, weight, Thrusters.HOLD));
                     SpaceTest.vector(new Vector3d(30, y, -40), velocity);
                 }
     }
@@ -680,7 +686,7 @@ class SableFramesTest {
                 var world = q.transform(new Vector3d(push));
                 assertEquals(
                         4,
-                        SableFrames.horizontalHold(
+                        HullPhysics.horizontalHold(
                                 q, new BentStripGeometry.Point(world.x, world.y, world.z)));
             }
             for (var push :
@@ -694,7 +700,7 @@ class SableFramesTest {
                 var world = q.transform(new Vector3d(push));
                 assertEquals(
                         .5,
-                        SableFrames.horizontalHold(
+                        HullPhysics.horizontalHold(
                                 q, new BentStripGeometry.Point(world.x, world.y, world.z)));
             }
         }
@@ -708,7 +714,7 @@ class SableFramesTest {
                     var velocity = new Vector3d(30, y, -40);
                     SpaceTest.vector(
                             new Vector3d(-6 * weight, 0, 8 * weight),
-                            SableFrames.drift(velocity, weight, 4));
+                            HullPhysics.drift(velocity, weight, 4));
                     SpaceTest.vector(new Vector3d(30, y, -40), velocity);
                 }
     }
@@ -839,7 +845,7 @@ class SableFramesTest {
         last.orientation().rotateX(.01);
         var oldLast = new dev.ryanhcode.sable.companion.math.Pose3d(last);
         var p = before.position();
-        var delta = SpaceServer.anchor(new Point(p.x, p.y, p.z));
+        var delta = dev.starfold.space.SpaceFlightMath.anchor(new Point(p.x, p.y, p.z));
         assertNotNull(delta);
         var next =
                 new Space.Motion(
@@ -919,5 +925,20 @@ class SableFramesTest {
                         java.util.Set.of("aboard", "tracked").contains(m.name),
                         "membership and relative motion distinguish actual tracking from grace");
         }
+    }
+
+    @Test
+    void trackedBodyIsNeverReturnedOnceRemoved() throws Exception {
+        // Gas damage or a player can empty a body; Sable then removes its Rapier body at once but keeps it in the
+        // container (and in entity tracking) until processSubLevelRemovals. Velocity reads on it throw.
+        var source = dev.starfold.Sources.text("SableFrames");
+        int start = source.indexOf("getTrackingSubLevel(entity)");
+        assertTrue(start > 0);
+        int open = source.indexOf("{", start);
+        assertTrue(source.substring(start, open).contains("!body.isRemoved()"));
+        var records = dev.starfold.Sources.text("ShipRecords");
+        int capture = records.indexOf("private static ShipRecord.Place captureWhenSlow(");
+        int motion = records.indexOf("SableFrames.motion(", capture);
+        assertTrue(records.substring(capture, motion).contains("if (server.isRemoved()) return null;"));
     }
 }

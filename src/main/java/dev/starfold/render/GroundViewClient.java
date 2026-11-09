@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
-import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.ground.GroundSeams;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.GroundCoordinates;
@@ -20,20 +19,20 @@ import java.util.*;
 
 /** Actual native state display cache; missing coverage is never synthesized as grass or air. */
 public final class GroundViewClient {
-    private static ClientLevel level;
-    private static long session, lastRequest = Long.MIN_VALUE, coverageRevision = -1;
-    private static int cursor;
-    private static int boundPlanet = -1;
-    private static PlanetShape boundShape = PlanetShape.STANDARD;
+    private static final GroundViewState<ClientLevel> state = new GroundViewState<>();
+    private static long coverageRevision = -1;
+    private static java.nio.file.Path surfaceFile;
+    private static boolean surfaceDirty;
+    private static final GroundSurfaceStore surfaceStore = new GroundSurfaceStore();
+
+    private static void surfaceChanged() {
+        surfaceDirty = true;
+        surfaceStore.changed();
+    }
+    private static long lastSurfaceSave;
 
     static int cachedPlanet() {
-        return level == Minecraft.getInstance().level ? boundPlanet : -1;
-    }
-
-    private static final GroundStreaming streaming = new GroundStreaming();
-
-    public static Set<Long> residentTiles() {
-        return streaming.resident();
+        return state.level == Minecraft.getInstance().level ? state.planet : -1;
     }
 
     private static Set<Long> window = Set.of();
@@ -69,33 +68,15 @@ public final class GroundViewClient {
         }
     }
 
-    private static void updateStreaming(Minecraft mc) {
-        var pose =
-                GroundFlightClient.controlled()
-                        ? GroundFlightClient.pose()
-                        : GroundClient.access()
-                                .body(
-                                        new BentStripGeometry.Point(
-                                                mc.player.getX(),
-                                                mc.player.getY(),
-                                                mc.player.getZ()));
-        streaming.update(GroundClient.shape(), pose, mc.options.getEffectiveRenderDistance());
-        cache.retain(streaming.resident());
-    }
-
     public static void bindSession(ClientLevel world, long id) {
         int planet = GroundFlightClient.planet();
         var shape = GroundClient.shape();
-        if (level == world && session == id && boundPlanet == planet && boundShape.equals(shape))
-            return;
-        boolean change = level != world || boundPlanet != planet || !boundShape.equals(shape);
+        if (state.matches(world, id, planet, shape)) return;
+        boolean change = !state.sameWorld(world, planet, shape);
         clear();
-        level = world;
-        session = id;
-        boundPlanet = planet;
-        boundShape = shape;
+        state.bind(world, id, planet, shape);
         if (change) GroundRenderer.clear();
-        PlanetRemoteRenderer.seedOwn(boundPlanet, id);
+        PlanetRemoteRenderer.seedOwn(state.planet, id);
     }
 
     /** Staged passive data is display-only; the new chart session still asks for authoritative refresh. */
@@ -103,27 +84,44 @@ public final class GroundViewClient {
 
     static void preview(long id, PlanetRemoteView.Snapshot snapshot) {
         var t = snapshot.terrain();
-        profile =
+        var candidate =
                 new PlanetPackets.Profile(
-                        id, t.seed(), t.version(), t.generation(), snapshot.biome());
+                        id,
+                        t.seed(),
+                        t.version(),
+                        t.generation(),
+                        snapshot.biome(),
+                        java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.empty());
+        if (state.level == null
+                || !dev.starfold.worldgen.PlanetTint.known(candidate, state.level.registryAccess()))
+            return;
+        profile = candidate;
         terrain = t;
         heights = new PlanetHeightCache(t);
-        changed.or(snapshot.changed());
-        surfaces.putAll(snapshot.surfaces());
+        state.changed.or(snapshot.changed());
+        state.surfaces.putAll(snapshot.surfaces());
         coverageRevision = 0;
         previewed = true;
     }
 
     private static boolean flat;
     private static PlanetPackets.Profile profile;
+    private static final java.util.Map<Long,dev.starfold.universe.PlanetPlanSync.Assembler> plans=new java.util.HashMap<>();
+    private static Object planLevel;
+    private static final java.util.concurrent.ExecutorService planDecoder=
+            java.util.concurrent.Executors.newSingleThreadExecutor(r->{
+                var thread=new Thread(r,"starfold-plan-decode");thread.setDaemon(true);return thread;
+            });
 
     public static PlanetPackets.Profile profile() {
         return profile;
     }
 
-    public static Map<Long, GroundViewCache.Surface> surfaces() {
-        return surfaces;
+    public static Map<Long, GroundSurface> surfaces() {
+        return state.surfaces;
     }
+    public static Map<Long,GroundSurface> overlays() { return state.overlays; }
+    public static GroundSurface overlay(long key) { return state.overlays.get(key); }
 
     private static PlanetTerrain terrain;
     private static PlanetHeightCache heights;
@@ -136,73 +134,15 @@ public final class GroundViewClient {
         return terrain;
     }
 
-    public static net.minecraft.world.level.block.state.BlockState generated(
-            net.minecraft.core.BlockPos owner) {
-        long key = GroundSurfaceIndex.key(owner.getX() >> 4, owner.getZ() >> 4);
-        if (terrain == null || !coverageReady() || key < 0 || isChanged(key)) return null;
-        var cell = GroundTopology.cell(owner);
-        return terrain.version() >= PlanetTerrain.MINING_VERSION
-                ? terrain.state(cell.face(), cell.u(), owner.getY(), cell.v())
-                : terrain.state(heights.ground(cell.face(), cell.u(), cell.v()), owner.getY());
-    }
-
-    private static final BitSet changed = new BitSet();
-    private static final Map<Long, GroundViewCache.Surface> surfaces = new HashMap<>();
-    private static final LinkedHashMap<net.minecraft.core.BlockPos, GroundViewPackets.Delta>
-            deltas = new LinkedHashMap<>();
-
-    public static net.minecraft.world.level.block.state.BlockState state(
-            net.minecraft.core.BlockPos owner) {
-        var delta = deltas.get(owner);
-        if (delta != null)
-            return net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY.byId(delta.state());
-        var state = cache.canonical(owner);
-        return state == null ? generated(owner) : state;
-    }
-
-    /** Complete authoritative snapshots plus newer edits; no generated terrain or surface LOD. */
-    static net.minecraft.world.level.block.state.BlockState collisionState(
-            net.minecraft.core.BlockPos owner) {
-        var state = cache.canonical(owner);
-        if (state == null) return null;
-        var delta = deltas.get(owner);
-        return delta == null
-                ? state
-                : net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY.byId(delta.state());
-    }
-
-    static boolean hasDeltas(long key) {
-        return deltas.keySet().stream()
-                .anyMatch(p -> GroundSurfaceIndex.key(p.getX() >> 4, p.getZ() >> 4) == key);
-    }
-
-    static net.minecraft.world.level.block.state.BlockState updatedState(
-            GroundChunkSnapshot image, net.minecraft.core.BlockPos owner) {
-        var delta = deltas.get(owner);
-        return delta != null && delta.epoch() >= image.revision()
-                ? net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY.byId(delta.state())
-                : image.state(owner);
-    }
-
-    private static final Map<
-                    Long,
-                    Map<
-                            net.minecraft.core.BlockPos,
-                            net.minecraft.world.level.block.entity.BlockEntity>>
-            entities = new HashMap<>();
-
-    public static java.util.List<net.minecraft.world.level.block.entity.BlockEntity> entities() {
-        return entities.values().stream().flatMap(m -> m.values().stream()).toList();
-    }
 
     /** Coverage and invalidations belong to their bound planet and shape, even between a teleport and its new profile. */
     public static boolean coverageReady() {
-        return level == Minecraft.getInstance().level
-                && session == GroundFlightClient.session()
-                && boundPlanet == GroundClient.planet()
-                && boundShape.equals(GroundClient.shape())
+        return state.level == Minecraft.getInstance().level
+                && state.session == GroundFlightClient.session()
+                && state.planet == GroundClient.planet()
+                && state.shape.equals(GroundClient.shape())
                 && coverageRevision >= 0
-                && (heights == null || heights.shape().equals(boundShape));
+                && (heights == null || heights.shape().equals(state.shape));
     }
 
     public static boolean flat() {
@@ -210,195 +150,141 @@ public final class GroundViewClient {
     }
 
     public static boolean isChanged(long key) {
-        return changed.get((int) key);
+        return state.changed.get((int) key);
     }
 
     public static BitSet changed() {
-        return (BitSet) changed.clone();
+        return (BitSet) state.changed.clone();
     }
 
-    public static GroundViewCache.Surface surface(long key) {
-        return surfaces.get(key);
+    public static GroundSurface surface(long key) {
+        return state.surfaces.get(key);
     }
 
-    private static final Set<Long> invalidated = new LinkedHashSet<>();
-    private static final GroundViewCache cache =
-            new GroundViewCache(() -> boundShape, GroundViewClient::invalidate);
 
-    private static void invalidate(long key) {
-        invalidated.add(key);
-        for (long neighbour : GroundStreaming.neighbours(boundShape, key))
-            invalidated.add(neighbour);
-        trimInvalidated();
-    }
+    private static void invalidate(long key) { state.invalidated.surface(state.shape, key); }
 
-    /** One block edit re-meshes its own tile, plus a neighbour only when the block touches that edge.
-     * Light reaching further is corrected by the prioritized snapshot refresh that follows the edit. */
     private static void invalidateEdit(long key, net.minecraft.core.BlockPos pos) {
-        invalidated.add(key);
-        int x = pos.getX() & 15, z = pos.getZ() & 15;
-        var neighbours = GroundStreaming.neighbours(boundShape, key);
-        if (x == 0) invalidated.add(neighbours[0]);
-        if (x == 15) invalidated.add(neighbours[1]);
-        if (z == 0) invalidated.add(neighbours[2]);
-        if (z == 15) invalidated.add(neighbours[3]);
-        trimInvalidated();
+        state.invalidated.edit(state.shape, key, pos);
     }
 
-    private static void trimInvalidated() {
-        while (invalidated.size() > GroundViewCache.DETAIL_LIMIT * 5)
-            invalidated.remove(invalidated.iterator().next());
-    }
-
-    private static long ticks, lastArrival = Long.MIN_VALUE;
-
-    /** True once no full snapshot has arrived for STALL_TICKS: nothing a waiting mesh could still gain. */
-    public static boolean stalled() {
-        return lastArrival == Long.MIN_VALUE || ticks - lastArrival >= GroundStreaming.STALL_TICKS;
-    }
-
-    public static GroundViewCache cache() {
-        return cache;
-    }
+    private static long ticks;
 
     public static List<Long> drainInvalidated() {
-        var out = List.copyOf(invalidated);
-        invalidated.clear();
-        return out;
+        return state.invalidated.drain();
+    }
+
+    private static void saveSurfaces() {
+        if (surfaceFile == null || !surfaceDirty) return;
+        lastSurfaceSave = System.nanoTime();
+        surfaceStore.save(surfaceFile, state.overlays, state.changed, state.surfaceRevisions, () -> surfaceDirty = false);
+    }
+
+    private static void loadSurfaces(long identity) {
+        surfaceFile = Minecraft.getInstance().gameDirectory.toPath()
+                .resolve("starfold/surface-cache/" + Long.toHexString(identity) + "-" + state.planet + ".bin");
+        lastSurfaceSave = System.nanoTime();
+        surfaceStore.bind(new Object());
+        surfaceStore.load(surfaceFile, state.changed, images -> {
+            state.loaded(images);
+            if (!images.isEmpty()) surfaceChanged();
+            sendKnown();
+        });
+    }
+
+    private static void sendKnown() {
+        long[] keys = new long[state.overlays.size()], revisions = new long[keys.length];
+        int i = 0;
+        for (var entry : state.overlays.entrySet()) {
+            keys[i] = entry.getKey();
+            revisions[i++] = entry.getValue().revision();
+        }
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                new GroundViewPackets.Known(state.session, keys, revisions));
     }
 
     public static void clear() {
-        streaming.clear();
+        saveSurfaces();
+        surfaceStore.bind(null);
+        surfaceFile = null;
+        surfaceDirty = false;
         window = Set.of();
         windowStamp = Long.MIN_VALUE;
-        level = null;
-        boundPlanet = -1;
-        session = 0;
-        lastRequest = Long.MIN_VALUE;
-        lastArrival = Long.MIN_VALUE;
-        cursor = 0;
         coverageRevision = -1;
         previewed = false;
         flat = false;
         profile = null;
         terrain = null;
         heights = null;
-        changed.clear();
-        surfaces.clear();
-        entities.clear();
-        deltas.clear();
-        cache.clear();
-        invalidated.clear();
+        state.clear();
     }
 
     public static void initialize() {
         registerProfile();
         installSeamReaders();
-        registerImages();
         registerSurfaceUpdates();
         registerBlockUpdates();
         registerClientLifecycle();
     }
 
+    private static void clearPlans() {
+        plans.values().forEach(dev.starfold.universe.PlanetPlanSync.Assembler::clear);
+        plans.clear();
+    }
+    private static dev.starfold.universe.PlanetPlanSync.Assembler planIdentity(long session) {
+        var current=Minecraft.getInstance().level;
+        if(planLevel!=current) {clearPlans();planLevel=current;}
+        plans.entrySet().removeIf(entry->{
+            if(PlanetRemoteRenderer.acceptsPlanSession(entry.getKey()))return false;
+            entry.getValue().clear();return true;
+        });
+        return plans.computeIfAbsent(session,id->new dev.starfold.universe.PlanetPlanSync.Assembler());
+    }
+    public static void resolveProfile(PlanetPackets.Profile profile,Object owner,PlanetPackets.Profile known,java.util.function.Consumer<PlanetPackets.Profile> ready) {
+        if(!PlanetRemoteRenderer.acceptsPlanSession(profile.session()))return;
+        if(planIdentity(profile.session()).await(profile,owner,known,ready))
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new dev.starfold.universe.PlanetPlanSync.Request(
+                    profile.session(),profile.seed(),profile.planReference().orElseThrow()));
+    }
     private static void registerProfile() {
+        StarfoldNetwork.clientReceiver(dev.starfold.universe.PlanetPlanSync.Part.TYPE,(packet,c)->{
+            if(PlanetRemoteRenderer.acceptsPlanSession(packet.session())) {
+                planIdentity(packet.session()).accept(packet,planDecoder,Minecraft.getInstance()::execute);
+            }
+        });
         StarfoldNetwork.clientReceiver(
                 PlanetPackets.Profile.TYPE,
-                (packet, c) -> {
-                    if (!GroundFlightClient.ready()
-                            || packet.session() != GroundFlightClient.session()
-                            || net.minecraft.client.Minecraft.getInstance().level != level
-                            || !PlanetLevels.is(level)) return;
-                    previewed = false;
-                    profile = packet;
-                    terrain =
-                            new PlanetTerrain(packet.seed(), packet.version(), packet.generation());
-                    heights = new PlanetHeightCache(terrain);
-                    coverageRevision = -1;
+                (incoming, c) -> {
+                    if(incoming.session()!=GroundFlightClient.session())return;
+                    var expectedWorld=Minecraft.getInstance().level;
+                    int expectedPlanet=GroundFlightClient.planet();
+                    resolveProfile(incoming,"ground",profile,packet->{
+                        if(Minecraft.getInstance().level!=expectedWorld || GroundFlightClient.planet()!=expectedPlanet
+                                || !state.matches(expectedWorld, incoming.session(), expectedPlanet, state.shape))return;
+                        if (!GroundFlightClient.ready()
+                                || packet.session() != GroundFlightClient.session()
+                                || net.minecraft.client.Minecraft.getInstance().level != state.level
+                                || !PlanetLevels.is(state.level)
+                                || !packet.surfaceCompatible()
+                                || !dev.starfold.worldgen.PlanetTint.known(
+                                        packet, state.level.registryAccess())) return;
+                        // A re-sent profile of the same terrain must not reset the far view.
+                        if (!previewed && profile != null && terrain != null && profile.sameTerrain(packet)) return;
+                        previewed = false;
+                        profile = packet;
+                        terrain = packet.terrain();
+                        heights = new PlanetHeightCache(terrain);
+                        coverageRevision = -1;
+                    });
                 });
     }
 
     private static void installSeamReaders() {
-        GroundSeams.clientRead(
-                (world, owner) ->
-                        world == level && samePlanet(owner)
-                                ? state(GroundClient.local(owner))
-                                : null);
-        GroundSeams.clientCollisionRead(
-                (world, owner) ->
-                        world == level && samePlanet(owner)
-                                ? collisionState(GroundClient.local(owner))
-                                : null);
         GroundSeams.clientEntities(
                 world ->
                         world == Minecraft.getInstance().level
                                 ? Minecraft.getInstance().level.entitiesForRendering()
                                 : List.of());
-        GroundSeams.clientEntity(
-                (world, owner) -> {
-                    if (world != level || !samePlanet(owner)) return null;
-                    var local = GroundClient.local(owner);
-                    return entities.getOrDefault(
-                                    GroundSurfaceIndex.key(local.getX() >> 4, local.getZ() >> 4),
-                                    Map.of())
-                            .get(local);
-                });
-        GroundSeams.clientLight(
-                (world, query) -> {
-                    if (world != level || !samePlanet(query.pos())) return null;
-                    var pos = GroundClient.local(query.pos());
-                    long key = GroundSurfaceIndex.key(pos.getX() >> 4, pos.getZ() >> 4);
-                    var image = cache.image(key);
-                    return image == null ? null : image.light(query.layer(), pos);
-                });
-    }
-
-    private static void registerImages() {
-        StarfoldNetwork.clientReceiver(
-                GroundViewPackets.Image.TYPE,
-                (packet, c) -> {
-                    if (!GroundFlightClient.ready()
-                            || packet.session() != GroundFlightClient.session()
-                            || net.minecraft.client.Minecraft.getInstance().level != level) return;
-                    if (packet.chunk().revision() < cache.version(packet.chunk().key())) return;
-                    if (cache.accept(packet.chunk()) || cache.refill(packet.chunk()))
-                        lastArrival = ticks;
-                    deltas.entrySet()
-                            .removeIf(
-                                    e ->
-                                            packet.chunk().owns(e.getKey())
-                                                    && e.getValue().epoch()
-                                                            <= packet.chunk().revision());
-                    var previous = entities.getOrDefault(packet.chunk().key(), Map.of());
-                    var next =
-                            new HashMap<
-                                    net.minecraft.core.BlockPos,
-                                    net.minecraft.world.level.block.entity.BlockEntity>();
-                    for (var image : packet.entities()) {
-                        var be = previous.get(image.pos());
-                        var state = packet.chunk().state(image.pos());
-                        if (be != null
-                                && be.getBlockState().equals(state)
-                                && net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE
-                                        .getKey(be.getType())
-                                        .equals(image.type()))
-                            be.loadWithComponents(image.update(), level.registryAccess());
-                        else
-                            be =
-                                    GroundDisplayEntities.create(
-                                            new GroundDisplayEntities.Image(
-                                                    GroundClient.storage(image.pos()),
-                                                    image.type(),
-                                                    image.update()),
-                                            level,
-                                            state);
-                        next.put(image.pos(), be);
-                    }
-                    entities.put(packet.chunk().key(), next);
-                    var old = surfaces.get(packet.chunk().key());
-                    if (old == null || old.revision() <= packet.chunk().revision())
-                        surfaces.put(
-                                packet.chunk().key(), GroundViewCache.surfaceImage(packet.chunk()));
-                });
     }
 
     private static void registerSurfaceUpdates() {
@@ -410,19 +296,16 @@ public final class GroundViewClient {
                             || packet.revision() < coverageRevision) return;
                     coverageRevision = packet.revision();
                     flat = packet.flat();
-                    changed.clear();
-                    changed.or(BitSet.valueOf(packet.changed()));
+                    var next = BitSet.valueOf(packet.changed());
+                    if (state.coverage(next, packet.revision())) surfaceChanged();
+                    if (surfaceFile == null) loadSurfaces(packet.identity());
                 });
         StarfoldNetwork.clientReceiver(
                 GroundViewPackets.Surface.TYPE,
                 (packet, c) -> {
                     if (!GroundFlightClient.ready()
-                            || packet.session() != GroundFlightClient.session()) return;
-                    var old = surfaces.get(packet.key());
-                    if (old == null || old.revision() < packet.image().revision()) {
-                        surfaces.put(packet.key(), packet.image());
-                        invalidate(packet.key());
-                    }
+                            || packet.session() != GroundFlightClient.session() || !packet.compatible()) return;
+                    if (state.surface(packet.key(), packet.revision(), packet.image())) surfaceChanged();
                 });
     }
 
@@ -431,133 +314,51 @@ public final class GroundViewClient {
                 GroundViewPackets.Delta.TYPE,
                 (packet, c) -> {
                     if (packet.session() != GroundFlightClient.session()
-                            || net.minecraft.client.Minecraft.getInstance().level != level) return;
+                            || net.minecraft.client.Minecraft.getInstance().level != state.level) return;
                     long key =
                             GroundSurfaceIndex.key(
                                     packet.pos().getX() >> 4, packet.pos().getZ() >> 4);
-                    if (packet.epoch() < cache.version(key)) return;
-                    deltas.put(packet.pos(), packet);
-                    while (deltas.size() > 8192) deltas.remove(deltas.keySet().iterator().next());
                     invalidateEdit(key, packet.pos());
                 });
-        StarfoldNetwork.clientReceiver(
-                GroundViewPackets.Event.TYPE,
-                (packet, c) -> {
-                    if (packet.session() != GroundFlightClient.session()) return;
-                    long key =
-                            GroundSurfaceIndex.key(
-                                    packet.pos().getX() >> 4, packet.pos().getZ() >> 4);
-                    var map = entities.get(key);
-                    if (map != null) {
-                        var be = map.get(packet.pos());
-                        if (be != null) be.triggerEvent(packet.id(), packet.data());
-                    }
-                });
+    }
+
+    static void disconnected() {
+        // Deterministic bases outlive chart sessions, but not connections.
+        GroundBaseCache.clear();
+        clearPlans();
+        planLevel = null;
+        dev.starfold.universe.PlanetPlanSync.clearCompleted();
     }
 
     private static void registerClientLifecycle() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-                (net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
-                        clear());
+                (net.neoforged.neoforge.event.GameShuttingDownEvent event) -> {
+                    saveSurfaces();
+                    surfaceStore.close();
+                });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Post cpEvent) -> {
                     var mc = net.minecraft.client.Minecraft.getInstance();
                     if (!GroundFlightClient.ready()) {
-                        if (level != null) clear();
+                        if (state.level != null) clear();
                         return;
                     }
                     bindSession(mc.level, GroundFlightClient.session());
+                    surfaceStore.drain();
                     // Near terrain is vanilla image chunks now; the snapshot working set stays
                     // empty.
                     ticks++;
+                    if (System.nanoTime() - lastSurfaceSave >= 60_000_000_000L) saveSurfaces();
                     // Only the far cover still needs this channel: ask for profile/coverage until
                     // it has arrived.
-                    if ((previewed || !coverageReady())
+                    if ((profile == null || (previewed || !coverageReady()))
                             && ticks % 40 == 1
                             && net.minecraft.client.Minecraft.getInstance()
                                     .getConnection()
                                     .hasChannel(GroundViewPackets.Hello.TYPE))
                         net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                                new GroundViewPackets.Hello(session));
-                    entities.keySet().removeIf(key -> !cache.detailed(key));
-                    for (var be : entities()) tickEntity(be);
-                    long now = mc.level.getGameTime();
-                    if (mc.isPaused()
-                            || lastRequest != Long.MIN_VALUE
-                                    && now >= lastRequest
-                                    && now - lastRequest < GroundStreaming.REQUEST_TICKS
-                            || !net.minecraft.client.Minecraft.getInstance()
-                                    .getConnection()
-                                    .hasChannel(GroundViewPackets.Request.TYPE)) return;
-                    lastRequest = now;
-                    // Tiles with edits newer than their snapshot jump the refresh rotation, so
-                    // light follows the block.
-                    var edited = new HashSet<Long>();
-                    for (var pos : deltas.keySet())
-                        edited.add(GroundSurfaceIndex.key(pos.getX() >> 4, pos.getZ() >> 4));
-                    var keys =
-                            GroundStreaming.request(
-                                    streaming.resident(),
-                                    cursor++,
-                                    cache::detailed,
-                                    edited::contains);
-                    if (keys.isEmpty()) return;
-                    var tiles = new ArrayList<GroundViewPackets.Tile>();
-                    for (long key : keys)
-                        tiles.add(
-                                new GroundViewPackets.Tile(
-                                        key, cache.detailed(key) ? cache.version(key) : -1));
-                    net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                            new GroundViewPackets.Request(session, tiles));
+                                new GroundViewPackets.Hello(state.session));
                 });
-    }
-
-    private static boolean samePlanet(net.minecraft.core.BlockPos pos) {
-        return PlanetStorage.find(pos.getX(), pos.getZ()) == boundPlanet;
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void tickEntity(net.minecraft.world.level.block.entity.BlockEntity be) {
-        var state = be.getBlockState();
-        var ticker =
-                state.getTicker(
-                        level,
-                        (net.minecraft.world.level.block.entity.BlockEntityType) be.getType());
-        if (ticker != null) ticker.tick(level, be.getBlockPos(), state, be);
-    }
-
-    /** 3x3 near coverage each refresh, then round-robin the larger ring, transported over seams. */
-    public static List<Long> plan(PlanetShape.Pose pose, int cursor) {
-        return plan(PlanetShape.STANDARD, pose, cursor);
-    }
-
-    static List<Long> plan(PlanetShape shape, PlanetShape.Pose pose, int cursor) {
-        var center = GroundTopology.feet(pose);
-        var near = new LinkedHashSet<Long>();
-        var ring = new LinkedHashSet<Long>();
-        for (int r = 0; r <= 4; r++)
-            for (int x = -r; x <= r; x++)
-                for (int z = -r; z <= r; z++)
-                    if (Math.max(Math.abs(x), Math.abs(z)) == r) {
-                        var address =
-                                GroundTopology.address(
-                                        shape,
-                                        new net.minecraft.core.BlockPos(
-                                                (int) Math.floor(center.x() / 16) * 16 + x * 16,
-                                                GroundCoordinates.FLOOR,
-                                                (int) Math.floor(center.z() / 16) * 16 + z * 16));
-                        var cell = GroundTopology.cell(address.owner());
-                        long key =
-                                cell.u() / 16
-                                        + 128L * (cell.v() / 16 + 128L * cell.face().ordinal());
-                        if (r <= 1) near.add(key);
-                        else ring.add(key);
-                    }
-        var out = new LinkedHashSet<>(near);
-        var rest = new ArrayList<>(ring);
-        for (int i = 0; i < rest.size() && out.size() < 16; i++)
-            out.add(rest.get(Math.floorMod((long) cursor * 7 + i, rest.size())));
-        return List.copyOf(out);
     }
 
     private GroundViewClient() {}

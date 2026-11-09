@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+[[mods]]
+modId="starfold_atlas"
+version="${version}"
+displayName="Starfold Atlas"
+displayTest="IGNORE_ALL_VERSION"
+description='''Planet survey instruments for Starfold.'''
+[[dependencies.starfold_atlas]]
+modId="starfold"
+type="required"
+versionRange="[${version}]"
+ordering="AFTER"
+side="CLIENT"
+[[dependencies.starfold_atlas]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.247,)"
+ordering="NONE"
+side="CLIENT"
+[[dependencies.starfold_atlas]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="CLIENT"

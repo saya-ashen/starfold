@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "HHH"
+  ],
+  "key": {
+    "H": {
+      "tag": "starfold_materials:aluminum_hull_plating"
+    }
+  },
+  "result": {
+    "id": "starfold_materials:aluminum_hull_plating_slab",
+    "count": 6
+  }
+}

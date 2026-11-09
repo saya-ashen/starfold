@@ -38,9 +38,6 @@ class GroundUndergroundTest {
 
     @Test
     void absentTopSectionDoesNotMeanAbsentUndergroundGeometry() throws Exception {
-        var visible = new BitSet();
-        visible.set((135 + 64) >> 4);
-        assertFalse(GroundSurfaceMesh.surfaceSectionsReady(new int[] {150}, visible));
         var old = GroundOwnership.atlas(GroundOwnership.empty());
         var fixed = GroundOwnership.atlas(GroundOwnership.empty(), 4);
         assertEquals(0, code(old, 4, 64, 64));
@@ -54,8 +51,6 @@ class GroundUndergroundTest {
 
     @Test
     void dirtyEditCannotWithdrawTheOriginalNearVolume() {
-        var dirtySections = new BitSet();
-        assertFalse(GroundSurfaceMesh.surfaceSectionsReady(new int[] {140}, dirtySections));
         var atlas = GroundOwnership.atlas(GroundOwnership.empty(), 4);
         assertEquals(255, code(atlas, 4, 64, 64));
         assertEquals(255, code(atlas, 4, 65, 64));
@@ -88,11 +83,9 @@ class GroundUndergroundTest {
     @Test
     void currentNearChartDoesNotDrawAHeightfieldOrUseItsSurfaceEligibility() throws Exception {
         var renderer = Sources.text("GroundRenderer");
-        assertTrue(renderer.contains("window=replacesNative()?Set.of():GroundViewClient.window()"));
+        assertTrue(renderer.contains("window=GroundNativeCoverage.visible()"));
         assertTrue(renderer.contains("GroundFlightClient.controlled()?-1:GroundClient.face()"));
-        assertTrue(
-                renderer.contains(
-                        "return selectionReady()&&ownership.owner(key)==GroundOwnership.Owner.DETAIL"));
+        assertFalse(renderer.contains("drawDetail("));
         assertTrue(
                 fragment()
                         .contains(
@@ -112,12 +105,12 @@ class GroundUndergroundTest {
     @Test
     void modeChangesRepublishAtlasAndCannotCommitOldExitStrips() throws Exception {
         var renderer = Sources.text("GroundRenderer");
-        assertTrue(renderer.contains("GroundOwnership.atlas(GroundClient.shape(),next,window)"));
+        assertTrue(Sources.text("GroundCoverage").contains("GroundOwnership.atlas(shape,next,window)"));
         assertFalse(renderer.contains("publishedNativeFace==nativeFace"));
         assertFalse(renderer.contains("ownership.rebase"));
         assertFalse(renderer.contains("if(neighbour/16384!=nativeFace)"));
         assertTrue(renderer.contains("Prebuild all canonical exits"));
-        var client = Sources.text("GroundClient");
+        var client = Sources.text("GroundProjectionUniforms");
         assertTrue(client.contains("GroundRenderer.nativeVolume(owner.ordinal())?1:0"));
     }
 
@@ -126,7 +119,7 @@ class GroundUndergroundTest {
         assertEquals(1, .12 + .88 * 1);
         assertEquals(0, (.12 + .88 * 1) * visibility(0));
         assertEquals(1, (.12 + .88 * 1) * visibility(15));
-        assertTrue(fragment().contains("(0.12+0.88*daylight)*cpNativeSkyVisibility"));
+        assertFalse(fragment().contains("(0.12+0.88*daylight)*cpNativeSkyVisibility"));
     }
 
     @Test
@@ -140,20 +133,15 @@ class GroundUndergroundTest {
         assertEquals(0, visibility(0));
         assertEquals(1, visibility(15));
         assertEquals(7.0 / 39, visibility(7), 1e-12);
-        assertTrue(vertex("rendertype_solid").contains("cpNativeSkyVisibility=sky/(4.0-3.0*sky)"));
+        assertFalse(vertex("rendertype_solid").contains("vertexColor.rgb/=max"));
     }
 
     @Test
     void torchLightIsNotMultipliedByBlockedSkylight() {
         double torch = .7, sky = visibility(0), day = .12 + .88 * 1;
         assertEquals(torch, Math.max(day * sky, torch));
-        assertTrue(
-                fragment()
-                        .contains(
-                                "max(vec3((0.12+0.88*daylight)*cpNativeSkyVisibility),cpNativeBlockLight)"));
-        assertTrue(
-                vertex("rendertype_solid")
-                        .contains("texelFetch(Sampler2,ivec2(UV2.x/16,0),0).rgb"));
+        assertTrue(vertex("rendertype_solid").contains("Color*texelFetch(Sampler2,cpNativeLightUV2/16,0)"));
+        assertFalse(fragment().contains("fragColor.rgb*=cpNativeSkyVisibility"));
     }
 
     @Test
@@ -177,8 +165,7 @@ class GroundUndergroundTest {
     @Test
     void coarseSurfaceDefaultsAndSelfLitShadersDoNotAcquireVoxelSkyAttenuation() {
         assertTrue(GroundShaderSource.VERTEX.contains("cpNativeSkyVisibility=1.0"));
-        assertTrue(
-                vertex("rendertype_solid").contains("if(CPNativeCoarse<0.5){cpNativeBlockLight="));
+        assertFalse(vertex("rendertype_solid").contains("if(CPNativeCoarse<0.5){cpNativeBlockLight="));
         assertFalse(vertex("rendertype_eyes").contains("cpNativeSkyVisibility=sky/"));
     }
 
@@ -191,5 +178,35 @@ class GroundUndergroundTest {
                 fragment()
                         .contains(
                                 "CPNativeActive>0.5&&(CPNativeDerived>0.5||CPNativeTerrain>0.5)"));
+    }
+    @Test
+    void shaderDoesNotTurnAnOverheadSurfaceIntoSkyFogJustBecauseCameraIsHigh() throws Exception {
+        var s = Sources.text("GroundShaderSource");
+        assertTrue(
+                s.contains(
+                        "length(point.xz-CPNativeEye.xz)*(1.0-smoothstep(128.0,160.0,CPNativeEye.y))"));
+        assertFalse(s.contains("vertexDistance = length(view.xyz)"));
+        assertTrue(
+                s.contains(
+                        "texelFetch(CPNativeCoverage,tile+ivec2(1,1+int(CPNativeFace)*130),0).r"));
+        assertFalse(s.contains("CPNativeDerived<0.5&&owner<0.75)discard"));
+    }
+
+    @Test
+    void rendererHasNoLargeQuadStageOrBakedDetailHolesAndRestoresCoverageSampler()
+            throws Exception {
+        var s = Sources.text("GroundRenderer");
+        assertFalse(s.contains("BaseCoverJob"));
+        assertFalse(s.contains("if(wanted.contains(key)&&detail.containsKey(key))"));
+        assertTrue(s.contains("patchesComplete()"));
+        assertTrue(s.contains("staging[patch]=mesh;stagedEpoch++;if(old!=null)old.close()"));
+        assertTrue(
+                s.contains("GroundPipeline.publish(dirty.count(),!coverJobs.isEmpty(),patches,staging,p->GroundViewPolicy.exists(shape,p))"));
+        assertTrue(s.contains("coverage.close()"));
+        var binding = Sources.text("CoverageBinding");
+        assertTrue(binding.contains("GL11.glBindTexture(GL11.GL_TEXTURE_2D,texture)"));
+        assertTrue(binding.contains("ARBSamplerObjects.glBindSampler(3,sampler)"));
+        assertFalse(s.contains("CompiledSection.UNCOMPILED"));
+        assertTrue(s.contains("GroundNativeCoverage.visible()"));
     }
 }

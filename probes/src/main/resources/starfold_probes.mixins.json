@@ -1,0 +1,30 @@
+{
+  "required": true,
+  "plugin": "dev.starfold.probes.ProbeMixinPlugin",
+  "package": "dev.starfold.probes.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChunkPerfSaveMixin",
+    "ArrivalBlockTickMixin",
+    "ArrivalUnloadMixin",
+    "ArrivalPhysicsMixin",
+    "ArrivalTickMixin",
+    "ArrivalChunkMixin",
+    "PilotPoseProbeMixin",
+    "GroundPositionDiagnosticsMixin",
+    "GroundPositionDiagnosticsNetworkMixin",
+    "GroundPositionDiagnosticAccess"
+  ],
+  "client": [
+    "MeshSectionProbeMixin",
+    "MeshTaskProbeMixin",
+    "MeshDispatcherProbeMixin",
+    "MeshLevelProbeMixin",
+    "DevPortCameraMixin",
+    "DevPortClockMixin",
+    "ArrivalFrameMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

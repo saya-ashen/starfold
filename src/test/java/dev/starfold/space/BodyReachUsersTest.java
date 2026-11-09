@@ -22,13 +22,18 @@ class BodyReachUsersTest {
         return new GroundEphemeris.Model(
                 List.of(
                         new GroundEphemeris.Body(
-                                new GroundEphemeris.Fixed(new Point(0, 20000, 0)), 64, true, -1),
+                                new GroundEphemeris.Fixed(new Point(0, 20000, 0)),
+                                64,
+                                true,
+                                -1,
+                                GroundEphemeris.Appearance.LIGHT),
                         new GroundEphemeris.Body(
                                 new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
                                 0,
                                 false,
                                 0,
-                                reach)));
+                                reach,
+                                GroundEphemeris.Appearance.SURFACE)));
     }
 
     private static final GroundDynamics.Terrain EMPTY =
@@ -82,26 +87,26 @@ class BodyReachUsersTest {
     @Test
     void governorsAlignmentAndMissHysteresisUseTheDestinationEntryHeight() {
         var body = model(512).body(0);
-        assertFalse(SpaceServer.align(body, 684, 0, false));
-        assertTrue(SpaceServer.align(body, Math.nextDown(684.0), -1, false));
-        assertFalse(SpaceServer.align(body, 1584, 100));
-        assertTrue(SpaceServer.align(body, Math.nextDown(1584.0), 100));
-        assertFalse(SpaceServer.inbound(body, false, 1, 884));
-        assertTrue(SpaceServer.inbound(body, false, 1, Math.nextDown(884.0)));
-        assertTrue(SpaceServer.inbound(body, true, 1, 1384));
-        assertFalse(SpaceServer.inbound(body, true, 1, Math.nextUp(1384.0)));
-        assertFalse(SpaceServer.governed(body, 684, false));
-        assertTrue(SpaceServer.governed(body, Math.nextDown(684.0), false));
-        assertEquals(150, SpaceServer.arrivalLimit(body, 384));
-        assertEquals(250, SpaceServer.arrivalLimit(body, 984));
-        assertEquals(350, SpaceServer.nearLimit(body, 984));
+        assertFalse(SpaceFlightMath.align(body, 684, 0, false));
+        assertTrue(SpaceFlightMath.align(body, Math.nextDown(684.0), -1, false));
+        assertFalse(SpaceFlightMath.align(body, 1584, 100));
+        assertTrue(SpaceFlightMath.align(body, Math.nextDown(1584.0), 100));
+        assertFalse(SpaceFlightMath.inbound(body, false, 1, 884));
+        assertTrue(SpaceFlightMath.inbound(body, false, 1, Math.nextDown(884.0)));
+        assertTrue(SpaceFlightMath.inbound(body, true, 1, 1384));
+        assertFalse(SpaceFlightMath.inbound(body, true, 1, Math.nextUp(1384.0)));
+        assertFalse(SpaceFlightMath.governed(body, 684, false));
+        assertTrue(SpaceFlightMath.governed(body, Math.nextDown(684.0), false));
+        assertEquals(150, SpaceFlightMath.arrivalLimit(body, 384));
+        assertEquals(250, SpaceFlightMath.arrivalLimit(body, 984));
+        assertEquals(350, SpaceFlightMath.nearLimit(body, 984));
         var toward = new Point(1, 0, 0);
         var v = new Point(40, 30, 0);
-        var radial = SpaceServer.arrival(body, v, toward, v, 384);
+        var radial = SpaceFlightMath.arrival(body, v, toward, v, 384);
         assertEquals(7.5, radial.x());
-        var near = SpaceServer.near(body, radial, toward, radial, 384);
+        var near = SpaceFlightMath.near(body, radial, toward, radial, 384);
         assertEquals(new Point(7.5, 0, 0), near);
-        assertEquals(near, SpaceServer.govern(body, v, toward, v, 384, true));
+        assertEquals(near, SpaceFlightMath.govern(body, v, toward, v, 384, true));
         assertFalse(SpaceApproach.ready(body, 384, true));
         assertTrue(SpaceApproach.ready(body, 383, true));
         assertFalse(SpaceApproach.ready(body, 0, false));
@@ -129,12 +134,18 @@ class BodyReachUsersTest {
         var small = model(512).body(0);
         var target =
                 new GroundEphemeris.Body(
-                        new GroundEphemeris.Fixed(new Point(0, 0, 30000)), 0, false, 1);
+                        new GroundEphemeris.Fixed(new Point(0, 0, 30000)),
+                        0,
+                        false,
+                        1,
+                        GroundEphemeris.Appearance.SURFACE);
         var light = model(512).bodies().getFirst();
         var model = new GroundEphemeris.Model(List.of(light, small, target));
         var ship = new Point(2 * (radius + 500), 0, -30000);
         assertEquals(-1, SpaceNavigation.blocker(model, ship, 1, 0));
-        var large = new GroundEphemeris.Body(small.motion(), 0, false, 0);
+        var large =
+                new GroundEphemeris.Body(
+                        small.motion(), 0, false, 0, GroundEphemeris.Appearance.SURFACE);
         assertEquals(
                 0,
                 SpaceNavigation.blocker(
@@ -153,8 +164,11 @@ class BodyReachUsersTest {
         assertTrue(weight.contains("GroundClock.get((ServerLevel)level).clock.model"));
         assertTrue(weight.contains("access.storagePlanet(feet.x(),feet.z())"));
         assertTrue(weight.contains("at(model.body(planet),access.chart(feet).y())"));
-        for (String file : new String[] {"SableFrames", "LiftServer", "Airstair"})
-            assertTrue(Sources.text(file).contains("HullWeight.at("));
+        for (String file : new String[] {"HullPhysics", "LiftServer"})
+            assertTrue(Sources.text(file).contains("HullWeight.gravity("));
+        assertTrue(Sources.text("Airstair").contains("HullWeight.at("));
+        assertTrue(weight.contains("returnat(level,feet)*"));
+        assertTrue(weight.contains("PlanetConditions.gravity("));
         var server = Sources.text("SpaceServer");
         assertTrue(
                 server.contains(
@@ -166,7 +180,7 @@ class BodyReachUsersTest {
                 server.contains("govern(model.body(nearest),drift,toward,relative,height,true)"));
         var client = Sources.text("SpaceNavigationClient");
         assertTrue(client.contains("height-model.body(planet).hullIn()"));
-        assertTrue(client.contains("SpaceServer.arrivalLimit(model.body(planet),height)"));
-        assertTrue(client.contains("SpaceServer.nearLimit(model.body(planet),height)"));
+        assertTrue(client.contains("SpaceFlightMath.arrivalLimit(model.body(planet),height)"));
+        assertTrue(client.contains("SpaceFlightMath.nearLimit(model.body(planet),height)"));
     }
 }

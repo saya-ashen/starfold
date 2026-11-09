@@ -1,6 +1,7 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
+import dev.starfold.storage.ChunkKeys;
 import dev.starfold.geometry.CubeSurfaceTopology;
 
 import java.util.*;
@@ -16,11 +17,11 @@ public final class GroundOwnership {
     }
 
     public static final class Snapshot {
-        private final Map<Long, GroundViewCache.Surface> surfaces;
+        private final Map<Long, GroundSurface> surfaces;
         private final BitSet nativeTiles;
 
-        public Snapshot(Map<Long, GroundViewCache.Surface> surfaces, BitSet nativeTiles) {
-            this.surfaces = Map.copyOf(surfaces);
+        public Snapshot(Map<Long, GroundSurface> surfaces, BitSet nativeTiles) {
+            this.surfaces = surfaces.isEmpty() ? Map.of() : Collections.unmodifiableMap(new HashMap<>(surfaces));
             this.nativeTiles = (BitSet) nativeTiles.clone();
             for (long k : surfaces.keySet())
                 if (k < 0 || k >= 98304) throw new IllegalArgumentException("Native tile");
@@ -37,7 +38,7 @@ public final class GroundOwnership {
                     : nativeTiles.get((int) key) ? Owner.NATIVE : Owner.DETAIL;
         }
 
-        public GroundViewCache.Surface surface(long key) {
+        public GroundSurface surface(long key) {
             return surfaces.get(key);
         }
 
@@ -62,7 +63,7 @@ public final class GroundOwnership {
         /** All four possible exit strips are prebaked, so trimming an owner is border-safe. */
         public Snapshot retainCompatible(Snapshot available) {
             if (validAgainst(available)) return this;
-            var retained = new HashMap<Long, GroundViewCache.Surface>();
+            var retained = new HashMap<Long, GroundSurface>();
             var natives = new BitSet();
             for (long key : keys())
                 if (owner(key) == available.owner(key)
@@ -75,8 +76,8 @@ public final class GroundOwnership {
 
         /** Leaving a chart changes its draw adapter, not the already baked canonical geometry. */
         public Snapshot rebase(
-                int currentFace, Map<Long, GroundViewCache.Surface> residentDetails) {
-            var kept = new HashMap<Long, GroundViewCache.Surface>();
+                int currentFace, Map<Long, GroundSurface> residentDetails) {
+            var kept = new HashMap<Long, GroundSurface>();
             var natives = new BitSet();
             for (long key : keys())
                 if (same(surface(key), residentDetails.get(key))) {
@@ -88,7 +89,7 @@ public final class GroundOwnership {
         }
 
         public boolean sameAs(Snapshot other) {
-            return keys().equals(other.keys()) && validAgainst(other);
+            return this == other || keys().equals(other.keys()) && validAgainst(other);
         }
 
         public int code(long key) {
@@ -115,11 +116,16 @@ public final class GroundOwnership {
                 && requested.validAgainst(available);
     }
 
+    /** Native and snapshot volumes must never both draw the same canonical column. */
+    public static boolean drawDetail(Snapshot selected, Set<Long> nativeWindow, long key) {
+        return !nativeWindow.contains(key) && selected.owner(key) == Owner.DETAIL;
+    }
+
     public static Snapshot empty() {
         return new Snapshot(Map.of(), new BitSet());
     }
 
-    public static boolean same(GroundViewCache.Surface a, GroundViewCache.Surface b) {
+    public static boolean same(GroundSurface a, GroundSurface b) {
         return a != null && a.sameAs(b);
     }
 
@@ -132,12 +138,34 @@ public final class GroundOwnership {
                 shape.topology()
                         .canonical(
                                 new CubeSurfaceTopology.Cell(
-                                        CubeSurfaceTopology.Face.values()[face],
+                                        CubeSurfaceTopology.Face.VALUES[face],
                                         columnX,
                                         0,
                                         columnZ))
                         .cell();
-        return c.u() / 16 + 128L * (c.v() / 16 + 128L * c.face().ordinal());
+        return ChunkKeys.faceLocal(c.face().ordinal(), c.u() / 16, c.v() / 16);
+    }
+
+    /** Halo ring slots and the canonical tile each mirrors, in face/z/x order; fixed per planet size. */
+    record Halo(int[] index, long[] key) {}
+
+    private static final Halo[] HALOS = new Halo[PlanetShape.MAX / 16 + 1];
+
+    /** Atlases are rebuilt whenever ownership changes; seam canonicalisation must not run each time. */
+    static Halo halo(PlanetShape shape) {
+        var halo = HALOS[shape.size() / 16];
+        if (halo != null) return halo;
+        int n = shape.chunks(), count = 0;
+        var index = new int[6 * 4 * (n + 1)];
+        var key = new long[index.length];
+        for (int f = 0; f < 6; f++)
+            for (int z = -1; z <= n; z++)
+                for (int x = -1; x <= n; x++)
+                    if (x < 0 || x >= n || z < 0 || z >= n) {
+                        index[count] = x + 1 + SIDE * (z + 1 + SIDE * f);
+                        key[count++] = key(shape, f, x * 16 + 8, z * 16 + 8);
+                    }
+        return HALOS[shape.size() / 16] = new Halo(index, key);
     }
 
     /** One tile halo gives side-wall ownership across face seams without a second draw mask. */
@@ -147,18 +175,13 @@ public final class GroundOwnership {
 
     /** A planet narrower than the atlas has its halo ring directly beyond its own last tile. */
     public static byte[] atlas(PlanetShape shape, Snapshot snapshot) {
-        int n = shape.chunks();
         var out = new byte[SIDE * HEIGHT];
         for (long key : snapshot.keys()) {
             int f = (int) (key / 16384), x = (int) (key % 128), z = (int) (key / 128 % 128);
             out[x + 1 + SIDE * (z + 1 + SIDE * f)] = (byte) snapshot.code(key);
         }
-        for (int f = 0; f < 6; f++)
-            for (int z = -1; z <= n; z++)
-                for (int x = -1; x <= n; x++)
-                    if (x < 0 || x >= n || z < 0 || z >= n)
-                        out[x + 1 + SIDE * (z + 1 + SIDE * f)] =
-                                (byte) snapshot.code(key(shape, f, x * 16 + 8, z * 16 + 8));
+        var halo = halo(shape);
+        for (int i = 0; i < halo.index.length; i++) out[halo.index[i]] = (byte) snapshot.code(halo.key[i]);
         return out;
     }
 
@@ -169,7 +192,6 @@ public final class GroundOwnership {
     }
 
     public static byte[] atlas(PlanetShape shape, Snapshot snapshot, Set<Long> window) {
-        int n = shape.chunks();
         var out = atlas(shape, snapshot);
         if (window.isEmpty()) return out;
         for (long key : window) {
@@ -177,12 +199,9 @@ public final class GroundOwnership {
             int f = (int) (key / 16384), x = (int) (key % 128), z = (int) (key / 128 % 128);
             out[x + 1 + SIDE * (z + 1 + SIDE * f)] = (byte) 255;
         }
-        for (int f = 0; f < 6; f++)
-            for (int z = -1; z <= n; z++)
-                for (int x = -1; x <= n; x++)
-                    if ((x < 0 || x >= n || z < 0 || z >= n)
-                            && window.contains(key(shape, f, x * 16 + 8, z * 16 + 8)))
-                        out[x + 1 + SIDE * (z + 1 + SIDE * f)] = (byte) 255;
+        var halo = halo(shape);
+        for (int i = 0; i < halo.index.length; i++)
+            if (window.contains(halo.key[i])) out[halo.index[i]] = (byte) 255;
         return out;
     }
 
@@ -204,20 +223,13 @@ public final class GroundOwnership {
             if (nativeFace >= 6) throw new IllegalArgumentException("Native face");
             for (int z = 0; z < n; z++)
                 for (int x = 0; x < n; x++) {
-                    long key = x + 128L * (z + 128L * nativeFace);
+                    long key = ChunkKeys.faceLocal(nativeFace, x, z);
                     out[x + 1 + SIDE * (z + 1 + SIDE * nativeFace)] =
                             (byte) code(snapshot, key, nativeFace);
                 }
-            for (int f = 0; f < 6; f++)
-                for (int z = -1; z <= n; z++)
-                    for (int x = -1; x <= n; x++)
-                        if (x < 0 || x >= n || z < 0 || z >= n)
-                            out[x + 1 + SIDE * (z + 1 + SIDE * f)] =
-                                    (byte)
-                                            code(
-                                                    snapshot,
-                                                    key(shape, f, x * 16 + 8, z * 16 + 8),
-                                                    nativeFace);
+            var halo = halo(shape);
+            for (int i = 0; i < halo.index.length; i++)
+                out[halo.index[i]] = (byte) code(snapshot, halo.key[i], nativeFace);
         }
         return out;
     }

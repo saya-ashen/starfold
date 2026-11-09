@@ -15,8 +15,7 @@ public record FlightSnapshot(
         int planet,
         double speed,
         int relativeTo,
-        double cruiseCap,
-        double boostCap,
+        double deltaV,
         boolean boosted,
         double closing,
         Target target,
@@ -38,9 +37,83 @@ public record FlightSnapshot(
         Home home,
         ArrivalState.Phase phase,
         double blend,
-        int notice) {
-    double activeCap() {
-        return boosted ? boostCap : cruiseCap;
+        int notice,
+        GasTarget gas) {
+    public FlightSnapshot(
+            int tier,
+            FlightMode mode,
+            int planet,
+            double speed,
+            int relativeTo,
+            double deltaV,
+            boolean boosted,
+            double closing,
+            Target target,
+            List<Target> planets,
+            Point velocityDirection,
+            SpaceNavigation.Marker velocityMarker,
+            boolean retrograde,
+            Point referenceDirection,
+            int referencePlanet,
+            Thrust thrust,
+            double pointerX,
+            double pointerY,
+            double clearance,
+            double vertical,
+            double horizontal,
+            int launchPlanet,
+            Arrival arrival,
+            Landing landing,
+            Home home,
+            ArrivalState.Phase phase,
+            double blend,
+            int notice) {
+        this(
+                tier,
+                mode,
+                planet,
+                speed,
+                relativeTo,
+                deltaV,
+                boosted,
+                closing,
+                target,
+                planets,
+                velocityDirection,
+                velocityMarker,
+                retrograde,
+                referenceDirection,
+                referencePlanet,
+                thrust,
+                pointerX,
+                pointerY,
+                clearance,
+                vertical,
+                horizontal,
+                launchPlanet,
+                arrival,
+                landing,
+                home,
+                phase,
+                blend,
+                notice,
+                null);
+    }
+
+    /** Non-landable target: null layer means unknown/stale server hull sample, never safe zero. */
+    public record GasTarget(
+            dev.starfold.chart.CelestialTarget celestial,
+            String name,
+            SpaceNavigation.Marker marker,
+            double distance,
+            double closing,
+            CelestialNavigation.GasReading layer,
+            int rank,
+            int count,
+            String blockerName) {}
+
+    double speedRange() {
+        return Math.max(200, Math.max(speed, deltaV));
     }
 
     public record Target(
@@ -51,7 +124,24 @@ public record FlightSnapshot(
             double angle,
             int rank,
             int count,
-            int blocker) {
+            int blocker,
+            String gasBlockerName) {
+        public Target(
+                int planet,
+                SpaceNavigation.Marker marker,
+                double distance,
+                double closing,
+                double angle,
+                int rank,
+                int count,
+                int blocker) {
+            this(planet, marker, distance, closing, angle, rank, count, blocker, null);
+        }
+
+        public boolean blocked() {
+            return blocker >= 0 || gasBlockerName != null;
+        }
+
         Target(
                 int planet,
                 SpaceNavigation.Marker marker,

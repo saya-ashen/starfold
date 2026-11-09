@@ -23,12 +23,15 @@ import java.util.UUID;
 public final class WaypointSave extends SavedData {
     public static final String FILE = "starfold_native_waypoints_v1";
     public static final int MAX_PLAYERS = 1024;
-    public static final int MAX_MARKERS = 64;
-    private static final int FORMAT = 1;
+    public static final int MAX_MARKERS = Waypoint.MAX_MARKERS;
+    private static final int FORMAT = 2;
+    private java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> model =
+            () -> dev.starfold.planet.PlanetSystem.model(dev.starfold.chart.PlanetShape.count());
 
     private static final class Book {
         final Map<String, Waypoint> points = new TreeMap<>();
         String active = "";
+        Waypoint navigation;
         final Map<Integer, Waypoint> launches = new TreeMap<>();
         int recentLaunch = -1;
     }
@@ -57,7 +60,7 @@ public final class WaypointSave extends SavedData {
         return book == null
                 ? null
                 : active(
-                        book.points.get(book.active),
+                        book.navigation != null ? book.navigation : book.points.get(book.active),
                         book.launches.getOrDefault(planet, book.launches.get(book.recentLaunch)));
     }
 
@@ -93,18 +96,26 @@ public final class WaypointSave extends SavedData {
         setDirty();
     }
 
+    /** Transient instrument destination, not an entry in the player's marker book. */
+    public void navigate(UUID id, Waypoint marker) {
+        var book = marker == null ? players.get(id) : book(id);
+        if (book != null) book.navigation = marker;
+    }
+
     public void select(UUID id, String name) {
         // An invalid selection must not allocate a book or consume player capacity.
         var book = players.get(id);
         if (book == null || !book.points.containsKey(name)) {
             throw new Waypoint.Failure("message.starfold.mark.missing", name);
         }
+        book.navigation = null;
         book.active = name;
         setDirty();
     }
 
     public void clear(UUID id) {
         var book = players.get(id);
+        if (book != null) book.navigation = null;
         if (book != null && !book.active.isEmpty()) {
             book.active = "";
             setDirty();
@@ -131,37 +142,62 @@ public final class WaypointSave extends SavedData {
     public static WaypointSave get(ServerLevel level) {
         if (!PlanetLevels.is(level)) throw new IllegalArgumentException("Native waypoint world");
         var storage = level.getDataStorage();
-        return storage.computeIfAbsent(
-                new Factory<>(
-                        () ->
-                                fresh(
-                                        ((SavedDataFileAccess) storage)
-                                                .starfold$spaceDataFile(FILE)
-                                                .exists()),
-                        WaypointSave::load,
-                        null),
-                FILE);
+        var saved =
+                storage.computeIfAbsent(
+                        new Factory<>(
+                                () ->
+                                        fresh(
+                                                ((SavedDataFileAccess) storage)
+                                                        .starfold$spaceDataFile(FILE)
+                                                        .exists()),
+                                (tag, lookup) ->
+                                        load(
+                                                tag,
+                                                lookup,
+                                                () ->
+                                                        dev.starfold.sky.GroundClock.get(level)
+                                                                .clock
+                                                                .model),
+                                null),
+                        FILE);
+        saved.model = () -> dev.starfold.sky.GroundClock.get(level).clock.model;
+        return saved;
     }
 
     public static WaypointSave load(CompoundTag tag, HolderLookup.Provider lookup) {
+        return load(
+                tag,
+                lookup,
+                () ->
+                        dev.starfold.planet.PlanetSystem.model(
+                                dev.starfold.chart.PlanetShape.count()));
+    }
+
+    public static WaypointSave load(
+            CompoundTag tag,
+            HolderLookup.Provider lookup,
+            java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> model) {
         require(tag, "format", Tag.TAG_INT);
         require(tag, "players", Tag.TAG_COMPOUND);
-        if (tag.getInt("format") != FORMAT) throw new IllegalArgumentException("Waypoint format");
+        if (tag.getInt("format") != FORMAT)
+            throw new IllegalArgumentException("Waypoint format; old saves are not supported");
         var all = tag.getCompound("players");
         if (all.getAllKeys().size() > MAX_PLAYERS) {
             throw new IllegalArgumentException("Waypoint player capacity");
         }
         var result = new WaypointSave();
+        result.model = model;
         for (String key : all.getAllKeys()) {
             var id = UUID.fromString(key);
             if (!id.toString().equals(key)) throw new IllegalArgumentException("Waypoint UUID");
             require(all, key, Tag.TAG_COMPOUND);
-            result.players.put(id, decodeBook(all.getCompound(key)));
+            result.players.put(id, decodeBook(all.getCompound(key), model.get()));
         }
         return result;
     }
 
-    private static Book decodeBook(CompoundTag entry) {
+    private static Book decodeBook(
+            CompoundTag entry, dev.starfold.chart.GroundEphemeris.Model model) {
         require(entry, "points", Tag.TAG_LIST);
         require(entry, "active", Tag.TAG_STRING);
         if (!(entry.get("points") instanceof ListTag list)
@@ -171,7 +207,7 @@ public final class WaypointSave extends SavedData {
         }
         var book = new Book();
         for (var value : list) {
-            var marker = WaypointCodec.decode((CompoundTag) value);
+            var marker = WaypointCodec.decode((CompoundTag) value, model);
             if (book.points.putIfAbsent(marker.name(), marker) != null) {
                 throw new IllegalArgumentException("Duplicate waypoint");
             }
@@ -180,16 +216,17 @@ public final class WaypointSave extends SavedData {
             throw new IllegalArgumentException("Launch bookmarks require a launches list");
         if (entry.contains("launches")) {
             require(entry, "launches", Tag.TAG_LIST);
-            require(entry, "recentLaunch", Tag.TAG_INT);
+            require(entry, "recentLaunch", Tag.TAG_COMPOUND);
             var launches = (ListTag) entry.get("launches");
             if (!launches.isEmpty() && launches.getElementType() != Tag.TAG_COMPOUND)
                 throw new IllegalArgumentException("Launch list");
             for (var value : launches) {
-                var marker = WaypointCodec.decode((CompoundTag) value);
+                var marker = WaypointCodec.decode((CompoundTag) value, model);
                 if (book.launches.putIfAbsent(marker.planet(), marker) != null)
                     throw new IllegalArgumentException("Duplicate launch planet");
             }
-            book.recentLaunch = entry.getInt("recentLaunch");
+            book.recentLaunch =
+                    model.slot(dev.starfold.chart.BodyId.read(entry.getCompound("recentLaunch")));
             if (book.launches.isEmpty()
                     ? book.recentLaunch != -1
                     : !book.launches.containsKey(book.recentLaunch))
@@ -213,13 +250,18 @@ public final class WaypointSave extends SavedData {
                     var launches = new ListTag();
                     book.launches
                             .values()
-                            .forEach(marker -> launches.add(WaypointCodec.encode(marker)));
+                            .forEach(
+                                    marker ->
+                                            launches.add(
+                                                    WaypointCodec.encode(marker, model.get())));
                     if (!launches.isEmpty()) {
                         entry.put("launches", launches);
-                        entry.putInt("recentLaunch", book.recentLaunch);
+                        entry.put("recentLaunch", model.get().id(book.recentLaunch).tag());
                     }
                     var list = new ListTag();
-                    book.points.values().forEach(marker -> list.add(WaypointCodec.encode(marker)));
+                    book.points
+                            .values()
+                            .forEach(marker -> list.add(WaypointCodec.encode(marker, model.get())));
                     entry.put("points", list);
                     all.put(id.toString(), entry);
                 });

@@ -5,7 +5,6 @@ import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.ship.SpacePackets;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.sky.Space;
 
@@ -15,20 +14,31 @@ import java.util.*;
 
 /** Pure passive-observer maths. No chart, home radius, orbit offset or camera ownership. */
 public final class SpaceView {
-    /** Complete bodies beyond this distance are omitted rather than clamped to a false position. */
+    /** Far-plane distance shared by celestial positioning and the far-body impostor mapping. */
     public static final float FAR = 1_000_000;
+    private static final double FAR_TRANSITION = FAR / 4.0;
 
     /** Orbital chart observers see the same distant celestial bodies as passive region observers. */
     public static float chartFar(double altitude, int view) {
         return altitude > GroundOrbit.START ? FAR : view + 64f;
     }
 
-    /** Keep the camera's field of view and offsets; only sky depth uses the celestial far plane. */
+    /** The sky pass draws nothing nearer than its 128-block dome, so its depth range starts here. */
+    public static final float SKY_NEAR = 64;
+
+    /** Keep the camera's field of view and offsets; only sky depth uses the celestial far plane.
+     * The terrain matrix may carry view bobbing (P * B); its depth row is rebuilt from the w row
+     * (-B's third row), otherwise bobbing tilts far depth past the far plane and bodies blink. */
     public static Matrix4f skyProjection(Matrix4f terrain) {
-        float near = terrain.m32() / (terrain.m22() - 1);
+        if (dev.starfold.render.ReversedDepth.ACTIVE) return terrain;
+        float a = -terrain.m22() / terrain.m23(), b = terrain.m32() + a * terrain.m33();
+        float near = Math.max(b / (a - 1), SKY_NEAR);
+        float sa = -(FAR + near) / (FAR - near), sb = -2 * FAR * near / (FAR - near);
         return new Matrix4f(terrain)
-                .m22(-(FAR + near) / (FAR - near))
-                .m32(-2 * FAR * near / (FAR - near));
+                .m02(-sa * terrain.m03())
+                .m12(-sa * terrain.m13())
+                .m22(-sa * terrain.m23())
+                .m32(-sa * terrain.m33() + sb);
     }
 
     /** The star fade washes out bodies too, but leaves twenty percent of their lit colour at noon. */
@@ -65,12 +75,22 @@ public final class SpaceView {
         return List.copyOf(ids.subList(0, Math.min(Math.max(0, limit), ids.size())));
     }
 
+    /** Draw distance that preserves apparent angular size while asymptotically staying in the depth range. */
+    public static double renderDistance(double distance) {
+        return distance <= FAR_TRANSITION
+                ? distance
+                : 2 * FAR_TRANSITION - FAR_TRANSITION * FAR_TRANSITION / distance;
+    }
+
+    public static double renderScale(double distance) {
+        return distance == 0 ? 1 : renderDistance(distance) / distance;
+    }
+
     public static boolean visible(double distance, double radius) {
         return Double.isFinite(distance)
                 && Double.isFinite(radius)
                 && distance >= 0
-                && radius >= 0
-                && distance + radius < FAR - 64;
+                && radius >= 0;
     }
 
     /** The nearest eight physical occluders, independent of whether their meshes have finished building. */
@@ -86,7 +106,7 @@ public final class SpaceView {
                                     model.at(id, tick).center(),
                                     sun,
                                     PlanetShape.of(id).radius()));
-        return light;
+        return Math.min(light, dev.starfold.chart.GasOcclusion.sunlight(model, eye, tick));
     }
 
     /** One-tick blend for continuous frame changes; carries and guard shifts install discrete labels. */

@@ -23,7 +23,12 @@ public final class ChunkKeys {
         if (face < 0 || face >= FACE_COUNT || u >= width || chunkZ < 0 || chunkZ >= width) {
             return -1;
         }
-        return u + (long) FACE_WIDTH * (chunkZ + (long) FACE_WIDTH * face);
+        return faceLocal(face, u, chunkZ);
+    }
+
+    /** Fixed storage numbering for an already canonical face and its local chunk coordinates. */
+    public static long faceLocal(int face, int chunkU, int chunkV) {
+        return chunkU + (long) FACE_WIDTH * (chunkV + (long) FACE_WIDTH * face);
     }
 
     public static int chunkX(long key) {

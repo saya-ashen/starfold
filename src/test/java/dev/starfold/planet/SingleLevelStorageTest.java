@@ -9,7 +9,7 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
 import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.SystemChunkGenerator;
-import dev.starfold.worldgen.PlanetEcologyTest;
+import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetGeneration;
 
 import net.minecraft.core.BlockPos;
@@ -25,31 +25,26 @@ import java.util.*;
 
 /** Storage/generation regression only. Does NOT stand in for a live A-to-B client test. */
 public class SingleLevelStorageTest {
-    final PlanetEcologyTest fixture = new PlanetEcologyTest();
+    final PlanetBiomeFixtures fixture = new PlanetBiomeFixtures();
 
     @BeforeAll
     static void boot() {
-        PlanetEcologyTest.boot();
+        PlanetBiomeFixtures.boot();
     }
 
     SystemChunkGenerator generator() {
-        var a = fixture.generator(4);
+        var a = fixture.generator();
         var settings =
                 new net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings(
                         Optional.of(net.minecraft.core.HolderSet.direct()),
-                        PlanetEcologyTest.palette.getHolderOrThrow(
+                        PlanetBiomeFixtures.palette.getHolderOrThrow(
                                 net.minecraft.world.level.biome.Biomes.STONY_PEAKS),
                         List.of());
         settings.getLayersInfo()
                 .add(new net.minecraft.world.level.levelgen.flat.FlatLayerInfo(1, Blocks.BEDROCK));
         settings.updateLayers();
         var b =
-                new PlanetChunkGenerator(
-                        settings,
-                        20261002L,
-                        5,
-                        Optional.empty(),
-                        Optional.of(new PlanetGeneration("rocky", "rocky", 1, 1.2, .04, .09)));
+                new PlanetChunkGenerator(settings,20261002L,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.empty(),Optional.of(new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1024,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1024))));
         return new SystemChunkGenerator(PlanetStorage.LAYOUT, a, b);
     }
 
@@ -58,8 +53,8 @@ public class SingleLevelStorageTest {
                 new ProtoChunk(
                         new ChunkPos(x, z),
                         UpgradeData.EMPTY,
-                        PlanetEcologyTest.HEIGHT,
-                        PlanetEcologyTest.palette,
+                        PlanetBiomeFixtures.HEIGHT,
+                        PlanetBiomeFixtures.palette,
                         null);
         g.createBiomes(null, null, null, c).join();
         c.setPersistedStatus(net.minecraft.world.level.chunk.status.ChunkStatus.BIOMES);
@@ -163,7 +158,7 @@ public class SingleLevelStorageTest {
                 () -> new SystemChunkGenerator("unknown", g.planet(0), g.planet(1)));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SystemChunkGenerator(PlanetStorage.LAYOUT, g.planet(1), g.planet(0)));
+                () -> new SystemChunkGenerator(PlanetStorage.LAYOUT, java.util.List.of()));
     }
 
     @Test
@@ -175,13 +170,13 @@ public class SingleLevelStorageTest {
                 for (int x = 0; x < 16; x += 5)
                     for (int z = 0; z < 16; z += 5) {
                         int wx = c.getPos().getMinBlockX() + x, wz = c.getPos().getMinBlockZ() + z;
-                        var column = g.getBaseColumn(wx, wz, PlanetEcologyTest.HEIGHT, null);
+                        var column = g.getBaseColumn(wx, wz, PlanetBiomeFixtures.HEIGHT, null);
                         var expected =
                                 g.planet(id)
                                         .getBaseColumn(
                                                 wx - PlanetStorage.offset(id),
                                                 wz,
-                                                PlanetEcologyTest.HEIGHT,
+                                                PlanetBiomeFixtures.HEIGHT,
                                                 null);
                         for (int y = -64; y < 320; y++) {
                             assertSame(expected.getBlock(y), column.getBlock(y));
@@ -194,7 +189,7 @@ public class SingleLevelStorageTest {
                                         Heightmap.Types.OCEAN_FLOOR_WG))
                             assertEquals(
                                     c.getHeight(type, x, z) + 1,
-                                    g.getBaseHeight(wx, wz, type, PlanetEcologyTest.HEIGHT, null));
+                                    g.getBaseHeight(wx, wz, type, PlanetBiomeFixtures.HEIGHT, null));
                     }
             }
     }
@@ -219,7 +214,7 @@ public class SingleLevelStorageTest {
 
     @Test
     void persistedLayoutAndIndependentPoliciesRegenerateIdenticalChunks() {
-        var ops = RegistryOps.create(JsonOps.INSTANCE, PlanetEcologyTest.lookup);
+        var ops = RegistryOps.create(JsonOps.INSTANCE, PlanetBiomeFixtures.lookup);
         var g = generator();
         var saved = SystemChunkGenerator.CODEC.codec().encodeStart(ops, g).getOrThrow();
         var copy = SystemChunkGenerator.CODEC.codec().parse(ops, saved).getOrThrow();
@@ -270,10 +265,10 @@ public class SingleLevelStorageTest {
                             x * 16,
                             1024,
                             Heightmap.Types.WORLD_SURFACE_WG,
-                            PlanetEcologyTest.HEIGHT,
+                            PlanetBiomeFixtures.HEIGHT,
                             null));
             assertTrue(
-                    g.getBaseColumn(x * 16, 1024, PlanetEcologyTest.HEIGHT, null)
+                    g.getBaseColumn(x * 16, 1024, PlanetBiomeFixtures.HEIGHT, null)
                             .getBlock(0)
                             .isAir());
         }
