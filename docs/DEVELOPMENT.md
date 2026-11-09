@@ -31,3 +31,13 @@ Full survival progression and balance remain unaccepted. The source under `modpa
 ## Assets
 
 Runtime assets and the source images needed by the Biotech texture generator are retained. See `biotech/art/PROVENANCE.md` for generated-art provenance. Unused concept sheets and historical internal verification reports are omitted from this public snapshot.
+
+## Release artifacts
+
+After a successful versioned build, package the six player modules and the Experience pack with:
+
+```sh
+python3 tools/release/experience.py 0.3.0-alpha.1 --verify-downloads
+```
+
+The dependency manifest pins exact download URLs, sizes and hashes. The command checks downloaded dependency archives and built module metadata, then writes player jars, an importable `.mrpack`, installation notes and SHA-256 checksums under ignored `build/release/`. It does not publish. The Experience pack is independent of the unfinished survival configuration under `modpack/`.

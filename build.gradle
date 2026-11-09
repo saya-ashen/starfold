@@ -1,5 +1,5 @@
 plugins { id 'net.neoforged.moddev' version '2.0.148'; id 'java-test-fixtures' }
-version = providers.gradleProperty('candidateVersion').getOrElse('0.3.0-dev')
+version = providers.gradleProperty('candidateVersion').getOrElse('0.3.0-alpha.1')
 group = 'dev.starfold'
 base { archivesName = 'starfold' }
 repositories {

@@ -1,0 +1,83 @@
+{
+  "dependencies": {
+    "minecraft": "1.21.1",
+    "neoforge": "21.1.247"
+  },
+  "files": [
+    {
+      "path": "mods/sable-neoforge-1.21.1-2.0.5.jar",
+      "hashes": {
+        "sha1": "05f666e973d32baaaf405acb9bbed6615b909971",
+        "sha512": "bf3d8c87bcc5efb99afffd50305fc978086ed48a63e106816e3a8a3901f8052f4480ea527dbd7d4003f7775ed4d020529098034f4e307aefac9cc42df2b4c19a"
+      },
+      "env": {
+        "client": "required",
+        "server": "required"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/T9PomCSv/versions/U678xqle/sable-neoforge-1.21.1-2.0.5.jar"
+      ],
+      "fileSize": 12986136
+    },
+    {
+      "path": "mods/create-1.21.1-6.0.10.jar",
+      "hashes": {
+        "sha1": "0e97e49837bed766e6f28a4c95b04885d6acc353",
+        "sha512": "11cc8fc049d2f67f6548c7abfada6b82a3adb5c7ca410a742de04bbca76e03862c518721b88d806f6e6d768a4d68531fdb903a85859b25d1484d550cc7bafd4b"
+      },
+      "env": {
+        "client": "required",
+        "server": "required"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/LNytGWDc/versions/UjX6dr61/create-1.21.1-6.0.10.jar"
+      ],
+      "fileSize": 19123767
+    },
+    {
+      "path": "mods/create-aeronautics-bundled-1.21.1-1.3.2.jar",
+      "hashes": {
+        "sha1": "ddbe9cbc25e8f663218aa1e9fdfc4b99f0e11e4b",
+        "sha512": "dc7e8e1148fa442243889ba29412207137e1bb86206e6c92bc0a589f1374a466e93de22bdbf14f753984d86c29308fbbdc0f14a4b9618b14c0ac1666a36b46f5"
+      },
+      "env": {
+        "client": "required",
+        "server": "required"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/oWaK0Q19/versions/44pLdPGg/create-aeronautics-bundled-1.21.1-1.3.2.jar"
+      ],
+      "fileSize": 33123131
+    },
+    {
+      "path": "mods/immersive_aircraft-1.5.2+1.21.1-neoforge.jar",
+      "hashes": {
+        "sha1": "6f7dded9292e8bd32feb24082aad2987c72af908",
+        "sha512": "4b9f3d0050d0c4a683a5a64bc8b25d6dc4d84d15879e5dea00df9bbdd7655e060c4996692e894c8b0ef2a5c99254d72d835d366cc043642143298e04d70ca75f"
+      },
+      "env": {
+        "client": "required",
+        "server": "required"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/x3HZvrj6/versions/ZZTlNkV9/immersive_aircraft-1.5.2%2B1.21.1-neoforge.jar"
+      ],
+      "fileSize": 2469769
+    },
+    {
+      "path": "mods/geckolib-neoforge-1.21.1-4.8.2.jar",
+      "hashes": {
+        "sha1": "b2d84a5ea8b8944be66dbf817f0d4aa3f494db7a",
+        "sha512": "6b70d7dc11adb68cd590110c6b29de39eaae40b55f934026288a2018f6d529a2579124d0596825126db4a499f0dfc26248e4005a452bc1b0d4d05c0279e33602"
+      },
+      "env": {
+        "client": "required",
+        "server": "required"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/8BmcQJ2H/versions/RVIo5f6E/geckolib-neoforge-1.21.1-4.8.2.jar"
+      ],
+      "fileSize": 621848
+    }
+  ]
+}

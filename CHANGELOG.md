@@ -3,7 +3,7 @@
 [中文](CHANGELOG_zh-CN.md)
 
 
-## Unreleased — 0.3.0 development
+## 0.3.0-alpha.1 “Starward” — 2026-11-09
 
 **Create a new world. Saves from 0.2.0 are not supported, and no migration is provided.**
 
@@ -15,7 +15,7 @@
 - Rework deterministic terrain planning, caves, roads, structures and ecology; improve far-view caching, streaming and rendering.
 - Improve return flights and map-based recovery of saved ship dependency groups.
 
-This is a source update, not a packaged release. Single-player remains the validation target. Full survival progression, fuel balance, multiplayer and shader compatibility are not accepted. The optional seasonal display module is omitted while its third-party provenance review remains pending; core seasonal APIs remain available.
+This prerelease contains changes since 0.2.0. Single-player remains the validation target. Full survival progression, fuel balance, multiplayer and shader compatibility are not accepted. The optional seasonal display module is omitted while its third-party provenance review remains pending; core seasonal APIs remain available.
 
 ## 0.2.0 “Moonrise”
 
