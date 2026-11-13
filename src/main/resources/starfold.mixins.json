@@ -121,6 +121,8 @@
     "SableSnapshotFenceMixin",
     "GroundVisibleSectionsAccess",
     "GroundNativeDrawMixin",
+    "SodiumShaderSourceMixin",
+    "SodiumShaderInterfaceMixin",
     "GroundSeamTeleportClientMixin",
     "GroundEntityRenderMixin",
     "GroundFlightFrustumMixin",

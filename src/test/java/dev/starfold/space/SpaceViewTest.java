@@ -432,7 +432,7 @@ class SpaceViewTest {
                         "renderFrame.active=false;renderFrame.partial=delta;if(SpaceClient.present())return;if(!ready()"));
         assertTrue(
                 Sources.text("GroundProjectionUniforms").contains(
-                        "boolean projected=renderFrame.active&&ready();ShaderUniforms.set(shader,\"CPNativeActive\",projected?1:0);if(!projected)return"));
+                        "boolean projected=renderFrame.active&&ready();out.set(\"CPNativeActive\",projected?1:0);if(!projected)return"));
         var celestials = Sources.text("GroundCelestials");
         assertTrue(celestials.contains("Stage.AFTER_ENTITIES"));
         assertTrue(celestials.contains("(!SpaceClient.active()&&!GroundClient.ready())"));

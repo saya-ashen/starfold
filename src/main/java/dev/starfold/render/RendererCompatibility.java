@@ -4,11 +4,13 @@ import java.util.function.Predicate;
 
 /** One policy for early mixin selection and the client projection guard; no game classes here. */
 public final class RendererCompatibility {
+    /**
+     * Sodium and Iris are handled by {@link SodiumSupport}, which also checks the Sodium shader
+     * version and whether an Iris pack owns the world shaders. Embeddium and Canvas replace the
+     * renderer in ways this projection has no shader hook for.
+     */
     public static boolean supported(Predicate<String> loaded) {
-        return !loaded.test("sodium")
-                && !loaded.test("iris")
-                && !loaded.test("embeddium")
-                && !loaded.test("canvas");
+        return !loaded.test("embeddium") && !loaded.test("canvas");
     }
 
     public static boolean apply(String mixin, Predicate<String> loaded) {
@@ -18,6 +20,8 @@ public final class RendererCompatibility {
                     && loaded.test("sable");
         if (mixin.startsWith("dev.starfold.mixin.DevPort"))
             return Boolean.getBoolean("starfold.portProbe");
+        // Both hook Sodium's own chunk program; without Sodium they cannot resolve a target.
+        if (mixin.startsWith("dev.starfold.mixin.Sodium")) return loaded.test("sodium");
         // Both setupRender and allChanged belong to vanilla's terrain compiler/view area.
         // Replacing that compiler must not leave half of its projected observer installed.
         if (mixin.equals("dev.starfold.mixin.HullBottomCacheMixin")

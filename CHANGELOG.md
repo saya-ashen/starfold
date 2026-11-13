@@ -3,6 +3,12 @@
 [中文](CHANGELOG_zh-CN.md)
 
 
+## Unreleased
+
+- Project planet terrain through Sodium 0.8: its chunk shader receives the same warp, projection uniforms
+  and native-chunk coverage as the vanilla core shaders. Iris is supported while no shader pack is enabled;
+  an active Iris pack, Embeddium or Canvas still disables planet terrain projection and far views.
+
 ## 0.3.0-alpha.1 “Starward” — 2026-11-09
 
 **Create a new world. Saves from 0.2.0 are not supported, and no migration is provided.**

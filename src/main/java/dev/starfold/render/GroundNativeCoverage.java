@@ -22,7 +22,8 @@ public final class GroundNativeCoverage {
     private static final it.unimi.dsi.fastutil.longs.LongOpenHashSet dirty = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
     private static final it.unimi.dsi.fastutil.longs.LongOpenHashSet covered = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
     private static final Set<Long> result = new HashSet<>();
-    private static boolean listBuilt, tracking;
+    private static final BitSet SODIUM_ALL = new BitSet();
+    private static boolean listBuilt, tracking, sodiumWindow;
     private static Set<Long> visible = Set.of();
 
     /** Vanilla rebuilt its visible-section list; AFTER_SKY still sees the previous frame's. */
@@ -37,7 +38,32 @@ public final class GroundNativeCoverage {
         covered.clear();
         result.clear();
         visible = Set.of();
+        SODIUM_ALL.clear();
         tracking = GroundClient.ready();
+        sodiumWindow = tracking && SodiumSupport.tracksNativeChunks();
+        if (sodiumWindow) sodiumSections(Minecraft.getInstance());
+    }
+
+    /**
+     * Sodium draws its own chunk meshes, so vanilla's visible-section list and per-section draw
+     * hook never run. Use the chunks Sodium can be drawing this frame: everything loaded inside
+     * its render distance. Sections outside it must not own coverage, exactly like vanilla's
+     * frustum culling; inside it, the loaded top section is the native surface either way.
+     */
+    private static void sodiumSections(Minecraft mc) {
+        if (mc.level == null || mc.gameRenderer == null) {
+            sodiumWindow = false;
+            return;
+        }
+        int sections = mc.level.getSectionsCount();
+        SODIUM_ALL.set(0, sections);
+        var camera = mc.gameRenderer.getMainCamera().getPosition();
+        int cx = (int) Math.floor(camera.x) >> 4;
+        int cz = (int) Math.floor(camera.z) >> 4;
+        int radius = SodiumSupport.radius();
+        for (int x = cx - radius; x <= cx + radius; x++)
+            for (int z = cz - radius; z <= cz + radius; z++)
+                if (mc.level.hasChunk(x, z)) dirty.add(ChunkPos.asLong(x, z));
     }
 
     public static void drawn(SectionRenderDispatcher.RenderSection section) {
@@ -76,14 +102,15 @@ public final class GroundNativeCoverage {
             var sections = chunk.getSections();
             // surfaceReady reads only the top two occupied sections; planets have hundreds.
             // No horizontal near-player exemption: at altitude only empty air may be visible.
-            var shown = listed.getOrDefault(column, NONE);
+            var shown = sodiumWindow ? SODIUM_ALL : listed.getOrDefault(column, NONE);
             // A canopy above the camera leaves the frustum when looking down; vanilla does not
             // list it, so the surface is the highest occupied section vanilla means to draw.
             int top = sections.length - 1;
             while (top >= 0 && (sections[top].hasOnlyAir() || !shown.get(top))) top--;
             int below = top - 1;
             while (below >= 0 && sections[below].hasOnlyAir()) below--;
-            if (!surfaceReady(top, below, drawn.get(column), shown)) continue;
+            if (!surfaceReady(top, below, sodiumWindow ? SODIUM_ALL : drawn.get(column), shown))
+                continue;
             var storage =
                     GroundClient.storage(pos.getMinBlockX() + 8.0, 128, pos.getMinBlockZ() + 8.0);
             // A chart handoff can leave old visible sections in the renderer for a frame.

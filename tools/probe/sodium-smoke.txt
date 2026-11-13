@@ -1,4 +1,4 @@
-# Unsupported-renderer warning and ordinary-world/planet walk; not projection acceptance.
+# Sodium 0.8 smoke: planets must project and the renderer warning must stay absent; not vertex acceptance.
 waitworld
 wait 100
 waitworld

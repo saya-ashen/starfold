@@ -20,4 +20,6 @@ Closed cube planets, configurable systems and environmental rules; deterministic
 - Improve planet-planning latency, far-view convergence and rendering consistency.
 - Exercise failure recovery when a saved multi-ship group cannot finish loading.
 
-Multiplayer and shader compatibility remain outside the current acceptance scope. Optional content can evolve independently; no old-save migration is promised.
+Sodium 0.8 and Iris without a shader pack are supported and have no in-game acceptance run yet; Iris shader
+packs, Embeddium and Canvas remain outside the current acceptance scope, as does multiplayer. Optional content
+can evolve independently; no old-save migration is promised.
