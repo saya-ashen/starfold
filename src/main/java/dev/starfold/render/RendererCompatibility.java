@@ -22,6 +22,10 @@ public final class RendererCompatibility {
             return Boolean.getBoolean("starfold.portProbe");
         // Both hook Sodium's own chunk program; without Sodium they cannot resolve a target.
         if (mixin.startsWith("dev.starfold.mixin.Sodium")) return loaded.test("sodium");
+        // Sodium, Embeddium and Canvas overwrite renderSectionLayer and setupRender, so the
+        // section observer would have no draw call left to wrap. Frame start lives separately.
+        if (mixin.equals("dev.starfold.mixin.GroundNativeDrawMixin"))
+            return !loaded.test("sodium") && !loaded.test("embeddium") && !loaded.test("canvas");
         // Both setupRender and allChanged belong to vanilla's terrain compiler/view area.
         // Replacing that compiler must not leave half of its projected observer installed.
         if (mixin.equals("dev.starfold.mixin.HullBottomCacheMixin")

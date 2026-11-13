@@ -14,22 +14,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** A visible-list entry is not a draw: EMPTY sections are in that list too. */
+/**
+ * A visible-list entry is not a draw: EMPTY sections are in that list too. Both methods below
+ * belong to vanilla's own section pipeline, which Sodium replaces by overwriting them, so this
+ * mixin is only applied while no replacing renderer is loaded.
+ */
 @Mixin(LevelRenderer.class)
 public abstract class GroundNativeDrawMixin {
-    @Inject(method = "renderLevel", at = @At("HEAD"))
-    private void starfold$beginNativeFrame(
-            net.minecraft.client.DeltaTracker delta,
-            boolean outline,
-            net.minecraft.client.Camera camera,
-            net.minecraft.client.renderer.GameRenderer renderer,
-            net.minecraft.client.renderer.LightTexture light,
-            org.joml.Matrix4f modelView,
-            org.joml.Matrix4f projection,
-            CallbackInfo ci) {
-        GroundNativeCoverage.beginFrame();
-    }
-
     @Inject(method = "setupRender", at = @At("HEAD"))
     private void starfold$nativeSetupRender(
             net.minecraft.client.Camera camera,

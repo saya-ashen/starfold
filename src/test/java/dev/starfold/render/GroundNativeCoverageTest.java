@@ -68,11 +68,17 @@ class GroundNativeCoverageTest {
         assertTrue(source.contains("CompiledSection.UNCOMPILED"));
         assertTrue(source.contains("compiled.hasNoRenderableLayers()"));
         assertFalse(source.contains("booleannear="));
+        var frame = Sources.text("GroundNativeFrameMixin");
+        assertTrue(frame.contains("method=\"renderLevel\",at=@At(\"HEAD\")"));
+        assertTrue(frame.contains("GroundNativeCoverage.beginFrame()"));
+        // The draw observer is vanilla-only: Sodium overwrites the method it wraps.
         var hook = Sources.text("GroundNativeDrawMixin");
-        assertTrue(hook.contains("method=\"renderLevel\",at=@At(\"HEAD\")"));
-        assertTrue(hook.contains("GroundNativeCoverage.beginFrame()"));
+        assertFalse(hook.contains("GroundNativeCoverage.beginFrame()"));
+        assertFalse(hook.contains("renderLevel"));
         assertTrue(hook.contains("VertexBuffer;draw()V"));
-        assertTrue(hook.indexOf("original.call(buffer)") < hook.indexOf("GroundNativeCoverage.drawn(section)"));
+        assertTrue(
+                hook.indexOf("original.call(buffer)")
+                        < hook.indexOf("GroundNativeCoverage.drawn(section)"));
         var renderer = Sources.text("GroundRenderer");
         assertTrue(renderer.contains("refreshNativeDraws();draw(c,false)"));
         assertTrue(renderer.contains("refreshNativeDraws();draw(c,true)"));

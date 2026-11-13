@@ -120,6 +120,7 @@
     "SableClientPoseAccess",
     "SableSnapshotFenceMixin",
     "GroundVisibleSectionsAccess",
+    "GroundNativeFrameMixin",
     "GroundNativeDrawMixin",
     "SodiumShaderSourceMixin",
     "SodiumShaderInterfaceMixin",

@@ -32,6 +32,9 @@ class RendererCompatibilityTest {
                     "DevPortCameraMixin",
                     "DevPortClockMixin");
 
+    /** Wraps vanilla's section draw call, which these renderers overwrite with their own. */
+    private static final Set<String> RENDERER_SPECIFIC = Set.of("GroundNativeDrawMixin");
+
     @Test
     void replacedRenderersDisableProjectionAndSodiumHooksFollowSodium() throws Exception {
         var config =
@@ -53,6 +56,13 @@ class RendererCompatibilityTest {
                 if (entry.getAsString().startsWith("Sodium")) {
                     assertFalse(RendererCompatibility.apply(name, id -> false), name);
                     assertTrue(RendererCompatibility.apply(name, "sodium"::equals), name);
+                } else if (RENDERER_SPECIFIC.contains(entry.getAsString())) {
+                    assertTrue(RendererCompatibility.apply(name, id -> false), name);
+                    for (String renderer : Set.of("sodium", "embeddium", "canvas"))
+                        assertFalse(
+                                RendererCompatibility.apply(name, renderer::equals),
+                                name + " with " + renderer);
+                    assertTrue(RendererCompatibility.apply(name, "sable"::equals), name);
                 } else {
                     assertEquals(
                             !OPTIONAL.contains(entry.getAsString()),
