@@ -36,7 +36,7 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 
 `starfold_atlas` 提供地图和飞船追踪。`starfold_biotech` 需要 Worlds 和固定版本 GeckoLib 4.8.2，其平衡数值仍为暂定。`modpack/` 是生存整合包配置源码，尚未完成完整生存流程验收。
 
-星球渲染需要原版渲染器，不支持光影包。模组声明与 `gravity_changer` 不兼容。
+星球渲染支持原版渲染器和 Sodium 0.8。Iris 在未启用光影包时可用；启用 Iris 光影包，或使用 Embeddium、Canvas 时，本版本会停用星球地形投影和远景。模组声明与 `gravity_changer` 不兼容。
 
 ## 游玩
 

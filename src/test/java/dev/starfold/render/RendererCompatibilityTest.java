@@ -32,8 +32,11 @@ class RendererCompatibilityTest {
                     "DevPortCameraMixin",
                     "DevPortClockMixin");
 
+    /** Wraps vanilla's section draw call, which these renderers overwrite with their own. */
+    private static final Set<String> RENDERER_SPECIFIC = Set.of("GroundNativeDrawMixin");
+
     @Test
-    void unsupportedRenderersDisableProjectionWithoutDisablingNativeMixins() throws Exception {
+    void replacedRenderersDisableProjectionAndSodiumHooksFollowSodium() throws Exception {
         var config =
                 JsonParser.parseString(
                                 Files.readString(
@@ -42,31 +45,40 @@ class RendererCompatibilityTest {
         assertEquals("dev.starfold.render.RendererMixinPlugin", config.get("plugin").getAsString());
         assertTrue(config.get("required").getAsBoolean());
         assertEquals(1, config.getAsJsonObject("injectors").get("defaultRequire").getAsInt());
-        for (String renderer : Set.of("sodium", "iris", "embeddium", "canvas")) {
+        for (String renderer : Set.of("embeddium", "canvas"))
             assertFalse(RendererCompatibility.supported(renderer::equals));
-            for (String group : Set.of("mixins", "client"))
-                for (var entry : config.getAsJsonArray(group)) {
-                    String name = "dev.starfold.mixin." + entry.getAsString();
+        // Sodium and Iris depend on version and pack state, which SodiumSupport checks at runtime.
+        for (String renderer : Set.of("sodium", "iris"))
+            assertTrue(RendererCompatibility.supported(renderer::equals));
+        for (String group : Set.of("mixins", "client"))
+            for (var entry : config.getAsJsonArray(group)) {
+                String name = "dev.starfold.mixin." + entry.getAsString();
+                if (entry.getAsString().startsWith("Sodium")) {
+                    assertFalse(RendererCompatibility.apply(name, id -> false), name);
+                    assertTrue(RendererCompatibility.apply(name, "sodium"::equals), name);
+                } else if (RENDERER_SPECIFIC.contains(entry.getAsString())) {
+                    assertTrue(RendererCompatibility.apply(name, id -> false), name);
+                    for (String renderer : Set.of("sodium", "embeddium", "canvas"))
+                        assertFalse(
+                                RendererCompatibility.apply(name, renderer::equals),
+                                name + " with " + renderer);
+                    assertTrue(RendererCompatibility.apply(name, "sable"::equals), name);
+                } else {
                     assertEquals(
                             !OPTIONAL.contains(entry.getAsString()),
-                            RendererCompatibility.apply(name, renderer::equals),
+                            RendererCompatibility.apply(name, id -> false),
                             name);
                 }
-        }
+            }
         assertTrue(RendererCompatibility.supported(Set.of("sable", "veil", "create")::contains));
-        for (String group : Set.of("mixins", "client"))
-            for (var entry : config.getAsJsonArray(group))
-                assertEquals(
-                        !OPTIONAL.contains(entry.getAsString()),
-                        RendererCompatibility.apply(
-                                "dev.starfold.mixin." + entry.getAsString(), id -> false));
         assertTrue(
                 Sources.text("RendererMixinPlugin")
                         .contains("LoadingModList.get().getModFileById(id)!=null"));
         assertFalse(Sources.text("RendererMixinPlugin").contains("net.minecraft"));
-        assertTrue(
-                Sources.text("RendererGuard")
-                        .contains("RendererCompatibility.supported(loader::isLoaded)"));
+        var guard = Sources.text("RendererGuard");
+        assertTrue(guard.contains("RendererCompatibility.supported(loader::isLoaded)"));
+        assertTrue(guard.contains("SodiumSupport.supported()"));
+        assertTrue(guard.contains("!SodiumSupport.broken()"));
     }
 
     @Test
@@ -146,7 +158,7 @@ class RendererCompatibilityTest {
     }
 
     @Test
-    void bothLanguagesExplainTheUnsupportedBuildWithoutPromisingCorrectPlanets() throws Exception {
+    void bothLanguagesExplainTheRemainingUnsupportedPipelines() throws Exception {
         for (String language : Set.of("en_us", "zh_cn")) {
             var lang =
                     JsonParser.parseString(
@@ -157,8 +169,10 @@ class RendererCompatibilityTest {
                                                             + ".json")))
                             .getAsJsonObject();
             String text = lang.get("message.starfold.renderer").getAsString();
-            for (String renderer : Set.of("Sodium", "Iris", "Embeddium", "Canvas"))
+            for (String renderer : Set.of("Iris", "Embeddium", "Canvas"))
                 assertTrue(text.contains(renderer));
+            assertTrue(text.contains(language.equals("en_us") ? "shader pack" : "光影包"));
+            assertTrue(text.contains("Sodium 0.8"));
             assertTrue(text.contains(language.equals("en_us") ? "not drawn correctly" : "无法"));
             assertTrue(text.contains(language.equals("en_us") ? "disabled" : "停用"));
         }

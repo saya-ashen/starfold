@@ -43,7 +43,7 @@ class HelmClientTest {
         var shader = Sources.text("GroundShaderSource");
         assertTrue(client.contains("frame().vectorToStorage(new Point(d.x,d.y,d.z))"));
         assertTrue(Sources.text("GroundProjectionUniforms")
-                .contains("set(shader,\"CPNativeViewOffset\",renderFrame.viewOffset)"));
+                .contains("set(out,\"CPNativeViewOffset\",renderFrame.viewOffset)"));
         assertTrue(shader.contains("dot(view.xyz,CPNativeWorldZ))+CPNativeViewOffset"));
         assertTrue(shader.contains("relative=point-CPNativeEye-CPNativeViewOffset"));
         for (int turn = 0; turn < 4; turn++) {

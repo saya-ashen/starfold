@@ -43,8 +43,9 @@ Install `starfold_worlds` for experience planets and presets; optionally add `st
 
 `starfold_atlas` supplies maps and ship tracking. `starfold_biotech` requires Worlds and exactly GeckoLib 4.8.2; its balance values are provisional. The survival pack under `modpack/` is source configuration, not an accepted complete survival release.
 
-Planet rendering needs the vanilla renderer: shader packs are not supported. The mod declares itself incompatible
-with `gravity_changer`.
+Planet rendering supports the vanilla renderer and Sodium 0.8. Iris is supported while no shader pack is
+enabled; an active Iris shader pack, Embeddium or Canvas disables planet terrain projection and far views in
+this build. The mod declares itself incompatible with `gravity_changer`.
 
 ## Playing
 

@@ -265,9 +265,12 @@ class AtmosphereProgramStateTest {
         var projection = calls(method("dev/starfold/render/GroundClient", "apply"));
         assertEquals(List.of("dev/starfold/render/GroundProjectionUniforms"),
                 projection.stream().map(c -> c.owner).toList());
-        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms", "apply"))
+        // The vanilla path writes managed uniforms through the sink's ShaderInstance adapter.
+        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms$Managed", "set"))
                 .stream().anyMatch(c -> c.owner.equals("dev/starfold/render/ShaderUniforms")
                         && c.name.equals("set")));
+        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms$Program", "set"))
+                .stream().anyMatch(c -> c.name.startsWith("glUniform")));
         var batch = calls(method("dev/starfold/render/GroundRenderer", "drawLods"));
         var batchNames = batch.stream().map(c -> c.name).toList();
         assertTrue(batchNames.indexOf("apply") < batchNames.indexOf("set"));
@@ -283,7 +286,7 @@ class AtmosphereProgramStateTest {
         assertEquals("dev/starfold/render/GroundClient", wrapper.get(1).owner);
         assertEquals("dev/starfold/api/PlanetSurfaceRender", wrapper.get(2).owner,
                 "optional exterior appearance uploads only after the program is bound");
-        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms", "apply")).stream()
+        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms", "write")).stream()
                 .anyMatch(c -> c.owner.equals("dev/starfold/api/PlanetSurfaceRender") && c.name.equals("nearUniforms")));
         var writer = type("dev/starfold/render/ShaderUniforms");
         int setters = 0;

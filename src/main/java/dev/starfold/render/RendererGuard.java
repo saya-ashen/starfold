@@ -14,7 +14,9 @@ public final class RendererGuard {
 
     public static boolean pipelineSupported() {
         var loader = ModList.get();
-        return RendererCompatibility.supported(loader::isLoaded);
+        return RendererCompatibility.supported(loader::isLoaded)
+                && SodiumSupport.supported()
+                && !SodiumSupport.broken();
     }
 
     /** Vanilla's camera fog type only knows water, lava and powder snow; modded fluids count as submerged too. */
