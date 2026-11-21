@@ -20,17 +20,21 @@ class GroundSurfaceCacheTest {
     }
 
     private static GroundSurface large() {
+        return large(64);
+    }
+
+    private static GroundSurface large(int runs) {
         int stone = Block.BLOCK_STATE_REGISTRY.getId(Blocks.STONE.defaultBlockState());
         int air = Block.BLOCK_STATE_REGISTRY.getId(Blocks.AIR.defaultBlockState());
-        int[] offsets = new int[257], ends = new int[16384], states = new int[16384];
+        int[] offsets = new int[257], ends = new int[256 * runs], states = new int[256 * runs];
         for (int i = 0; i < 256; i++) {
-            offsets[i] = 64 * i;
-            for (int r = 0; r < 64; r++) {
-                ends[i * 64 + r] = -64 + 6 * (r + 1);
-                states[i * 64 + r] = (r & 1) == 0 ? air : stone;
+            offsets[i] = runs * i;
+            for (int r = 0; r < runs; r++) {
+                ends[i * runs + r] = -64 + 384 * (r + 1) / runs;
+                states[i * runs + r] = (r & 1) == 0 ? air : stone;
             }
         }
-        offsets[256] = 16384;
+        offsets[256] = 256 * runs;
         int[] heights = new int[256], tops = new int[256];
         Arrays.fill(heights, 319);
         Arrays.fill(tops, stone);
@@ -85,12 +89,22 @@ class GroundSurfaceCacheTest {
                                 volume.offsets(),
                                 volume.ends(),
                                 states));
-        var cache = new GroundSurfaceCache(k -> {}, true);
-        var serverCache = new GroundSurfaceCache();
+        var invalidated = new ArrayList<Long>();
+        var serverInvalidated = new ArrayList<Long>();
+        var expectedInvalidated = new ArrayList<Long>();
+        var expectedServerInvalidated = new ArrayList<Long>();
+        var cache = new GroundSurfaceCache(invalidated::add, true);
+        var serverCache = new GroundSurfaceCache(serverInvalidated::add);
+        var expected = new ScanningCache(expectedInvalidated, true);
+        var expectedServer = new ScanningCache(expectedServerInvalidated, false);
         for (long k = 0; k < 200; k++) {
             cache.put(k, image);
             serverCache.put(k, image);
+            expected.put(k, image);
+            expectedServer.put(k, image);
         }
+        assertSameCache(expected, cache, expectedInvalidated, invalidated);
+        assertSameCache(expectedServer, serverCache, expectedServerInvalidated, serverInvalidated);
         assertNull(serverCache.get(0L).voxels());
         assertEquals(319, serverCache.get(0L).height(3, 7));
         assertTrue(serverCache.get(0L).state(3, 7).is(Blocks.DEAD_BUSH));
@@ -98,6 +112,190 @@ class GroundSurfaceCacheTest {
         assertNull(evicted.voxels());
         assertEquals(307, evicted.height(3, 7));
         assertTrue(evicted.state(3, 7).is(Blocks.STONE));
+    }
+
+    @Test
+    void longCoarsePrefixAndRestoredOldKeysMatchScanningEviction() {
+        var image = large();
+        var coarse = new GroundSurface(17, image.heights(), image.states());
+        int capacity = (int) (GroundSurfaceCache.VOXEL_BYTES / GroundSurfaceCache.bytes(image));
+        for (boolean filterPlants : new boolean[] {false, true}) {
+            var actualInvalidated = new ArrayList<Long>();
+            var expectedInvalidated = new ArrayList<Long>();
+            var actual = new GroundSurfaceCache(actualInvalidated::add, filterPlants);
+            var expected = new ScanningCache(expectedInvalidated, filterPlants);
+            var prefix = new LinkedHashMap<Long, GroundSurface>();
+            for (long key = 0; key < 4096; key++) prefix.put(key, coarse);
+            actual.putAll(prefix);
+            expected.putAll(prefix);
+            for (long key = 4096; key < 4096 + capacity + 12; key++) {
+                assertSame(expected.put(key, image), actual.put(key, image));
+                assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+            }
+            // Restoration must not append an old coarse key to the voxel FIFO.
+            actualInvalidated.clear();
+            expectedInvalidated.clear();
+            assertSame(coarse, actual.put(3L, image));
+            expected.put(3L, image);
+            assertEquals(List.of(3L), actualInvalidated);
+            assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+            // The same rule applies to keys whose volume was previously evicted.
+            assertTrue(expected.put(4096L, image).sameAs(actual.put(4096L, image)));
+            assertEquals(List.of(3L, 4096L), actualInvalidated);
+            assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+
+            long newest = 4096L + capacity + 11;
+            assertSame(image, actual.remove(newest));
+            expected.remove(newest);
+            actual.put(4L, image);
+            expected.put(4L, image);
+            assertNotNull(actual.get(4L).voxels());
+            actual.put(10000L, image);
+            expected.put(10000L, image);
+            assertEquals(List.of(3L, 4096L, 4L), actualInvalidated);
+            assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        }
+    }
+
+    @Test
+    void replacementsRemovalsAndClearMatchScanningEviction() {
+        var image = large(32);
+        var larger = large();
+        var revised = new GroundSurface(29, image.heights(), image.states(), image.voxels());
+        var coarse = new GroundSurface(31, image.heights(), image.states());
+        var actualInvalidated = new ArrayList<Long>();
+        var expectedInvalidated = new ArrayList<Long>();
+        var actual = new GroundSurfaceCache(actualInvalidated::add);
+        var expected = new ScanningCache(expectedInvalidated, false);
+        long capacity = GroundSurfaceCache.VOXEL_BYTES / GroundSurfaceCache.bytes(image);
+        for (long key = 0; key < capacity + 24; key++) {
+            actual.put(key, image);
+            expected.put(key, image);
+        }
+        // Replacing live detail with coarse data must remove the eviction candidate.
+        assertSame(expected.put(149L, coarse), actual.put(149L, coarse));
+        assertSame(expected.put(148L, revised), actual.put(148L, revised));
+        assertSame(expected.remove(147L), actual.remove(147L));
+        assertNull(actual.remove(-1L));
+        assertNull(expected.remove(-1L));
+        assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        // A removed/reinserted key gets a new position; a replaced key retains its old one.
+        actual.put(147L, larger);
+        expected.put(147L, larger);
+        assertEquals(147L, actual.lastEntry().getKey());
+        actual.put(149L, larger);
+        expected.put(149L, larger);
+        assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        var random = new Random(0x5FACE);
+        for (int step = 0; step < 500; step++) {
+            long key = random.nextInt(180);
+            if (step % 7 == 0) {
+                var removed = expected.remove(key);
+                var actualRemoved = actual.remove(key);
+                assertTrue(removed == null ? actualRemoved == null : removed.sameAs(actualRemoved));
+            } else {
+                var value =
+                        switch (step % 4) {
+                            case 0 -> coarse;
+                            case 1 -> larger;
+                            case 2 -> revised;
+                            default -> image;
+                        };
+                var previous = expected.put(key, value);
+                var actualPrevious = actual.put(key, value);
+                assertTrue(
+                        previous == null
+                                ? actualPrevious == null
+                                : previous.sameAs(actualPrevious));
+            }
+            assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        }
+        int callbacks = actualInvalidated.size();
+        actual.clear();
+        expected.clear();
+        assertEquals(callbacks, actualInvalidated.size());
+        assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        var images = new LinkedHashMap<Long, GroundSurface>();
+        for (long key = 300; key >= 0; key--) images.put(key, image);
+        actual.putAll(images);
+        expected.putAll(images);
+        assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        callbacks = actualInvalidated.size();
+        actual.put(1000L, larger);
+        expected.put(1000L, larger);
+        assertEquals(callbacks + 2, actualInvalidated.size());
+        assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+        actual.clear();
+        expected.clear();
+        actual.put(0L, larger);
+        expected.put(0L, larger);
+        assertSameCache(expected, actual, expectedInvalidated, actualInvalidated);
+    }
+
+    private static void assertSameCache(
+            ScanningCache expected,
+            GroundSurfaceCache actual,
+            List<Long> expectedInvalidated,
+            List<Long> actualInvalidated) {
+        assertEquals(expected.bytes, actual.voxelBytes());
+        assertEquals(new ArrayList<>(expected.keySet()), new ArrayList<>(actual.keySet()));
+        assertEquals(expectedInvalidated, actualInvalidated);
+        long counted = 0;
+        for (var entry : expected.entrySet()) {
+            var surface = actual.get(entry.getKey());
+            assertTrue(entry.getValue().sameAs(surface), "surface at " + entry.getKey());
+            counted += GroundSurfaceCache.bytes(surface);
+        }
+        assertEquals(counted, actual.voxelBytes());
+    }
+
+    /** Original scan algorithm: an independent behavioral oracle for the indexed implementation. */
+    private static final class ScanningCache extends LinkedHashMap<Long, GroundSurface> {
+        private final List<Long> invalidated;
+        private final boolean filterPlants;
+        private long bytes;
+
+        ScanningCache(List<Long> invalidated, boolean filterPlants) {
+            this.invalidated = invalidated;
+            this.filterPlants = filterPlants;
+        }
+
+        @Override
+        public GroundSurface put(Long key, GroundSurface value) {
+            var previous = super.put(key, value);
+            bytes += GroundSurfaceCache.bytes(value) - GroundSurfaceCache.bytes(previous);
+            for (var entry : entrySet()) {
+                if (bytes <= GroundSurfaceCache.VOXEL_BYTES) break;
+                var image = entry.getValue();
+                if (image.voxels() == null) continue;
+                bytes -= GroundSurfaceCache.bytes(image);
+                entry.setValue(
+                        filterPlants
+                                ? image.surfaceOnly()
+                                : new GroundSurface(
+                                        image.revision(), image.heights(), image.states()));
+                invalidated.add(entry.getKey());
+            }
+            return previous;
+        }
+
+        @Override
+        public void putAll(Map<? extends Long, ? extends GroundSurface> images) {
+            images.forEach(this::put);
+        }
+
+        @Override
+        public GroundSurface remove(Object key) {
+            var previous = super.remove(key);
+            bytes -= GroundSurfaceCache.bytes(previous);
+            return previous;
+        }
+
+        @Override
+        public void clear() {
+            super.clear();
+            bytes = 0;
+        }
     }
 
     @Test

@@ -1,8 +1,10 @@
 package dev.starfold.ship;
 
 import dev.ryanhcode.sable.sublevel.SubLevel;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
+
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
@@ -13,7 +15,8 @@ import java.util.function.UnaryOperator;
 
 /** Lowest collision block per plot XZ column, paired with terrain only under its real bottom face. */
 public final class HullBottom {
-    // Values contain no body/level references, so discarded client and server hulls can be collected.
+    // Values contain no body/level references, so discarded client and server hulls can be
+    // collected.
     private static final Map<SubLevel, List<AABB>> CACHE = new WeakHashMap<>();
 
     /** Called by the shared Sable plot mutation hooks, including same-mass shape replacements. */
@@ -23,12 +26,16 @@ public final class HullBottom {
 
     /** Sable also emits Load when a full client packet replaces an already-existing plot chunk. */
     static synchronized void chunkLoaded(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
-        CACHE.keySet().removeIf(body -> body.getLevel() == event.getLevel()
-                && body.getPlot().contains(event.getChunk().getPos()));
+        CACHE.keySet()
+                .removeIf(
+                        body ->
+                                body.getLevel() == event.getLevel()
+                                        && body.getPlot().contains(event.getChunk().getPos()));
     }
 
     // Lift, fluid support and every gyro read the same pose within one physics substep.
-    private record Measured(List<AABB> shapes, long tick, double[] pose, HullLanding.Ground ground) {}
+    private record Measured(
+            List<AABB> shapes, long tick, double[] pose, HullLanding.Ground ground) {}
 
     private static final Map<SubLevel, Measured> LAST = new WeakHashMap<>();
 
@@ -40,12 +47,16 @@ public final class HullBottom {
         var q = p.orientation();
         var r = p.rotationPoint();
         var s = p.scale();
-        double[] pose = {at.x(), at.y(), at.z(), q.x(), q.y(), q.z(), q.w(),
-                r.x(), r.y(), r.z(), s.x(), s.y(), s.z()};
+        double[] pose = {
+            at.x(), at.y(), at.z(), q.x(), q.y(), q.z(), q.w(), r.x(), r.y(), r.z(), s.x(), s.y(),
+            s.z()
+        };
         long tick = body.getLevel().getGameTime();
         synchronized (LAST) {
             var last = LAST.get(body);
-            if (last != null && last.shapes == shapes && last.tick == tick
+            if (last != null
+                    && last.shapes == shapes
+                    && last.tick == tick
                     && java.util.Arrays.equals(last.pose, pose)) return last.ground;
         }
         var ground = measure(shapes, p::transformPosition, column);
@@ -79,7 +90,9 @@ public final class HullBottom {
     /** Pure geometry shared by client/server. Transform is the current logical pose, never render bounds.
      * Unknown columns are skipped; solid wins an exact minimum-gap tie. No penetration clamp. */
     static HullLanding.Ground measure(
-            List<AABB> shapes, UnaryOperator<Vector3d> transform, HullLanding.SurfaceColumn column) {
+            List<AABB> shapes,
+            UnaryOperator<Vector3d> transform,
+            HullLanding.SurfaceColumn column) {
         var work = new Measurement(column, 4);
         var vertex = new Vector3d();
         for (var box : shapes) {
@@ -125,7 +138,9 @@ public final class HullBottom {
         }
 
         void put(int i, Vector3d v) {
-            face[i] = v.x; face[i + 1] = v.y; face[i + 2] = v.z;
+            face[i] = v.x;
+            face[i + 1] = v.y;
+            face[i + 2] = v.z;
         }
 
         HullLanding.Ground result() {
@@ -136,8 +151,10 @@ public final class HullBottom {
             double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY;
             double minZ = minX, maxZ = maxX;
             for (int i = 0; i < vertices * 3; i += 3) {
-                minX = Math.min(minX, face[i]); maxX = Math.max(maxX, face[i]);
-                minZ = Math.min(minZ, face[i + 2]); maxZ = Math.max(maxZ, face[i + 2]);
+                minX = Math.min(minX, face[i]);
+                maxX = Math.max(maxX, face[i]);
+                minZ = Math.min(minZ, face[i + 2]);
+                maxZ = Math.max(maxZ, face[i + 2]);
             }
             double endX = Math.floor(Math.nextDown(maxX)), endZ = Math.floor(Math.nextDown(maxZ));
             for (int x = (int) Math.floor(minX); x <= endX; x++)
@@ -171,8 +188,10 @@ public final class HullBottom {
                     double bottom = Double.POSITIVE_INFINITY;
                     for (int i = 1; i < n * 3; i += 3) bottom = Math.min(bottom, cut[i]);
                     double current = bottom - surface.height();
-                    if (current < gap) { gap = current; fluid = surface.fluid(); }
-                    else if (current == gap) fluid &= surface.fluid();
+                    if (current < gap) {
+                        gap = current;
+                        fluid = surface.fluid();
+                    } else if (current == gap) fluid &= surface.fluid();
                 }
         }
 
@@ -211,7 +230,8 @@ public final class HullBottom {
     }
 
     // Identical Sutherland-Hodgman order and arithmetic to the frozen test reference.
-    private static int clip(double[] in, int n, double[] out, int axis, double edge, boolean greater) {
+    private static int clip(
+            double[] in, int n, double[] out, int axis, double edge, boolean greater) {
         if (n == 0) return 0;
         int count = 0, a = (n - 1) * 3;
         double da = (in[a + axis] - edge) * (greater ? 1 : -1);
@@ -225,9 +245,12 @@ public final class HullBottom {
                 out[count++] = org.joml.Math.fma(in[b + 2] - in[a + 2], t, in[a + 2]);
             }
             if (db >= 0) {
-                out[count++] = in[b]; out[count++] = in[b + 1]; out[count++] = in[b + 2];
+                out[count++] = in[b];
+                out[count++] = in[b + 1];
+                out[count++] = in[b + 2];
             }
-            a = b; da = db;
+            a = b;
+            da = db;
         }
         return count / 3;
     }
@@ -237,8 +260,9 @@ public final class HullBottom {
         double ox = polygon[0], oz = polygon[2], twiceArea = 0;
         int a = (n - 1) * 3;
         for (int b = 0; b < n * 3; b += 3) {
-            twiceArea += (polygon[a] - ox) * (polygon[b + 2] - oz)
-                    - (polygon[a + 2] - oz) * (polygon[b] - ox);
+            twiceArea +=
+                    (polygon[a] - ox) * (polygon[b + 2] - oz)
+                            - (polygon[a + 2] - oz) * (polygon[b] - ox);
             a = b;
         }
         return Math.abs(twiceArea) > 1e-10;

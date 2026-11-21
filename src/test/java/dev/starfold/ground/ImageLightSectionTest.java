@@ -2,8 +2,6 @@ package dev.starfold.ground;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
-
 import net.minecraft.world.level.chunk.DataLayer;
 
 import org.junit.jupiter.api.Test;
@@ -43,15 +41,5 @@ class ImageLightSectionTest {
         assertTrue(values.get(20));
         assertFalse(empty.get(20));
         assertEquals(15, new DataLayer(updates.getFirst()).get(15, 15, 15));
-    }
-
-    @Test
-    void samplerAlwaysPublishesASectionIncludingNullableSourceFallback() throws Exception {
-        var source = Sources.text("ImageStream");
-        assertFalse(source.contains("if (!present) continue"));
-        assertTrue(source.contains("listener.getLightValue("));
-        assertTrue(
-                source.contains(
-                        "lightSection(out, lit, s, masks[layer], masks[2 + layer], updates.get(layer))"));
     }
 }

@@ -2,11 +2,7 @@ package dev.starfold.render;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
-import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.GroundTopology;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import net.minecraft.world.level.block.Block;
@@ -75,16 +71,13 @@ class SeamStreamingRateTest {
         assertTrue(image.state(0, 11, 0).isAir());
         var a = GroundViewCache.surfaceImage(image);
         var b = GroundViewCache.surfaceImage(image);
-        assertTrue(GroundOwnership.same(a, a));
-        assertTrue(GroundOwnership.same(a, b));
-        assertFalse(GroundOwnership.same(a, null));
-        assertFalse(GroundOwnership.same(null, a));
+        assertTrue(a.sameAs(a));
+        assertTrue(a.sameAs(b));
+        assertFalse(a.sameAs(null));
         values[0 + 16 * (0 + 16 * (201 + 64))] = stone;
         assertFalse(
-                GroundOwnership.same(
-                        a,
+                a.sameAs(
                         GroundViewCache.surfaceImage(
                                 GroundChunkSnapshot.fromStates(0, 0, 0, 1, values))));
     }
-
 }

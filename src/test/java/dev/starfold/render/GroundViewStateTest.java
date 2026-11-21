@@ -1,11 +1,34 @@
 package dev.starfold.render;
 
-import org.junit.jupiter.api.Test;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.junit.jupiter.api.Test;
+
+import java.util.*;
+
 class GroundViewStateTest {
-    @Test void sameObservationRetainsDataWhilePlanetWorldAndSessionChangesAreDistinct() {
+    @Test
+    void revisionOnlySurfaceNotificationsDoNotCancelIdenticalMeshInputs() {
+        var state = new GroundViewState<Object>();
+        var runs = new GroundSurface.Run[256][];
+        Arrays.setAll(runs, i -> new GroundSurface.Run[] { new GroundSurface.Run(128, 128, 0) });
+        assertTrue(state.surface(0, 1, new GroundSurface(1, runs)));
+        assertFalse(state.invalidated.drain().isEmpty());
+        assertTrue(state.surface(0, 3, new GroundSurface(3, runs)));
+        assertEquals(3, state.surfaceRevisions.get(0L));
+        assertTrue(state.invalidated.drain().isEmpty());
+        assertFalse(state.surface(0, 2, null), "notification watermark still rejects stale removal");
+        runs[0] = new GroundSurface.Run[] { new GroundSurface.Run(129, 128, 0) };
+        assertTrue(state.surface(0, 4, new GroundSurface(4, runs)));
+        assertFalse(state.invalidated.drain().isEmpty(), "changed geometry still invalidates");
+        assertTrue(state.surface(0, 5, null));
+        assertFalse(state.invalidated.drain().isEmpty());
+        assertTrue(state.surface(0, 6, null));
+        assertTrue(state.invalidated.drain().isEmpty());
+    }
+
+    @Test
+    void sameObservationRetainsDataWhilePlanetWorldAndSessionChangesAreDistinct() {
         var state = new GroundViewState<Object>();
         var world = new Object();
         var shape = dev.starfold.chart.PlanetShape.STANDARD;
@@ -23,7 +46,8 @@ class GroundViewStateTest {
         assertFalse(state.matches(world, 1, 0, shape), "old completion cannot match B");
         state.clear();
         state.bind(world, 3, 0, shape);
-        assertFalse(state.matches(world, 1, 0, shape), "returning to A cannot revive its old session");
+        assertFalse(
+                state.matches(world, 1, 0, shape), "returning to A cannot revive its old session");
         assertTrue(state.matches(world, 3, 0, shape));
         assertTrue(state.changed.isEmpty());
         state.clear();
@@ -33,7 +57,8 @@ class GroundViewStateTest {
         assertFalse(state.matches(world, 3, 0, shape));
     }
 
-    @Test void revisionsTombstonesAndResetBelongToOneObservation() {
+    @Test
+    void revisionsTombstonesAndResetBelongToOneObservation() {
         var state = new GroundViewState<Object>();
         var marked = new BitSet();
         marked.set(0);
@@ -41,8 +66,17 @@ class GroundViewStateTest {
         var runs = new GroundSurface.Run[256][];
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
-        Arrays.setAll(runs, i -> new GroundSurface.Run[] {new GroundSurface.Run(128, 128,
-                net.minecraft.world.level.block.Block.getId(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState()))});
+        Arrays.setAll(
+                runs,
+                i ->
+                        new GroundSurface.Run[] {
+                            new GroundSurface.Run(
+                                    128,
+                                    128,
+                                    net.minecraft.world.level.block.Block.getId(
+                                            net.minecraft.world.level.block.Blocks.STONE
+                                                    .defaultBlockState()))
+                        });
         var surface = new GroundSurface(2, runs);
         assertTrue(state.surface(0, 2, surface));
         assertSame(surface, state.overlays.get(0L));

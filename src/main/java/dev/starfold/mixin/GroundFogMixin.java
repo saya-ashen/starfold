@@ -33,8 +33,7 @@ public abstract class GroundFogMixin {
             float darken,
             CallbackInfo ci) {
         if (!RendererGuard.pipelineSupported()
-                || dev.starfold.render.RendererGuard.submerged(camera))
-            return;
+                || dev.starfold.render.RendererGuard.submerged(camera)) return;
         if (PlanetLevels.is(world) && SpaceClient.present()) {
             var gas = dev.starfold.render.GasAtmosphereView.layer(camera);
             fogRed = gas == null ? 0 : (float) gas.color().x();
@@ -82,7 +81,8 @@ public abstract class GroundFogMixin {
                 && GroundClient.ready()
                 && !SpaceClient.present()) {
             float reach = dev.starfold.render.GroundTransition.surfaceView(GroundClient.view());
-            RenderSystem.setShaderFogStart(Math.max(RenderSystem.getShaderFogStart(), reach * .75f));
+            RenderSystem.setShaderFogStart(
+                    Math.max(RenderSystem.getShaderFogStart(), reach * .75f));
             RenderSystem.setShaderFogEnd(Math.max(RenderSystem.getShaderFogEnd(), reach));
         }
         if (!GroundAtmosphere.enabled()) return;

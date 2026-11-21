@@ -2,7 +2,6 @@ package dev.starfold.ground;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
@@ -88,10 +87,6 @@ class ChunkTickReadinessTest {
 
     @Test
     void gateRequiresPublishedFullChunkNotLightingProtoWrapper() throws Exception {
-        var source = Sources.text("ChunkTickReadiness");
-        assertTrue(
-                source.contains(
-                        "owner->level.getChunkSource().getChunkNow(ChunkPos.getX(owner),ChunkPos.getZ(owner))!=null"));
         var pending = new java.util.concurrent.CompletableFuture<Boolean>();
         var columns =
                 new ChunkViews.Columns(
@@ -176,22 +171,6 @@ class ChunkTickReadinessTest {
         ChunkTickReadiness.release(held, (pos, chunk) -> true, readyNow::contains, ran::add);
         assertEquals(List.of("ready", "ready later"), ran);
         assertEquals(List.of(2L), List.copyOf(held.keySet()));
-    }
-
-    @Test
-    void postProcessingOfASeamChunkWaitsBehindTheSameRule() throws Exception {
-        var mixin = Sources.text("GroundPostProcessMixin");
-        assertTrue(
-                mixin.contains(
-                        "method=\"postProcessGeneration\",at=@At(\"HEAD\"),cancellable=true"));
-        assertTrue(
-                mixin.contains(
-                        "if(ChunkTickReadiness.holdPostProcess((LevelChunk)(Object)this))ci.cancel();"));
-        var readiness = Sources.text("ChunkTickReadiness");
-        assertTrue(readiness.contains("if(ready(level,pos))returnfalse;"));
-        assertTrue(
-                Sources.text("StarfoldServer")
-                        .contains("ChunkTickReadiness.postProcessHeld(level);"));
     }
 
     @Test

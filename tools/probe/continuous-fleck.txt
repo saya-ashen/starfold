@@ -1,0 +1,193 @@
+# Prepared dock with unspent natural distillation output.
+strict
+waitworld
+wait 80
+check survival-dock if entity @s[gamemode=survival]
+check no-starting-osmium unless data entity @s Inventory[{id:"mekanism:raw_osmium"}]
+check no-starting-ingots unless data entity @s Inventory[{id:"mekanism:ingot_osmium"}]
+check no-starting-circuits unless data entity @s Inventory[{id:"mekanism:basic_control_circuit"}]
+check saved-helm if block 22056 157 1554 starfold:helm
+check source-diesel-intact if data block 22038 147 1554 TankContent.Fluid{id:"createdieselgenerators:diesel",amount:1000}
+check source-gasoline-intact if data block 22038 148 1556 TankContent.Fluid{id:"createdieselgenerators:gasoline",amount:1000}
+cmd setblock 22058 157 1554 starfold:booster
+cmd setblock 22058 158 1554 minecraft:waxed_cut_copper
+cmd fill 22050 156 1559 22050 160 1559 minecraft:polished_andesite
+cmd tp @s 22050.5 161 1559.5 -134 35
+wait 20
+press 290 1
+wait 2
+press 290 0
+wait 40
+shot copper-swift-profile
+wait 60
+press 290 1
+wait 2
+press 290 0
+cmd execute store result score $diesel sfLoop run loopfuel diesel
+check transferred-distilled-diesel if score $diesel sfLoop matches 1000
+cmd execute store result score $gasoline sfLoop run loopfuel gasoline
+check transferred-distilled-gasoline if score $gasoline sfLoop matches 1000
+check hull-diesel if data block 22060 157 1553 TankContent.Fluid{id:"createdieselgenerators:diesel",amount:1000}
+check hull-gasoline if data block 22060 157 1555 TankContent.Fluid{id:"createdieselgenerators:gasoline",amount:1000}
+cmd sable assemble area 22052 156 1550 22061 159 1558
+wait 80
+atlas ships
+cmd tp @s 22057.5 158.2 1554.5 90 18
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 40
+requirehelm
+nav s-chart
+until faceinset> 112 40
+shot copper-swift-helm
+helmstate dock-ready
+atlas identify
+
+# Lift to space
+until rested 30 140
+check flown-diesel if data block {loopDiesel} TankContent.Fluid{id:"createdieselgenerators:diesel",amount:1000}
+check flown-gasoline if data block {loopGasoline} TankContent.Fluid{id:"createdieselgenerators:gasoline",amount:1000}
+shot copper-swift-before-launch
+frames hearth-ascent 180
+press 294 1
+wait 2
+press 294 0
+wait 20
+press 32 1
+until clearance> 25 220
+nav s-lift
+shot copper-swift-ascending
+until region 1000
+press 32 0
+nav s-space
+requirehelm
+atlas aboard {loopShip}
+cmd execute store result score $liftDiesel sfLoop run data get block {loopDiesel} TankContent.Fluid.amount
+check lift-consumed-diesel if score $liftDiesel sfLoop matches 1..999
+check gasoline-after-lift if data block {loopGasoline} TankContent.Fluid{id:"createdieselgenerators:gasoline",amount:1000}
+shot copper-swift-orbit
+
+# Outbound and descent
+until region 80
+shipaim 8 900
+nav s-aimed
+press 70 1
+wait 2
+press 70 0
+wait 30
+lock s-lock
+navplanets fleck-departure
+press 87 1
+press 341 1
+wait 80
+press 341 0
+shipaim 8 300 arrival
+navplanets fleck-first-burn
+wait 200
+shipaim 8 220 arrival
+navplanets fleck-midcourse
+wait 60
+shipaim 8 60 arrival
+navplanets fleck-realign
+wait 40
+shipaim 8 45 arrival
+navplanets fleck-realign-two
+nav s-final-burn
+until chart 850
+press 87 0
+nav s-chart
+requirehelm
+atlas aboard {loopShip}
+until ready 8 180
+frames fleck-approach 180
+charttravel 65730 16593 6 1650
+until faceinset> 104 80
+nav s-interior
+press 340 1
+until clearance< 85 1800
+press 340 0
+wait 60
+nav s-survey
+cmd loopsite
+shot copper-swift-fleck-interior
+
+# Fleck touchdown and disembarkation
+until faceinset> 104 100
+cmd execute store result score $fold sfLoop run loopfold
+check fleck-away-from-fold if score $fold sfLoop matches 136..
+press 340 1
+until clearance< 8 400
+helmstate fleck-low-approach
+until clearance< 0.150001 900
+press 340 0
+wait 40
+nav s-touchdown-settle
+helmstate fleck-touchdown-settle
+until dryrested 40 240
+until clearance< 1.001 20
+until faceinset> 104 50
+cmd execute store result score $fold sfLoop run loopfold
+check fleck-contact-away-from-fold if score $fold sfLoop matches 136..
+helmstate fleck-touchdown
+# The second press requests manual deployment if the first press warned.
+press 82 1
+wait 2
+press 82 0
+wait 8
+press 82 1
+wait 2
+press 82 0
+until loopstair 180
+helmstate fleck-stair-deployed
+stairwalk loop
+wait 20
+atlas away {loopShip} 3
+until ground 80
+helmstate fleck-disembarked
+frames fleck-ground 180
+baritone 65684 151 16561 1000
+check no-osmium-before-platform unless data entity @s Inventory[{id:"mekanism:raw_osmium"}]
+cmd scoreboard objectives add sf_ore dummy
+cmd scoreboard players set @s sf_ore 0
+cmd loopmine setup
+wait 230
+cmd loopmine start
+wait 300
+cmd execute unless score @s sf_ore matches 8 store result score @s sf_ore run loopmine collect
+wait 300
+cmd execute unless score @s sf_ore matches 8 store result score @s sf_ore run loopmine collect
+wait 300
+cmd execute unless score @s sf_ore matches 8 store result score @s sf_ore run loopmine collect
+wait 300
+cmd execute unless score @s sf_ore matches 8 store result score @s sf_ore run loopmine collect
+wait 300
+cmd execute unless score @s sf_ore matches 8 store result score @s sf_ore run loopmine collect
+wait 300
+cmd execute unless score @s sf_ore matches 8 store result score @s sf_ore run loopmine collect
+check eight-mined-osmium if score @s sf_ore matches 8 if data entity @s Inventory[{id:"mekanism:raw_osmium",count:8}]
+helmstate fleck-ore-mined
+shot fleck-natural-osmium
+baritone stair 1000
+stairwalk loop-back
+wait 20
+atlas aboard {loopShip}
+helmstate fleck-loading-position
+atlas useblock minecraft:barrel
+wait 15
+guide store mekanism:raw_osmium 0 8
+wait 15
+guide close
+check cargo-eight-osmium if data block {loopCargo} Items[{Slot:0b,id:"mekanism:raw_osmium",count:8}]
+shot fleck-osmium-on-original-ship
+stairwalk loop
+wait 20
+helmstate fleck-offship
+atlas away {loopShip} 3
+check offship-ground if data entity @s {OnGround:1b}
+check offship-cargo if data block {loopCargo} Items[{Slot:0b,id:"mekanism:raw_osmium",count:8}]
+cmd execute store result score $savedDiesel sfLoop run data get block {loopDiesel} TankContent.Fluid.amount
+cmd execute store result score $savedGasoline sfLoop run data get block {loopGasoline} TankContent.Fluid.amount
+shot fleck-offship
+quit

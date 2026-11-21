@@ -1,0 +1,9 @@
+{
+  "replace": true,
+  "values": [
+    "minecraft:villages",
+    "minecraft:mineshafts",
+    "minecraft:shipwrecks",
+    "minecraft:ocean_ruins"
+  ]
+}

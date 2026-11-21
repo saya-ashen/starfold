@@ -1,8 +1,8 @@
 package dev.starfold.extras;
 
-import dev.starfold.ship.HullLanding;
-
 import static org.junit.jupiter.api.Assertions.*;
+
+import dev.starfold.ship.HullLanding;
 
 import org.junit.jupiter.api.Test;
 

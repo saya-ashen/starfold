@@ -23,7 +23,8 @@ class HullLandingCensusTest {
         system.materialize(20261009L);
         var tag =
                 NbtIo.readCompressed(
-                        Path.of("extras/src/main/resources/data/starfold_extras/structure/starter_ship.nbt"),
+                        Path.of(
+                                "extras/src/main/resources/data/starfold_extras/structure/starter_ship.nbt"),
                         NbtAccounter.unlimitedHeap());
         var size = tag.getList("size", 3);
         int sx = size.getInt(0), sz = size.getInt(2);

@@ -22,11 +22,34 @@ public final class ShipGuide {
     private static final java.util.Map<ServerPlayer, Flight> flights =
             new java.util.WeakHashMap<>();
 
-    private static final class Flight {
+    static final class Flight {
         Object body;
-        boolean grounded;
+        int groundedPlanet = -1;
         int settled;
         boolean observed, outside;
+
+        void aboard(Object next) {
+            if (body == next) return;
+            body = next;
+            clearGround();
+            observed = false;
+        }
+
+        void clearGround() {
+            groundedPlanet = -1;
+            settled = 0;
+        }
+
+        void ground(int planet, boolean pilot, double clearance, double speed) {
+            boolean quiet = WaypointNavigation.grounded(clearance, speed);
+            if (groundedPlanet != planet || !pilot && !quiet) clearGround();
+            if (quiet) groundedPlanet = planet;
+            settled = pilot ? ShipGuide.settled(settled, clearance, speed) : 0;
+        }
+
+        boolean lifted(int planet, boolean launch, boolean up, double clearance) {
+            return ShipGuide.lifted(launch && groundedPlanet == planet, up, clearance);
+        }
     }
 
     public static void initialize() {
@@ -68,33 +91,25 @@ public final class ShipGuide {
 
     private static void flight(ServerPlayer player) {
         var body = SableFrames.aboard(player);
-        if (body == null
-                || !player.isAlive()
-                || player.isSpectator()) {
+        if (body == null || !player.isAlive() || player.isSpectator()) {
             flights.remove(player);
             return;
         }
         var state = flights.computeIfAbsent(player, p -> new Flight());
-        if (state.body != body) {
-            state.body = body;
-            state.grounded = false;
-            state.settled = 0;
-            state.observed = false;
-        }
+        state.aboard(body);
         boolean outside = Thrusters.outsideHome(body);
-        if (crossed(state.observed, state.outside, outside,
+        if (crossed(
+                state.observed,
+                state.outside,
+                outside,
                 Thrusters.push(body, player.level().getGameTime()).length() > .5))
             award(player, "interstellar");
         state.outside = outside;
         state.observed = true;
-        if (!HelmServer.pilot(player, body)) {
-            state.grounded = false;
-            state.settled = 0;
-            return;
-        }
+        boolean pilot = HelmServer.pilot(player, body);
         if (Space.in(player)) {
-            state.settled = 0;
-            if (done(player, "lift_off")) {
+            state.clearGround();
+            if (pilot && done(player, "lift_off")) {
                 award(player, "space");
                 if (done(player, "other_planet")) award(player, "return_space");
             }
@@ -105,7 +120,7 @@ public final class ShipGuide {
         var access = PlanetAccess.of(level);
         if (!access.inChart(
                 net.minecraft.core.BlockPos.containing(at.x, GroundCoordinates.FLOOR, at.z))) {
-            state.settled = 0;
+            state.clearGround();
             return;
         }
         var box = HullLanding.bounds(body);
@@ -118,18 +133,20 @@ public final class ShipGuide {
                 pipeline.getLinearVelocity(body, new Vector3d()).length()
                         + pipeline.getAngularVelocity(body, new Vector3d()).length()
                                 * Math.max(box.maxX() - box.minX(), box.maxZ() - box.minZ());
-        state.settled = settled(state.settled, clearance, speed);
         int planet = access.storagePlanet(at.x, at.z);
+        // Remember real quiet ground even before taking the helm; immediate lift-off must not
+        // require another second parked at the controls. Arrival still needs 20 quiet pilot ticks.
+        state.ground(planet, pilot, clearance, speed);
+        if (!pilot) return;
         if (state.settled >= 20) {
-            // The same grounded launch bookmark used by navigation; a parked hull alone is not
-            // lift-off.
-            if (WaypointSave.get(level).launches(player.getUUID()).containsKey(planet))
-                state.grounded = true;
             if (done(player, "space") && planet != 0) award(player, "other_planet");
             if (done(player, "return_space") && planet == 0) award(player, "home");
         }
-        if (lifted(state.grounded, (HelmServer.bits(body) & HelmCommand.UP) != 0, clearance))
-            award(player, "lift_off");
+        if (state.lifted(
+                planet,
+                WaypointSave.get(level).launches(player.getUUID()).containsKey(planet),
+                (HelmServer.bits(body) & HelmCommand.UP) != 0,
+                clearance)) award(player, "lift_off");
     }
 
     private static net.minecraft.advancements.AdvancementHolder advancement(

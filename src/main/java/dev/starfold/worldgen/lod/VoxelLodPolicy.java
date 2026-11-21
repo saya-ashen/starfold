@@ -26,22 +26,32 @@ public final class VoxelLodPolicy {
 
     /** Nominal vertical projection, in physical window pixels rather than GUI-scaled pixels. */
     public static double pixels(int step, double distance, double fov, int height) {
-        if (!Double.isFinite(distance) || distance < 0 || !Double.isFinite(fov) || fov <= 0 || fov >= 180 || height < 1)
-            throw new IllegalArgumentException("LOD projection");
+        if (!Double.isFinite(distance)
+                || distance < 0
+                || !Double.isFinite(fov)
+                || fov <= 0
+                || fov >= 180
+                || height < 1) throw new IllegalArgumentException("LOD projection");
         return step * height / (2 * Math.tan(Math.toRadians(fov) / 2) * Math.max(.001, distance));
     }
+
     public static int screenStep(double distance, int previous, double fov, int height) {
         double unit = pixels(1, distance, fov, height);
         int selected = 1;
         while (selected < 64 && unit * selected * 2 <= 1.25) selected *= 2;
         if (previous > 0) {
-            if (previous > 64 || Integer.bitCount(previous) != 1) throw new IllegalArgumentException("Previous LOD");
+            if (previous > 64 || Integer.bitCount(previous) != 1)
+                throw new IllegalArgumentException("Previous LOD");
             if (selected < previous && unit * previous <= 1.5) return previous;
             if (selected > previous && unit * selected > 1.1) return previous;
         }
         return selected;
     }
-    public static int step(double distance, int previous) { return step(distance, previous, 70, 720); }
+
+    public static int step(double distance, int previous) {
+        return step(distance, previous, 70, 720);
+    }
+
     public static int step(double distance, int previous, double fov, int height) {
         int selected = screenStep(distance, previous == 0 ? 16 : previous, fov, height);
         return selected > 8 ? 0 : selected;
@@ -49,11 +59,17 @@ public final class VoxelLodPolicy {
 
     /** Conservative visibility over a nominal sphere minus 64 blocks, allowing 192-block peaks.
      * Hidden hemispheres keep the L16–L64 fallback instead of consuming resident mesh budget. */
-    public static boolean horizonVisible(PlanetShape shape, Point camera, Face face,int x,int z) {
-        double eye=camera.length(), inner=Math.max(1,shape.radius()-64), target=shape.radius()+192;
-        if(eye<=inner) return true;
-        double cosine=(inner*inner-Math.sqrt(eye*eye-inner*inner)*Math.sqrt(target*target-inner*inner))/(eye*target);
-        return camera.dot(shape.direction(face,x+8,z+8))/eye >= cosine;
+    public static boolean horizonVisible(PlanetShape shape, Point camera, Face face, int x, int z) {
+        double eye = camera.length(),
+                inner = Math.max(1, shape.radius() - 64),
+                target = shape.radius() + 192;
+        if (eye <= inner) return true;
+        double cosine =
+                (inner * inner
+                                - Math.sqrt(eye * eye - inner * inner)
+                                        * Math.sqrt(target * target - inner * inner))
+                        / (eye * target);
+        return camera.dot(shape.direction(face, x + 8, z + 8)) / eye >= cosine;
     }
 
     public static int coarser(int step) {

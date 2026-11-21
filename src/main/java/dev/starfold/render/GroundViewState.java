@@ -1,6 +1,7 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
+
 import java.util.*;
 
 /** Canonical surface data and invalidations for one bound observation. No IO or GL. */
@@ -34,6 +35,8 @@ final class GroundViewState<W> {
 
     boolean surface(long key, long revision, GroundSurface image) {
         if (surfaceRevisions.getOrDefault(key, -1L) >= revision) return false;
+        var previous = overlays.get(key);
+        boolean geometryChanged = previous == null ? image != null : !previous.sameColumns(image);
         surfaceRevisions.put(key, revision);
         if (image == null) {
             overlays.remove(key);
@@ -42,14 +45,17 @@ final class GroundViewState<W> {
             overlays.put(key, image);
             surfaces.put(key, image);
         }
-        invalidated.surface(shape, key);
+        // Revision-only notifications advance the authoritative watermark without
+        // cancelling meshes whose immutable columns did not change.
+        if (geometryChanged) invalidated.surface(shape, key);
         return true;
     }
 
     void loaded(Map<Long, GroundSurface> images) {
-        images.forEach((key, image) -> {
-            if (changed.get(key.intValue())) surface(key, image.revision(), image);
-        });
+        images.forEach(
+                (key, image) -> {
+                    if (changed.get(key.intValue())) surface(key, image.revision(), image);
+                });
     }
 
     boolean coverage(BitSet next, long revision) {
@@ -60,12 +66,12 @@ final class GroundViewState<W> {
         boolean removed = false;
         for (int key = difference.nextSetBit(0); key >= 0; key = difference.nextSetBit(key + 1)) {
             if (!next.get(key)) {
-                overlays.remove((long) key);
+                if (overlays.remove((long) key) != null) invalidated.surface(shape, key);
                 surfaces.remove((long) key);
                 surfaceRevisions.merge((long) key, revision, Math::max);
                 removed = true;
             }
-            invalidated.surface(shape, key);
+            // The surface payload invalidates geometry when it actually arrives.
         }
         return removed;
     }

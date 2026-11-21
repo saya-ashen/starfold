@@ -78,7 +78,7 @@ public final class StarfoldNetwork {
     }
 
     /** v15: fixed terrain descriptions and recipe fields; reject old peers before decoding. */
-    public static final String PROTOCOL = "18";
+    public static final String PROTOCOL = "19";
 
     public static void initialize(IEventBus modBus) {
         modBus.addListener(

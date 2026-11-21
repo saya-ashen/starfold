@@ -34,8 +34,12 @@ final class LightPayload {
         var values = List.of(new ArrayList<byte[]>(), new ArrayList<byte[]>());
         for (int layer = 0; layer < 2; layer++) {
             int oi = 0, ci = 0;
-            int count = Math.max(Math.max(old.masks[layer].length(), old.masks[layer + 2].length()),
-                    Math.max(change.masks[layer].length(), change.masks[layer + 2].length()));
+            int count =
+                    Math.max(
+                            Math.max(old.masks[layer].length(), old.masks[layer + 2].length()),
+                            Math.max(
+                                    change.masks[layer].length(),
+                                    change.masks[layer + 2].length()));
             for (int s = 0; s < count; s++) {
                 byte[] ov = old.masks[layer].get(s) ? old.values.get(layer).get(oi++) : null;
                 byte[] cv = change.masks[layer].get(s) ? change.values.get(layer).get(ci++) : null;
@@ -50,7 +54,8 @@ final class LightPayload {
         var b = new FriendlyByteBuf(Unpooled.buffer());
         try {
             for (var mask : masks) b.writeBitSet(mask);
-            for (var layer : values) b.writeCollection(layer, (buf, bytes) -> buf.writeByteArray(bytes));
+            for (var layer : values)
+                b.writeCollection(layer, (buf, bytes) -> buf.writeByteArray(bytes));
             var bytes = new byte[b.writerIndex()];
             b.getBytes(0, bytes);
             return bytes;

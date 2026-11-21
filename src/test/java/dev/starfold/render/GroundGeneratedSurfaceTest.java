@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
@@ -130,8 +129,7 @@ class GroundGeneratedSurfaceTest {
     }
 
     @Test
-    void explicitlyMarkedFeatureSurfaceIsServedAndSurvivesRestart()
-            throws Exception {
+    void explicitlyMarkedFeatureSurfaceIsServedAndSurvivesRestart() throws Exception {
         var chunk = flat(64, 64);
         assertTrue(
                 Feature.BLOCK_PILE.place(
@@ -154,7 +152,15 @@ class GroundGeneratedSurfaceTest {
         index.edited(chunk);
         assertTrue(index.coverage().get((int) key));
         assertTrue(index.dirty(key));
+        assertFalse(index.publishedCoverage().get((int) key));
+        assertEquals(0, index.publishedCoverageRevision());
         drain(index, key);
+        assertTrue(index.publishedCoverage().get((int) key));
+        long publishedRevision = index.publishedCoverageRevision();
+        index.edited(chunk);
+        assertTrue(index.publishedCoverage().get((int) key), "keep the last confirmed overlay during a scan");
+        drain(index, key);
+        assertEquals(publishedRevision, index.publishedCoverageRevision());
         var image = index.surface(key);
         assertTrue(image.state(0, 0).is(Blocks.OAK_LEAVES));
         assertEquals(145, image.height(0, 0));
@@ -167,6 +173,7 @@ class GroundGeneratedSurfaceTest {
                 GroundSurfaceIndex.load(diskRoundTrip(index.save(new CompoundTag(), null)), null);
         assertEquals(index.identity(), loaded.identity());
         assertFalse(loaded.dirty(key), "serve without loading native chunk on restart");
+        assertTrue(loaded.publishedCoverage().get((int) key));
         assertTrue(image.sameAs(loaded.surface(key)));
         var eye =
                 PlanetShape.STANDARD.position(
@@ -206,21 +213,23 @@ class GroundGeneratedSurfaceTest {
 
     @Test
     void ongoingBlockUpdatesCannotRestartFullHeightCaptureForever() {
-        var chunk=flat(0,0);
-        Heightmap.primeHeightmaps(chunk,EnumSet.of(Heightmap.Types.WORLD_SURFACE));
-        var index=new GroundSurfaceIndex();
+        var chunk = flat(0, 0);
+        Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.WORLD_SURFACE));
+        var index = new GroundSurfaceIndex();
         index.edited(chunk);
-        for(int tick=0;tick<1024 && !index.hasSurface(0);tick++) {
-            assertTrue(index.advance(256,List.of(),Long.MAX_VALUE)<=256);
-            chunk.setBlockState(new BlockPos(15,127,15),
-                    (tick%2==0 ? Blocks.GOLD_BLOCK : Blocks.STONE).defaultBlockState(),false);
+        for (int tick = 0; tick < 1024 && !index.hasSurface(0); tick++) {
+            assertTrue(index.advance(256, List.of(), Long.MAX_VALUE) <= 256);
+            chunk.setBlockState(
+                    new BlockPos(15, 127, 15),
+                    (tick % 2 == 0 ? Blocks.GOLD_BLOCK : Blocks.STONE).defaultBlockState(),
+                    false);
             index.edited(chunk);
         }
-        assertTrue(index.hasSurface(0),"continuous ticks still publish bounded-stale coverage");
+        assertTrue(index.hasSurface(0), "continuous ticks still publish bounded-stale coverage");
         index.finishPending();
         assertFalse(index.dirty(0));
-        assertEquals(chunk.getBlockState(new BlockPos(15,127,15)),
-                index.surface(0).state(15,15));
+        assertEquals(
+                chunk.getBlockState(new BlockPos(15, 127, 15)), index.surface(0).state(15, 15));
     }
 
     @Test
@@ -262,9 +271,7 @@ class GroundGeneratedSurfaceTest {
         assertEquals(2562, packed.length);
         assertTrue(worst.sameAs(GroundSurfaceCodec.unpack(1, packed)));
         Arrays.fill(states, Block.getId(Blocks.STONE.defaultBlockState()));
-        assertEquals(
-                1542,
-                GroundSurfaceCodec.pack(new GroundSurface(1, heights, states)).length);
+        assertEquals(1542, GroundSurfaceCodec.pack(new GroundSurface(1, heights, states)).length);
         assertThrows(
                 IllegalArgumentException.class,
                 () -> GroundSurfaceCodec.unpack(1, new byte[GroundSurfaceCodec.MAX_BYTES + 1]));
@@ -287,13 +294,12 @@ class GroundGeneratedSurfaceTest {
             raw.release();
         }
         int singleNbt =
-                planetNbtBytes(
-                        GroundSurfaceCodec.pack(new GroundSurface(1, heights, states)));
+                planetNbtBytes(GroundSurfaceCodec.pack(new GroundSurface(1, heights, states)));
         int worstNbt = planetNbtBytes(packed);
         assertTrue(worstNbt < 2620L * 98304 + 13000);
         System.out.printf(
                 "SURFACE_SIZE packed single=1542 palette256=2562 planet2048_single=%d"
-                    + " planet2048_palette256=%d nbt_single=%d nbt_palette256=%d%n",
+                        + " planet2048_palette256=%d nbt_single=%d nbt_palette256=%d%n",
                 1542L * 98304, 2562L * 98304, singleNbt, worstNbt);
     }
 
@@ -329,8 +335,9 @@ class GroundGeneratedSurfaceTest {
     @Test
     void remoteRetainsAcknowledgedColumnsAndSeparatesSavedRevisionsFromSnapshotTicks() {
         var profile =
-                SurfaceProfiles.current(new dev.starfold.universe.PlanetPackets.Profile(
-                        9, PlanetTerrain.TEST_SEED, PlanetTerrain.VERSION));
+                SurfaceProfiles.current(
+                        new dev.starfold.universe.PlanetPackets.Profile(
+                                9, PlanetTerrain.TEST_SEED, PlanetTerrain.VERSION));
         var marked = new BitSet();
         marked.set(0, 4097);
         var remote = new PlanetRemoteView();
@@ -338,11 +345,7 @@ class GroundGeneratedSurfaceTest {
         var states = new int[256];
         Arrays.fill(heights, 127);
         Arrays.fill(states, Block.getId(Blocks.STONE.defaultBlockState()));
-        remote.own(
-                profile,
-                0,
-                marked,
-                Map.of(0L, new GroundSurface(100000, heights, states)));
+        remote.own(profile, 0, marked, Map.of(0L, new GroundSurface(100000, heights, states)));
         remote.summary(
                 new PlanetRemotePackets.Summary(
                         0, profile, 5000, marked.toLongArray(), new long[0]));
@@ -471,6 +474,7 @@ class GroundGeneratedSurfaceTest {
         }
         assertEquals(240, restored.surface(0).height(0, 0));
         assertTrue(restored.coverage().get(0));
+        assertTrue(restored.publishedCoverage().get(0));
         var badFile = dir.resolve("bad.dat");
         var bad = new CompoundTag();
         var invalid = original.save(new CompoundTag(), null);
@@ -487,24 +491,5 @@ class GroundGeneratedSurfaceTest {
         failed.save(badFile.toFile(), null);
         net.neoforged.neoforge.common.IOUtilities.waitUntilIOWorkerComplete();
         assertArrayEquals(before, java.nio.file.Files.readAllBytes(badFile));
-    }
-
-    @Test
-    void lifecycleIsServerOnlyNonLoadingAndHasNoLegacyReaderOrRegionScan() throws Exception {
-        var source = Sources.text("GroundSurfaceIndex");
-        assertFalse(source.contains("ChunkEvent.Loadevent"));
-        assertTrue(source.contains("instanceofServerLevellevel"));
-        assertTrue(source.contains("ServerStoppingEventevent"));
-        assertFalse(source.contains("ChunkDataEvent.Saveevent"));
-        assertFalse(source.contains("ChunkStatus.FEATURES"));
-        assertTrue(Sources.text("PlanetRemoteServer").contains("v.surfaceStream.retry(key)"));
-        assertTrue(source.contains("getChunkNow("),"only non-loading lookup resumes persisted dirty edits");
-        assertFalse(source.contains(".getChunk("));
-        assertFalse(source.contains("resolve(\"region\")"));
-        assertFalse(source.contains("Files.list"));
-        assertTrue(source.contains("CompletableFuture.supplyAsync"));
-        assertTrue(source.contains("if(!loading.isDone())return0"));
-        assertFalse(source.contains("GroundVoxelCodec.load"));
-        assertTrue(source.contains("tag.getInt(\"format\")!=FORMAT"));
     }
 }

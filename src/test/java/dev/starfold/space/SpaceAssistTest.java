@@ -4,7 +4,6 @@ import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ship.Thrusters;
@@ -132,11 +131,11 @@ class SpaceAssistTest {
 
     @Test
     void weightDoesNotConsultTheGraceAndAssistDoesNotDependOnAWish() throws Exception {
-        var weight = SpaceBytecode.calls("space/SpaceServer", "weighted");
+        var weight = SpaceBytecode.calls("space/SpaceGravity", "weighted");
         assertTrue(weight.stream().anyMatch(c -> c.endsWith(".getTrackingSubLevel")));
         assertTrue(weight.contains("Set.contains"));
         assertFalse(weight.contains("SableFrames.aboard"));
-        var cabins = SpaceBytecode.calls("space/SpaceServer", "cabins");
+        var cabins = SpaceBytecode.calls("space/SpaceGravity", "cabins");
         SpaceBytecode.before(cabins, "ServerSubLevel.isRemoved", "SableFrames.inside");
         assertTrue(cabins.contains("Space.in"));
         var advance = SpaceBytecode.calls("space/SpaceServer", "advanceLead");
@@ -145,8 +144,12 @@ class SpaceAssistTest {
         SpaceBytecode.before(advance, "HelmServer.forward", "SpaceFlightMath.assist");
         SpaceBytecode.before(advance, "Thrusters.forward", "SpaceFlightMath.assist");
         var assist = SpaceBytecode.method("space/SpaceFlightMath", "assist");
-        assertFalse(java.util.stream.StreamSupport.stream(assist.instructions.spliterator(), false)
-                .anyMatch(i -> i instanceof org.objectweb.asm.tree.FieldInsnNode f
-                        && f.owner.equals("dev/starfold/space/SpaceSessions")));
+        assertFalse(
+                java.util.stream.StreamSupport.stream(assist.instructions.spliterator(), false)
+                        .anyMatch(
+                                i ->
+                                        i instanceof org.objectweb.asm.tree.FieldInsnNode f
+                                                && f.owner.equals(
+                                                        "dev/starfold/space/SpaceSessions")));
     }
 }

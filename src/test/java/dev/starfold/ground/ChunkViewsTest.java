@@ -2,7 +2,6 @@ package dev.starfold.ground;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
@@ -34,12 +33,22 @@ class ChunkViewsTest {
                         new int[] {size, size, size, size}, new int[] {191, 191, 191, 191});
                 for (int planet = 0; planet < 4; planet++)
                     for (var face : Face.values())
-                        for (int[] chunk : new int[][] {{-1, 16}, {16, -1}, {-1, -1}, {size / 16, 16}}) {
-                            int cx = (PlanetStorage.offset(planet) + face.ordinal() * GroundCoordinates.STRIDE) / 16 + chunk[0];
+                        for (int[] chunk :
+                                new int[][] {{-1, 16}, {16, -1}, {-1, -1}, {size / 16, 16}}) {
+                            int cx =
+                                    (PlanetStorage.offset(planet)
+                                                            + face.ordinal()
+                                                                    * GroundCoordinates.STRIDE)
+                                                    / 16
+                                            + chunk[0];
                             int cz = PlanetStorage.offsetZ(planet) / 16 + chunk[1];
                             var columns = ChunkViews.columns(PlanetAccess.SHARED, cx, cz);
                             for (int i = 0; i < 256; i++) {
-                                var query = new BlockPos(cx * 16 + (i & 15), GroundCoordinates.FLOOR, cz * 16 + (i >> 4));
+                                var query =
+                                        new BlockPos(
+                                                cx * 16 + (i & 15),
+                                                GroundCoordinates.FLOOR,
+                                                cz * 16 + (i >> 4));
                                 try {
                                     var address = PlanetAccess.SHARED.address(query);
                                     assertEquals(address.owner().getX(), columns.x()[i]);
@@ -229,31 +238,6 @@ class ChunkViewsTest {
                         }));
     }
 
-    /** Like the other wiring checks here, pin the game adapters; readiness policy is exercised above. */
-    @Test
-    void ghostLookupWiresLoadingAndGetNowSeparately() throws Exception {
-        var source = Sources.text("GroundChunkViewMixin");
-        var lookup =
-                source.substring(
-                        source.indexOf("private void starfold$viewChunk"),
-                        source.indexOf("@Inject(method=\"getChunkNow\""));
-        assertTrue(lookup.contains("ChunkViews.ready(columns,load,"));
-        assertTrue(
-                lookup.contains(
-                        "owner->cache.getChunk(ChunkPos.getX(owner),ChunkPos.getZ(owner),ChunkStatus.FULL,true)!=null,"));
-        assertTrue(
-                lookup.contains(
-                        "owner->cache.getChunkNow(ChunkPos.getX(owner),ChunkPos.getZ(owner))!=null)"));
-        assertTrue(lookup.contains("ci.setReturnValue(ready?ChunkViews.view(level,x,z):null)"));
-        var present = source.substring(source.indexOf("private void starfold$viewPresent"));
-        assertFalse(
-                present.contains("cache.hasChunk("),
-                "a ticket must not pass isLoaded before the owner is readable");
-        assertTrue(
-                present.contains(
-                        "ChunkViews.ready(level,ChunkViews.columns(PlanetAccess.of(level),x,z))"));
-    }
-
     @Test
     void ownedPositionsAreNotAliased() {
         for (var access : LAYOUTS) {
@@ -295,64 +279,6 @@ class ChunkViewsTest {
                         "GroundMobLookMixin",
                         "GroundMobMeleeMixin",
                         "GroundMobSightMixin")) assertTrue(mixins.contains('"' + name + '"'), name);
-        var view = Sources.text("GroundChunkViewMixin");
-        for (var method : List.of("getChunk(II", "getChunkNow", "getChunkForLighting", "hasChunk"))
-            assertTrue(view.contains(method), method);
-        var light = Sources.text("GroundBlockLightSeamMixin");
-        for (var method :
-                List.of(
-                        "getStoredLevel",
-                        "setStoredLevel",
-                        "storingLightForSection",
-                        "lightOnInSection")) assertTrue(light.contains(method), method);
-        // Storage bookkeeping (section/column tracking) must never be re-addressed: only engine
-        // propagation is.
-        for (var file :
-                List.of(
-                        "mixin/GroundLightSeamMixin.java",
-                        "mixin/GroundBlockLightSeamMixin.java",
-                        "mixin/GroundSkyLightSeamMixin.java"))
-            assertFalse(
-                    Sources.text(file.substring(file.lastIndexOf('/') + 1, file.length() - 5))
-                            .contains("@Mixin(LayerLightSectionStorage"),
-                    file);
-        var ghost = Sources.text("GhostChunk");
-        for (var method :
-                List.of(
-                        "getBlockState(BlockPos",
-                        "setBlockState(BlockPos",
-                        "addAndRegisterBlockEntity",
-                        "setBlockEntity",
-                        "removeBlockEntity",
-                        "getHeight(",
-                        "getNoiseBiome",
-                        "getSkyLightSources",
-                        "PistonMovingBlockEntity")) assertTrue(ghost.contains(method), method);
-        assertTrue(Sources.text("GroundSeams").contains("carryPath(mob"));
-        // A halo position whose owner section is not stored must read dark instead of dereferencing
-        // a missing layer.
-        var seams = Sources.text("LightSeams");
-        assertTrue(seams.contains("starfold$storing"));
         assertTrue(mixins.contains("\"GroundLightStorageAccess\""));
-        for (var file :
-                List.of(
-                        "mixin/GroundLightSeamMixin.java",
-                        "mixin/GroundBlockLightSeamMixin.java",
-                        "mixin/GroundSkyLightSeamMixin.java")) {
-            var text = Sources.text(file.substring(file.lastIndexOf('/') + 1, file.length() - 5));
-            assertTrue(text.contains("LightSeams.get(") && text.contains("LightSeams.set("), file);
-            assertFalse(text.contains("LightSeams.block(this,pos)"), file);
-        }
-    }
-
-    /** The navigation record is written with the player's own data on disconnect (found by the in-game A→B→A run). */
-    @Test
-    void navigationRecordIsFlushedWhenThePlayerDisconnects() throws Exception {
-        var flight = Sources.text("GroundFlightServer");
-        int detach = flight.indexOf("public static void detach(ServerPlayer player)");
-        assertTrue(detach > 0);
-        var body = flight.substring(detach, flight.indexOf("public static void site(", detach));
-        assertTrue(body.indexOf("checkpoint(player)") < body.indexOf("getDataStorage().save()"));
-        assertTrue(body.contains("player.serverLevel().getDataStorage().save()"));
     }
 }

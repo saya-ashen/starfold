@@ -36,7 +36,8 @@ public final class GroundSunRenderer {
                                         DefaultVertexFormat.POSITION),
                                 s -> {
                                     shader = s;
-                                    shader.getUniform("DepthFar").set(ReversedDepth.ACTIVE ? 0f : 1f);
+                                    shader.getUniform("DepthFar")
+                                            .set(ReversedDepth.ACTIVE ? 0f : 1f);
                                     clear();
                                 });
                     } catch (java.io.IOException error) {

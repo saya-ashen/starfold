@@ -1,12 +1,11 @@
 package dev.starfold.ship;
 
-import dev.starfold.space.SpacePackets;
-
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
+import dev.starfold.space.SpacePackets;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;

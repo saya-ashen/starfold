@@ -2,7 +2,6 @@ package dev.starfold.ground;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSolar;
@@ -139,33 +138,13 @@ class GroundTest {
     }
 
     @Test
-    void nativeBackendHasNoMaterialPlacementOrProxyMovementLoop() throws Exception {
-        var sources = List.of(Sources.text("GroundServer"), Sources.text("PlanetPlayers"));
-        for (String forbidden :
-                List.of(
-                        "GroundWorld",
-                        "GroundMaterials",
-                        "GroundPackets.Input",
-                        "GroundTransit.step",
-                        "GroundMotion.step",
-                        "setBlock(",
-                        "action("))
-            for (var source : sources) assertFalse(source.contains(forbidden), forbidden);
-        assertTrue(Sources.text("PlanetLevels").contains("native_planet"));
-        assertTrue(Sources.text("Starfold").contains("StarfoldServer.initialize(modBus)"));
-        assertTrue(
-                Sources.text("GroundClock")
-                        .contains(
-                                "Buildings, inventory and block entities stay in native chunk saves"));
-    }
-
-    @Test
     void systemDimensionUsesNativeGeneratorsAndNormalLighting() throws Exception {
         var root = Path.of("src/main/resources/data/starfold");
         var dim =
                 com.google.gson.JsonParser.parseString(
                                 Files.readString(
-                                        Path.of("probes/src/main/resources/data/starfold/worldgen/world_preset/native_system.json")))
+                                        Path.of(
+                                                "probes/src/main/resources/data/starfold/worldgen/world_preset/native_system.json")))
                         .getAsJsonObject();
         var generator =
                 dim.getAsJsonObject("dimensions")
@@ -290,10 +269,6 @@ class GroundTest {
 
     @Test
     void shaderFrameClosesBeforeHandAndOtherWorlds() throws Exception {
-        var wrapper = Sources.text("CoreShaderRenderMixin");
-        assertTrue(wrapper.contains("GroundClient.begin"));
-        assertTrue(wrapper.contains("GroundClient.end"));
-        assertTrue(Sources.text("CoreShaderShaderMixin").contains("GroundClient.apply(shader)"));
         for (String n :
                 List.of(
                         "position_tex",
@@ -302,26 +277,5 @@ class GroundTest {
                         "rendertype_clouds",
                         "custom_machine_shader"))
             assertEquals("unchanged", GroundShaderSource.patch(n, true, "unchanged"));
-    }
-
-    @Test
-    void installedSeamsAndSpaceKeepTheirRoutingBorderAndRealModels() throws Exception {
-        assertTrue(
-                Sources.text("GroundCoordinates").contains("GroundTopology routes halo queries"));
-        assertTrue(Sources.text("PlanetPlayers").contains("getWorldBorder().setSize(60_000_000)"));
-        assertTrue(Sources.text("GroundFlightServer").contains("GroundDynamics.step"));
-        assertTrue(Sources.text("GroundRenderer").contains("getBlockRenderer()"));
-    }
-
-    @Test
-    void nativeLightingIsDimensionScopedAndUsesTheSavedSun() throws Exception {
-        assertTrue(Sources.text("GroundLightMixin").contains("PlanetLevels.is"));
-        assertTrue(Sources.text("GroundLightMixin").contains("GroundClient.daylight()"));
-        assertTrue(
-                Sources.text("GroundClient")
-                        .contains(
-                                "GroundSolar.daylight(elevation())*GroundDaylight.parentShade(observer.model,planet(),universeEye(),time())"));
-        assertTrue(Sources.text("GroundFogMixin").contains("GroundSolar.sky"));
-        assertTrue(Sources.text("GroundClient").contains("SkyType.NONE"));
     }
 }

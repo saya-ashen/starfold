@@ -1,7 +1,9 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
+
 import net.minecraft.core.BlockPos;
+
 import java.util.*;
 
 /** Tile/edge invalidations survive coalescing until the renderer drains a ready session. */
@@ -35,5 +37,7 @@ final class GroundInvalidations {
         return result;
     }
 
-    void clear() { pending.clear(); }
+    void clear() {
+        pending.clear();
+    }
 }

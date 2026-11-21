@@ -7,8 +7,19 @@ neoForge {
     version = rootProject.neoForge.version
     mods { starfold_probes { sourceSet sourceSets.main } }
 }
+// Create's Ponder API is embedded; javac does not inspect nested jars.
+// Keep this compile-only: the original Create archive supplies it at runtime.
+def createEmbedded = providers.provider {
+    def createJar = rootProject.configurations.compileClasspath.files.find {
+        it.name.startsWith('create-') && !it.name.contains('sources')
+    }
+    if (createJar == null) throw new GradleException('Missing pinned Create compile archive')
+    zipTree(createJar).matching { include 'META-INF/jarjar/*.jar', 'META-INF/jars/*.jar' }.files
+}
 dependencies {
+    compileOnly files(createEmbedded)
     implementation(project(':')) { transitive = false }
+    compileOnly project(':mining')
     compileOnly files(rootProject.configurations.compileClasspath)
     testCompileOnly files(rootProject.configurations.testCompileClasspath)
 }

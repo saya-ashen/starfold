@@ -1,5 +1,7 @@
 package dev.starfold.ground;
 
+import dev.starfold.DevelopmentHooks;
+import dev.starfold.api.ChunkWorkDiagnostics;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartOrientation;
 import dev.starfold.mixin.BlockEntityPacketAccess;
@@ -8,7 +10,6 @@ import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.Space;
 
 import io.netty.buffer.Unpooled;
@@ -41,23 +42,33 @@ public final class ImageStream {
     private record Column(LevelChunk chunk, int x, int z, int turns) {}
 
     /** What an image shows, without touching chunks: owner column and rotation at five probes. */
-    private record Plan(long[] owners, long signature) {}
+    record Plan(long[] owners, long signature) {}
 
-    private static final class View {
+    static final class View {
         final ServerLevel level;
         ChunkPos center;
         int radius = -1;
         ObserverFrame frame;
         final Map<Long, Plan> sent = new HashMap<>();
-        final ArrayDeque<Long> pending = new ArrayDeque<>();
+        // Old client images remain visible until their replacement arrives or they leave the
+        // window.
+        final Set<Long> replacements = new HashSet<>();
+        final ChunkSendQueue pending = new ChunkSendQueue();
         final RelightQueue light = new RelightQueue();
         final Map<Long, LightChanges> lightChanges = new HashMap<>();
         final Map<Long, Column[]> lightColumns = new HashMap<>();
         Set<Long> owners = Set.of();
+        Set<Long> approachOwners = Set.of();
+        Point previousPosition;
         final Map<Long, byte[]> probeLight = new HashMap<>();
 
         View(ServerLevel level) {
             this.level = level;
+        }
+
+        void markSent(long image, Plan plan) {
+            sent.put(image, plan);
+            replacements.remove(image);
         }
     }
 
@@ -98,8 +109,10 @@ public final class ImageStream {
         var out = new HashSet<Long>();
         for (var e : VIEWS.entrySet()) {
             var view = e.getValue();
-            if (view.level == level && !e.getKey().isRemoved() && !Space.in(e.getKey()))
+            if (view.level == level && !e.getKey().isRemoved() && !Space.in(e.getKey())) {
                 out.addAll(view.owners);
+                out.addAll(view.approachOwners);
+            }
         }
         return out;
     }
@@ -119,6 +132,26 @@ public final class ImageStream {
                             return dx * dx + dz * dz;
                         }));
         return out;
+    }
+
+    /** Warm the two rows beyond the leading edge before their images enter the send window. */
+    static List<Long> approachImages(ChunkPos center, int radius, double vx, double vz) {
+        double speedSquared = vx * vx + vz * vz;
+        if (radius < 2 || speedSquared < 1 || speedSquared > 64 * 64) return List.of();
+        boolean alongX = Math.abs(vx) > Math.abs(vz);
+        int direction = (alongX ? vx : vz) > 0 ? 1 : -1;
+        var images = new ArrayList<Long>(14);
+        for (int offset = -3; offset <= 3; offset++) {
+            int edge = radius + 1;
+            while (!ChunkTrackingView.isWithinDistance(0, 0, radius,
+                    alongX ? edge : offset, alongX ? offset : edge, true)) edge--;
+            for (int step = 1; step <= 2; step++) {
+                int ahead = (edge + step) * direction;
+                images.add(ChunkPos.asLong(center.x + (alongX ? ahead : offset),
+                        center.z + (alongX ? offset : ahead)));
+            }
+        }
+        return images;
     }
 
     /** The same bounded window, clipped to the reserved region; never a chart image. */
@@ -150,7 +183,7 @@ public final class ImageStream {
         return new long[] {storage.getX(), storage.getZ(), frame.turns()};
     }
 
-    private static Plan plan(PlanetAccess access, ObserverFrame frame, ChunkPos image) {
+    static Plan plan(PlanetAccess access, ObserverFrame frame, ChunkPos image) {
         long signature = 1;
         var owners = new LinkedHashSet<Long>();
         for (int[] probe : new int[][] {{0, 0}, {15, 0}, {0, 15}, {15, 15}, {8, 8}}) {
@@ -227,25 +260,17 @@ public final class ImageStream {
                         Space.in(player)
                                 ? regionPositions(center, radius)
                                 : positions(center, radius);
-                var set = new HashSet<>(wanted);
-                for (var it = view.sent.entrySet().iterator(); it.hasNext(); ) {
-                    var e = it.next();
-                    if (!set.contains(e.getKey())) {
-                        PacketMap.raw(
-                                player,
-                                new ClientboundForgetLevelChunkPacket(new ChunkPos(e.getKey())));
-                        view.light.remove(e.getKey());
-                        it.remove();
-                    }
-                    // A re-rooted frame keeps every plane position that still shows the same owner
-                    // (all but a corner wedge).
-                    else if (reframed
-                            && plan(access, frame, new ChunkPos(e.getKey())).signature
-                                    != e.getValue().signature) it.remove();
-                }
-                view.pending.clear();
-                for (long image : wanted)
-                    if (!view.sent.containsKey(image)) view.pending.add(image);
+                updateWindow(
+                        view,
+                        access,
+                        frame,
+                        wanted,
+                        reframed,
+                        image ->
+                                PacketMap.raw(
+                                        player,
+                                        new ClientboundForgetLevelChunkPacket(
+                                                new ChunkPos(image))));
                 var owners = new HashSet<Long>();
                 for (long image : wanted)
                     for (long owner : plan(access, frame, new ChunkPos(image)).owners) {
@@ -255,19 +280,37 @@ public final class ImageStream {
                 view.owners = owners;
                 DevelopmentHooks.arrival.end("imageWindow", windowStart);
             }
-            // Forget/reframe drops old image work; a newly sent chunk already includes its current
-            // light.
-            view.light.retain(view.sent.keySet());
-            view.lightChanges.keySet().retainAll(view.sent.keySet());
-            view.lightColumns.keySet().retainAll(view.sent.keySet());
-            view.probeLight.keySet().retainAll(view.sent.keySet());
+            view.approachOwners = Set.of();
+            var current = frame.toClient(new Point(player.getX(), player.getY(), player.getZ()));
+            var last = view.previousPosition;
+            view.previousPosition = current;
+            if (last != null && !reframed && !Space.in(player) && player.getAbilities().flying) {
+                double vx = current.x() - last.x(), vz = current.z() - last.z();
+                if (vx * vx + vz * vz < 1) {
+                    var look = player.getLookAngle();
+                    var projected = frame.toClient(new Point(player.getX() + look.x, player.getY(), player.getZ() + look.z));
+                    vx = (projected.x() - current.x()) * 2;
+                    vz = (projected.z() - current.z()) * 2;
+                }
+                var ahead = approachImages(center, radius, vx, vz);
+                if (!ahead.isEmpty()) {
+                    var owners = new HashSet<Long>();
+                    for (long image : ahead)
+                        for (long owner : plan(access, frame, new ChunkPos(image)).owners) {
+                            long key = access.key(ChunkPos.getX(owner), ChunkPos.getZ(owner));
+                            if (key >= 0) owners.add(key);
+                        }
+                    view.approachOwners = owners;
+                }
+            }
             if (dirty != null) for (var owner : dirty) forward(level, player, view, owner, now);
             if (lit != null)
                 for (var e : view.sent.entrySet())
                     for (long owner : e.getValue().owners) {
                         var changes = lit.get(owner);
                         if (changes != null) {
-                            view.lightChanges.computeIfAbsent(e.getKey(), k -> new LightChanges())
+                            view.lightChanges
+                                    .computeIfAbsent(e.getKey(), k -> new LightChanges())
                                     .merge(changes);
                             view.light.mark(e.getKey(), now, now);
                         }
@@ -288,25 +331,25 @@ public final class ImageStream {
                             start + RELIGHT_BUDGET_NS,
                             CHUNKS_PER_TICK - 1,
                             image -> {
-                                if (!relight(level, player, frame, new ChunkPos(image),
+                                if (!relight(
+                                        level,
+                                        player,
+                                        frame,
+                                        new ChunkPos(image),
                                         view.lightChanges.get(image))) return false;
                                 view.lightChanges.remove(image);
                                 return true;
                             });
             long relightNanos = System.nanoTime() - start;
-            int count = 0, attempts = processed;
-            for (var it = view.pending.iterator();
-                    it.hasNext()
-                            && attempts < CHUNKS_PER_TICK
-                            && (count == 0 || System.nanoTime() < deadline); ) {
-                long image = it.next();
-                attempts++;
-                if (send(level, player, frame, new ChunkPos(image))) {
-                    view.sent.put(image, plan(access, frame, new ChunkPos(image)));
-                    it.remove();
-                    count++;
-                }
-            }
+            view.pending.drain(
+                    System::nanoTime,
+                    deadline,
+                    CHUNKS_PER_TICK - processed,
+                    image -> {
+                        if (!send(level, player, frame, new ChunkPos(image))) return false;
+                        view.markSent(image, plan(access, frame, new ChunkPos(image)));
+                        return true;
+                    });
             DevelopmentHooks.relight.stream(
                     player,
                     queued,
@@ -319,6 +362,42 @@ public final class ImageStream {
                     lit == null ? 0 : lit.size(),
                     DevelopmentHooks.relight.enabled() ? view.light.oldestAge(now) : 0);
         }
+    }
+
+    static void updateWindow(
+            View view,
+            PlanetAccess access,
+            ObserverFrame frame,
+            List<Long> wanted,
+            boolean reframed,
+            java.util.function.LongConsumer forget) {
+        var set = new HashSet<>(wanted);
+        for (var it = view.replacements.iterator(); it.hasNext(); ) {
+            long image = it.next();
+            if (!set.contains(image)) {
+                forget.accept(image);
+                it.remove();
+            }
+        }
+        for (var it = view.sent.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            if (!set.contains(e.getKey())) {
+                forget.accept(e.getKey());
+                it.remove();
+            } else if (reframed
+                    && plan(access, frame, new ChunkPos(e.getKey())).signature
+                            != e.getValue().signature) {
+                view.replacements.add(e.getKey());
+                it.remove();
+            }
+        }
+        // Invalidated plans stop forwarding old light while their client image awaits replacement.
+        view.light.retain(view.sent.keySet());
+        view.lightChanges.keySet().retainAll(view.sent.keySet());
+        view.lightColumns.keySet().retainAll(view.sent.keySet());
+        view.probeLight.keySet().retainAll(view.sent.keySet());
+        // Pending sends always resolve against the current frame when attempted.
+        view.pending.retain(wanted, view.sent.keySet());
     }
 
     private static Column[] columns(ServerLevel level, ObserverFrame frame, ChunkPos image) {
@@ -363,8 +442,20 @@ public final class ImageStream {
         }
     }
 
+    private static void sendImagePacket(ServerPlayer player, ClientboundLevelChunkWithLightPacket packet,
+            ChunkWorkDiagnostics.Listener trace, ChunkPos image, ChunkPos source, long began) {
+        long sending = trace == null ? 0 : System.nanoTime();
+        PacketMap.raw(player, packet);
+        if (trace != null)
+            trace.imageSent(player.getUUID(), image.toLong(), source == null ? null : source.toLong(),
+                    sending, sending - began);
+    }
+
     private static boolean sendMeasured(
             ServerLevel level, ServerPlayer player, ObserverFrame frame, ChunkPos image) {
+        var trace = ChunkWorkDiagnostics.listener();
+        long began = trace == null ? 0 : System.nanoTime();
+        if (trace != null) trace.imageAttempt(player.getUUID(), image.toLong(), began);
         var columns = columns(level, frame, image);
         if (columns == null) return false;
         VIEWS.get(player).lightColumns.put(image.toLong(), columns);
@@ -386,7 +477,7 @@ public final class ImageStream {
                     lightBuffer.release();
                 }
             }
-            PacketMap.raw(player, packet);
+            sendImagePacket(player, packet, trace, image, columns[0].chunk.getPos(), began);
             return true;
         }
         var view = new LevelChunk(level, image);
@@ -435,9 +526,7 @@ public final class ImageStream {
             }
             view.setHeightmap(entry.getKey(), heights.getRaw());
         }
-        var data =
-                new ClientboundLevelChunkWithLightPacket(view, level.getLightEngine(), null, null)
-                        .getChunkData();
+        var data = new ClientboundLevelChunkPacketData(view);
         var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
         try {
             buffer.writeInt(image.x);
@@ -446,18 +535,19 @@ public final class ImageStream {
             int lightStart = buffer.writerIndex();
             light(level, columns, buffer);
             rememberLight(player, image, buffer, lightStart);
-            PacketMap.raw(player, ClientboundLevelChunkWithLightPacket.STREAM_CODEC.decode(buffer));
+            sendImagePacket(player, ClientboundLevelChunkWithLightPacket.STREAM_CODEC.decode(buffer),
+                    trace, image, null, began);
         } finally {
             buffer.release();
         }
         // Block entities are sent at their image position; the owner's instance is never moved or
         // cloned into simulation.
+        var entities = new BlockEntityColumns();
         for (int i = 0; i < 256; i++) {
             var c = columns[i];
             int x = image.getMinBlockX() + (i & 15), z = image.getMinBlockZ() + (i >> 4);
-            for (var be : c.chunk.getBlockEntities().values())
-                if ((be.getBlockPos().getX() & 15) == c.x && (be.getBlockPos().getZ() & 15) == c.z)
-                    blockEntity(player, be, new BlockPos(x, be.getBlockPos().getY(), z));
+            for (var be : entities.get(c.chunk, c.x, c.z))
+                blockEntity(player, be, new BlockPos(x, be.getBlockPos().getY(), z));
         }
         return true;
     }
@@ -466,12 +556,18 @@ public final class ImageStream {
             ServerPlayer player,
             net.minecraft.world.level.block.entity.BlockEntity be,
             BlockPos at) {
-        var tag = be.getUpdateTag(player.registryAccess()).copy();
+        var tag = blockEntityTag(be.getUpdateTag(player.registryAccess()), at);
+        PacketMap.raw(player, BlockEntityPacketAccess.starfold$create(at, be.getType(), tag));
+    }
+
+    static net.minecraft.nbt.CompoundTag blockEntityTag(
+            net.minecraft.nbt.CompoundTag original, BlockPos at) {
+        var tag = original.copy();
         if (tag.contains("x")) {
             tag.putInt("x", at.getX());
             tag.putInt("z", at.getZ());
         }
-        PacketMap.raw(player, BlockEntityPacketAccess.starfold$create(at, be.getType(), tag));
+        return tag;
     }
 
     /** The owners' real light, column by column. Vanilla light at the image position is the empty halo's. */
@@ -479,8 +575,12 @@ public final class ImageStream {
         light(level, columns, buffer, null, false);
     }
 
-    private static void light(ServerLevel level, Column[] columns, FriendlyByteBuf buffer,
-            LightChanges changes, boolean identity) {
+    private static void light(
+            ServerLevel level,
+            Column[] columns,
+            FriendlyByteBuf buffer,
+            LightChanges changes,
+            boolean identity) {
         var engine = level.getLightEngine();
         int count = engine.getLightSectionCount(), min = engine.getMinLightSection();
         var masks = new BitSet[] {new BitSet(), new BitSet(), new BitSet(), new BitSet()};
@@ -495,10 +595,12 @@ public final class ImageStream {
                     s = selected == null ? s + 1 : selected.nextSetBit(s + 1)) {
                 cache.clear();
                 if (identity) {
-                    var source = listener.getDataLayerData(
-                            SectionPos.of(columns[0].chunk.getPos(), min + s));
+                    var source =
+                            listener.getDataLayerData(
+                                    SectionPos.of(columns[0].chunk.getPos(), min + s));
                     if (source != null) {
-                        identitySection(source, s, masks[layer], masks[2 + layer], updates.get(layer));
+                        identitySection(
+                                source, s, masks[layer], masks[2 + layer], updates.get(layer));
                         continue;
                     }
                 }
@@ -509,12 +611,22 @@ public final class ImageStream {
                     final int section = min + s;
                     var source = cache.get(c.chunk);
                     if (source == null && !cache.containsKey(c.chunk)) {
-                        source = listener.getDataLayerData(SectionPos.of(c.chunk.getPos(), section));
+                        source =
+                                listener.getDataLayerData(SectionPos.of(c.chunk.getPos(), section));
                         cache.put(c.chunk, source);
                     }
-                    lit |= sampleColumn(out, i, source, c.x, c.z, listener, pos,
-                            c.chunk.getPos().getMinBlockX() + c.x, section * 16,
-                            c.chunk.getPos().getMinBlockZ() + c.z);
+                    lit |=
+                            sampleColumn(
+                                    out,
+                                    i,
+                                    source,
+                                    c.x,
+                                    c.z,
+                                    listener,
+                                    pos,
+                                    c.chunk.getPos().getMinBlockX() + c.x,
+                                    section * 16,
+                                    c.chunk.getPos().getMinBlockZ() + c.z);
                 }
                 // An absent owner layer must replace any light the client still holds.
                 lightSection(out, lit, s, masks[layer], masks[2 + layer], updates.get(layer));
@@ -528,13 +640,23 @@ public final class ImageStream {
         buffer.writeCollection(updates.get(1), (b, a) -> b.writeByteArray(a));
     }
 
-    static boolean sampleColumn(DataLayer out, int column, DataLayer source, int x, int z,
+    static boolean sampleColumn(
+            DataLayer out,
+            int column,
+            DataLayer source,
+            int x,
+            int z,
             net.minecraft.world.level.lighting.LayerLightEventListener listener,
-            BlockPos.MutableBlockPos pos, int worldX, int baseY, int worldZ) {
+            BlockPos.MutableBlockPos pos,
+            int worldX,
+            int baseY,
+            int worldZ) {
         boolean lit = false;
         for (int y = 0; y < 16; y++) {
-            int value = source != null ? source.get(x, y, z)
-                    : listener.getLightValue(pos.set(worldX, baseY + y, worldZ));
+            int value =
+                    source != null
+                            ? source.get(x, y, z)
+                            : listener.getLightValue(pos.set(worldX, baseY + y, worldZ));
             if (value != 0) {
                 out.set(column & 15, y, column >> 4, value);
                 lit = true;
@@ -543,8 +665,8 @@ public final class ImageStream {
         return lit;
     }
 
-    static void identitySection(DataLayer source, int section, BitSet values, BitSet empty,
-            List<byte[]> updates) {
+    static void identitySection(
+            DataLayer source, int section, BitSet values, BitSet empty, List<byte[]> updates) {
         lightSection(source.copy(), !source.isEmpty(), section, values, empty, updates);
     }
 
@@ -562,13 +684,17 @@ public final class ImageStream {
     }
 
     private static boolean relight(
-            ServerLevel level, ServerPlayer player, ObserverFrame frame, ChunkPos image,
+            ServerLevel level,
+            ServerPlayer player,
+            ObserverFrame frame,
+            ChunkPos image,
             LightChanges changes) {
         var view = VIEWS.get(player);
         var columns = view.lightColumns.get(image.toLong());
         // A cached mapping owns no tickets: validate chunk identities after unload/reload.
         for (long owner : view.sent.get(image.toLong()).owners) {
-            var chunk = level.getChunkSource().getChunkNow(ChunkPos.getX(owner), ChunkPos.getZ(owner));
+            var chunk =
+                    level.getChunkSource().getChunkNow(ChunkPos.getX(owner), ChunkPos.getZ(owner));
             if (chunk == null) return false;
             for (var c : columns)
                 if (c.chunk.getPos().toLong() == owner && c.chunk != chunk) {
@@ -587,11 +713,16 @@ public final class ImageStream {
             long sampleStart = DevelopmentHooks.relight.enabled() ? System.nanoTime() : 0;
             light(level, columns, buffer, changes, identity);
             if (DevelopmentHooks.relight.enabled())
-                org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
-                        "PROBE LIGHT_SEND game {} image {} bytes {} sampleNs {} identity {}",
-                        level.getGameTime(), image.toLong(), buffer.writerIndex() - lightStart,
-                        System.nanoTime() - sampleStart, identity);
-            if (DevelopmentHooks.relight.enabled()) auditSelection(level, columns, changes, buffer, lightStart);
+                org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                        .info(
+                                "PROBE LIGHT_SEND game {} image {} bytes {} sampleNs {} identity {}",
+                                level.getGameTime(),
+                                image.toLong(),
+                                buffer.writerIndex() - lightStart,
+                                System.nanoTime() - sampleStart,
+                                identity);
+            if (DevelopmentHooks.relight.enabled())
+                auditSelection(level, columns, changes, buffer, lightStart);
             rememberLight(player, image, buffer, lightStart);
             PacketMap.raw(player, ClientboundLightUpdatePacket.STREAM_CODEC.decode(buffer));
             return true;
@@ -600,8 +731,12 @@ public final class ImageStream {
         }
     }
 
-    private static void auditSelection(ServerLevel level, Column[] columns, LightChanges changes,
-            FriendlyByteBuf emitted, int start) {
+    private static void auditSelection(
+            ServerLevel level,
+            Column[] columns,
+            LightChanges changes,
+            FriendlyByteBuf emitted,
+            int start) {
         var reference = new FriendlyByteBuf(Unpooled.buffer());
         try {
             light(level, columns, reference, changes, false);
@@ -610,9 +745,11 @@ public final class ImageStream {
             emitted.getBytes(start, a);
             reference.getBytes(0, b);
             boolean same = LightPayload.same(a, b);
-            org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
-                    "PROBE LIGHT_SELECTION game {} same {}", level.getGameTime(), same);
-            if (!same) throw new IllegalStateException("Incremental light differs from full sampler selection");
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info("PROBE LIGHT_SELECTION game {} same {}", level.getGameTime(), same);
+            if (!same)
+                throw new IllegalStateException(
+                        "Incremental light differs from full sampler selection");
         } finally {
             reference.release();
         }
@@ -651,9 +788,13 @@ public final class ImageStream {
         var state = VIEWS.get(player).probeLight;
         var previous = state.get(image.toLong());
         state.put(image.toLong(), previous == null ? bytes : LightPayload.apply(previous, bytes));
-        org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
-                "PROBE RELIGHT_PACKET game {} image {} first {} same {}",
-                player.level().getGameTime(), image.toLong(), previous == null, Arrays.equals(previous, bytes));
+        org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                .info(
+                        "PROBE RELIGHT_PACKET game {} image {} first {} same {}",
+                        player.level().getGameTime(),
+                        image.toLong(),
+                        previous == null,
+                        Arrays.equals(previous, bytes));
     }
 
     /** Probe-only, explicit settled-state comparison of emitted light against the unchanged unbudgeted sampler. */

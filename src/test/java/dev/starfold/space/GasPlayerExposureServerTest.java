@@ -40,14 +40,23 @@ class GasPlayerExposureServerTest {
         int restores, writes;
 
         void clone(Player from, Player to, boolean death) {
-            // The same operation (including map commit and persistence callback) as PlayerEvent.Clone.
-            GasPlayerExposureServer.transferClone(states, UUID_VALUE, from, to, death, () -> {
-                restores++;
-                return GasPlayerExposureState.restored(GasPlayerExposureSave.read(from.persistent));
-            }, values -> {
-                writes++;
-                GasPlayerExposureSave.write(to.persistent, values);
-            });
+            // The same operation (including map commit and persistence callback) as
+            // PlayerEvent.Clone.
+            GasPlayerExposureServer.transferClone(
+                    states,
+                    UUID_VALUE,
+                    from,
+                    to,
+                    death,
+                    () -> {
+                        restores++;
+                        return GasPlayerExposureState.restored(
+                                GasPlayerExposureSave.read(from.persistent));
+                    },
+                    values -> {
+                        writes++;
+                        GasPlayerExposureSave.write(to.persistent, values);
+                    });
         }
 
         GasPlayerExposureServer.PlayerState<Player> current() {
@@ -107,8 +116,16 @@ class GasPlayerExposureServerTest {
         fixture.install(c, new GasPlayerExposureState(values(0, 99, 20), 456));
         var current = fixture.current();
         var bNbt = b.persistent.copy();
-        GasPlayerExposureServer.transferClone(fixture.states, UUID_VALUE, a, b, true,
-                () -> { fail("stale source NBT must never be read"); return null; },
+        GasPlayerExposureServer.transferClone(
+                fixture.states,
+                UUID_VALUE,
+                a,
+                b,
+                true,
+                () -> {
+                    fail("stale source NBT must never be read");
+                    return null;
+                },
                 ignored -> fail("rejected target NBT must never be written"));
         assertSame(current, fixture.current());
         assertSame(c, fixture.current().owner);

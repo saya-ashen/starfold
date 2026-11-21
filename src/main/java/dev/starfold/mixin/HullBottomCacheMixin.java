@@ -4,9 +4,11 @@ import dev.ryanhcode.sable.companion.math.BoundingBox3ic;
 import dev.ryanhcode.sable.sublevel.plot.LevelPlot;
 import dev.ryanhcode.sable.sublevel.plot.PlotChunkHolder;
 import dev.starfold.ship.HullBottom;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +23,8 @@ public abstract class HullBottomCacheMixin {
     }
 
     @Inject(method = "addChunkHolder", at = @At("RETURN"), remap = false)
-    private void starfold$chunkAdded(ChunkPos pos, PlotChunkHolder holder, boolean lighting, CallbackInfo ci) {
+    private void starfold$chunkAdded(
+            ChunkPos pos, PlotChunkHolder holder, boolean lighting, CallbackInfo ci) {
         HullBottom.invalidate(((LevelPlot) (Object) this).getSubLevel());
     }
 

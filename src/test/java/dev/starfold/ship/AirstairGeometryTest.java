@@ -21,8 +21,40 @@ class AirstairGeometryTest {
         assertNotNull(f);
         assertEquals(12, f.steps());
         assertEquals(6, f.drop());
+        assertEquals(.5, f.treadRun());
         assertEquals(9.5, f.height(0));
         assertEquals(4.0125, f.height(11));
+    }
+
+    @Test
+    void shallowerFlightReachesRaisedShelfWithoutIntersectingIt() {
+        var f =
+                AirstairGeometry.flight(
+                        new Vector3d(0, 10, 0),
+                        new Vector3d(0, 0, 1),
+                        new Vector3d(0, -1, 0),
+                        1,
+                        (x, z) -> z >= 2 && z < 4 ? 8.2 : 4);
+        assertNotNull(f);
+        assertEquals(.75, f.treadRun());
+        assertEquals(4, f.steps());
+        assertEquals(8.2125, f.height(3), 1e-8);
+        assertEquals(3, f.boxes().stream().mapToDouble(b -> b.maxZ).max().orElseThrow(), 1e-8);
+    }
+
+    @Test
+    void shorterFlightCanStayWithinAvailableClearance() {
+        var f =
+                AirstairGeometry.flight(
+                        new Vector3d(0, 10, 0),
+                        new Vector3d(0, 0, 1),
+                        new Vector3d(0, -1, 0),
+                        1,
+                        (x, z) -> 8.5,
+                        candidate -> candidate.boxes().stream().allMatch(b -> b.maxZ <= 1.25));
+        assertNotNull(f);
+        assertEquals(.375, f.treadRun());
+        assertEquals(1.125, f.boxes().stream().mapToDouble(b -> b.maxZ).max().orElseThrow(), 1e-8);
     }
 
     @Test
@@ -80,6 +112,53 @@ class AirstairGeometryTest {
                             1,
                             terrain));
         }
+    }
+
+    @Test
+    void footplateAllowsOneBlockStepDownButRejectsALargerDropAtTheSameFoot() {
+        for (double drop : new double[] {1, 2}) {
+            var reasons = new java.util.ArrayList<String>();
+            var flight =
+                    AirstairGeometry.flight(
+                            new Vector3d(0, 153.07348, 0),
+                            new Vector3d(0, 0, 1),
+                            new Vector3d(0, -1, 0),
+                            1,
+                            (x, z) -> z < 1.5 ? 152 : 152 - drop,
+                            candidate -> candidate.treadRun() == .5,
+                            reasons::add);
+            if (drop == 1) {
+                assertNotNull(flight);
+                assertEquals(3, flight.steps());
+                assertEquals(152.0125, flight.height(2), 1e-8);
+            } else {
+                assertNull(flight);
+                assertTrue(
+                        reasons.stream()
+                                .anyMatch(
+                                        reason ->
+                                                reason.startsWith(
+                                                        "foot-transition treadRun=0.5 step=3")));
+            }
+        }
+    }
+
+    @Test
+    void diagnosticReportsTheObstructionForEachTreadLength() {
+        var reasons = new java.util.ArrayList<String>();
+        var flight =
+                AirstairGeometry.flight(
+                        new Vector3d(0, 10, 0),
+                        new Vector3d(0, 0, 1),
+                        new Vector3d(0, -1, 0),
+                        1,
+                        (x, z) -> z >= 2 ? 10 : 4,
+                        candidate -> true,
+                        reasons::add);
+        assertNull(flight);
+        assertEquals(4, reasons.size());
+        assertTrue(
+                reasons.stream().allMatch(reason -> reason.startsWith("tread-blocked treadRun=")));
     }
 
     @Test

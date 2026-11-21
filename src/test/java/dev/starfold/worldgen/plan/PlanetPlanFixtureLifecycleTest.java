@@ -1,11 +1,14 @@
 package dev.starfold.worldgen.plan;
 
 import static org.junit.jupiter.api.Assertions.*;
-import java.nio.file.Files;
+
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+
 class PlanetPlanFixtureLifecycleTest {
-    @Test void reopeningClosesOldStorageAndCloseReleasesContextAndFiles() throws Exception {
+    @Test
+    void reopeningClosesOldStorageAndCloseReleasesContextAndFiles() throws Exception {
         try {
             PlanetPlanFixtures.boot();
             var first = PlanetPlanFixtures.directory;

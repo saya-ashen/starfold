@@ -3,12 +3,15 @@ package dev.starfold.space;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.chart.GroundSpace;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class SpaceSessionsTest {
     @AfterEach
-    void clear() { SpaceSessions.clear(); }
+    void clear() {
+        SpaceSessions.clear();
+    }
 
     @Test
     void repeatedFrameNotificationsRetainViewButMaskChangeRotatesSession() {
@@ -32,7 +35,9 @@ class SpaceSessionsTest {
         assertTrue(SpaceSessions.wishes.isEmpty());
         assertTrue(SpaceSessions.targets.isEmpty());
         assertTrue(SpaceSessions.views.isEmpty());
-        assertNotEquals(old.packet().session(), SpaceSessions.view(null, null, GroundSpace.DEFAULT_MASK).packet().session());
+        assertNotEquals(
+                old.packet().session(),
+                SpaceSessions.view(null, null, GroundSpace.DEFAULT_MASK).packet().session());
     }
 
     @Test
@@ -40,14 +45,14 @@ class SpaceSessionsTest {
         SpaceSessions.view(null, null, GroundSpace.DEFAULT_MASK);
         SpaceSessions.observers.put(null, null);
         SpaceSessions.targets.put(null, new SpaceSessions.Target(null, null, null, null));
-        SpaceSessions.weightless.put(null, null);
+        SpaceGravity.weightless.put(null, null);
         SpaceSessions.release(null);
         assertEmpty();
         SpaceSessions.view(null, null, GroundSpace.DEFAULT_MASK);
         SpaceSessions.observers.put(null, null);
         SpaceSessions.targets.put(null, new SpaceSessions.Target(null, null, null, null));
         SpaceSessions.wishes.put(null, new SpaceSessions.Wish(null, 1, 1, 2, 3, 100));
-        SpaceSessions.weightless.put(null, null);
+        SpaceGravity.weightless.put(null, null);
         SpaceSessions.clear();
         assertEmpty();
     }
@@ -57,6 +62,6 @@ class SpaceSessionsTest {
         assertTrue(SpaceSessions.views.isEmpty());
         assertTrue(SpaceSessions.wishes.isEmpty());
         assertTrue(SpaceSessions.targets.isEmpty());
-        assertTrue(SpaceSessions.weightless.isEmpty());
+        assertTrue(SpaceGravity.weightless.isEmpty());
     }
 }

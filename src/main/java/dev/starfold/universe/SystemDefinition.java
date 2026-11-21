@@ -5,11 +5,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.chart.SunSettings;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
 
 import net.minecraft.core.*;
 import net.minecraft.resources.*;
@@ -264,7 +262,8 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                                 dev.starfold.chart.GasGiant.CODEC
                                                         .fieldOf("gas")
                                                         .forGetter(GasBody::gas),
-                                                Codec.DOUBLE.optionalFieldOf("gm")
+                                                Codec.DOUBLE
+                                                        .optionalFieldOf("gm")
                                                         .forGetter(g -> Optional.of(g.gm)),
                                                 strict(Planet.MOON.listOf())
                                                         .optionalFieldOf("moons", List.of())
@@ -323,7 +322,8 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                                                 strict(GasBody.CODEC.listOf())
                                                         .optionalFieldOf("gas_giants", List.of())
                                                         .forGetter(Sun::gasGiants),
-                                                Codec.DOUBLE.optionalFieldOf("gm")
+                                                Codec.DOUBLE
+                                                        .optionalFieldOf("gm")
                                                         .forGetter(s -> Optional.of(s.gm)))
                                         .apply(
                                                 i,
@@ -409,9 +409,7 @@ public record SystemDefinition(List<Sun> suns, Home home, Optional<Holder<Univer
                 suns.stream()
                         .mapToLong(
                                 s ->
-                                        s.planets.stream()
-                                                        .mapToLong(p -> 1L + p.moons.size())
-                                                        .sum()
+                                        s.planets.stream().mapToLong(p -> 1L + p.moons.size()).sum()
                                                 + s.gasGiants.stream()
                                                         .mapToLong(g -> g.moons.size())
                                                         .sum())

@@ -1,8 +1,8 @@
 package dev.starfold.extras;
 
-import dev.starfold.ship.AirstairFixtures;
-
 import static org.junit.jupiter.api.Assertions.*;
+
+import dev.starfold.ship.AirstairFixtures;
 
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
@@ -43,7 +43,8 @@ class WingAccessTest {
             for (int side : new int[] {-1, 1})
                 for (double drop : new double[] {1, 2.5, 5, 7.5, 10}) {
                     var hinge = new Vector3d(-4, 5, side < 0 ? -4 : 5);
-                    for (var tread : AirstairFixtures.boxes(hinge, new Vector3d(0, 0, side), 5 - drop)) {
+                    for (var tread :
+                            AirstairFixtures.boxes(hinge, new Vector3d(0, 0, side), 5 - drop)) {
                         var envelope =
                                 new AABB(
                                         tread.minX,

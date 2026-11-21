@@ -542,7 +542,7 @@ public final class Universe extends SavedData {
                 level.getSeed(), layout, home, at[0], at[1], REACH, CAPACITY - home.count()))
             return false;
         system.bind(universe.planets());
-        dev.starfold.worldgen.plan.PlanetPlanStore.bind(level,system);
+        dev.starfold.worldgen.plan.PlanetPlanStore.bind(level, system);
         grown.accept(
                 level,
                 system,

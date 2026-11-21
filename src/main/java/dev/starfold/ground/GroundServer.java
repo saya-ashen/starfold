@@ -1,8 +1,7 @@
 package dev.starfold.ground;
 
 import dev.starfold.chart.GroundEphemeris;
-import dev.starfold.chart.PlanetShape;
-import dev.starfold.planet.PlanetSystem;
+import dev.starfold.planet.PlanetCatalog;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.universe.SystemChunkGenerator;
 
@@ -46,30 +45,28 @@ public final class GroundServer {
             sizes[id] = system.planet(id).terrain().shape().size();
             depths[id] = system.planet(id).generation().depth();
         }
-        PlanetShape.system(sizes, depths);
+        PlanetCatalog.install(
+                new PlanetCatalog(
+                        sizes,
+                        depths,
+                        system.names(),
+                        java.util.stream.IntStream.range(0, sizes.length)
+                                .mapToObj(id -> system.planet(id).identity())
+                                .toList()));
         ChunkViews.resetLayout();
-        PlanetSystem.names(system.names());
-        PlanetSystem.identities(
-                java.util.stream.IntStream.range(0, system.count())
-                        .mapToObj(id -> system.planet(id).identity())
-                        .toList());
     }
 
     public static void shapes(ServerPlayer player) {
         if (!player.connection.hasChannel(GroundPackets.Shapes.TYPE)) return;
-        int[] sizes = new int[PlanetShape.count()], depths = new int[sizes.length];
-        for (int id = 0; id < sizes.length; id++) {
-            sizes[id] = PlanetShape.of(id).size();
-            depths[id] = PlanetShape.depth(id);
-        }
+        var catalog = PlanetCatalog.current();
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                 player,
                 new GroundPackets.Shapes(
-                        sizes,
-                        depths,
-                        PlanetSystem.names(),
-                        java.util.stream.IntStream.range(0, sizes.length)
-                                .mapToObj(PlanetSystem::identity)
+                        catalog.sizes(),
+                        catalog.depths(),
+                        catalog.names(),
+                        java.util.stream.IntStream.range(0, catalog.count())
+                                .mapToObj(catalog::identity)
                                 .toList()));
     }
 

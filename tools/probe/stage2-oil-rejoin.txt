@@ -1,0 +1,17 @@
+# Same disposable regression-stage2-* save and player as stage2-oil.txt, launched in a NEW JVM.
+# Do not issue pause/power or reload the machine before persist: compare actual full NBT and real CDG SavedData.
+strict
+waitworld
+# Explicit fixture receipt scoreboard: each oil command resets it and must return success before proceeding.
+cmd scoreboard objectives add sfOilProbe dummy
+wait 160
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest persist
+check oil-persist if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest snapshot
+check oil-snapshot if score @s sfOilProbe matches 1
+wait 40
+shot stage2-oil-persisted
+quit

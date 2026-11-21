@@ -18,7 +18,7 @@ import org.joml.Matrix4f;
 public final class ThrusterRenderer implements BlockEntityRenderer<Thrusters.Thruster> {
     public static boolean probeVisible =
             true; // Only the explicitly enabled DevProbe can toggle the visual for paired GPU
-                  // measurements.
+    // measurements.
     private final java.util.Map<Thrusters.Thruster, Spool> spools = new java.util.WeakHashMap<>();
     private static final int SIDES = 12;
     private static final float[] COS = new float[SIDES + 1], SIN = new float[SIDES + 1];

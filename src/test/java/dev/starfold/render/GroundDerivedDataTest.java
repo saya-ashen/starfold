@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import net.minecraft.core.*;
 import net.minecraft.nbt.*;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.*;
 
 import org.junit.jupiter.api.*;
@@ -94,5 +92,4 @@ class GroundDerivedDataTest {
         tag.getList("surfaces", 10).getCompound(0).remove("key");
         assertThrows(IllegalArgumentException.class, () -> GroundSurfaceIndex.load(tag, null));
     }
-
 }

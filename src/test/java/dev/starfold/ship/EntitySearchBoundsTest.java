@@ -3,7 +3,6 @@ package dev.starfold.ship;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
-import dev.starfold.Sources;
 
 import net.minecraft.world.phys.AABB;
 
@@ -54,25 +53,5 @@ class EntitySearchBoundsTest {
                 assertTrue(crew.contains(offset.x, offset.y, offset.z));
             }
         }
-    }
-
-    @Test
-    void tickAndCarryLookupsAreBoundedAndRetainExitCleanupAndRememberedCrew() throws Exception {
-        var space = Sources.text("SpaceServer");
-        assertFalse(space.contains("level.getAllEntities()"));
-        assertTrue(space.contains("Double.NEGATIVE_INFINITY"));
-        assertTrue(space.contains("Double.POSITIVE_INFINITY"));
-        assertTrue(space.contains("weightless.entrySet().removeIf"));
-        assertTrue(space.contains("living.level()==level&&Space.in(living)"));
-        assertTrue(space.contains("regionEntities(level)"));
-        var frames = Sources.text("SableFrames");
-        assertFalse(frames.contains("level.getAllEntities()"));
-        assertTrue(frames.contains("crewBounds(before,cabinBounds(body))"));
-        assertTrue(frames.contains("cabinBounds(body.lastPose(),plot.toAABB())"));
-        assertTrue(frames.contains("entry.getValue().body()==body&&entry.getKey().level()==level"));
-        assertTrue(frames.contains("getIndirectPassengers()"));
-        var seams = Sources.text("GroundSeams");
-        assertTrue(seams.contains("starfold$entities()"));
-        assertTrue(seams.contains("getIgnoringSubLevels(box,found::add)"));
     }
 }

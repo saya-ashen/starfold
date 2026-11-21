@@ -2,9 +2,10 @@ package dev.starfold;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 class PendingArrivalTest {
     @AfterEach

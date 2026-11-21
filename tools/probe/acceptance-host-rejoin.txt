@@ -1,0 +1,8 @@
+# Same hive after a clean stop and new server JVM, before the respawn cooldown expires.
+strict
+waitworld
+wait 300
+check host-still-defeated unless entity @e[type=starfold_biotech:host,distance=..150]
+check ganglion-after-restart if entity @e[type=minecraft:item,distance=..150,nbt={Item:{id:"starfold_biotech:host_ganglion"}}]
+shot flesh-after-restart
+quit

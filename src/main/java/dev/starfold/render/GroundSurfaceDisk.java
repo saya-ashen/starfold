@@ -22,8 +22,12 @@ final class GroundSurfaceDisk {
             for (int i = 0; i < count; i++) {
                 long key = in.readLong(), revision = in.readLong();
                 int size = in.readInt();
-                if (key < 0 || key >= GroundViewPackets.CHUNKS || seen.get((int) key)
-                        || revision < 0 || size < 1542 || size > GroundSurfaceCodec.MAX_BYTES)
+                if (key < 0
+                        || key >= GroundViewPackets.CHUNKS
+                        || seen.get((int) key)
+                        || revision < 0
+                        || size < 1542
+                        || size > GroundSurfaceCodec.MAX_BYTES)
                     throw new IOException("Surface cache entry");
                 seen.set((int) key);
                 byte[] packed = new byte[size];
@@ -39,7 +43,8 @@ final class GroundSurfaceDisk {
     static void save(Path file, Map<Long, GroundSurface> images) throws IOException {
         Files.createDirectories(file.getParent());
         Path temp = file.resolveSibling(file.getFileName() + ".tmp");
-        try (var out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(temp)))) {
+        try (var out =
+                new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(temp)))) {
             out.writeInt(FORMAT);
             out.writeInt(dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION);
             out.writeInt(GroundSurfaceIndex.SURFACE_FORM);
@@ -53,7 +58,11 @@ final class GroundSurfaceDisk {
             }
         }
         try {
-            Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(
+                    temp,
+                    file,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
         } catch (AtomicMoveNotSupportedException e) {
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
         }

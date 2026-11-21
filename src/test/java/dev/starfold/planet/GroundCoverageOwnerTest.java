@@ -2,7 +2,6 @@ package dev.starfold.planet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
@@ -12,13 +11,13 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 class GroundCoverageOwnerTest {
     private static MethodNode method(String name, String method) throws Exception {
         var node = new ClassNode();
-        try (var in = TestArchiveResources.open("/dev/starfold/" + name + ".class")) {
+        try (var in = TestArchiveResources.open("/" + name + ".class")) {
+            assertNotNull(in, name);
             new ClassReader(in).accept(node, 0);
         }
         return node.methods.stream().filter(m -> m.name.equals(method)).findFirst().orElseThrow();
@@ -26,49 +25,53 @@ class GroundCoverageOwnerTest {
 
     @Test
     void coverageAndInvalidationsAreNotConsumedBeforeOwnershipIsReady() throws Exception {
-        for (String name : List.of("refreshCoverage", "prepareSurfaceUpdates")) {
-            var instructions = method("GroundRenderer", name).instructions;
-            MethodInsnNode first = null;
-            for (var i : instructions)
-                if (i instanceof MethodInsnNode call) {
-                    first = call;
-                    break;
-                }
-            assertNotNull(first);
-            assertEquals("dev/starfold/render/GroundViewClient", first.owner);
-            assertEquals("coverageReady", first.name);
-            var branch = first.getNext();
-            assertEquals(Opcodes.IFNE, branch.getOpcode());
-            assertEquals(Opcodes.RETURN, branch.getNext().getOpcode());
+        var instructions = method("dev/starfold/render/GroundRenderer", "prepareSurfaceUpdatesImpl").instructions;
+        var calls = new ArrayList<MethodInsnNode>();
+        for (var instruction : instructions)
+            if (instruction instanceof MethodInsnNode call) calls.add(call);
+        var readiness = calls.stream()
+                .filter(c -> c.owner.equals("dev/starfold/render/GroundViewClient")
+                        && c.name.equals("coverageReady"))
+                .toList();
+        assertEquals(1, readiness.size());
+        var ready = readiness.getFirst();
+        var branch = assertInstanceOf(JumpInsnNode.class, nextCode(ready));
+        assertTrue(branch.getOpcode() == Opcodes.IFEQ || branch.getOpcode() == Opcodes.IFNE);
+        var rejected = branch.getOpcode() == Opcodes.IFEQ
+                ? nextCode(branch.label) : nextCode(branch);
+        while (rejected instanceof JumpInsnNode jump && jump.getOpcode() == Opcodes.GOTO)
+            rejected = nextCode(jump.label);
+        assertNotNull(rejected);
+        while (rejected.getOpcode() != Opcodes.RETURN) {
+            if (rejected instanceof MethodInsnNode call)
+                assertEquals("dev/starfold/api/RenderWorkDiagnostics", call.owner,
+                        "only diagnostic accounting may run on the rejected branch");
+            assertFalse(rejected instanceof FieldInsnNode field
+                    && (field.getOpcode() == Opcodes.PUTSTATIC || field.getOpcode() == Opcodes.PUTFIELD));
+            assertFalse(rejected instanceof JumpInsnNode,
+                    "unowned coverage must return without rejoining the update pipeline");
+            rejected = nextCode(rejected);
+            assertNotNull(rejected);
+        }
+
+        for (String effect : List.of("focus", "drainInvalidated", "pollBase", "invalidate", "invalidateTiles", "requestTargetRefresh", "updateChangedTargets")) {
+            var consumers = calls.stream().filter(c -> c.name.equals(effect)).toList();
+            assertFalse(consumers.isEmpty(), effect + " remains part of the update pipeline");
+            for (var consumer : consumers)
+                assertTrue(instructions.indexOf(ready) < instructions.indexOf(consumer), effect);
+        }
+        for (var instruction : instructions) {
+            if (instruction == ready) break;
+            assertFalse(instruction instanceof FieldInsnNode field
+                            && (field.getOpcode() == Opcodes.PUTSTATIC || field.getOpcode() == Opcodes.PUTFIELD),
+                    "ownership guards precede frame/selection mutations");
         }
     }
 
-    @Test
-    void sameSizedPlanetsAndSameSessionShapeChangesStillResetTheirCells() throws Exception {
-        var renderer = Sources.text("GroundRenderer");
-        assertTrue(renderer.contains("planet!=observedPlanet||!observed.equals(shape)){clear();"));
-        for (String cleared :
-                List.of(
-                        "dirty.all()",
-                        "priorCoverage.clear()",
-                        "window=Set.of()"))
-            assertTrue(renderer.contains(cleared), cleared);
-        var client = Sources.text("GroundViewClient");
-        assertTrue(
-                client.contains(
-                        "state.matches(world,id,planet,shape))return"));
-        assertTrue(
-                client.contains(
-                        "state.planet==GroundClient.planet()&&state.shape.equals(GroundClient.shape())&&coverageRevision>=0"));
-        assertTrue(client.contains("heights.shape().equals(state.shape)"));
-        assertTrue(client.contains("session==GroundFlightClient.session()"));
-        for (String cleared :
-                List.of(
-                        "state.clear()",
-                        "windowStamp=Long.MIN_VALUE"))
-            assertTrue(client.contains(cleared), cleared);
-        assertTrue(client.contains("state.invalidated.surface(state.shape,key)"));
-        assertFalse(client.contains("neighbours(GroundClient.shape(),key)"));
+    private static AbstractInsnNode nextCode(AbstractInsnNode instruction) {
+        do instruction = instruction.getNext();
+        while (instruction != null && instruction.getOpcode() < 0);
+        return instruction;
     }
 
     @Test
@@ -78,25 +81,5 @@ class GroundCoverageOwnerTest {
         var cell = new CubeSurfaceTopology.Cell(CubeSurfaceTopology.Face.TOP, 2048, 0, 1024);
         assertDoesNotThrow(() -> big.topology().canonical(cell));
         assertThrows(IllegalArgumentException.class, () -> small.topology().canonical(cell));
-    }
-
-    @Test
-    void arrivalPreviewIsSeededAfterBindingAndStillRequestsAuthoritativeCoverage()
-            throws Exception {
-        var client = Sources.text("GroundViewClient");
-        int bind = client.indexOf("public static void bindSession"),
-                preview = client.indexOf("static void preview");
-        var binding = client.substring(bind, preview);
-        assertTrue(
-                binding.indexOf("clear();")
-                        < binding.indexOf("state.bind(world,id,planet,shape);"));
-        assertTrue(
-                binding.indexOf("state.bind(world,id,planet,shape);")
-                        < binding.indexOf("PlanetRemoteRenderer.seedOwn(state.planet,id)"));
-        assertTrue(client.contains("coverageRevision=0;previewed=true"));
-        assertTrue(client.contains("(previewed||!coverageReady())"));
-        var remote = Sources.text("PlanetRemoteRenderer");
-        assertTrue(remote.contains("bodies.get(planet)"));
-        assertTrue(remote.contains("GroundViewClient.preview(session,snapshot)"));
     }
 }

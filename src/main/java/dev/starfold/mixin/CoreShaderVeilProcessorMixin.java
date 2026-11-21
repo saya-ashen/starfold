@@ -39,6 +39,7 @@ public abstract class CoreShaderVeilProcessorMixin {
                 (vertex || shaderType == GL20.GL_FRAGMENT_SHADER)
                         && RendererGuard.pipelineSupported();
         if (ours) source = CoreShaderSource.hooks(name, vertex, source);
+        source = CoreShaderSource.veilFragment(id, shaderType == GL20.GL_FRAGMENT_SHADER, source);
         String processed =
                 original.call(custom, name, id, format, buffers, shaderType, source, capabilities);
         return ours ? CoreShaderSource.wrap(name, vertex, processed) : processed;

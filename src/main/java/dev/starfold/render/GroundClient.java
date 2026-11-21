@@ -28,7 +28,6 @@ import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.ship.HelmInputClient;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.sky.Space;
@@ -42,7 +41,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
 
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
 /** Native movement/inventory remain untouched. This adapter only supplies render coordinates. */
 public final class GroundClient {
@@ -56,22 +54,14 @@ public final class GroundClient {
 
     public static PlanetGap gap() {
         if (renderFrame.active) return renderFrame.frameGap;
-        return new PlanetGap(shape(), Face.VALUES[face()], eye(), view(), observer.repair, observer.air, true);
+        return new PlanetGap(
+                shape(), Face.VALUES[face()], eye(), view(), true, observer.air, true);
     }
 
     /** The curved view of the observed planet from where the observer is. */
     public static PlanetOrbit orbit() {
         if (renderFrame.active) return renderFrame.frameOrbit;
         return new PlanetOrbit(shape(), pose(), eye(), view());
-    }
-
-    static void patchFade(float fade) {
-        renderFrame.patchFade = fade;
-    }
-
-    static void lod(long key, float fade) {
-        renderFrame.lodKey = key;
-        renderFrame.lodFade = fade;
     }
 
     public static void source(int face, boolean mesh) {
@@ -82,30 +72,12 @@ public final class GroundClient {
         renderFrame.source = face;
         renderFrame.derived = mesh;
         renderFrame.coarse = sky;
-        renderFrame.patchFade = 1;
-        renderFrame.cover = false;
-        renderFrame.stitch = false;
-        renderFrame.lodKey = -1;
-        renderFrame.lodFade = 1;
-    }
-
-    public static void cover(boolean value) {
-        renderFrame.cover = value;
-    }
-
-    public static void stitch(boolean value) {
-        renderFrame.stitch = value;
     }
 
     public static void sourceEnd() {
         renderFrame.source = -1;
-        renderFrame.patchFade = 1;
         renderFrame.derived = false;
         renderFrame.coarse = false;
-        renderFrame.cover = false;
-        renderFrame.stitch = false;
-        renderFrame.lodKey = -1;
-        renderFrame.lodFade = 1;
     }
 
     public static boolean projectedFrame() {
@@ -246,8 +218,10 @@ public final class GroundClient {
                 || observer.chartFrame == null) return false;
         if (planet() != observer.chartFrame.planet()
                 || observer.chartFrame.planet() >= observer.model.count()) return false;
-        if (!observer.accepts(storage(mc.player.getPosition(renderFrame.partial)),
-                storage(mc.player.getEyePosition(renderFrame.partial)), GroundFlightClient.controlled())) return false;
+        if (!observer.accepts(
+                storage(mc.player.getPosition(renderFrame.partial)),
+                storage(mc.player.getEyePosition(renderFrame.partial)),
+                GroundFlightClient.controlled())) return false;
         return PlanetAir.canSample(shape(), eye());
     }
 
@@ -343,7 +317,9 @@ public final class GroundClient {
     public static double time() {
         return GroundFlightClient.controlled()
                 ? GroundFlightClient.time()
-                : observer.tick + Math.max(0, level.getGameTime() - observer.received) + renderFrame.partial;
+                : observer.tick
+                        + Math.max(0, level.getGameTime() - observer.received)
+                        + renderFrame.partial;
     }
 
     public static int face() {
@@ -390,7 +366,8 @@ public final class GroundClient {
 
     public static java.util.List<GroundEphemeris.Star> suns() {
         long now = level == null ? 0 : level.getGameTime();
-        if (observer.sunsOf == observer.model && now - observer.sunsChosen < 20) return observer.suns;
+        if (observer.sunsOf == observer.model && now - observer.sunsChosen < 20)
+            return observer.suns;
         var all = new java.util.ArrayList<>(observer.model.visibleStars());
         if (all.size() > SUNS) {
             var eye = universeEye();
@@ -456,6 +433,7 @@ public final class GroundClient {
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
+        GroundAntiAliasing.initialize(modBus);
         initializeNavigation(modBus);
         registerChartFrame();
         registerDebugText();
@@ -483,8 +461,8 @@ public final class GroundClient {
 
     private static void registerChartFrame() {
         StarfoldNetwork.clientReceiver(
-                GroundFlightPackets.Frame.TYPE, (packet, context) -> observer.chartFrame = packet.frame());
-
+                GroundFlightPackets.Frame.TYPE,
+                (packet, context) -> observer.chartFrame = packet.frame());
     }
 
     private static void registerDebugText() {
@@ -504,8 +482,21 @@ public final class GroundClient {
                                                         java.util.Locale.ROOT,
                                                         " sunlight %.2f",
                                                         sunlight()));
-                        if(GroundViewClient.terrain()!=null)event.getLeft().add("[Starfold] " + dev.starfold.PlanetPlayers.climate(
-                                dev.starfold.api.PlanetSeasons.reading(observer.model, planet(), universeEye(), time(), GroundViewClient.terrain().terrainPlan())).getString());
+                        if (GroundViewClient.terrain() != null)
+                            event.getLeft()
+                                    .add(
+                                            "[Starfold] "
+                                                    + dev.starfold.PlanetPlayers.climate(
+                                                                    dev.starfold.api.PlanetSeasons
+                                                                            .reading(
+                                                                                    observer.model,
+                                                                                    planet(),
+                                                                                    universeEye(),
+                                                                                    time(),
+                                                                                    GroundViewClient
+                                                                                            .terrain()
+                                                                                            .terrainPlan()))
+                                                            .getString());
                     }
                 });
     }
@@ -514,7 +505,12 @@ public final class GroundClient {
         GroundViewClient.initialize();
         GroundRenderer.initialize(modBus);
         StarfoldNetwork.clientReceiver(
-                GroundPackets.Shapes.TYPE, (packet, context) -> packet.assign());
+                GroundPackets.Shapes.TYPE,
+                (packet, context) -> {
+                    // The codec already installed this catalog before subsequent packet validation.
+                    // Reapplying here could roll back a newer catalog decoded before this handler
+                    // ran.
+                });
     }
 
     private static void registerSky() {
@@ -542,8 +538,6 @@ public final class GroundClient {
                     if (!active()) {
                         level = null;
                         observer.model = null;
-                        observer.heldF8 = false;
-                        observer.repair = true;
                         observer.air = GroundAir.DEFAULT;
                         return;
                     }
@@ -551,15 +545,6 @@ public final class GroundClient {
                         level = mc.level;
                         observer.model = null;
                     }
-                    boolean f8 =
-                            mc.screen == null
-                                    && mc.isWindowActive()
-                                    && org.lwjgl.glfw.GLFW.glfwGetKey(
-                                                    mc.getWindow().getWindow(),
-                                                    org.lwjgl.glfw.GLFW.GLFW_KEY_F8)
-                                            == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-                    if (f8 && !observer.heldF8) observer.repair = !observer.repair;
-                    observer.heldF8 = f8;
                 });
     }
 
@@ -634,8 +619,11 @@ public final class GroundClient {
                                 (g, d) -> {
                                     com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
                                     try {
-                                        if (DEBUG_HUD && ready()
-                                                && !Minecraft.getInstance().getDebugOverlay().showDebugScreen()) {
+                                        if (DEBUG_HUD
+                                                && ready()
+                                                && !Minecraft.getInstance()
+                                                        .getDebugOverlay()
+                                                        .showDebugScreen()) {
                                             var mc = Minecraft.getInstance();
                                             g.drawString(
                                                     mc.font,
@@ -650,7 +638,7 @@ public final class GroundClient {
                                             g.drawString(
                                                     mc.font,
                                                     "Six-face adjacency / shared exterior / flight"
-                                                        + " integration",
+                                                            + " integration",
                                                     8,
                                                     21,
                                                     0xffcc66,
@@ -696,11 +684,22 @@ public final class GroundClient {
         renderFrame.frameHome = home();
         var shape = shape();
         var face = Face.VALUES[face()];
-        renderFrame.frameUniverseEye = renderFrame.frameHome.world(
-                shape.direction(face, renderFrame.frameEye.x(), renderFrame.frameEye.z()).scale(shape.radius() + renderFrame.frameEye.y()));
+        renderFrame.frameUniverseEye =
+                renderFrame.frameHome.world(
+                        shape.direction(face, renderFrame.frameEye.x(), renderFrame.frameEye.z())
+                                .scale(shape.radius() + renderFrame.frameEye.y()));
         renderFrame.frameStar = observer.model.star(renderFrame.frameUniverseEye);
-        renderFrame.frameOrbit = new PlanetOrbit(shape, renderFrame.framePose, renderFrame.frameEye, view());
-        renderFrame.frameGap = new PlanetGap(shape, face, renderFrame.frameEye, view(), observer.repair, observer.air, true);
+        renderFrame.frameOrbit =
+                new PlanetOrbit(shape, renderFrame.framePose, renderFrame.frameEye, view());
+        renderFrame.frameGap =
+                new PlanetGap(
+                        shape,
+                        face,
+                        renderFrame.frameEye,
+                        view(),
+                        true,
+                        observer.air,
+                        true);
         renderFrame.active = true;
         saveCoverageBinding();
     }
@@ -713,6 +712,8 @@ public final class GroundClient {
     }
 
     public static void end() {
+        GroundEdgeFilter.endNative();
+        GroundTemporalFilter.end();
         if (renderFrame.active) restoreCoverageBinding();
         renderFrame.active = false;
         sourceEnd();
@@ -723,8 +724,11 @@ public final class GroundClient {
     }
 
     private static void restoreCoverageBinding() {
-        try { renderFrame.coverageBinding.close(); }
-        finally { renderFrame.coverageBinding = null; }
+        try {
+            renderFrame.coverageBinding.close();
+        } finally {
+            renderFrame.coverageBinding = null;
+        }
     }
 
     public static void apply(ShaderInstance shader) {

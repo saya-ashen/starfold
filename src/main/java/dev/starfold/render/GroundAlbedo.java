@@ -17,13 +17,11 @@ import java.util.*;
  * Atlas images are borrowed read-only; averages are discarded on resource reload. */
 public final class GroundAlbedo {
     // Read by LOD workers too; sprites keep identity equality.
-    private static final Map<TextureAtlasSprite, int[]> pixels = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final Map<TextureAtlasSprite, Map<Integer, Integer>> colors =
+    private static final Map<TextureAtlasSprite, double[]> averages =
             new java.util.concurrent.ConcurrentHashMap<>();
 
     public static void clear() {
-        pixels.clear();
-        colors.clear();
+        averages.clear();
     }
 
     /** Sample the emitting block, not the enclosing tile or the block outside a wall. */
@@ -43,7 +41,10 @@ public final class GroundAlbedo {
         double z = (minZ + maxZ) * .5 - (minZ == maxZ ? Math.signum(normal.z()) * .01 : 0);
         return new BlockPos(
                 face * 4096 + (int) Math.floor(x),
-                (int)Math.floor(points.stream().mapToDouble(Point::y).average().orElseThrow()+127.99),
+                (int)
+                        Math.floor(
+                                points.stream().mapToDouble(Point::y).average().orElseThrow()
+                                        + 127.99),
                 (int) Math.floor(z));
     }
 
@@ -53,10 +54,14 @@ public final class GroundAlbedo {
 
     public static int color(
             BlockState state, BlockPos pos, net.minecraft.world.level.BlockAndTintGetter view) {
-        return color(state,pos,view,Direction.UP);
+        return color(state, pos, view, Direction.UP);
     }
 
-    static int color(BlockState state, BlockPos pos, net.minecraft.world.level.BlockAndTintGetter view, Direction face) {
+    static int color(
+            BlockState state,
+            BlockPos pos,
+            net.minecraft.world.level.BlockAndTintGetter view,
+            Direction face) {
         var mc = Minecraft.getInstance();
         var fluid = state.getFluidState();
         var handler =
@@ -87,49 +92,55 @@ public final class GroundAlbedo {
                 if (value != -1) tint = value & 0xffffff;
             }
         }
-        int rgb = tint;
-        return colors.computeIfAbsent(sprite, s -> new java.util.concurrent.ConcurrentHashMap<>())
-                .computeIfAbsent(
-                        rgb,
-                        t ->
-                                average(
-                                        pixels.computeIfAbsent(
-                                                sprite,
-                                                s ->
-                                                        ((SpriteAccess) (Object) s.contents())
-                                                                .starfold$cubicImage()
-                                                                .getPixelsRGBA()),
-                                        t));
+        return color(sprite, tint);
+    }
+
+    /** Reuse an already resolved face sprite/tint without querying the model a second time. */
+    static int color(TextureAtlasSprite sprite, int tint) {
+        return tint(averages.computeIfAbsent(sprite,
+                s -> averageChannels(((SpriteAccess) (Object) s.contents())
+                        .starfold$cubicImage().getPixelsRGBA())), tint & 0xffffff);
     }
 
     /** Preserve the cache's mixed-material variation, calibrated to the actual textured biome colour. */
     static int calibrate(int mixed, int map, int albedo) {
-        int out=0;
-        for(int shift : new int[]{16,8,0}) {
-            double base=CubicColor.linear((map>>shift&255)/255.);
-            double value=CubicColor.linear((mixed>>shift&255)/255.)
-                    *CubicColor.linear((albedo>>shift&255)/255.)/Math.max(.001,base);
-            out=out<<8 | (int)Math.round(255*CubicColor.encoded(Math.clamp(value,0,1)));
+        int out = 0;
+        for (int shift : new int[] {16, 8, 0}) {
+            double base = CubicColor.linear((map >> shift & 255) / 255.);
+            double value =
+                    CubicColor.linear((mixed >> shift & 255) / 255.)
+                            * CubicColor.linear((albedo >> shift & 255) / 255.)
+                            / Math.max(.001, base);
+            out = out << 8 | (int) Math.round(255 * CubicColor.encoded(Math.clamp(value, 0, 1)));
         }
         return out;
     }
 
     /** Ignore cutout holes; average the visible texture, then multiply by the vanilla tint. */
     public static int average(int[] abgr, int tint) {
+        return tint(averageChannels(abgr), tint);
+    }
+
+    /** Preserve unrounded channels: rounding before tinting would change resource-pack colours. */
+    static double[] averageChannels(int[] abgr) {
         double[] sum = new double[3];
         double weight = 0;
         for (int pixel : abgr) {
             if ((pixel >>> 24) < 26) continue;
             weight++;
             for (int j = 0; j < 3; j++)
-                sum[j] +=
-                        CubicColor.linear((pixel >> (8*j) & 255)/255.0);
+                sum[j] += CubicColor.linear((pixel >> (8 * j) & 255) / 255.0);
         }
-        if (weight == 0) return 0xff00ff;
+        if (weight == 0) return new double[0];
+        for (int j = 0; j < 3; j++) sum[j] = CubicColor.encoded(sum[j] / weight);
+        return sum;
+    }
+
+    static int tint(double[] channels, int tint) {
+        if (channels.length == 0) return 0xff00ff;
         int out = 0;
-        for (int j=0;j<3;j++)
-            out = out<<8 | (int)Math.round(CubicColor.encoded(sum[j]/weight)
-                    * (tint >> (16-8*j) & 255));
+        for (int j = 0; j < 3; j++)
+            out = out << 8 | (int) Math.round(channels[j] * (tint >> (16 - 8 * j) & 255));
         return out;
     }
 

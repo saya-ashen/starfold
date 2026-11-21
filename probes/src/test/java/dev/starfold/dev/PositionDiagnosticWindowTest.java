@@ -11,11 +11,13 @@ class PositionDiagnosticWindowTest {
 
     @Test
     void disabledMissingAndInvalidIdentityFailClosed() {
-        for (var window : new PositionDiagnosticWindow[] {
-                new PositionDiagnosticWindow(false, TARGET.toString()),
-                new PositionDiagnosticWindow(true, null),
-                new PositionDiagnosticWindow(true, "D1Smoke"),
-                new PositionDiagnosticWindow(true, "1-1-1-1-1")}) {
+        for (var window :
+                new PositionDiagnosticWindow[] {
+                    new PositionDiagnosticWindow(false, TARGET.toString()),
+                    new PositionDiagnosticWindow(true, null),
+                    new PositionDiagnosticWindow(true, "D1Smoke"),
+                    new PositionDiagnosticWindow(true, "1-1-1-1-1")
+                }) {
             assertFalse(window.enabled());
             assertEquals(0, window.reserve(TARGET, 0));
             assertFalse(window.stack(0, true));
@@ -30,9 +32,11 @@ class PositionDiagnosticWindowTest {
         assertEquals(1, window.reserve(TARGET, start));
         assertEquals(2, window.reserve(TARGET, start + 1));
         // No connection-specific reset exists: later sessions share the original deadline and IDs.
-        assertEquals(3, window.reserve(TARGET, start + PositionDiagnosticWindow.DURATION_NANOS - 1));
+        assertEquals(
+                3, window.reserve(TARGET, start + PositionDiagnosticWindow.DURATION_NANOS - 1));
         assertEquals(0, window.reserve(TARGET, start + PositionDiagnosticWindow.DURATION_NANOS));
-        assertEquals(0, window.reserve(TARGET, start + PositionDiagnosticWindow.DURATION_NANOS * 2));
+        assertEquals(
+                0, window.reserve(TARGET, start + PositionDiagnosticWindow.DURATION_NANOS * 2));
         assertFalse(window.stack(0, true));
     }
 

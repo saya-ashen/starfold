@@ -5,7 +5,6 @@ import static dev.starfold.sky.SpaceTest.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -69,7 +68,8 @@ class SpaceTurnTest {
                                 tick,
                                 pivot,
                                 Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20);
-                assertTrue(delta.angle() <= Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20 + 1e-10);
+                assertTrue(
+                        delta.angle() <= Math.toRadians(SpaceFlightMath.ALIGN_TURN) / 20 + 1e-10);
                 var next = frame.turned(delta, pivot);
                 point(frame.universe(pivot, model, tick), next.universe(pivot, model, tick));
                 frame = next;
@@ -313,11 +313,19 @@ class SpaceTurnTest {
         assertTrue(relabel.contains("Space$Frame.universe"));
         assertTrue(relabel.contains("Space$Frame.level"));
         assertTrue(relabel.contains("SableFrames.move"));
-        for (String forbidden : java.util.List.of("addLinearAndAngularVelocity", "setDeltaMovement", "teleportTo", "resetVelocity"))
+        for (String forbidden :
+                java.util.List.of(
+                        "addLinearAndAngularVelocity",
+                        "setDeltaMovement",
+                        "teleportTo",
+                        "resetVelocity"))
             assertFalse(relabel.stream().anyMatch(c -> c.endsWith("." + forbidden)), forbidden);
-        // The lead must branch around the relabel operation; all other hulls keep the same universe motion.
+        // The lead must branch around the relabel operation; all other hulls keep the same universe
+        // motion.
         var relabelMethod = SpaceBytecode.method("space/SpaceServer", "relabelTurn");
-        assertTrue(java.util.stream.StreamSupport.stream(relabelMethod.instructions.spliterator(), false)
-                .anyMatch(i -> i.getOpcode() == org.objectweb.asm.Opcodes.IF_ACMPEQ));
+        assertTrue(
+                java.util.stream.StreamSupport.stream(
+                                relabelMethod.instructions.spliterator(), false)
+                        .anyMatch(i -> i.getOpcode() == org.objectweb.asm.Opcodes.IF_ACMPEQ));
     }
 }

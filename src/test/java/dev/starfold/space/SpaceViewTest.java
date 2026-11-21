@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
@@ -30,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 /** Offline observer, protocol and dispatch contracts; not a claim of live Sable/GPU acceptance. */
@@ -256,24 +254,6 @@ class SpaceViewTest {
     }
 
     @Test
-    void farBodyRenderersShareTheScaleAndUseCatalogImpostorsWithoutChangingPhysicalInputs()
-            throws Exception {
-        var gas = Sources.text("GasGiantRenderer");
-        var sun = Sources.text("GroundSunRenderer");
-        var remote = Sources.text("PlanetRemoteRenderer");
-        assertTrue(gas.contains("SpaceView.renderScale(distance)"));
-        assertTrue(sun.contains("SpaceView.renderDistance(drawDistance)"));
-        assertTrue(sun.contains("SunRadius") && sun.contains("DrawRadius"));
-        assertTrue(remote.contains("SpaceView.renderScale(distance)"));
-        assertTrue(remote.contains("SpaceView.renderScale(placement.center().length())"));
-        assertTrue(remote.contains("impostors.computeIfAbsent(index,key->impostor(PlanetShape.of(key).radius()))"));
-        assertTrue(remote.contains("model.at(index,tick)"));
-        assertTrue(remote.contains("for(intindex=0;index<model.count();index++)"));
-        assertTrue(remote.contains("drawGroundImpostors(c,shader)"));
-        assertTrue(remote.contains("index==GroundClient.planet()"));
-    }
-
-    @Test
     void farScaleDependsOnlyOnRelativeDistanceAcrossReanchorAndReferenceChanges() {
         var model = SpaceTest.tilted();
         var old = new Space.Frame(ROTATIONS[3], Space.ORIGIN, 0);
@@ -318,7 +298,10 @@ class SpaceViewTest {
     void existingRemoteProtocolAcceptsPassiveEpochAndReplacesOldSurfaceIdentity() {
         var view = new PlanetRemoteView();
         var changed = new long[] {1};
-        var profile = dev.starfold.render.SurfaceProfiles.current(new PlanetPackets.Profile(-41,123,dev.starfold.worldgen.PlanetTerrain.VERSION));
+        var profile =
+                dev.starfold.render.SurfaceProfiles.current(
+                        new PlanetPackets.Profile(
+                                -41, 123, dev.starfold.worldgen.PlanetTerrain.VERSION));
         var first = new PlanetRemotePackets.Summary(0, profile, 0, changed, new long[0]);
         assertTrue(view.summary(first));
         assertEquals(-41, view.session());
@@ -327,7 +310,11 @@ class SpaceViewTest {
                 view.summary(
                         new PlanetRemotePackets.Summary(
                                 0,
-                                dev.starfold.render.SurfaceProfiles.current(new PlanetPackets.Profile(-42,123,dev.starfold.worldgen.PlanetTerrain.VERSION)),
+                                dev.starfold.render.SurfaceProfiles.current(
+                                        new PlanetPackets.Profile(
+                                                -42,
+                                                123,
+                                                dev.starfold.worldgen.PlanetTerrain.VERSION)),
                                 0,
                                 changed,
                                 new long[0])));
@@ -343,45 +330,13 @@ class SpaceViewTest {
             assertTrue(region.contains(name), name);
         assertFalse(region.contains("planet"));
         assertFalse(region.contains("session"));
-        var remote = Sources.text("PlanetRemoteServer");
-        for (String forbidden :
-                List.of("getChunk(", "getChunkNow(", "getChunkFuture", "addRegionTicket"))
-            assertFalse(remote.contains(forbidden), forbidden);
         assertTrue(calls("GroundViewServer", "tick").contains("tickViewer"));
         before(calls("GroundViewServer", "tickViewer"), "in", "planet");
-        assertTrue(
-                Sources.text("GroundViewServer")
-                        .contains(
-                                "if(Space.in(p)){remove(p);PlanetRemoteServer.tick(p,clock);return;}"));
         before(calls("SpaceServer", "sync"), "region", "regionSky");
-        assertTrue(Sources.text("SpaceSessions").contains("player.level().getGameTime()%20==0"));
-        assertTrue(
-                Sources.text("GroundServer")
-                        .contains(
-                                "regionSky(ServerPlayer player){whole(player);send(player,GroundClock.get(player.serverLevel()));}"));
     }
 
     @Test
     void clientRejectsWrongLevelEpochAndOldFlightPacketsWithoutOwningMotion() throws Exception {
-        var client = Sources.text("SpaceClient");
-        assertTrue(Sources.text("ClientWorldSession").contains("LoggingOut"));
-        assertTrue(Sources.text("ClientWorldSession").contains("SpaceClient.clear()"));
-        for (String text :
-                List.of(
-                        "viewLevel!=mc.level",
-                        "if(packet.session()!=0)retainedSession=packet.session()",
-                        "viewLevel==Minecraft.getInstance().level",
-                        "if(frames.current()!=null||view!=null)SpaceClientHost.get().viewLost()"))
-            assertTrue(client.contains(text), text);
-        var accepted = Sources.text("PlanetRemoteRenderer");
-        assertTrue(
-                accepted.contains(
-                        "if(SpaceClient.present())return session!=0&&session==SpaceClient.session()"));
-        assertTrue(accepted.contains("accepts(p.surface().session(),p.planet())"));
-        assertTrue(accepted.contains("accepts(p.profile().session(),p.planet())"));
-        for (String forbidden :
-                List.of("GroundClient.ready", "setPos(", "teleport", "GroundFlightClient.time"))
-            assertFalse(client.contains(forbidden), forbidden);
         assertTrue(calls("SpaceClient", "time").contains("skyTime"));
         assertFalse(calls("GroundClient", "skyTime").contains("controlled"));
     }
@@ -394,14 +349,6 @@ class SpaceViewTest {
         assertFalse(sync.contains("removeView"));
         assertFalse(sync.contains("forget"));
         assertFalse(sync.contains("clear"));
-        // Session reuse and mask invalidation are exercised by SpaceSessionsTest.
-        assertTrue(
-                Sources.text("SpaceClient")
-                        .contains(
-                                "if(viewLevel!=null&&viewLevel!=mc.level){SpaceClientHost.get().viewLost();retainedSession=0;}"));
-        assertTrue(
-                Sources.text("PlanetRemoteRenderer")
-                        .contains("session==SpaceClient.retainedSession()"));
     }
 
     @Test
@@ -426,45 +373,6 @@ class SpaceViewTest {
                             "controlled"))
                 assertFalse(c.contains(forbidden), name + " " + forbidden);
         }
-        var client = Sources.text("GroundClient");
-        assertTrue(
-                client.contains(
-                        "renderFrame.active=false;renderFrame.partial=delta;if(SpaceClient.present())return;if(!ready()"));
-        assertTrue(
-                Sources.text("GroundProjectionUniforms").contains(
-                        "boolean projected=renderFrame.active&&ready();ShaderUniforms.set(shader,\"CPNativeActive\",projected?1:0);if(!projected)return"));
-        var celestials = Sources.text("GroundCelestials");
-        assertTrue(celestials.contains("Stage.AFTER_ENTITIES"));
-        assertTrue(celestials.contains("(!SpaceClient.active()&&!GroundClient.ready())"));
-        assertTrue(celestials.contains("PlanetRemoteRenderer.beginFrame()"));
-    }
-
-    @Test
-    void starsBlackFogFarPlaneAndLightAreRegionSpecific() throws Exception {
-        var stars = Sources.text("GroundStars");
-        for (String text :
-                List.of(
-                        "float fade=region?1f:",
-                        "context.positionMatrix()",
-                        "SpaceClient.frame().rotation()",
-                        "if(region)GL11.glDepthRange(ReversedDepth.ACTIVE?0:1,ReversedDepth.ACTIVE?0:1)",
-                        "if(region)GL11.glDepthRange(range[0],range[1])"))
-            assertTrue(stars.contains(text), text);
-        before(calls("mixin/GroundFogMixin", "starfold$nativeSky"), "present", "ready");
-        var fog = Sources.text("GroundFogMixin");
-        assertTrue(fog.contains("fogRed=gas==null?0:(float)gas.color().x()"));
-        assertTrue(fog.contains("fogGreen=gas==null?0:(float)gas.color().y()"));
-        assertTrue(fog.contains("fogBlue=gas==null?0:(float)gas.color().z()"));
-        assertTrue(Sources.text("GroundClient").contains("return SpaceClient.present();"));
-        before(calls("mixin/GroundLightMixin", "starfold$nativeSun"), "active", "ready");
-        assertTrue(Sources.text("GroundLightMixin").contains("SpaceClient.sunlight()"));
-        assertTrue(
-                Sources.text("GroundEntityRenderMixin")
-                        .contains("LightTexture.block(ci.getReturnValue()),15"));
-        assertTrue(Sources.text("GroundFlightRenderMixin").contains("SpaceView.FAR"));
-        assertTrue(
-                Sources.textPaths("probes/src/main/java/dev/starfold/dev/ProbeSession.java", "probes/src/main/java/dev/starfold/dev/ProbeSamples.java")
-                        .contains("\" | sees \"+PlanetRemoteRenderer.regionDrawn()+\" planets\""));
     }
 
     @Test

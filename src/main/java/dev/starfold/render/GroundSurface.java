@@ -2,15 +2,11 @@ package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.GroundCoordinates;
-import dev.starfold.planet.GroundTopology;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.*;
-import java.util.function.LongConsumer;
 
 /** Immutable packed surface value shared by streaming, disk and rendering. */
 public final class GroundSurface {
@@ -104,8 +100,7 @@ public final class GroundSurface {
                 int x = i & 15, z = i >> 4;
                 if (heights[i] != voxels.top(x, z)
                         || states[i]
-                                != Block.BLOCK_STATE_REGISTRY.getId(
-                                        voxels.state(x, heights[i], z)))
+                                != Block.BLOCK_STATE_REGISTRY.getId(voxels.state(x, heights[i], z)))
                     throw new IllegalArgumentException("GroundSurface and voxel revision disagree");
             }
         this.revision = revision;

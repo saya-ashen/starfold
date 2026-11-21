@@ -81,8 +81,10 @@ class PlanetAccessTest {
                 source.blocks.put(ba.owner(), ba.write(Blocks.WATER.defaultBlockState()));
                 assertSame(Blocks.OAK_STAIRS.defaultBlockState(), view.getBlockState(a));
                 assertSame(Blocks.WATER.defaultBlockState(), view.getBlockState(b));
-                assertTrue(view.getFluidState(b).isSource());
+                assertSame(Blocks.WATER.defaultBlockState().getFluidState(), view.getFluidState(b));
                 assertTrue(view.getFluidState(a).isEmpty());
+                source.blocks.put(ba.owner(), ba.write(Blocks.LAVA.defaultBlockState()));
+                assertSame(Blocks.LAVA.defaultBlockState().getFluidState(), view.getFluidState(b));
                 source.blocks.put(ba.owner(), ba.write(Blocks.GOLD_BLOCK.defaultBlockState()));
                 assertSame(Blocks.GOLD_BLOCK.defaultBlockState(), view.getBlockState(b));
                 assertSame(Blocks.OAK_STAIRS.defaultBlockState(), view.getBlockState(a));

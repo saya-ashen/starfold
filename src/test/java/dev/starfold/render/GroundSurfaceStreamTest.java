@@ -1,10 +1,13 @@
 package dev.starfold.render;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
+
 import org.junit.jupiter.api.Test;
+
 import java.util.HashMap;
-import static org.junit.jupiter.api.Assertions.*;
 
 class GroundSurfaceStreamTest {
     @Test

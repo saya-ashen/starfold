@@ -2,6 +2,7 @@ package dev.starfold.space;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.chart.CelestialTarget;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.flight.ArrivalState;
@@ -11,7 +12,6 @@ import dev.starfold.flight.HudLayout;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.ship.HelmClient;
 import dev.starfold.ship.HelmInputClient;
 import dev.starfold.ship.HullLandingClient;
@@ -35,7 +35,10 @@ public final class SpaceNavigationClient {
     private static java.util.UUID shipSelection;
     private static boolean mapSelection, lockSpace;
     private static RemoteReading remote;
-    private record RemoteReading(String name, SpaceNavigation.Marker marker, double distance, double closing) {}
+
+    private record RemoteReading(
+            String name, SpaceNavigation.Marker marker, double distance, double closing) {}
+
     private static Object lockBody, lockLevel, hintedBody;
     private static List<CelestialNavigation.Candidate> candidates = List.of();
 
@@ -58,15 +61,26 @@ public final class SpaceNavigationClient {
         if (body != hintedBody && body == null) hintedBody = null;
         boolean space = SpaceClient.active();
         if (mapSelection && mc.level == lockLevel) {
-            if (selection != null && !CelestialNavigation.knownTarget(SpaceClientHost.get().ephemeris(), selection.bodyIndex())
-                    || shipSelection != null && dev.starfold.ship.ShipMapClient.find(shipSelection) == null) { lock(null); return; }
+            if (selection != null
+                            && !CelestialNavigation.knownTarget(
+                                    SpaceClientHost.get().ephemeris(), selection.bodyIndex())
+                    || shipSelection != null
+                            && dev.starfold.ship.ShipMapClient.find(shipSelection) == null) {
+                lock(null);
+                return;
+            }
             if (body != lockBody || space != lockSpace) {
                 if (space && body != null) {
-                    if (shipSelection != null) net.neoforged.neoforge.network.PacketDistributor.sendToServer(new dev.starfold.ship.ShipMapPackets.Target(-1, shipSelection));
-                    else if (selection != null) net.neoforged.neoforge.network.PacketDistributor.sendToServer(new SpacePackets.Target(selection.bodyIndex()));
+                    if (shipSelection != null)
+                        net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                                new dev.starfold.ship.ShipMapPackets.Target(-1, shipSelection));
+                    else if (selection != null)
+                        net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                                new SpacePackets.Target(selection.bodyIndex()));
                 }
             }
-            lockBody = body; lockSpace = space;
+            lockBody = body;
+            lockSpace = space;
             return;
         }
         if (!space
@@ -86,39 +100,50 @@ public final class SpaceNavigationClient {
     public static void target(int bodyIndex) {
         lock(CelestialTarget.resolve(SpaceClientHost.get().ephemeris(), bodyIndex));
         mapSelection = true;
-        lockBody = HelmClient.body(); lockLevel = Minecraft.getInstance().level; lockSpace = SpaceClient.active();
+        lockBody = HelmClient.body();
+        lockLevel = Minecraft.getInstance().level;
+        lockSpace = SpaceClient.active();
     }
 
     public static void targetShip(java.util.UUID ship) {
         lock(null);
-        shipSelection = ship; mapSelection = true;
-        lockBody = HelmClient.body(); lockLevel = Minecraft.getInstance().level; lockSpace = SpaceClient.active();
+        shipSelection = ship;
+        mapSelection = true;
+        lockBody = HelmClient.body();
+        lockLevel = Minecraft.getInstance().level;
+        lockSpace = SpaceClient.active();
     }
 
     private static void lock(CelestialTarget target) {
         if (Objects.equals(selection, target) && shipSelection == null && !mapSelection) return;
-        shipSelection = null; mapSelection = false;
+        shipSelection = null;
+        mapSelection = false;
         selection = target;
         var mc = Minecraft.getInstance();
         if (mc.getConnection() != null)
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
                     new SpacePackets.Target(target == null ? -1 : target.bodyIndex()));
-        if (target != null && mc.player != null && HelmClient.body() != null && SpaceClient.active()) {
+        if (target != null
+                && mc.player != null
+                && HelmClient.body() != null
+                && SpaceClient.active()) {
             var ids = cycle();
             var model = SpaceClientHost.get().ephemeris();
             var body = target.body(model);
-            String text = body.light() ? body.id().region() + "-" + body.id().index() :
-                    body.gas().isPresent()
-                            ? net.minecraft.client.resources.language.I18n.get(
-                                            body.gas().orElseThrow().name())
-                                    + " · "
-                                    + net.minecraft.client.resources.language.I18n.get(
-                                            "hud.starfold.instrument_gas_nonlandable")
-                            : caption(
-                                    target.requireSurfaceSlot(model),
-                                    ids.indexOf(target) + 1,
-                                    ids.size(),
-                                    mc.getWindow().getGuiScaledWidth() - 32);
+            String text =
+                    body.light()
+                            ? body.id().region() + "-" + body.id().index()
+                            : body.gas().isPresent()
+                                    ? net.minecraft.client.resources.language.I18n.get(
+                                                    body.gas().orElseThrow().name())
+                                            + " · "
+                                            + net.minecraft.client.resources.language.I18n.get(
+                                                    "hud.starfold.instrument_gas_nonlandable")
+                                    : caption(
+                                            target.requireSurfaceSlot(model),
+                                            ids.indexOf(target) + 1,
+                                            ids.size(),
+                                            mc.getWindow().getGuiScaledWidth() - 32);
             mc.player.displayClientMessage(
                     net.minecraft.network.chat.Component.literal(text), true);
         }
@@ -482,17 +507,44 @@ public final class SpaceNavigationClient {
         var at = helm.logicalPose().position();
         var pivot = frame.universe(new Point(at.x, at.y, at.z), model, tick);
         int planet = Space.nearest(model, pivot, tick);
-        var shipTarget = shipSelection == null ? null : dev.starfold.ship.ShipMapClient.find(shipSelection);
-        var velocity = shipTarget == null ? CelestialNavigation.velocity(model, frame, selection, tick)
-                : frame.universeVelocity(GroundEphemeris.ZERO, model, tick).sub(MapNavigation.velocity(model, shipTarget, tick));
-        Point destination = shipTarget == null ? null : MapNavigation.position(model, shipTarget, tick);
-        if (selection != null && selection.body(model).light()) destination = selection.frame(model, tick).center();
+        var shipTarget =
+                shipSelection == null ? null : dev.starfold.ship.ShipMapClient.find(shipSelection);
+        var velocity =
+                shipTarget == null
+                        ? CelestialNavigation.velocity(model, frame, selection, tick)
+                        : frame.universeVelocity(GroundEphemeris.ZERO, model, tick)
+                                .sub(MapNavigation.velocity(model, shipTarget, tick));
+        Point destination =
+                shipTarget == null ? null : MapNavigation.position(model, shipTarget, tick);
+        if (selection != null && selection.body(model).light())
+            destination = selection.frame(model, tick).center();
         if (destination != null && tier >= 2) {
-            var marker = projectTarget(context, SpaceView.relative(frame, viewEye, destination), fov, aspect, width, height);
-            String name = shipTarget == null ? bodyName(model, selection)
-                    : shipTarget.name().orElse("SHIP-" + shipTarget.id().region() + "-" + shipTarget.id().index());
-            remote = new RemoteReading(name, marker, destination.sub(pivot).length(),
-                    velocity.dot(destination.sub(pivot)) / Math.max(1e-12, destination.sub(pivot).length()) * 20);
+            var marker =
+                    projectTarget(
+                            context,
+                            SpaceView.relative(frame, viewEye, destination),
+                            fov,
+                            aspect,
+                            width,
+                            height);
+            String name =
+                    shipTarget == null
+                            ? bodyName(model, selection)
+                            : shipTarget
+                                    .name()
+                                    .orElse(
+                                            "SHIP-"
+                                                    + shipTarget.id().region()
+                                                    + "-"
+                                                    + shipTarget.id().index());
+            remote =
+                    new RemoteReading(
+                            name,
+                            marker,
+                            destination.sub(pivot).length(),
+                            velocity.dot(destination.sub(pivot))
+                                    / Math.max(1e-12, destination.sub(pivot).length())
+                                    * 20);
         }
         var local = frame.levelVector(velocity);
         var cameraVelocity =
@@ -593,9 +645,11 @@ public final class SpaceNavigationClient {
                         relativeTo,
                         flight.deltaV(),
                         boost,
-                        remote != null ? remote.closing() : gasTarget != null
-                                ? gasTarget.closing()
-                                : target == null ? 0 : target.closing(),
+                        remote != null
+                                ? remote.closing()
+                                : gasTarget != null
+                                        ? gasTarget.closing()
+                                        : target == null ? 0 : target.closing(),
                         target,
                         list,
                         velocity,
@@ -622,7 +676,8 @@ public final class SpaceNavigationClient {
     }
 
     private static String bodyName(GroundEphemeris.Model model, CelestialTarget body) {
-        if (body.body(model).light()) return body.body(model).id().region() + "-" + body.body(model).id().index();
+        if (body.body(model).light())
+            return body.body(model).id().region() + "-" + body.body(model).id().index();
         return body.body(model)
                 .gas()
                 .map(g -> net.minecraft.client.resources.language.I18n.get(g.name()))
@@ -759,14 +814,23 @@ public final class SpaceNavigationClient {
         if (!mapSelection || SpaceClient.present() || !GroundFlightClient.ready()) return;
         var model = SpaceClientHost.get().ephemeris();
         double tick = SpaceClient.time();
-        var ship = shipSelection == null ? null : dev.starfold.ship.ShipMapClient.find(shipSelection);
-        int slot = ship != null && ship.state() instanceof dev.starfold.ship.ShipRecord.OnSlot place ? place.slot()
-                : selection == null ? -1 : selection.surfaceSlot(model).orElse(-1);
+        var ship =
+                shipSelection == null ? null : dev.starfold.ship.ShipMapClient.find(shipSelection);
+        int slot =
+                ship != null && ship.state() instanceof dev.starfold.ship.ShipRecord.OnSlot place
+                        ? place.slot()
+                        : selection == null ? -1 : selection.surfaceSlot(model).orElse(-1);
         if (slot >= 0 && slot == SpaceClientHost.get().planet()) return;
-        var destination = ship != null ? MapNavigation.position(model, ship, tick) : selection == null ? null : selection.frame(model, tick).center();
+        var destination =
+                ship != null
+                        ? MapNavigation.position(model, ship, tick)
+                        : selection == null ? null : selection.frame(model, tick).center();
         if (destination == null) return;
-        String name = ship == null ? bodyName(model, selection)
-                : ship.name().orElse("SHIP-" + ship.id().region() + "-" + ship.id().index());
+        String name =
+                ship == null
+                        ? bodyName(model, selection)
+                        : ship.name()
+                                .orElse("SHIP-" + ship.id().region() + "-" + ship.id().index());
         SpaceClientHost.get().groundTarget(g, name, destination);
     }
 
@@ -783,17 +847,24 @@ public final class SpaceNavigationClient {
             var frame = SpaceClient.frame();
             var model = SpaceClientHost.get().ephemeris();
             double tick = SpaceClient.time();
-            var target = shipSelection == null ? null : dev.starfold.ship.ShipMapClient.find(shipSelection);
-            var velocity = target == null ? CelestialNavigation.velocity(model, frame, selection, tick)
-                    : frame.universeVelocity(GroundEphemeris.ZERO, model, tick)
-                            .sub(MapNavigation.velocity(model, target, tick));
+            var target =
+                    shipSelection == null
+                            ? null
+                            : dev.starfold.ship.ShipMapClient.find(shipSelection);
+            var velocity =
+                    target == null
+                            ? CelestialNavigation.velocity(model, frame, selection, tick)
+                            : frame.universeVelocity(GroundEphemeris.ZERO, model, tick)
+                                    .sub(MapNavigation.velocity(model, target, tick));
             FlightWidgets.stopping(g, velocity.length() * 20, helm == null ? -1 : helm.deltaV());
         }
         if (snapshot == null || level != mc.level) return;
         RenderSystem.disableDepthTest();
         try {
             FlightWidgets.render(g, snapshot);
-            if (remote != null) FlightWidgets.remote(g, remote.name(), remote.marker(), remote.distance(), remote.closing());
+            if (remote != null)
+                FlightWidgets.remote(
+                        g, remote.name(), remote.marker(), remote.distance(), remote.closing());
             receipt =
                     " | instruments tier "
                             + snapshot.tier()

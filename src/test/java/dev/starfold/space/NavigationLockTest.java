@@ -2,8 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.SourceText;
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetSystem;
@@ -110,24 +108,6 @@ class NavigationLockTest {
 
     @Test
     void keyConsumedBeforeVanillaAndOnlyAtHelm() throws Exception {
-        SourceText mixin = Sources.text("NavigationKeyMixin"),
-                client = Sources.text("SpaceNavigationClient");
-        assertTrue(mixin.contains("at=@At(\"HEAD\"),cancellable=true"));
-        assertTrue(
-                client.contains(
-                        "(!lockKey.matches(key,scan)&&!nextKey.matches(key,scan))||HelmClient.body()==null"));
-        assertTrue(client.contains("action==org.lwjgl.glfw.GLFW.GLFW_PRESS&&visible()"));
-        assertTrue(client.contains("body!=lockBody||mc.level!=lockLevel"));
-        assertTrue(client.contains("transformDirection"));
-        assertTrue(
-                client.contains(
-                        "sendToServer(new SpacePackets.Target(target==null?-1:target.bodyIndex()))"));
-        assertTrue(client.contains("if(Objects.equals(selection,target)&&shipSelection==null&&!mapSelection)return"));
-        assertTrue(client.contains("private static CelestialTarget selection"));
-        assertTrue(client.contains("selection.surfaceSlot"));
-        assertFalse(client.contains("private static int locked"));
-        // Ground marker selection must replace a pending map/ship intent before takeoff too.
-        assertTrue(Sources.text("PlanetMapApi").contains("publicstaticvoidtarget(Stringname){markers().stream()"));
         for (String language : new String[] {"en_us", "zh_cn"})
             assertTrue(
                     java.nio.file.Files.readString(

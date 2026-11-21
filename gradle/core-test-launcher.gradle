@@ -1,12 +1,14 @@
 // These modules reuse the patched NeoForge launcher while keeping checkout-relative audits.
 dependencies { testImplementation(testFixtures(project(':'))) { transitive = false } }
-test {
-    dependsOn rootProject.tasks.named('testFixturesClasses'), rootProject.tasks.named('prepareNeoForgeTestFiles')
-    doFirst {
+gradle.projectsEvaluated {
+    tasks.named('test', Test) {
+        dependsOn rootProject.tasks.named('testFixturesClasses'), rootProject.tasks.named('prepareNeoForgeTestFiles')
         def mainTest = rootProject.tasks.named('test', Test).get()
-        classpath = (mainTest.classpath - rootProject.sourceSets.test.output) + sourceSets.test.runtimeClasspath
+        classpath = files(providers.provider {
+            (mainTest.classpath - rootProject.sourceSets.test.output) + sourceSets.test.runtimeClasspath
+        })
         systemProperties.putAll(mainTest.systemProperties)
-        systemProperty 'starfold.testArchives', rootProject.sourceSets.main.runtimeClasspath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.join(File.pathSeparator)
+        inputs.files(rootProject.testRuntimeArchives).withPropertyName('testRuntimeArchives').withPathSensitivity(PathSensitivity.NONE)
         jvmArgs = mainTest.jvmArgs
         jvmArgumentProviders.add({
             mainTest.jvmArgumentProviders.collectMany { it.asArguments() as List }.collect { arg ->

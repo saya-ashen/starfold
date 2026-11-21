@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Measured dev.71 survival hull B6 (185 blocks, Sable mass 312.5).
+"""Historical dev.71 hull B6 (185 blocks; reported mass then 312.5).
+Current heavy tags change its dry mass; no current-pack fuelled qualification.
 
 Usage: minimal.py CX DECK_Y CZ [A|B|C] [ballast_layers]
 Default B6 is the first tested passing candidate; not a global minimum.

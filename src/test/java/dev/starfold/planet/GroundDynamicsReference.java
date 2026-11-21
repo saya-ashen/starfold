@@ -31,8 +31,11 @@ final class GroundDynamicsReference {
         return Math.max(1, (int) Math.ceil(motion / .2));
     }
 
-    static Point sweep(GroundEphemeris.Model model, GroundDynamics.Terrain terrain,
-            GroundDynamics.State state, Point velocity) {
+    static Point sweep(
+            GroundEphemeris.Model model,
+            GroundDynamics.Terrain terrain,
+            GroundDynamics.State state,
+            Point velocity) {
         Point p = state.position();
         int count = steps(model, velocity);
         Point part = velocity.scale(1.0 / count);

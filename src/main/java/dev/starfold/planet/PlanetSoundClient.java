@@ -11,10 +11,16 @@ import java.util.WeakHashMap;
 /** Volume-only muffling, not an OpenAL filter. UI, music, records and voice remain untouched. */
 public final class PlanetSoundClient {
     public interface Observer {
-        default boolean enabled() { return false; }
+        default boolean enabled() {
+            return false;
+        }
+
         default void created(SoundInstance sound) {}
+
         default void scaled(SoundInstance sound, double density, boolean self, float scale) {}
+
         default void calculated(SoundInstance sound, float raw, float result, String phase) {}
+
         default void refreshing(boolean value) {}
     }
 

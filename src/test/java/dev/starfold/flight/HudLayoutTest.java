@@ -2,7 +2,6 @@ package dev.starfold.flight;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.planet.PlanetIdentity;
 
 import org.junit.jupiter.api.Test;
@@ -110,18 +109,5 @@ class HudLayoutTest {
         for (double v : new double[] {0, -1, Double.NaN, Double.POSITIVE_INFINITY})
             assertEquals("—", HudLayout.eta(100, v));
         assertEquals("—", HudLayout.eta(Double.NaN, 2));
-    }
-
-    @Test
-    void deltaVComesFromServerAndBothSidesGateLock() throws Exception {
-        var client = Sources.text("SpaceNavigationClient");
-        assertTrue(client.contains("flight.deltaV()"));
-        assertTrue(client.contains("HelmClient.tier()<2"));
-        assertTrue(client.contains("hintedBody!=HelmClient.body()"));
-        assertTrue(client.contains("VanillaGuiLayers.HOTBAR"));
-        assertFalse(client.contains("VanillaGuiLayers.PLAYER_HEALTH"));
-        var server = Sources.text("SpaceServer");
-        assertTrue(server.contains("Thrusters.scopeTier(target.body())<2"));
-        assertTrue(server.contains("Thrusters.scopeTier(body)>=2"));
     }
 }

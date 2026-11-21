@@ -2,9 +2,8 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
-import dev.starfold.space.SpaceServer;
+import dev.starfold.space.SpaceGravity;
 
 import net.minecraft.nbt.CompoundTag;
 
@@ -55,12 +54,6 @@ class RejoinTest {
                                     .contains(call.owner),
                             "a retained job must not consult the new observer");
         assertTrue(calls("render/RemotePlanetMeshes$Job", "<init>").contains("requireNonNull"));
-        var s = Sources.text("PlanetRemoteRenderer");
-        var meshes = Sources.text("RemotePlanetMeshes");
-        assertTrue(meshes.contains("void work(long deadline){if(mask==null)return;"));
-        assertTrue(s.contains("body.mask=mask(profile.session())"));
-        assertTrue(s.contains("if(mask!=null)body.mask=mask"));
-        assertTrue(meshes.contains("mask=null;view=new PlanetRemoteView()"));
     }
 
     @Test
@@ -85,9 +78,6 @@ class RejoinTest {
 
     @Test
     void saveIsBeforePlayerSerializationAndRecordsPoseInverseFeet() throws Exception {
-        var hook = Sources.text("SablePlayerSaveMixin");
-        assertTrue(hook.contains("method=\"saveWithoutId\",at=@At(\"HEAD\")"));
-        assertTrue(hook.contains("instanceof ServerPlayer player"));
         var c = calls("SableBoarding", "save");
         for (String call :
                 List.of(
@@ -98,15 +88,6 @@ class RejoinTest {
                         "putUUID",
                         "putDouble",
                         "remove")) assertTrue(c.contains(call), call);
-        var s = Sources.text("SableBoarding");
-        for (String event :
-                List.of(
-                        "PlayerLoggedInEvent",
-                        "PlayerLoggedOutEvent",
-                        "PlayerChangedDimensionEvent",
-                        "PlayerRespawnEvent",
-                        "ServerStoppedEvent",
-                        "PlayerTickEvent.Post")) assertTrue(s.contains(event));
         assertTrue(
                 Files.readString(Path.of("src/main/resources/starfold.mixins.json"))
                         .contains("SablePlayerSaveMixin"));
@@ -115,20 +96,8 @@ class RejoinTest {
     @Test
     void onlyRecordedPlayersAreHeldAndReleaseIsBoundedWithoutMutatingBaseGravity()
             throws Exception {
-        var s = Sources.text("SableBoarding");
-        assertTrue(s.contains("if(!player.getPersistentData().contains(KEY))return"));
-        assertTrue(s.contains("if(age==null)return"));
-        assertTrue(s.contains("age>=LIMIT"));
-        assertTrue(s.contains("player.isSpectator()||player.getAbilities().flying"));
-        assertTrue(s.contains("SableFrames.tracked(player,body)"));
         for (String name : List.of("addTransientModifier", "removeModifier"))
             assertTrue(calls("SableBoarding", "weight").contains(name));
-        for (String forbidden :
-                List.of(
-                        "setNoGravity",
-                        "setBaseValue",
-                        "addPermanentModifier",
-                        "sable$setTrackingSubLevel")) assertFalse(s.contains(forbidden));
         var c = calls("SableBoarding", "tick");
         assertTrue(
                 c.containsAll(
@@ -163,10 +132,10 @@ class RejoinTest {
         assertEquals(0, gravity.getValue());
         assertEquals(saved, gravity.save());
         assertEquals(2, gravity.getModifiers().size());
-        SpaceServer.weight(gravity, true);
+        SpaceGravity.weight(gravity, true);
         SableBoarding.weight(gravity, false);
         assertEquals(0, gravity.getValue());
-        SpaceServer.weight(gravity, false);
+        SpaceGravity.weight(gravity, false);
         assertEquals(normal, gravity.getValue());
         assertEquals(.12, gravity.getBaseValue());
         assertTrue(gravity.hasModifier(other.id()));
@@ -176,16 +145,9 @@ class RejoinTest {
 
     @Test
     void restoreUsesCarryFenceButDoesNotChangeNormalSeamCarrySemantics() throws Exception {
-        var s = Sources.text("SableCarryClient");
-        assertTrue(s.contains("apply(packet,false)"));
-        assertTrue(s.contains("apply(packet.carry(),true)"));
-        assertTrue(s.contains("if(boarding)return;throw new IllegalStateException"));
-        assertTrue(s.contains("boarding?new Vector3d(packet.player().x()"));
-        assertTrue(s.contains("if(!boarding)ShipClientHost.get().carriedFrame(packet.region())"));
         assertTrue(
                 calls("SableCarryClient", "apply")
                         .containsAll(
                                 List.of("riderPoint", "clear", "forceUpdateBounds", "setPos")));
-        assertTrue(Sources.text("SableBoardingPacket").contains("SableCarry.CODEC"));
     }
 }

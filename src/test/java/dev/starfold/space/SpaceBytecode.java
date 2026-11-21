@@ -1,6 +1,7 @@
 package dev.starfold.space;
 
 import dev.starfold.TestArchiveResources;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -26,6 +27,7 @@ final class SpaceBytecode {
 
     static void before(java.util.List<String> calls, String first, String second) {
         org.junit.jupiter.api.Assertions.assertTrue(calls.contains(first), first);
-        org.junit.jupiter.api.Assertions.assertTrue(calls.indexOf(second) > calls.indexOf(first), first + " before " + second);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                calls.indexOf(second) > calls.indexOf(first), first + " before " + second);
     }
 }

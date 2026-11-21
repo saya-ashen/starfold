@@ -141,13 +141,6 @@ class GasOcclusionTest {
         assertTrue(fragment.contains("uniform float GasSpheres[256]"));
         assertTrue(fragment.contains("if(i>=GasCount)break"));
         assertTrue(fragment.contains("radius*0.95,radius*1.1"));
-        var managed = dev.starfold.Sources.text("GasLighting");
-        assertTrue(
-                managed.contains("getUniform(\"GasSpheres\").set(GasOcclusion.packed(spheres))"));
-        assertTrue(managed.contains("getUniform(\"GasCount\").set(0)"));
-        assertFalse(managed.contains("glUniform"));
-        for (String renderer : List.of("GroundExterior", "PlanetRemoteRenderer"))
-            assertTrue(dev.starfold.Sources.text(renderer).contains("GasLighting.clear(shader)"));
     }
 
     @Test

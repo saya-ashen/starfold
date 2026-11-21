@@ -3,6 +3,7 @@ package dev.starfold.space;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
+
 import org.joml.Quaterniond;
 
 /** Pure region flight calculations; velocities remain blocks per tick. */
@@ -14,10 +15,9 @@ public final class SpaceFlightMath {
             ALIGN_TIME = 12,
             ASSIST = 1.5;
 
-    static final double ARRIVE = 150,
-            ARRIVE_TIME = 6,
-            NEAR_TIME = 3;
+    static final double ARRIVE = 150, ARRIVE_TIME = 6, NEAR_TIME = 3;
     static final double MISS_IN = 500, MISS_OUT = 1000;
+
     /** Closing is radial blocks/second; equality leaves attitude free. The floor also covers retreat.
      * 12v lead leaves about 7v after the 4s notice + 1s blend, before the 6(v-150)
      * governor boundary. Arrival directly projects velocity onto its envelope (not BRAKE-limited),
@@ -232,8 +232,7 @@ public final class SpaceFlightMath {
         var reference = targetVelocity == null ? GroundEphemeris.ZERO : targetVelocity;
         var relative = before.sub(reference);
         double speed = relative.length();
-        return speed > 1.0 / 20 && push.dot(relative.scale(1 / speed)) < -.5
-                ? reference : drift;
+        return speed > 1.0 / 20 && push.dot(relative.scale(1 / speed)) < -.5 ? reference : drift;
     }
 
     /** Only nearest-planet closing is governed; reference velocity and tangential drift are untouched.

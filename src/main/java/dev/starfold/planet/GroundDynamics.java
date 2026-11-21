@@ -392,9 +392,10 @@ public final class GroundDynamics {
             var world = position(model, state, state.tick);
             double travel = velocity.length();
             if (reference >= 0)
-                travel += model.speed(reference)
-                        + model.spin(reference).angular().length()
-                                * (state.position.length() + velocity.length());
+                travel +=
+                        model.speed(reference)
+                                + model.spin(reference).angular().length()
+                                        * (state.position.length() + velocity.length());
             double motion = 0;
             for (int id = 0; id < model.count(); id++) {
                 double radius = PlanetShape.of(id).radius() + GroundOrbit.LIMIT;
@@ -404,8 +405,12 @@ public final class GroundDynamics {
                 } else if (world.sub(model.at(id, state.tick).center()).length()
                         <= radius + travel + model.speed(id)) {
                     bodies[size++] = id;
-                    motion = Math.max(motion, travel + model.speed(id)
-                            + model.spin(id).angular().length() * radius);
+                    motion =
+                            Math.max(
+                                    motion,
+                                    travel
+                                            + model.speed(id)
+                                            + model.spin(id).angular().length() * radius);
                 }
             }
             steps = Math.max(1, (int) Math.ceil(motion / .2));
@@ -419,7 +424,10 @@ public final class GroundDynamics {
                 if (id == reference) local = position;
                 else {
                     if (world == null)
-                        world = reference < 0 ? position : model.at(reference, time).world(position);
+                        world =
+                                reference < 0
+                                        ? position
+                                        : model.at(reference, time).world(position);
                     local = model.at(id, time).local(world);
                 }
                 var shape = PlanetShape.of(id);
@@ -519,8 +527,7 @@ public final class GroundDynamics {
         for (int i = 0; i < count; i++) {
             var next = p.add(part);
             double t = old.tick + (i + 1.0) / count;
-            if (next.sub(model.origin()).length() > model.extent()
-                    || !sweep.clear(next, t)) {
+            if (next.sub(model.origin()).length() > model.extent() || !sweep.clear(next, t)) {
                 v = GroundEphemeris.ZERO;
                 break;
             }

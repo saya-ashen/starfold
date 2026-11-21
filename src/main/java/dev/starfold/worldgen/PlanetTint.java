@@ -26,7 +26,8 @@ public final class PlanetTint {
 
     public static ResourceKey<Biome> biome(
             PlanetTerrain terrain, ResourceLocation fixed, int face, int x, int z) {
-        return ResourceKey.create(Registries.BIOME,ResourceLocation.parse(terrain.biome(Face.VALUES[face],x,z)));
+        return ResourceKey.create(
+                Registries.BIOME, ResourceLocation.parse(terrain.biome(Face.VALUES[face], x, z)));
     }
 
     public static boolean known(
@@ -44,33 +45,72 @@ public final class PlanetTint {
             int planet,
             PlanetTerrain terrain,
             ResourceLocation fixed) {
-        return view(level,registries,planet,terrain,fixed,0);
+        return view(level, registries, planet, terrain, fixed, 0);
     }
 
-    public static BlockAndTintGetter view(BlockAndTintGetter level,net.minecraft.core.RegistryAccess registries,int planet,
-                                         PlanetTerrain terrain,ResourceLocation fixed,int blendRadius) {
+    public static BlockAndTintGetter view(
+            BlockAndTintGetter level,
+            net.minecraft.core.RegistryAccess registries,
+            int planet,
+            PlanetTerrain terrain,
+            ResourceLocation fixed,
+            int blendRadius) {
+        return view(level, registries, planet, terrain, fixed, blendRadius,
+                new it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap<Holder<Biome>>());
+    }
+
+    /** Only source biomes are shared. Resolver colours and vanilla quart zoom remain view-local. */
+    public static BlockAndTintGetter view(
+            BlockAndTintGetter level, net.minecraft.core.RegistryAccess registries, int planet,
+            PlanetTerrain terrain, ResourceLocation fixed, int blendRadius,
+            it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap<Holder<Biome>> biomes) {
         var registry = registries.registry(Registries.BIOME);
         var outside = ResourceKey.create(Registries.BIOME, fixed);
-        var biomes=new it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap<Holder<Biome>>();
-        java.util.function.Function<BlockPos,Holder<Biome>> at = p -> {
-            long address=ChunkPos.asLong(p.getX(),p.getZ());
-            var cached=biomes.getAndMoveToLast(address);
-            if(cached!=null)return cached;
-            int x = p.getX()-PlanetStorage.offset(planet), z = p.getZ()-PlanetStorage.offsetZ(planet);
-            int face = Math.floorDiv(x,4096), u = Math.floorMod(x,4096);
-            var key = face < 0 || face >= 6 || u >= terrain.shape().size() || z < 0 || z >= terrain.shape().size()
-                    ? outside
-                    : biome(terrain,fixed,face,u,z);
-            var holder=registry.orElseThrow().getHolder(key).or(() -> registry.orElseThrow().getHolder(ResourceKey.create(Registries.BIOME,fixed)))
-                    .or(() -> registry.orElseThrow().getHolder(Biomes.PLAINS)).orElseThrow();
-            biomes.putAndMoveToLast(address,holder);
-            if(biomes.size()>65536)biomes.removeFirst();
-            return holder;
-        };
+        java.util.function.Function<BlockPos, Holder<Biome>> at =
+                p -> {
+                    long address = ChunkPos.asLong(p.getX(), p.getZ());
+                    var cached = biomes.getAndMoveToLast(address);
+                    if (cached != null) return cached;
+                    int x = p.getX() - PlanetStorage.offset(planet),
+                            z = p.getZ() - PlanetStorage.offsetZ(planet);
+                    int face = Math.floorDiv(x, 4096), u = Math.floorMod(x, 4096);
+                    var key =
+                            face < 0
+                                            || face >= 6
+                                            || u >= terrain.shape().size()
+                                            || z < 0
+                                            || z >= terrain.shape().size()
+                                    ? outside
+                                    : biome(terrain, fixed, face, u, z);
+                    var holder =
+                            registry.orElseThrow()
+                                    .getHolder(key)
+                                    .or(
+                                            () ->
+                                                    registry.orElseThrow()
+                                                            .getHolder(
+                                                                    ResourceKey.create(
+                                                                            Registries.BIOME,
+                                                                            fixed)))
+                                    .or(() -> registry.orElseThrow().getHolder(Biomes.PLAINS))
+                                    .orElseThrow();
+                    biomes.putAndMoveToLast(address, holder);
+                    if (biomes.size() > 65536) biomes.removeFirst();
+                    return holder;
+                };
         // Reuse vanilla's seeded quart zoom; the biome source itself samples quart centres.
-        var manager = level instanceof Level l ? l.getBiomeManager().withDifferentSource(
-                (x,y,z) -> at.apply(new BlockPos(x*4+2,y*4+2,z*4+2))) : null;
-        var colors=new java.util.IdentityHashMap<ColorResolver,it.unimi.dsi.fastutil.longs.Long2IntLinkedOpenHashMap>();
+        var manager =
+                level instanceof Level l
+                        ? l.getBiomeManager()
+                                .withDifferentSource(
+                                        (x, y, z) ->
+                                                at.apply(
+                                                        new BlockPos(
+                                                                x * 4 + 2, y * 4 + 2, z * 4 + 2)))
+                        : null;
+        var colors =
+                new java.util.IdentityHashMap<
+                        ColorResolver, it.unimi.dsi.fastutil.longs.Long2IntLinkedOpenHashMap>();
         return new BlockAndTintGetter() {
             public BlockState getBlockState(BlockPos p) {
                 return level.getBlockState(p);
@@ -101,30 +141,39 @@ public final class PlanetTint {
             }
 
             public int getBlockTint(BlockPos p, ColorResolver resolver) {
-                var cache=colors.computeIfAbsent(resolver,r->{
-                    var map=new it.unimi.dsi.fastutil.longs.Long2IntLinkedOpenHashMap();
-                    map.defaultReturnValue(-1);return map;
-                });
-                long key=p.asLong();
-                int old=cache.getAndMoveToLast(key);
-                if(old!=-1)return old;
-                int color=calculateTint(p,resolver);
-                cache.putAndMoveToLast(key,color);
-                if(cache.size()>65536)cache.removeFirstInt();
+                var cache =
+                        colors.computeIfAbsent(
+                                resolver,
+                                r -> {
+                                    var map =
+                                            new it.unimi.dsi.fastutil.longs
+                                                    .Long2IntLinkedOpenHashMap();
+                                    map.defaultReturnValue(-1);
+                                    return map;
+                                });
+                long key = p.asLong();
+                int old = cache.getAndMoveToLast(key);
+                if (old != -1) return old;
+                int color = calculateTint(p, resolver);
+                cache.putAndMoveToLast(key, color);
+                if (cache.size() > 65536) cache.removeFirstInt();
                 return color;
             }
 
-            private int calculateTint(BlockPos p,ColorResolver resolver) {
+            private int calculateTint(BlockPos p, ColorResolver resolver) {
                 if (registry.isEmpty()) return 0xffffff;
-                int red=0,green=0,blue=0;
-                for (int z=-blendRadius;z<=blendRadius;z++) for (int x=-blendRadius;x<=blendRadius;x++) {
-                    var pos = p.offset(x,0,z);
-                    var biome = manager == null ? at.apply(pos) : manager.getBiome(pos);
-                    int color = resolver.getColor(biome.value(),pos.getX(),pos.getZ());
-                    red += color >> 16 & 255; green += color >> 8 & 255; blue += color & 255;
-                }
-                int count=(2*blendRadius+1)*(2*blendRadius+1);
-                return (red/count)<<16 | (green/count)<<8 | blue/count;
+                int red = 0, green = 0, blue = 0;
+                for (int z = -blendRadius; z <= blendRadius; z++)
+                    for (int x = -blendRadius; x <= blendRadius; x++) {
+                        var pos = p.offset(x, 0, z);
+                        var biome = manager == null ? at.apply(pos) : manager.getBiome(pos);
+                        int color = resolver.getColor(biome.value(), pos.getX(), pos.getZ());
+                        red += color >> 16 & 255;
+                        green += color >> 8 & 255;
+                        blue += color & 255;
+                    }
+                int count = (2 * blendRadius + 1) * (2 * blendRadius + 1);
+                return (red / count) << 16 | (green / count) << 8 | blue / count;
             }
         };
     }

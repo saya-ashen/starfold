@@ -224,25 +224,34 @@ class ThrusterSurvivalTest {
 
     @Test
     void interstellarDriveIsPlainSuperHeavyHardwareWithLinkedModels() throws Exception {
-        var block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse("starfold:interstellar_drive"));
+        var block =
+                BuiltInRegistries.BLOCK.get(ResourceLocation.parse("starfold:interstellar_drive"));
         assertEquals(net.minecraft.world.level.block.Block.class, block.getClass());
         assertFalse(block instanceof net.minecraft.world.level.block.EntityBlock);
         var tag = json("sable/tags/block/super_heavy");
         assertFalse(tag.get("replace").getAsBoolean());
-        assertTrue(tag.getAsJsonArray("values").asList().stream()
-                .anyMatch(value -> value.getAsString().equals("starfold:interstellar_drive")));
+        assertTrue(
+                tag.getAsJsonArray("values").asList().stream()
+                        .anyMatch(
+                                value ->
+                                        value.getAsString().equals("starfold:interstellar_drive")));
         var state = FlightPermitTest.json("assets/starfold/blockstates/interstellar_drive.json");
-        assertEquals("starfold:block/interstellar_drive",
+        assertEquals(
+                "starfold:block/interstellar_drive",
                 state.getAsJsonObject("variants").getAsJsonObject("").get("model").getAsString());
         var model = FlightPermitTest.json("assets/starfold/models/block/interstellar_drive.json");
         assertEquals("minecraft:block/cube_column", model.get("parent").getAsString());
-        assertEquals("starfold:block/interstellar_drive_side",
+        assertEquals(
+                "starfold:block/interstellar_drive_side",
                 model.getAsJsonObject("textures").get("side").getAsString());
-        assertEquals("starfold:block/interstellar_drive_core",
+        assertEquals(
+                "starfold:block/interstellar_drive_core",
                 model.getAsJsonObject("textures").get("end").getAsString());
-        assertEquals("starfold:block/interstellar_drive",
+        assertEquals(
+                "starfold:block/interstellar_drive",
                 FlightPermitTest.json("assets/starfold/models/item/interstellar_drive.json")
-                        .get("parent").getAsString());
+                        .get("parent")
+                        .getAsString());
     }
 
     @Test

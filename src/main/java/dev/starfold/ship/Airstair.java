@@ -5,6 +5,9 @@ import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.starfold.geometry.BentStripGeometry;
+import dev.starfold.geometry.ChartLabSpace;
+import dev.starfold.ground.PacketMap;
+import dev.starfold.ground.PayloadMap;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
@@ -50,6 +53,8 @@ public final class Airstair {
     static final double HOLD_DISTANCE = .3, HOLD_TURN = Math.cos(Math.toRadians(4));
 
     static final int HOLD_TICKS = 10;
+    private static final org.slf4j.Logger LOG =
+            org.slf4j.LoggerFactory.getLogger("starfold-airstair");
     private static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks("starfold");
     private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems("starfold");
     private static final DeferredRegister<BlockEntityType<?>> ENTITIES =
@@ -85,6 +90,20 @@ public final class Airstair {
                     if (e.getTabKey().equals(CreativeModeTabs.REDSTONE_BLOCKS)) e.accept(block);
                 });
         StarfoldNetwork.playS2C(State.TYPE, State.CODEC);
+        PayloadMap.register(
+                State.class,
+                (player, frame, state) -> {
+                    var hinge = PacketMap.plane(player, frame, state.x, state.y, state.z);
+                    if (hinge == null) return state;
+                    int turns =
+                            PacketMap.turns(
+                                    PlanetAccess.of(player.level()),
+                                    frame,
+                                    state.x,
+                                    state.y,
+                                    state.z);
+                    return state.inObserverChart(hinge, turns);
+                });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.tick.LevelTickEvent.Post e) -> {
                     if (e.getLevel() instanceof ServerLevel level) tick(level);
@@ -177,7 +196,8 @@ public final class Airstair {
     public static final class Stair extends BlockEntity {
         public int settled, width = 1, moving;
         public double length, visual, oldVisual;
-        long received = Long.MIN_VALUE;
+        double treadRun = AirstairGeometry.STEP;
+        long receivedNanos;
         Vector3d previous,
                 published = new Vector3d(),
                 publishedOut = new Vector3d(),
@@ -198,6 +218,7 @@ public final class Airstair {
             double ox,
             double oz,
             double length,
+            double treadRun,
             int width)
             implements CustomPacketPayload {
         static final Type<State> TYPE = new Type<>(ResourceLocation.parse("starfold:airstair"));
@@ -211,6 +232,7 @@ public final class Airstair {
                             b.writeDouble(p.ox);
                             b.writeDouble(p.oz);
                             b.writeDouble(p.length);
+                            b.writeDouble(p.treadRun);
                             b.writeByte(p.width);
                         },
                         b ->
@@ -222,7 +244,14 @@ public final class Airstair {
                                         b.readDouble(),
                                         b.readDouble(),
                                         b.readDouble(),
+                                        b.readDouble(),
                                         b.readUnsignedByte()));
+
+        State inObserverChart(BentStripGeometry.Point hinge, int turns) {
+            if (turns == 0 && hinge.x() == x && hinge.y() == y && hinge.z() == z) return this;
+            var out = ChartLabSpace.rotate(new BentStripGeometry.Point(ox, 0, oz), turns);
+            return new State(pos, hinge.x(), hinge.y(), hinge.z(), out.x(), out.z(), length, treadRun, width);
+        }
 
         @Override
         public Type<State> type() {
@@ -256,6 +285,16 @@ public final class Airstair {
                                     .getValue(BlockStateProperties.HORIZONTAL_FACING)) break;
         }
         return AirstairGeometry.pairedWidth(before - 1, neighbour(stair, lateral(stair)));
+    }
+
+    /** The published foot follows the selected tread depth and stays planted while deployed. */
+    public static Vector3d foot(Stair stair, double beyond) {
+        var foot =
+                new Vector3d(stair.publishedOut)
+                        .mul(AirstairGeometry.steps(stair.length) * stair.treadRun + beyond)
+                        .add(stair.published);
+        foot.y -= stair.length;
+        return foot;
     }
 
     static Vector3d localTop(Stair stair) {
@@ -346,7 +385,8 @@ public final class Airstair {
     static boolean clearance(
             ServerLevel level,
             AirstairGeometry.Flight flight,
-            java.util.Map<Long, java.util.List<AABB>> columns) {
+            java.util.Map<Long, java.util.List<AABB>> columns,
+            java.util.function.Consumer<String> rejected) {
         for (var tread : flight.boxes()) {
             var head =
                     new AABB(
@@ -363,8 +403,29 @@ public final class Airstair {
                             columns.computeIfAbsent(
                                     net.minecraft.world.level.ChunkPos.asLong(x, z),
                                     k -> column(level, bx, bz, flight.hinge().y));
-                    if (terrain == null) return false;
-                    for (var box : terrain) if (box.intersects(head)) return false;
+                    if (terrain == null) {
+                        if (rejected != null)
+                            rejected.accept(
+                                    "headroom-column-unavailable treadRun="
+                                            + flight.treadRun()
+                                            + " x="
+                                            + bx
+                                            + " z="
+                                            + bz);
+                        return false;
+                    }
+                    for (var box : terrain)
+                        if (box.intersects(head)) {
+                            if (rejected != null)
+                                rejected.accept(
+                                        "headroom-blocked treadRun="
+                                                + flight.treadRun()
+                                                + " obstacle="
+                                                + box
+                                                + " headroom="
+                                                + head);
+                            return false;
+                        }
                 }
         }
         return true;
@@ -373,20 +434,30 @@ public final class Airstair {
     /** Identical terrain/headroom planner for deployment and projected touchdown instruments. */
     static AirstairGeometry.Flight plan(
             ServerLevel level, Stair stair, SubLevel body, Vector3d at, boolean gravity) {
+        return plan(level, stair, body, at, gravity, null);
+    }
+
+    private static AirstairGeometry.Flight plan(
+            ServerLevel level,
+            Stair stair,
+            SubLevel body,
+            Vector3d at,
+            boolean gravity,
+            java.util.function.Consumer<String> rejected) {
         var columns = new java.util.HashMap<Long, java.util.List<AABB>>();
-        var flight =
-                stair.width > 0
-                        ? AirstairGeometry.flight(
-                                at,
-                                outward(stair, body),
-                                new Vector3d(0, gravity ? -1 : 0, 0),
-                                stair.width,
-                                (x, z) -> {
-                                    double h = surface(level, x, z, at.y, columns);
-                                    return h == Double.POSITIVE_INFINITY ? at.y + 3 : h;
-                                })
-                        : null;
-        return flight != null && clearance(level, flight, columns) ? flight : null;
+        return stair.width > 0
+                ? AirstairGeometry.flight(
+                        at,
+                        outward(stair, body),
+                        new Vector3d(0, gravity ? -1 : 0, 0),
+                        stair.width,
+                        (x, z) -> {
+                            double h = surface(level, x, z, at.y, columns);
+                            return h == Double.POSITIVE_INFINITY ? at.y + 3 : h;
+                        },
+                        candidate -> clearance(level, candidate, columns, rejected),
+                        rejected)
+                : null;
     }
 
     static boolean canDeployAt(ServerLevel level, ServerSubLevel body, double descent) {
@@ -429,6 +500,95 @@ public final class Airstair {
                             tickStair(level, body, stair);
     }
 
+    static boolean canManuallyDeploy(double clearance, double speed) {
+        return Double.isFinite(clearance)
+                && clearance <= LiftControl.CONTACT
+                && Double.isFinite(speed)
+                && speed <= EXIT_SPEED;
+    }
+
+    static boolean deployOnExit(ServerLevel level, ServerSubLevel ship) {
+        if (!PlanetLevels.is(level))
+            return manualResult(ship, null, "outside-planet", Double.NaN, Double.NaN);
+        if (lifting(ship, level))
+            return manualResult(ship, null, "lift-active", Double.NaN, Double.NaN);
+        double clearance = HullLanding.ground(ship).clearance();
+        if (!canManuallyDeploy(clearance, 0))
+            return manualResult(ship, null, "no-ground-contact", clearance, Double.NaN);
+        for (var holder : ship.getPlot().getLoadedChunks())
+            for (var entity : holder.getChunk().getBlockEntities().values()) {
+                if (!(entity instanceof Stair stair) || stair.isRemoved()) continue;
+                stair.width = width(stair);
+                if (stair.width == 0) continue;
+                var at = top(stair, ship);
+                if (!charted(level, at) || !gravity(level, at)) {
+                    manualResult(ship, stair, "no-chart-gravity", clearance, Double.NaN);
+                    continue;
+                }
+                double speed = sillSpeed(level, ship, stair, at);
+                if (!canManuallyDeploy(clearance, speed)) {
+                    manualResult(ship, stair, "sill-motion", clearance, speed);
+                    continue;
+                }
+                java.util.function.Consumer<String> rejected =
+                        Boolean.getBoolean("starfold.helmProbe")
+                                ? reason ->
+                                        LOG.info(
+                                                "AIRSTAIR PLAN tick={} hull={} stair={} sill=({},{},{}) {}",
+                                                level.getGameTime(),
+                                                ship.getUniqueId(),
+                                                stair.getBlockPos(),
+                                                at.x,
+                                                at.y,
+                                                at.z,
+                                                reason)
+                                : null;
+                var flight = plan(level, stair, ship, at, true, rejected);
+                if (flight == null) {
+                    manualResult(ship, stair, "no-walkable-flight", clearance, speed);
+                    continue;
+                }
+                boolean alreadyLowered = stair.anchor != null;
+                if (!alreadyLowered) lower(stair, flight);
+                manualResult(
+                        ship,
+                        stair,
+                        alreadyLowered ? "already-lowered" : "lowered",
+                        clearance,
+                        speed);
+                return true;
+            }
+        return manualResult(ship, null, "no-eligible-stair", clearance, Double.NaN);
+    }
+
+    private static boolean manualResult(
+            ServerSubLevel ship, Stair stair, String result, double clearance, double speed) {
+        if (Boolean.getBoolean("starfold.helmProbe"))
+            LOG.info(
+                    "AIRSTAIR MANUAL tick={} hull={} stair={} result={} clearance={} contactLimit={} sillSpeed={} speedLimit={} settled={} drop={} treadRun={}",
+                    ship.getLevel().getGameTime(),
+                    ship.getUniqueId(),
+                    stair == null ? null : stair.getBlockPos(),
+                    result,
+                    clearance,
+                    LiftControl.CONTACT,
+                    speed,
+                    EXIT_SPEED,
+                    stair == null ? 0 : stair.settled,
+                    stair == null ? 0 : stair.length,
+                    stair == null ? 0 : stair.treadRun);
+        return false;
+    }
+
+    private static void lower(Stair stair, AirstairGeometry.Flight flight) {
+        stair.anchor = new Vector3d(flight.hinge());
+        stair.anchorOut = new Vector3d(flight.out());
+        stair.moving = 0;
+        stair.settled = SETTLE_TICKS;
+        stair.length = flight.drop();
+        stair.treadRun = flight.treadRun();
+    }
+
     private static void tickStair(
             Level level, dev.ryanhcode.sable.sublevel.SubLevel body, Stair stair) {
         loaded.put(stair, true);
@@ -438,32 +598,46 @@ public final class Airstair {
         if (level instanceof ServerLevel server && body instanceof ServerSubLevel ship) {
             tickServerStair(server, ship, stair, at, out);
             return;
-        } else if (level.getGameTime() - stair.received > 5) stair.length = 0;
-        else if (stair.length > 0) {
-            at = stair.published;
-            out = stair.publishedOut;
+        }
+        if (stair.length > 0) {
+            if (clientStateExpired(stair.receivedNanos, System.nanoTime())) stair.length = 0;
+            else {
+                at = stair.published;
+                out = stair.publishedOut;
+            }
         }
         updateVisual(stair, at, out);
     }
 
-    // Keep motion, settling and diagnostic locals inline: splitting them needs more than six
-    // parameters or a per-tick carrier.
-    private static void tickServerStair(
-            ServerLevel server, ServerSubLevel ship, Stair stair, Vector3d at, Vector3d out) {
-        Level level = server;
-        var body = ship;
-        boolean chart =
-                PlanetLevels.is(level)
-                        && !Space.holds(at.x, at.z)
-                        && PlanetAccess.of(level)
-                                .inChart(BlockPos.containing(at.x, GroundCoordinates.FLOOR, at.z));
+    // TCP snapshots can arrive in bursts. Use receipt time so game-clock corrections cannot fold
+    // the stairs.
+    static boolean clientStateExpired(long receivedNanos, long nowNanos) {
+        return nowNanos - receivedNanos > 1_000_000_000L;
+    }
+
+    private static boolean charted(ServerLevel level, Vector3d at) {
+        return PlanetLevels.is(level)
+                && !Space.holds(at.x, at.z)
+                && PlanetAccess.of(level)
+                        .inChart(BlockPos.containing(at.x, GroundCoordinates.FLOOR, at.z));
+    }
+
+    private static boolean gravity(ServerLevel level, Vector3d at) {
+        return HullWeight.at(level, new BentStripGeometry.Point(at.x, at.y, at.z)) > 0
+                && dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
+                                .getGravity(level)
+                                .y()
+                        < 0;
+    }
+
+    private static double sillSpeed(
+            ServerLevel level, ServerSubLevel ship, Stair stair, Vector3d at) {
         double poseSpeed =
                 stair.previous == null
                         ? Double.POSITIVE_INFINITY
                         : at.distance(stair.previous) * 20;
-        stair.previous = new Vector3d(at);
-        var pipeline = SubLevelContainer.getContainer(server).physicsSystem().getPipeline();
-        var bounds = body.getPlot().getBoundingBox();
+        var pipeline = SubLevelContainer.getContainer(level).physicsSystem().getPipeline();
+        var bounds = ship.getPlot().getBoundingBox();
         double radius =
                 .5
                         * Math.sqrt(
@@ -472,18 +646,21 @@ public final class Airstair {
                                         + Math.pow(bounds.maxZ() - bounds.minZ() + 1, 2));
         double linear = pipeline.getLinearVelocity(ship, new Vector3d()).length(),
                 angular = pipeline.getAngularVelocity(ship, new Vector3d()).length() * radius;
-        double speed = Math.max(poseSpeed, linear + angular);
-        boolean gravity =
-                chart
-                        && HullWeight.at(level, new BentStripGeometry.Point(at.x, at.y, at.z)) > 0
-                        && dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
-                                        .getGravity(level)
-                                        .y()
-                                < 0;
-        var flight = chart ? plan(server, stair, body, at, gravity) : null;
-        boolean planned = flight != null, clear = planned;
+        return Math.max(poseSpeed, linear + angular);
+    }
+
+    private static void tickServerStair(
+            ServerLevel server, ServerSubLevel ship, Stair stair, Vector3d at, Vector3d out) {
+        boolean chart = charted(server, at);
+        double speed = sillSpeed(server, ship, stair, at);
+        stair.previous = new Vector3d(at);
+        boolean gravity = chart && gravity(server, at);
+        boolean lift = lifting(ship, server);
+        var flight =
+                gravity && !lift && speed <= ENTER_SPEED && stair.anchor == null
+                        ? plan(server, stair, ship, at, true)
+                        : null;
         double reach = flight == null ? Double.NaN : flight.drop();
-        boolean lift = lifting(ship, level);
         String why = null;
         if (stair.anchor != null) {
             // Lowered: the flight keeps its planned place and length; only
@@ -519,24 +696,28 @@ public final class Airstair {
         } else {
             stair.settled = settled(stair.settled, chart, gravity, lift, speed, reach);
             if (stair.settled >= SETTLE_TICKS) {
-                stair.anchor = new Vector3d(at);
-                stair.anchorOut = new Vector3d(out);
-                stair.moving = 0;
-                stair.length = reach;
+                lower(stair, flight);
                 why = "lowered";
             } else stair.length = 0;
         }
+        if (why != null && stair.width > 0 && Boolean.getBoolean("starfold.helmProbe"))
+            LOG.info(
+                    "AIRSTAIR TRANSITION tick={} hull={} stair={} result={} sillSpeed={} drop={} treadRun={}",
+                    server.getGameTime(),
+                    ship.getUniqueId(),
+                    stair.getBlockPos(),
+                    why,
+                    speed,
+                    stair.length,
+                    stair.treadRun);
         if (why != null && stair.width > 0)
-            org.slf4j.LoggerFactory.getLogger("starfold-airstair")
-                    .debug(
-                            "{} {} speed {} linear {} angular {} reach {} planned {}",
-                            why,
-                            stair.getBlockPos(),
-                            speed,
-                            linear,
-                            angular,
-                            reach,
-                            planned);
+            LOG.debug(
+                    "{} {} speed {} drop {} tread run {}",
+                    why,
+                    stair.getBlockPos(),
+                    speed,
+                    reach,
+                    stair.treadRun);
         if (stair.anchor != null) {
             at = stair.anchor;
             out = stair.anchorOut;
@@ -552,6 +733,7 @@ public final class Airstair {
                         out.x,
                         out.z,
                         stair.length,
+                        stair.treadRun,
                         stair.width);
         for (var player : server.players())
             if (ship.getTrackingPlayers().contains(player.getUUID())
@@ -565,7 +747,9 @@ public final class Airstair {
         stair.visual = Math.max(0, Math.min(1, stair.visual + (stair.length > 0 ? 1d / 16 : -.5)));
         stair.boxes =
                 stair.length > 0 && stair.width > 0
-                        ? new AirstairGeometry.Flight(at, out, stair.width, stair.length).boxes()
+                        ? new AirstairGeometry.Flight(
+                                        at, out, stair.width, stair.length, stair.treadRun)
+                                .boxes()
                         : java.util.List.of();
     }
 

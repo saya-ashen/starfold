@@ -1,23 +1,110 @@
 # Roadmap
 
-This describes development priorities, not release dates or compatibility promises. See the changelog for changes since 0.2.0 and the README for installation.
+[简体中文](ROADMAP_zh-CN.md)
 
-## Implemented in development
+What is planned beyond the current release, and how far each item has been thought through. Nothing here is a
+promise or a date. An item marked *decided* has an agreed direction; *idea* means it was discussed and judged
+workable on paper; *unknown* names a question that has to be answered before the item can be built.
 
-Closed cube planets, configurable systems and environmental rules; deterministic terrain and structure planning; ships and personal flight; fuel mass and delta-v; gas-giant pressure and skimming; Atlas surveys, navigation and saved-ship recovery; optional Worlds, Extras, Materials and Biotech content.
+## Done in 0.2.0
 
-## Before a packaged public update
+- **The code is easier to work in.** Packages by subsystem, one formatting style, and dependencies that point one
+  way: geometry, chart, planet, sky, worldgen, universe, ground, flight, ship, space, then waypoint, render and dev,
+  with the wiring on top. A lower layer asks the layers above it only through a host interface that the wiring
+  installs. The only references left that point up are a few into mixins and one from sky into universe.
+- **The first part of the body model.** Suns, planets and moons are one kind of body: a motion (fixed, or an orbit
+  about another body), a radius, whether it gives light, and a reach for gravity, hand-over and hull weight. The
+  fixed pair of home planets is gone, a system may hold a single planet, and every body of a world is in one level.
+- **Moons**, defined in datapacks, with full surfaces, and other bodies drawn in the sky seen from the ground.
+- **Ships nobody pilots in space** coast to a stop and then hold their place relative to the nearest body, also
+  across saving and reloading.
 
-- Validate the final module/dependency combination in a clean installation and document new-world requirements.
-- Repeat departure, arrival, landing, return and save/restart checks with that installation.
-- Package all required local mod jars into a reproducible distribution; the survival pack source currently does not provide this.
-- Resolve or omit third-party adaptations whose provenance review is still pending.
+## Next: finish the body model *(decided)*
 
-## Gameplay acceptance still needed
+The aim is a foundation that later multiplayer can build on without another rewrite, kept small so that play
+stays the priority. Three rules, borrowed from how large space games keep a universe: a body's identity does not
+depend on where it is or where it is stored; a body's place is given relative to the body it belongs to; and what
+exists is kept apart from which process simulates it.
 
-- Complete a fresh-world survival route, including equipment, oxygen, fuel production, ship construction and interstellar progression.
-- Measure fuel, pressure, material and Host balance in real play.
-- Improve planet-planning latency, far-view convergence and rendering consistency.
-- Exercise failure recovery when a saved multi-ship group cannot finish loading.
+| Part | Holds | Present | State |
+|---|---|---|---|
+| Identity | region and index | always | done: regions are cells of the universe grid, the home system is region 0, and numbers are never given again |
+| Motion | fixed, an orbit about another body, or driven by physics | always, one of the three | fixed and orbit done |
+| Extent | radius, strength and range of gravity, the heights at which a ship is handed over | always | done |
+| Appearance | how it is drawn from afar | always | done for surfaces and lights; models and points of light come with stations and satellites |
+| Surface | real chunks: storage, shape, generation | optional | done |
+| Behaviours | giving light, a hazard zone, a satellite's function | optional | light done |
 
-Multiplayer and shader compatibility remain outside the current acceptance scope. Optional content can evolve independently; no old-save migration is promised.
+Kinds are combinations: a sun is fixed and gives light; a planet orbits a sun and has a surface; a moon orbits a
+planet; a gas planet has no surface.
+
+**Ships share the identity, not the catalog.** Every body in the catalog has a place that follows from time
+alone, so any process can work it out without being told; a ship's place comes from physics. Ships therefore stay
+records of their own: they are numbered by region and index like bodies, and a ship in space names the body it is
+placed against.
+
+## Built on the body model
+
+- **Space stations as one-faced bodies.** A station is a body with a single flat face and no terrain. It has
+  chunks of its own, is reached and landed on like a planet, and exists whether or not a ship is near. It circles
+  a planet and keeps the same side towards it; gravity on it points at that planet, so the planet is underfoot and
+  a ship lands from the side facing away. It does not move otherwise. It has no seams and no fold points: it is an
+  ordinary man-made structure. Walking off its edge means falling towards the planet. Stations are written in a
+  datapack or founded by a player in play, the datapack first. *(decided)* A weightless station is possible later
+  by giving the body no gravity and its crew another way to move. *(idea)* Open: how small a face may be, and how a
+  structure with gaps is drawn from afar.
+- **Artificial satellites as orbit records.** Built and carried up as blocks, turned into a saved record when
+  released, turned back into items when retrieved; drawn as a small model at the computed place. The first version
+  is the structure alone: launch, orbit, retrieval and a point of light in the night sky. *(decided)* What a
+  satellite does comes later; navigation, mapping and relaying were named. *(idea)*
+- **Ships that stay.** The goal is to leave a ship, find it and board it again, including after reloading or a
+  server restart, with several ships kept apart. The retention, sleep and navigation design remains broader than
+  the restart path already implemented. Current source (2026-11-03):
+  [`ShipHost.spaceDormancy()`](../src/main/java/dev/starfold/ship/ShipHost.java) defaults to **true** in production.
+  [`ShipDormancy`](../src/main/java/dev/starfold/ship/ShipDormancy.java) can wake stored space hulls left unloaded
+  by a restart: it recomputes their body-relative place at the current clock, acquires `WAKING` destination
+  tickets, and reposes them before Sable loads or publishes them. Production does **not** proactively put loaded
+  hulls to sleep; they retain `ALWAYS` tickets through
+  [`SableTickets`](../src/main/java/dev/starfold/ship/SableTickets.java). Explicit sleep requests belong to the
+  development probe. This source check does not establish full leave/return gameplay acceptance.
+- **Gravity with a range.** Each body pulls within a distance and not beyond it; only the nearest body counts.
+  *(decided)* The reach is now a property of the body and sets hand-over and hull weight, and a ship nobody pilots
+  holds still relative to the nearest body. Left: gravity in the space region itself, and retuning arrival and
+  hovering by flying.
+
+## Deferred items
+
+- **Unify ship control signals.** Unscheduled. Let players use pipes, wires, or similar connectors to link the helm and controlled devices such as thrusters through a common signal system. Explicit connections would replace automatic thruster selection across the hull. Design device control inputs alongside sensor outputs. The connection medium and signal interface remain open.
+
+- **Keplerian elliptical orbits for planets and moons.** Unscheduled. Consider optional datapack settings for eccentricity and the direction of closest approach. Derive the period from the semi-major axis and calculate position and velocity from time. Existing saves default to circular orbits. Implementation would also update Atlas orbit lines and use the closest and farthest orbital distances to validate spacing and system bounds.
+
+- **Redesign the mining platform and compact oil extractor visuals and animations.** Unscheduled. Redesign both block models and textures, and animate the mining platform's drilling and the oil extractor's well construction and pumping. The visual direction and animation details are open. See the mining design notes.
+
+- **Distant ocean water color differs from the near view.** Needs investigation. Warm oceans appear turquoise nearby and look the same dark blue as regular oceans at a distance, leaving a visible color seam. Check whether the distant LOD uses a shared water tint. The fix should preserve the difference between ocean biomes and remove the abrupt color change across the near-to-far transition within the same ocean.
+
+- **Underwater vegetation disappears in distant LOD.** Needs investigation. Seagrass beds are visible nearby but end abruptly where the distant seabed begins. Preserve the broad distribution of underwater vegetation in the distant view so the same seabed transitions smoothly between detail levels.
+
+## Far ahead: large multiplayer *(idea, nothing is to be built for it now)*
+
+A vanilla server ticks every dimension on one thread, so regions as dimensions would not use more cores, and
+threads per region cannot be made safe together with Create and Sable. If large servers become a goal, the workable
+form is separate processes:
+
+- Each region, such as a star system, is an ordinary server process. A jump moves the players and their ship to
+  another process; players connect to it directly.
+- A light coordinator holds the registry (which process runs which region, where each player and ship is), carries
+  out the hand-over, and keeps what regions share: one clock, and records seen across regions such as left ships,
+  stations and satellites. It runs no world.
+- A hand-over must never lose a ship or make two of it: it is recorded durably and is complete only when both sides
+  confirm.
+- Regions keep running when the coordinator is down; only jumps stop.
+- Single player and small servers stay one process. Handing a ship over is one operation that runs directly there
+  and through the coordinator on a cluster.
+
+*Unknown:* whether a Sable hull with its blocks, entities and crew can be saved whole and restored in another
+process. Ships that stay need the same ability, so the body model answers it. The body model keeps the three
+properties this depends on: identity by region and index, ships that can be stored as records, and positions that
+follow from time alone.
+
+Regions as dimensions joined by a jump inside one process were considered and set aside: server cost would be
+about the same as today's single level.

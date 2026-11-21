@@ -6,6 +6,7 @@ import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.geometry.CubeSurfaceTopology.Cell;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.PlanetSpace;
+import dev.starfold.planet.PlanetCatalog;
 
 import org.joml.Quaterniond;
 
@@ -41,59 +42,39 @@ public record PlanetShape(int size) {
      *  size for all planets says so by naming this. */
     public static final PlanetShape STANDARD = new PlanetShape(2048);
 
-    /** The shapes of the planets of the system now running: set from the saved generator when its level loads, and on
-     *  a client from the server. Addressing that only knows which planet a position belongs to reads them here. */
-    private static volatile PlanetShape[] SYSTEM = {STANDARD, STANDARD};
-
+    /** Addressing without world context reads the currently published immutable catalog. */
     public static PlanetShape of(int planet) {
-        return SYSTEM[valid(planet)];
+        return PlanetCatalog.current().shape(planet);
     }
 
     /** How many planets the running system has. */
     public static int count() {
-        return SYSTEM.length;
+        return PlanetCatalog.current().count();
     }
 
     public static int valid(int planet) {
-        if (planet < 0 || planet >= SYSTEM.length) throw new IllegalArgumentException("Planet");
-        return planet;
+        return PlanetCatalog.current().valid(planet);
     }
 
-    /** Replaces the whole table: one shape and one depth for each planet of a system, in storage order. */
+    /** Compatibility setup API: replaces geometry together, retaining names and identities. */
     public static void system(int[] sizes, int[] depths) {
-        if (sizes.length < 1 || sizes.length > MAX_PLANETS || depths.length != sizes.length)
-            throw new IllegalArgumentException("Planet count " + sizes.length);
-        var shapes = new PlanetShape[sizes.length];
-        for (int id = 0; id < sizes.length; id++) {
-            shapes[id] = new PlanetShape(sizes[id]);
-            if (depths[id] < STANDARD_DEPTH || depths[id] >= shapes[id].radius())
-                throw new IllegalArgumentException("Planet depth " + depths[id]);
-        }
-        DEPTHS = depths.clone();
-        SYSTEM = shapes;
+        PlanetCatalog.system(sizes, depths);
     }
-
-    /** How deep each of those planets goes below its nominal surface, set along with its shape. */
-    private static volatile int[] DEPTHS = {STANDARD_DEPTH, STANDARD_DEPTH};
 
     public static void assign(int planet, PlanetShape shape) {
         assign(planet, shape, STANDARD_DEPTH);
     }
 
     public static void assign(int planet, PlanetShape shape, int depth) {
-        if (depth < STANDARD_DEPTH || depth >= shape.radius())
-            throw new IllegalArgumentException("Planet depth " + depth);
-        SYSTEM[valid(planet)] = shape;
-        DEPTHS[planet] = depth;
+        PlanetCatalog.assign(planet, shape, depth);
     }
 
     public static void reset() {
-        SYSTEM = new PlanetShape[] {STANDARD, STANDARD};
-        DEPTHS = new int[] {STANDARD_DEPTH, STANDARD_DEPTH};
+        PlanetCatalog.resetShapes();
     }
 
     public static int depth(int planet) {
-        return DEPTHS[valid(planet)];
+        return PlanetCatalog.current().depth(planet);
     }
 
     /** Height of a planet's floor, measured like a pose's from the sphere of its radius. */
@@ -103,7 +84,7 @@ public record PlanetShape(int size) {
 
     /** Everything within this distance of a planet's centre lies below its floor: solid, whatever was dug above. */
     public static double coreRadius(int planet) {
-        return of(planet).radius() + floorHeight(planet) - .01;
+        return PlanetCatalog.current().coreRadius(planet);
     }
 
     /** A chart shows the face and one face's width of each neighbour around it. */

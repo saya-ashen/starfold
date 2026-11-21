@@ -1,11 +1,11 @@
 package dev.starfold.universe;
 
 import static dev.starfold.universe.SystemDefinition.*;
+
 import dev.starfold.chart.GroundEphemeris;
-import dev.starfold.chart.PlanetShape;
-import dev.starfold.chart.SunSettings;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.PlanetSystem;
+
 import java.util.*;
 
 /** Deterministic home-first storage and celestial catalog construction. */
@@ -50,8 +50,11 @@ final class SystemMaterializer {
                 parents.put(planet, bodies.size());
                 append(planet, seed, parent, sun.gm(), planets, bodies, names);
                 var generated = planets.getLast();
-                masses.put(planet, 32 * generated.generation().environment().gravity()
-                        * Math.pow(generated.terrain().shape().radius(), 2));
+                masses.put(
+                        planet,
+                        32
+                                * generated.generation().environment().gravity()
+                                * Math.pow(generated.terrain().shape().radius(), 2));
             }
         }
         int ordinal = planets.size();

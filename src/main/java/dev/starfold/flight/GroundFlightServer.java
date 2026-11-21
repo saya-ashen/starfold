@@ -1,5 +1,6 @@
 package dev.starfold.flight;
 
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.chart.GroundCamera;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
@@ -16,12 +17,13 @@ import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.GroundTerrain;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.network.StarfoldNetwork;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.GroundDynamics;
 import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
+import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 import dev.starfold.universe.PlanetPackets;
@@ -44,6 +46,7 @@ public final class GroundFlightServer {
         final GroundFlightPackets.Queue queue = new GroundFlightPackets.Queue();
         GroundDynamics.State state;
         boolean controlled;
+        boolean cruising;
         long lastSync = -100;
 
         Session(GroundDynamics.State state, boolean controlled) {
@@ -85,7 +88,15 @@ public final class GroundFlightServer {
         var s = sessions.get(player.getUUID());
         return s != null
                 && s.controlled
-                && (s.state.space() || s.state.local().point().y() > ALOFT);
+                && (s.cruising || s.state.space() || s.state.local().point().y() > ALOFT);
+    }
+
+    static boolean cruises(GroundDynamics.State state, GroundSpace.Config mask, boolean alreadyCruising) {
+        if (state.space() || state.guidance().landing()
+                || state.local().point().y() < GroundDynamics.handoff(mask) + 384) return false;
+        var motion = GroundDynamics.chartVelocity(state);
+        // Keep the image window stable during acceleration, but restore it as soon as descent starts.
+        return motion.y() >= -.25 && Math.hypot(motion.x(), motion.z()) >= (alreadyCruising ? 8 : 12);
     }
 
     public static long session(ServerPlayer player) {
@@ -168,19 +179,23 @@ public final class GroundFlightServer {
                 });
     }
 
-    /** A chart state only; region residents have no state to capture. */
+    /** Returns no chart state for region residents or positions outside the chart's valid pose range. */
     public static GroundDynamics.State capture(ServerPlayer player, GroundClock clock) {
         if (Space.in(player)) return null;
+        double height = player.getY() - GroundCoordinates.FLOOR + .9;
+        var access = PlanetAccess.of(player.level());
+        if (!(height >= PlanetShape.LOWEST && height <= PlanetShape.MAX_HEIGHT)
+                || !access.inChart(player.blockPosition())) return null;
+        int planet = PlanetStorage.planet(player.getX(), player.getZ());
         var v = player.getDeltaMovement();
         var pose =
-                PlanetAccess.of(player.level())
-                        .body(new Point(player.getX(), player.getY(), player.getZ()));
+                PlanetStorage.body(planet, new Point(player.getX(), player.getY(), player.getZ()));
         var q = GroundCamera.capture(player.getYRot(), player.getXRot());
         var s = sessions.get(player.getUUID());
         var options = s == null ? GroundDynamics.OFF : s.state.guidance();
         return GroundDynamics.local(
                 clock.clock.tick(),
-                PlanetSystem.planet(player),
+                planet,
                 pose,
                 new Point(v.x, v.y, v.z),
                 q,
@@ -188,9 +203,11 @@ public final class GroundFlightServer {
                 options);
     }
 
-    public static boolean entryReady(ServerPlayer player,ServerLevel level) {
-        var saved=Space.in(player) ? null : GroundNavigationSave.get(level).find(player.getUUID());
-        return dev.starfold.worldgen.plan.PlanetPlanStore.ready(level,saved==null ? 0 : saved.planet());
+    public static boolean entryReady(ServerPlayer player, ServerLevel level) {
+        var saved =
+                Space.in(player) ? null : GroundNavigationSave.get(level).find(player.getUUID());
+        return dev.starfold.worldgen.plan.PlanetPlanStore.ready(
+                level, saved == null ? 0 : saved.planet());
     }
 
     /** Prepare before any teleport or return-book mutation; never reset a damaged/occupied entry. */
@@ -229,12 +246,17 @@ public final class GroundFlightServer {
             return;
         }
         var state = saved == null ? capture(player, clock) : saved;
+        if (state == null) {
+            forget(player);
+            return;
+        }
         boolean controlled =
                 state.space()
-                        || state.local().point().y() > GroundDynamics.handoff(clock.mask) && state.flying();
+                        || state.local().point().y() > GroundDynamics.handoff(clock.mask)
+                                && state.flying();
         var session = new Session(state, controlled);
-        sessions.put(player.getUUID(), session);
         if (saved != null) apply(player, clock, session, true);
+        sessions.put(player.getUUID(), session);
         checkpoint(player);
         setup(player, clock, session);
     }
@@ -242,9 +264,11 @@ public final class GroundFlightServer {
     /** Vanilla's saved position wins unless navigation owned the saved movement. Explicit entry is unchanged. */
     private static void login(ServerPlayer player, GroundClock clock) {
         var saved = GroundNavigationSave.get(player.serverLevel()).find(player.getUUID());
-        if(!entryReady(player,player.serverLevel()))return;
-        if (restores(saved, clock.mask)) enter(player, clock, entry(player, player.serverLevel(), clock));
+        if (!entryReady(player, player.serverLevel())) return;
+        if (restores(saved, clock.mask))
+            enter(player, clock, entry(player, player.serverLevel(), clock));
         else site(player);
+        if (!sessions.containsKey(player.getUUID())) FlightHost.get().leave(player);
     }
 
     public static boolean restores(GroundDynamics.State saved) {
@@ -254,7 +278,8 @@ public final class GroundFlightServer {
     public static boolean restores(GroundDynamics.State saved, GroundSpace.Config mask) {
         return saved != null
                 && (saved.space()
-                        || saved.local().point().y() > GroundDynamics.handoff(mask) && saved.flying());
+                        || saved.local().point().y() > GroundDynamics.handoff(mask)
+                                && saved.flying());
     }
 
     private static void setup(ServerPlayer player, GroundClock clock, Session s) {
@@ -307,7 +332,13 @@ public final class GroundFlightServer {
                 if (s.state.tick() == clock.clock.tick()) continue;
                 if (!s.controlled) {
                     GroundSeams.moved(player);
-                    s.state = capture(player, clock);
+                    var state = capture(player, clock);
+                    if (state == null) {
+                        forget(player);
+                        FlightHost.get().leave(player);
+                        continue;
+                    }
+                    s.state = state;
                     // Only someone flying is taken over as a vessel: on foot, a mountain or a tower
                     // above the handoff is still ground.
                     if (s.state.local().point().y() > GroundDynamics.handoff(clock.mask)
@@ -348,7 +379,8 @@ public final class GroundFlightServer {
                     // Sable collision take over, as on its deck.
                     boolean landing =
                             !s.state.space()
-                                    && (s.state.local().point().y() <= GroundDynamics.handoff(clock.mask)
+                                    && (s.state.local().point().y()
+                                                    <= GroundDynamics.handoff(clock.mask)
                                             || FlightHost.get().nearHull(player, HULL_RELEASE));
                     if (landing)
                         s.state =
@@ -379,6 +411,7 @@ public final class GroundFlightServer {
                         Component.translatable(
                                 "message.starfold.flight_stopped",
                                 FlightHost.get().failure(error)));
+                forget(player);
                 FlightHost.get().leave(player);
             }
     }
@@ -392,11 +425,12 @@ public final class GroundFlightServer {
     }
 
     private static void apply(ServerPlayer player, GroundClock clock, Session s, boolean handoff) {
+        s.cruising = !handoff && cruises(s.state, clock.mask, s.cruising);
         var access = PlanetAccess.of(player.level());
         var pose = view(clock, s.state);
         var feet = access.feet(s.state.planet(), pose);
-        var old = access.face(player.getX());
-        boolean planetChanged = PlanetSystem.planet(player) != s.state.planet();
+        boolean planetChanged =
+                PlanetStorage.find(player.getX(), player.getZ()) != s.state.planet();
         var frame = PlanetOrbit.frame(PlanetShape.of(s.state.planet()), pose);
         var aim =
                 frame.rotation()
@@ -418,7 +452,7 @@ public final class GroundFlightServer {
         // chart.
         ObserverFrames.relocate(player, feet);
         // Synchronize position within the same level, without dimension travel.
-        if (old != pose.face().ordinal() || planetChanged || handoff)
+        if (handoff || planetChanged || access.face(player.getX()) != pose.face().ordinal())
             player.connection.teleport(feet.x(), feet.y(), feet.z(), yaw, pitch);
         else {
             player.setPos(feet.x(), feet.y(), feet.z());
@@ -442,8 +476,14 @@ public final class GroundFlightServer {
         }
         var s = sessions.get(player.getUUID());
         if (s != null && PlanetLevels.is(player.level())) {
-            if (!s.controlled) s.state = capture(player, GroundClock.get(player.serverLevel()));
-            GroundNavigationSave.get(player.serverLevel()).put(player.getUUID(), s.state);
+            var state =
+                    s.controlled ? s.state : capture(player, GroundClock.get(player.serverLevel()));
+            if (state == null) {
+                forget(player);
+                return;
+            }
+            s.state = state;
+            GroundNavigationSave.get(player.serverLevel()).put(player.getUUID(), state);
         }
     }
 
@@ -483,7 +523,12 @@ public final class GroundFlightServer {
                 return;
             }
             var clock = GroundClock.get(player.serverLevel());
-            var next = new Session(capture(player, clock), false);
+            var state = capture(player, clock);
+            if (state == null) {
+                forget(player);
+                return;
+            }
+            var next = new Session(state, false);
             sessions.put(player.getUUID(), next);
             checkpoint(player);
             setup(player, clock, next);

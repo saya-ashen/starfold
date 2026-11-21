@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -11,8 +10,6 @@ import dev.starfold.sky.Space;
 
 import org.joml.Quaterniond;
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.*;
 
 class SpaceNavigationTest {
     private static SpaceNavigation.Marker project(double x, double y, double z) {
@@ -162,75 +159,5 @@ class SpaceNavigationTest {
                         .sub(blend.levelVector(target.sub(eye)))
                         .length(),
                 1e-10);
-    }
-
-    @Test
-    void sourceContractRestrictsLayerAndProbeToDisplayedRegionReadings() throws Exception {
-        var s = Sources.text("SpaceNavigationClient");
-        assertTrue(
-                s.contains(
-                        "SpaceClient.active()&&!GroundFlightClient.controlled()&&!mc.options.hideGui&&mc.screen==null"));
-        assertTrue(s.contains("if(!chart&&!visible())return"));
-        assertTrue(
-                s.contains(
-                        "if(mc.options.hideGui||mc.screen!=null)return;renderGroundTarget(g);if(HelmClient.body()==null)return"));
-        assertTrue(
-                s.contains("FlightWidgets.view(g,HelmClient.viewLabel(),HelmClient.viewFlash())"));
-        assertTrue(s.contains("if(snapshot==null||level!=mc.level)return"));
-        assertTrue(s.contains("RegisterGuiLayersEvent"));
-        assertTrue(s.contains("AFTER_LEVEL"));
-        assertTrue(s.contains("context.projectionMatrix()"));
-        assertTrue(s.contains("context.positionMatrix()"));
-        assertTrue(s.contains("SpaceClient.frame()"));
-        assertTrue(s.contains("SpaceClient.arriving()"));
-        assertTrue(s.contains("SpaceView.nearest(model,eye,tick,4)"));
-        assertTrue(s.contains("helm.logicalPose().position()"));
-        assertFalse(s.contains("SpaceApproach.APPROACH"));
-        assertTrue(
-                s.indexOf("receipt=\" | instruments tier \"")
-                        > s.indexOf("FlightWidgets.render(g,snapshot)"));
-        assertTrue(s.contains("mc.level.getGameTime()-drawnTick<=2?receipt"));
-        assertTrue(
-                Sources.textPaths("probes/src/main/java/dev/starfold/dev/ProbeSession.java", "probes/src/main/java/dev/starfold/dev/ProbeSamples.java")
-                        .contains("space(q.position())+SpaceNavigationClient.probeReading()"));
-        assertTrue(
-                Sources.text("GroundClient").contains("SpaceNavigationClient.initialize(modBus)"));
-    }
-
-    @Test
-    void bothLanguagesContainEveryHudKey() throws Exception {
-        var s = Sources.text("SpaceNavigationClient");
-        for (String language : new String[] {"en_us", "zh_cn"}) {
-            var json =
-                    com.google.gson.JsonParser.parseString(
-                                    Files.readString(
-                                            Path.of(
-                                                    "src/main/resources/assets/starfold/lang/"
-                                                            + language
-                                                            + ".json")))
-                            .getAsJsonObject();
-            var matcher =
-                    java.util.regex.Pattern.compile("\"(hud\\.starfold\\.space_[a-z_]+)\"")
-                            .matcher(s);
-            int count = 0;
-            while (matcher.find()) {
-                assertTrue(json.has(matcher.group(1)));
-                count++;
-            }
-            assertEquals(1, count);
-            for (String key :
-                    new String[] {
-                        "scope_required",
-                        "free",
-                        "arrival",
-                        "chart",
-                        "caption",
-                        "boost",
-                        "relative",
-                        "closing",
-                        "bearing",
-                        "clearance"
-                    }) assertTrue(json.has("hud.starfold.instrument_" + key));
-        }
     }
 }

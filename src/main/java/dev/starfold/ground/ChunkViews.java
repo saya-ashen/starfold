@@ -10,8 +10,8 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 
-import java.util.Map;
 import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Server-side seam topology at the chunk-lookup layer.
@@ -35,9 +35,11 @@ public final class ChunkViews {
     }
 
     private static final int CACHE_LIMIT = 8192;
+
     private record CachedColumns(dev.starfold.chart.PlanetShape shape, Columns columns) {}
 
-    private static volatile ConcurrentHashMap<Long, CachedColumns> columns = new ConcurrentHashMap<>();
+    private static volatile ConcurrentHashMap<Long, CachedColumns> columns =
+            new ConcurrentHashMap<>();
     private static final Map<ServerLevel, ConcurrentHashMap<Long, GhostChunk>> VIEWS =
             new IdentityHashMap<>();
 
@@ -82,10 +84,12 @@ public final class ChunkViews {
                             GroundCoordinates.FLOOR,
                             chunkZ * 16 + (i >> 4));
             try {
-                int offsetX = dev.starfold.planet.PlanetStorage.column(planet)
-                        * dev.starfold.planet.PlanetStorage.PLANET_STRIDE;
-                int offsetZ = dev.starfold.planet.PlanetStorage.row(planet)
-                        * dev.starfold.planet.PlanetStorage.ROW_STRIDE;
+                int offsetX =
+                        dev.starfold.planet.PlanetStorage.column(planet)
+                                * dev.starfold.planet.PlanetStorage.PLANET_STRIDE;
+                int offsetZ =
+                        dev.starfold.planet.PlanetStorage.row(planet)
+                                * dev.starfold.planet.PlanetStorage.ROW_STRIDE;
                 var local = query.offset(-offsetX, 0, -offsetZ);
                 if (!dev.starfold.planet.GroundTopology.inChart(shape, local))
                     throw new IllegalArgumentException("Outside planet chart halo");

@@ -1,0 +1,16 @@
+# Run the same disposable fixture save in a fresh server JVM after liquid-checkpoint.
+strict
+waitworld
+wait 160
+cmd scoreboard objectives add sfIndProbe dummy
+check industry-rejoin-native if dimension starfold:native_planet
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest verify-liquid-persist
+check industry-liquid-persist if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest observe 21586 182 948
+check industry-observe-diesel if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest observe 21586 183 949
+check industry-observe-gasoline if score @s sfIndProbe matches 1
+quit

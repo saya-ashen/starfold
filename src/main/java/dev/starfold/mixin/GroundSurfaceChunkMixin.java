@@ -25,7 +25,8 @@ public abstract class GroundSurfaceChunkMixin {
             dev.starfold.ship.Thrusters.changed(level, pos);
             if (!PlanetLevels.is(level)) return;
             if (PlanetAccess.of(level).key(chunk.getPos().x, chunk.getPos().z) >= 0)
-                GroundSurfaceIndex.at(level, chunk.getPos().x, chunk.getPos().z).changed(chunk,pos);
+                GroundSurfaceIndex.at(level, chunk.getPos().x, chunk.getPos().z)
+                        .changed(chunk, pos);
             GroundViewServer.changed(level, pos, state);
         }
     }

@@ -6,7 +6,6 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.worldgen.PlanetBiomes;
 import dev.starfold.worldgen.PlanetGeneration;
-import dev.starfold.worldgen.PlanetMinerals;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import net.minecraft.core.Holder;
@@ -73,9 +72,17 @@ public record PlanetType(
         return shape.shell();
     }
 
-    public boolean creatures() { return life.creatures().orElse(true); }
-    public boolean features() { return life.features().orElse(true); }
-    public boolean structures() { return life.structures().orElse(true); }
+    public boolean creatures() {
+        return life.creatures().orElse(true);
+    }
+
+    public boolean features() {
+        return life.features().orElse(true);
+    }
+
+    public boolean structures() {
+        return life.structures().orElse(true);
+    }
 
     /** A planet names its type, or carries one written out in its place. */
     public static final Codec<Holder<PlanetType>> HOLDER = RegistryFileCodec.create(KEY, CODEC);
@@ -129,14 +136,31 @@ public record PlanetType(
                             + minSize()
                             + " to "
                             + maxSize());
-        return new PlanetGeneration("recipe",PlanetGeneration.SURFACE_VERSION,terrain.recipe(),size,depth(size),shell(),creatures(),features(),structures(),environment.resolve(true,size));
+        return new PlanetGeneration(
+                "recipe",
+                PlanetGeneration.SURFACE_VERSION,
+                terrain.recipe(),
+                size,
+                depth(size),
+                shell(),
+                creatures(),
+                features(),
+                structures(),
+                environment.resolve(true, size));
     }
 
     public PlanetChunkGenerator planet(long seed, Optional<Integer> size) {
-        var settings=new FlatLevelGeneratorSettings(Optional.of(HolderSet.direct()),biome(),List.of());
-        settings.getLayersInfo().add(new FlatLayerInfo(1,Blocks.BEDROCK));settings.updateLayers();
-        var generation=generation(size.orElseGet(()->size(seed)));
-        return new PlanetChunkGenerator(settings,seed,PlanetTerrain.VERSION,Optional.of(new PlanetBiomes(seed,terrain.biomes())),Optional.of(generation));
+        var settings =
+                new FlatLevelGeneratorSettings(Optional.of(HolderSet.direct()), biome(), List.of());
+        settings.getLayersInfo().add(new FlatLayerInfo(1, Blocks.BEDROCK));
+        settings.updateLayers();
+        var generation = generation(size.orElseGet(() -> size(seed)));
+        return new PlanetChunkGenerator(
+                settings,
+                seed,
+                PlanetTerrain.VERSION,
+                Optional.of(new PlanetBiomes(seed, terrain.biomes())),
+                Optional.of(generation));
     }
 
     /** Resolve a type once, retaining its registry identity in the saved generator, not a live pack dependency. */

@@ -1,9 +1,9 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.storage.ChunkKeys;
 import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.GroundTopology;
+import dev.starfold.storage.ChunkKeys;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -133,5 +133,7 @@ public final class GroundViewCache {
         return null;
     }
 
-    static GroundSurface surfaceImage(GroundChunkSnapshot image) { return GroundSurface.from(image); }
+    static GroundSurface surfaceImage(GroundChunkSnapshot image) {
+        return GroundSurface.from(image);
+    }
 }

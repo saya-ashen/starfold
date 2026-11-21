@@ -29,7 +29,11 @@ import java.util.Locale;
 public final class WaypointClient {
     private static Waypoint marker;
     private static java.util.List<Waypoint> markers = java.util.List.of();
-    public static java.util.List<Waypoint> markers() { return markers; }
+
+    public static java.util.List<Waypoint> markers() {
+        return markers;
+    }
+
     private static long session;
     private static SpaceNavigation.Marker projected;
 
@@ -114,7 +118,8 @@ public final class WaypointClient {
     }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
-        StarfoldNetwork.clientReceiver(WaypointPackets.Book.TYPE, (packet, context) -> markers = packet.markers());
+        StarfoldNetwork.clientReceiver(
+                WaypointPackets.Book.TYPE, (packet, context) -> markers = packet.markers());
         StarfoldNetwork.clientReceiver(
                 WaypointPackets.Target.TYPE,
                 (packet, context) -> {
@@ -147,22 +152,57 @@ public final class WaypointClient {
     }
 
     /** Same observer frame as ordinary waypoint bearings, for stars and space hulls. */
-    public static void destination(GuiGraphics graphics, String name, BentStripGeometry.Point destination) {
+    public static void destination(
+            GuiGraphics graphics, String name, BentStripGeometry.Point destination) {
         if (!WaypointClientHost.get().ready() || !GroundFlightClient.ready()) return;
         var client = Minecraft.getInstance();
         var model = GroundFlightClient.model();
         var state = GroundFlightClient.state();
         double tick = state.tick();
         var delta = destination.sub(GroundDynamics.position(model, state, tick));
-        var orientation = GroundFlightClient.controlled() ? GroundDynamics.orientation(model, state, tick)
-                : model.at(state.planet(), tick).rotation()
-                        .mul(PlanetOrbit.frame(WaypointClientHost.get().shape(), WaypointClientHost.get().pose()).rotation())
-                        .mul(GroundCamera.capture(WaypointClientHost.get().frame().yawToStorage(client.player.getYRot()), client.player.getXRot()));
-        var direction = orientation.conjugate().transform(new Vector3d(delta.x(), delta.y(), delta.z()));
-        double yaw = Math.toDegrees(Math.atan2(direction.x, direction.z)), pitch = Math.toDegrees(Math.atan2(direction.y, Math.hypot(direction.x, direction.z)));
+        var orientation =
+                GroundFlightClient.controlled()
+                        ? GroundDynamics.orientation(model, state, tick)
+                        : model.at(state.planet(), tick)
+                                .rotation()
+                                .mul(
+                                        PlanetOrbit.frame(
+                                                        WaypointClientHost.get().shape(),
+                                                        WaypointClientHost.get().pose())
+                                                .rotation())
+                                .mul(
+                                        GroundCamera.capture(
+                                                WaypointClientHost.get()
+                                                        .frame()
+                                                        .yawToStorage(client.player.getYRot()),
+                                                client.player.getXRot()));
+        var direction =
+                orientation.conjugate().transform(new Vector3d(delta.x(), delta.y(), delta.z()));
+        double yaw = Math.toDegrees(Math.atan2(direction.x, direction.z)),
+                pitch =
+                        Math.toDegrees(
+                                Math.atan2(direction.y, Math.hypot(direction.x, direction.z)));
         int y = HullLandingClient.active() || GroundFlightClient.controlled() ? 80 : 36;
-        graphics.drawString(client.font, net.minecraft.network.chat.Component.translatable("hud.starfold.map_destination", name, GroundFlightClient.distance(delta.length())), 8, y, 0xff88ffff, true);
-        graphics.drawString(client.font, net.minecraft.network.chat.Component.translatable("hud.starfold.map_bearing", String.format(Locale.ROOT, "%+.0f", yaw), String.format(Locale.ROOT, "%+.0f", pitch)), 8, y+11, 0xff88ffff, true);
+        graphics.drawString(
+                client.font,
+                net.minecraft.network.chat.Component.translatable(
+                        "hud.starfold.map_destination",
+                        name,
+                        GroundFlightClient.distance(delta.length())),
+                8,
+                y,
+                0xff88ffff,
+                true);
+        graphics.drawString(
+                client.font,
+                net.minecraft.network.chat.Component.translatable(
+                        "hud.starfold.map_bearing",
+                        String.format(Locale.ROOT, "%+.0f", yaw),
+                        String.format(Locale.ROOT, "%+.0f", pitch)),
+                8,
+                y + 11,
+                0xff88ffff,
+                true);
     }
 
     private static void render(GuiGraphics graphics) {

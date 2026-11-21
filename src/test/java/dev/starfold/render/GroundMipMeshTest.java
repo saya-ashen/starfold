@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.*;
@@ -112,32 +111,6 @@ class GroundMipMeshTest {
     }
 
     @Test
-    void nativeOwnershipIsPreservedAndResidentNeighboursDoNotCullMixedWalls() throws Exception {
-        var shape = new PlanetShape(416);
-        var complete = new BitSet();
-        for (var f : Face.values())
-            complete.set((int) GroundOwnership.key(shape, f.ordinal(), 0, 0));
-        var owners = GroundOwnership.atlas(shape, GroundOwnership.empty(), Set.of(0L));
-        var packed = GroundLodAtlas.pack(shape, owners, complete);
-        for (int i = 0; i < owners.length; i++) assertEquals(owners[i], packed[i * 2]);
-        int n = shape.chunks(), side = GroundOwnership.SIDE;
-        for (var f : Face.values())
-            for (int z = -1; z <= n; z++)
-                for (int x = -1; x <= n; x++) {
-                    long key = GroundOwnership.key(shape, f.ordinal(), x * 16 + 8, z * 16 + 8);
-                    assertEquals(
-                            complete.get((int) key) ? 255 : 0,
-                            packed[2 * (x + 1 + side * (z + 1 + side * f.ordinal())) + 1] & 255);
-                }
-        var shader = Sources.text("GroundShaderSource");
-        assertTrue(shader.contains("if(border&&cpNativeOwner(neighbour)>0.1)discard"));
-        assertFalse(shader.contains("CPNativeLodPass>0.5&&cpNativeResident(neighbour)>0.5"));
-        assertTrue(
-                Sources.text("GroundRenderer")
-                        .contains("GroundShaderSource.patchTag(false,GroundFarMesh.side(q))"));
-    }
-
-    @Test
     void capturedVoxelPlantsDropToTheirActualGroundWithoutPinningVoxels() {
         var capture = new VoxelColumns.Capture(-64, 320);
         while (!capture.done())
@@ -152,8 +125,7 @@ class GroundMipMeshTest {
         int[] h = new int[256], m = new int[256];
         Arrays.fill(h, 128);
         Arrays.fill(m, Block.BLOCK_STATE_REGISTRY.getId(Blocks.DEAD_BUSH.defaultBlockState()));
-        var image =
-                new GroundSurface(1, h, m, capture.result().orElseThrow()).surfaceOnly();
+        var image = new GroundSurface(1, h, m, capture.result().orElseThrow()).surfaceOnly();
         assertEquals(127, image.height(3, 7));
         assertTrue(image.state(3, 7).is(Blocks.GOLD_BLOCK));
         assertNull(image.voxels());

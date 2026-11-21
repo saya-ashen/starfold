@@ -1,7 +1,5 @@
 package dev.starfold.extras;
 
-import dev.starfold.ship.*;
-
 import dev.ryanhcode.sable.api.SubLevelAssemblyHelper;
 import dev.ryanhcode.sable.companion.math.BoundingBox3i;
 import dev.starfold.chart.PlanetShape;
@@ -9,10 +7,10 @@ import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
+import dev.starfold.ship.*;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.universe.PlanetSpawn;
-import dev.starfold.extras.StarterShipOption;
 import dev.starfold.universe.SystemChunkGenerator;
 
 import net.minecraft.core.BlockPos;
@@ -38,7 +36,8 @@ public final class StarterShip {
     static final String FILE = "starfold_starter_ship_v1";
     public static final String DEPENDENCY_MESSAGE =
             "Experience requires Create and Simulated (Create Aeronautics). Install both, or choose native_universe.";
-    static final ResourceLocation WEAPON = ResourceLocation.parse("starfold_extras:starter_ship_weapon");
+    static final ResourceLocation WEAPON =
+            ResourceLocation.parse("starfold_extras:starter_ship_weapon");
     static final BlockPos WEAPON_OFFSET = new BlockPos(31, 4, 8);
 
     static final class State extends SavedData {
@@ -135,7 +134,8 @@ public final class StarterShip {
                                                     stem.generator()
                                                                     instanceof
                                                                     SystemChunkGenerator system
-                                                            && StarfoldExtras.starterShip(system).isPresent())) {
+                                                            && StarfoldExtras.starterShip(system)
+                                                                    .isPresent())) {
                         LOG.error(DEPENDENCY_MESSAGE);
                         event.getServer().halt(false);
                     }
@@ -147,7 +147,8 @@ public final class StarterShip {
                     if (level != null
                             && level.getChunkSource().getGenerator()
                                     instanceof SystemChunkGenerator system)
-                        StarfoldExtras.starterShip(system).ifPresent(option -> create(level, system, option));
+                        StarfoldExtras.starterShip(system)
+                                .ifPresent(option -> create(level, system, option));
                 });
     }
 
@@ -311,10 +312,15 @@ public final class StarterShip {
                                     int u = x - faceStart,
                                             ground = terrain.groundY(surfaceFace, u, z);
                                     boolean tree = false;
-                                    var surface=new dev.starfold.worldgen.surface.SurfaceFunction(terrain).point(surfaceFace,u,z);
-                                    tree=surface.canopyCoverage()>0;
+                                    var surface =
+                                            new dev.starfold.worldgen.surface.SurfaceFunction(
+                                                            terrain)
+                                                    .point(surfaceFace, u, z);
+                                    tree = surface.canopyCoverage() > 0;
                                     return new StarterSite.Column(
-                                            ground, terrain.surfaceTop(surfaceFace, u, z, ground) > ground, tree);
+                                            ground,
+                                            terrain.surfaceTop(surfaceFace, u, z, ground) > ground,
+                                            tree);
                                 });
         var ranked = StarterSite.rank((int) home.x(), (int) home.z(), radius, 320, cheap);
         var actual = new HashMap<Long, StarterSite.Column>();

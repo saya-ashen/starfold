@@ -230,5 +230,4 @@ class VoxelVerticalRunsTest {
             assertFalse(cancel.done());
         }
     }
-
 }

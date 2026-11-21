@@ -1,25 +1,51 @@
 package dev.starfold.devtools;
 
+import dev.starfold.api.RenderWorkDiagnostics;
+
 import java.util.Arrays;
 
 /** Render-thread-only capture; all storage and query names are allocated before recording. */
 public final class Capture implements AutoCloseable {
-    public static final String[] NAMES = {"mesh", "far", "ownership", "native", "sky", "remote",
-            "remote_work", "gas", "frame", "level", "chunks"};
-    public static final int FRAME = 8, LEVEL = 9, CHUNKS = 10, SECTIONS = NAMES.length;
+    public static final String[] NAMES = {
+        "mesh",
+        "far",
+        "ownership",
+        "native",
+        "sky",
+        "remote",
+        "remote_work",
+        "gas",
+        "frame",
+        "level",
+        "chunks",
+        "entities",
+        "entity_shadows",
+        "client_tick"
+    };
+    public static final int FRAME = 8, LEVEL = 9, CHUNKS = 10,
+            ENTITIES = 11, ENTITY_SHADOWS = 12, CLIENT_TICK = 13, SECTIONS = NAMES.length;
+
     public interface Queries {
         int create();
+
         void timestamp(int query);
+
         boolean available(int query);
+
         long result(int query);
+
         void delete(int query);
     }
+
     private static final int DELAY = 3;
     private final Queries queries;
     private final Slot[] ring;
     private final long[] starts = new long[SECTIONS];
     private final int[] pairs = new int[SECTIONS];
-    private final long[] cpu, gpu, intervals;
+    public static final RenderWorkDiagnostics.Metric[] WORK_METRICS =
+            RenderWorkDiagnostics.Metric.values();
+    private final long[] cpu, gpu, intervals, work;
+    private final long[] gcPauses;
     private int row = -1, completed;
     private long frameStart;
     private Slot active;
@@ -28,6 +54,7 @@ public final class Capture implements AutoCloseable {
         final int[] ids, sections;
         final int fence;
         int row = -1, used;
+
         Slot(Queries queries, int capacity) {
             fence = queries.create();
             ids = new int[capacity * 2];
@@ -35,15 +62,19 @@ public final class Capture implements AutoCloseable {
             for (int i = 0; i < ids.length; i++) ids[i] = queries.create();
         }
     }
+
     public Capture(Queries queries, int frames, int slots, int pairsPerFrame) {
         this.queries = queries;
         cpu = new long[frames * SECTIONS];
         gpu = new long[cpu.length];
         intervals = new long[frames];
+        gcPauses = new long[frames];
+        work = new long[frames * WORK_METRICS.length];
         ring = new Slot[slots];
         for (int i = 0; i < slots; i++) ring[i] = new Slot(queries, pairsPerFrame);
         Arrays.fill(pairs, -1);
     }
+
     /** Close the previous complete frame at the next frame's start (includes pacing/swap). */
     public void boundary(long now) {
         if (row >= 0) {
@@ -55,7 +86,11 @@ public final class Capture implements AutoCloseable {
         active = null;
         row = -1;
     }
-    public boolean full() { return completed == intervals.length; }
+
+    public boolean full() {
+        return completed == intervals.length;
+    }
+
     public void open(long now) {
         row = completed;
         frameStart = now;
@@ -68,6 +103,7 @@ public final class Capture implements AutoCloseable {
             Arrays.fill(gpu, row * SECTIONS, (row + 1) * SECTIONS, -1);
         }
     }
+
     public void begin(int section, long now) {
         if (row < 0) return;
         starts[section] = now;
@@ -80,6 +116,12 @@ public final class Capture implements AutoCloseable {
             gpu[row * SECTIONS + section] = -1;
         }
     }
+
+    /** Client tick has no GL work and must not issue GPU queries. */
+    public void beginCpu(int section, long now) {
+        if (row >= 0) starts[section] = now;
+    }
+
     public void end(int section, long now) {
         if (row < 0) return;
         cpu[row * SECTIONS + section] += now - starts[section];
@@ -89,6 +131,7 @@ public final class Capture implements AutoCloseable {
             pairs[section] = -1;
         }
     }
+
     private void poll(int age, boolean stopping) {
         for (Slot slot : ring) {
             if (slot.row < 0 || (!stopping && age - slot.row < DELAY)) continue;
@@ -96,12 +139,14 @@ public final class Capture implements AutoCloseable {
             if (!queries.available(slot.fence)) continue;
             for (int i = 0; i < slot.used; i++) {
                 int index = slot.row * SECTIONS + slot.sections[i];
-                long elapsed = queries.result(slot.ids[i * 2 + 1]) - queries.result(slot.ids[i * 2]);
+                long elapsed =
+                        queries.result(slot.ids[i * 2 + 1]) - queries.result(slot.ids[i * 2]);
                 if (gpu[index] >= 0) gpu[index] += elapsed;
             }
             slot.row = -1;
         }
     }
+
     public void finish() {
         poll(completed, true);
         for (Slot slot : ring) {
@@ -109,11 +154,47 @@ public final class Capture implements AutoCloseable {
             for (int i = 0; i < slot.used; i++) gpu[slot.row * SECTIONS + slot.sections[i]] = -1;
         }
     }
-    public int size() { return completed; }
-    public long interval(int frame) { return intervals[frame]; }
-    public long cpu(int frame, int section) { return cpu[frame * SECTIONS + section]; }
-    public long gpu(int frame, int section) { return gpu[frame * SECTIONS + section]; }
-    @Override public void close() {
+
+    /** Attribute actual JFR stop-the-world intervals by overlap, including frame pacing. */
+    public void recordGcPause(long offset, long duration) {
+        long start = 0, end = offset + duration;
+        for (int f = 0; f < completed && start < end; f++) {
+            long next = start + intervals[f];
+            gcPauses[f] += Math.max(0, Math.min(next, end) - Math.max(start, offset));
+            start = next;
+        }
+    }
+
+    public long gcPause(int frame) { return gcPauses[frame]; }
+
+    public int size() {
+        return completed;
+    }
+
+    public long interval(int frame) {
+        return intervals[frame];
+    }
+
+    public long cpu(int frame, int section) {
+        return cpu[frame * SECTIONS + section];
+    }
+
+    public long gpu(int frame, int section) {
+        return gpu[frame * SECTIONS + section];
+    }
+
+    /** Copies a completed fine-diagnostics frame without allocating or issuing GPU queries. */
+    public void recordWork(long[] values) {
+        if (row >= 0)
+            System.arraycopy(values, 0, work, row * WORK_METRICS.length, WORK_METRICS.length);
+    }
+
+    public long work(int frame, RenderWorkDiagnostics.Metric metric) {
+        return work[frame * WORK_METRICS.length + metric.ordinal()];
+    }
+
+    @Override
+    public void close() {
         for (Slot slot : ring) {
             for (int id : slot.ids) queries.delete(id);
             queries.delete(slot.fence);

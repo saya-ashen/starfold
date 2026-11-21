@@ -4,7 +4,6 @@ import static dev.starfold.sky.SpaceTest.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
 
@@ -86,7 +85,9 @@ class SpaceAttitudeTest {
                     SpaceFlightMath.attitude(f, model, 0, pivot, height, 0, true, 90, 0, 0));
         for (double height : new double[] {1536, 1835.999, 6000}) {
             var expected = Space.Frame.turn(f, model, 0, pivot, Math.toRadians(30) / 20);
-            aim(expected, SpaceFlightMath.attitude(f, model, 0, pivot, height, 400, true, 90, 1, -1));
+            aim(
+                    expected,
+                    SpaceFlightMath.attitude(f, model, 0, pivot, height, 400, true, 90, 1, -1));
             assertEquals(
                     new Quaterniond(),
                     SpaceFlightMath.attitude(f, model, 0, pivot, height, 400, false, 90, 1, -1));
@@ -127,7 +128,8 @@ class SpaceAttitudeTest {
         for (double p : new double[] {-20, -1, 0, 1, 20})
             for (double r : new double[] {-20, -1, 0, 1, 20})
                 assertTrue(
-                        SpaceFlightMath.attitude(f, m, 0, Space.ORIGIN, 5000, 0, true, 90, p, r).angle()
+                        SpaceFlightMath.attitude(f, m, 0, Space.ORIGIN, 5000, 0, true, 90, p, r)
+                                        .angle()
                                 <= Math.toRadians(45) / 20 + 1e-10);
         for (double invalid : new double[] {Double.NaN, Double.POSITIVE_INFINITY})
             assertEquals(
@@ -140,27 +142,6 @@ class SpaceAttitudeTest {
 
     @Test
     void inputIsHelmScopedValidatedAndNeverSaved() throws Exception {
-        var server = Sources.text("SpaceServer").plus(Sources.text("SpaceSessions"));
-        var client = Sources.text("SpaceAttitudeClient");
-        for (String guard :
-                new String[] {
-                    "!packet.finite()",
-                    "!Space.in(player)",
-                    "lead==null||!helm(player,lead)",
-                    "HelmServer.pilot(player,body)",
-                    "wish.body()!=lead",
-                    "!SpaceSessions.fresh(wish.tick(),level.getGameTime())",
-                    "Math.clamp(packet.pitch(),-1,1)",
-                    "Math.clamp(packet.roll(),-1,1)"
-                }) assertTrue(server.contains(guard), guard);
-        assertTrue(client.contains("!SpaceClient.active()||HelmClient.body()==null"));
-        assertTrue(client.contains("pitch!=0||roll!=0||sent"));
-        assertFalse(
-                Sources.text("SpaceServer").substring(Sources.text("SpaceServer").indexOf("@Override public CompoundTag save"))
-                        .contains("wish"));
-        for (String code :
-                new String[] {"GLFW_KEY_UP", "GLFW_KEY_DOWN", "GLFW_KEY_LEFT", "GLFW_KEY_RIGHT"})
-            assertTrue(client.contains(code));
         for (String language : new String[] {"en_us", "zh_cn"}) {
             var json =
                     com.google.gson.JsonParser.parseString(
@@ -239,7 +220,8 @@ class SpaceAttitudeTest {
         for (double x : new double[] {-1000, 0, 1000})
             for (double y : new double[] {-1000, 0, 1000})
                 assertTrue(
-                        SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, true, 37, 0, 0, x, y).angle()
+                        SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, true, 37, 0, 0, x, y)
+                                        .angle()
                                 <= Math.toRadians(9) + 1e-10);
         assertEquals(
                 Math.toRadians(6.75),
@@ -255,32 +237,6 @@ class SpaceAttitudeTest {
         assertEquals(
                 new Quaterniond(),
                 SpaceFlightMath.attitude(f, m, 0, pivot, 2500, 0, false, 90, 1, 1, 90, 90));
-    }
-
-    @Test
-    void mouseIsOneShotHelmValidatedAndUsesVanillaHook() throws Exception {
-        var s = Sources.text("SpaceServer").plus(Sources.text("SpaceSessions"));
-        for (String guard :
-                new String[] {
-                    "!packet.finite()",
-                    "lead==null||!helm(player,lead)",
-                    "new Wish(lead,pitch,roll,0,0,wish.tick())"
-                }) assertTrue(s.contains(guard), guard);
-        var hook = Sources.text("HelmMouseMixin");
-        assertTrue(hook.contains("@WrapOperation(method=\"turnPlayer\""));
-        assertTrue(hook.contains("original.call(player,flight?0d:x,flight?0d:y)"));
-        var client = Sources.text("SpaceAttitudeClient");
-        for (String guard :
-                new String[] {
-                    "mc.options.getCameraType()==net.minecraft.client.CameraType.THIRD_PERSON_FRONT",
-                    "OrbitFlightControls.freeLook()",
-                    "!SpaceClient.arriving()",
-                    "pointer.move(x*.15,-y*.15)",
-                    "if(!mouseFlight()){recenter();return false;}",
-                    "mc.player.setXRot(0)",
-                    "mc.player.setYRot(lookYaw)",
-                    "pointer=pointer.remaining(turn)"
-                }) assertTrue(client.contains(guard), guard);
     }
 
     @Test

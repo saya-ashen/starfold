@@ -27,12 +27,18 @@ class PixelBodyShaderTest {
             assertTrue(source.contains("else if(a.y>=a.z)q.y=sign(n.y)"));
             assertTrue(source.contains("else q.z=sign(n.z)"));
             assertTrue(source.contains("q=normalize(q)"));
-            assertTrue(source.contains("1.0-smoothstep(0.5,1.5,max(footprint.x,max(footprint.y,footprint.z)))"));
+            assertTrue(
+                    source.contains(
+                            "1.0-smoothstep(0.5,1.5,max(footprint.x,max(footprint.y,footprint.z)))"));
             assertFalse(source.contains("atan("));
             assertFalse(source.contains("asin("));
             String text = Files.readString(GasRenderTest.SHADERS.resolve(name + ".fsh"));
-            var parsed = io.github.ocelot.glslprocessor.api.GlslParser.preprocessParse(text, new HashMap<>());
-            assertNotNull(io.github.ocelot.glslprocessor.api.GlslParser.preprocessParse(parsed.toSourceString(), new HashMap<>()));
+            var parsed =
+                    io.github.ocelot.glslprocessor.api.GlslParser.preprocessParse(
+                            text, new HashMap<>());
+            assertNotNull(
+                    io.github.ocelot.glslprocessor.api.GlslParser.preprocessParse(
+                            parsed.toSourceString(), new HashMap<>()));
         }
     }
 

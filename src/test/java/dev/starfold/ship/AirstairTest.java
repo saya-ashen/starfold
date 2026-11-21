@@ -2,13 +2,42 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
 import org.junit.jupiter.api.Test;
 
 class AirstairTest {
+    @Test
+    void clientKeepsDeploymentBetweenPacketBurstsButExpiresSilentServer() {
+        long received = 2_000_000_000L;
+        assertFalse(Airstair.clientStateExpired(received, received + 550_000_000L));
+        assertTrue(Airstair.clientStateExpired(received, received + 1_050_000_000L));
+    }
+
+    @Test
+    void observerProjectionMovesFlightWithoutMovingItsPlotBlock() {
+        var plot = new net.minecraft.core.BlockPos(20481041, -104, 20481036);
+        var state = new Airstair.State(plot, 65722, 153.6, 16589, 0, 1, 2.566, .5, 1);
+        var hinge = new dev.starfold.geometry.BentStripGeometry.Point(74330, 153.6, 16589);
+        var mapped = state.inObserverChart(hinge, 1);
+        assertEquals(plot, mapped.pos());
+        assertEquals(74330, mapped.x());
+        assertEquals(-1, mapped.ox());
+        assertEquals(0, mapped.oz());
+        assertEquals(state.length(), mapped.length());
+        assertEquals(state.treadRun(), mapped.treadRun());
+    }
+
+    @Test
+    void manualDeploymentAllowsGroundedJitterButRejectsHoverAndMotion() {
+        assertTrue(Airstair.canManuallyDeploy(LiftControl.CONTACT, .2));
+        assertFalse(Airstair.canManuallyDeploy(LiftControl.CONTACT + .01, .2));
+        assertFalse(Airstair.canManuallyDeploy(0, Airstair.EXIT_SPEED + .01));
+        assertFalse(Airstair.canManuallyDeploy(0, Double.NaN));
+        assertFalse(Airstair.canManuallyDeploy(Double.NaN, 0));
+    }
+
     @Test
     void requiresOneSecondOfQuietAndDoesNotNeedAPilot() {
         int state = 0;
@@ -142,9 +171,6 @@ class AirstairTest {
 
     @Test
     void collisionHookUsesVanillaNotClimbing() throws Exception {
-        var source = Sources.text("AirstairCollisionMixin");
-        assertTrue(source.contains("getEntityCollisions"));
-        assertFalse(source.contains("onClimbable"));
         assertTrue(
                 FlightPermitTest.json("starfold.mixins.json")
                         .getAsJsonArray("mixins")

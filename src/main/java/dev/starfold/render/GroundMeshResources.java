@@ -8,8 +8,13 @@ public final class GroundMeshResources {
     private static volatile long generation;
     private static volatile boolean reloading;
 
-    static long generation() { return generation; }
-    static boolean current(long captured) { return !reloading && captured == generation; }
+    static long generation() {
+        return generation;
+    }
+
+    static boolean current(long captured) {
+        return !reloading && captured == generation;
+    }
 
     static void read(long captured, Runnable work) {
         lock.readLock().lock();
@@ -35,7 +40,9 @@ public final class GroundMeshResources {
         }
     }
 
-    static void endReload() { reloading = false; }
+    static void endReload() {
+        reloading = false;
+    }
 
     private GroundMeshResources() {}
 }

@@ -148,7 +148,9 @@ public final class GasShipDamage {
                                                 padding.getAsDouble()));
                 entry.sample = new Sample(now, geometry, field);
                 if (geometry.isEmpty()) continue;
-                int interval = HullPressure.damageInterval(entry.sample.ambient().orElseThrow().pressure());
+                int interval =
+                        HullPressure.damageInterval(
+                                entry.sample.ambient().orElseThrow().pressure());
                 if (interval == 0) {
                     entry.pending = null;
                     continue;
@@ -251,9 +253,11 @@ public final class GasShipDamage {
                                 new org.joml.Vector3d(
                                         pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5));
         var universe = frame.universe(new Point(p.x, p.y, p.z), model, tick);
-        return HullPressure.damaged(state,
+        return HullPressure.damaged(
+                state,
                 field.worst(universe, GasHullGeometry.blockPadding(hull.logicalPose()))
-                        .orElseThrow().pressure());
+                        .orElseThrow()
+                        .pressure());
     }
 
     private static boolean scanAndRemove(
@@ -281,7 +285,8 @@ public final class GasShipDamage {
                     continue;
                 }
                 entry.scan.nextCell();
-                if (!eligible(chunk, pos) || !exposed(hull, pos, chunk.getBlockState(pos), field, model, frame, tick))
+                if (!eligible(chunk, pos)
+                        || !exposed(hull, pos, chunk.getBlockState(pos), field, model, frame, tick))
                     continue;
                 entry.pending = pos;
             }

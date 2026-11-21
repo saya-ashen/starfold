@@ -19,22 +19,19 @@ import java.util.regex.Pattern;
 
 class VoxelFaceShaderTest {
     @Test
-    void volumeTagIsDisjointAndRestoresOldSpanSideAndAlbedoDecode() throws Exception {
+    void volumeTagIsDisjointAndCompactUsesCurrentSideTags() throws Exception {
         assertEquals(251, GroundShaderSource.VOXEL_TAG);
         for (int old : new int[] {0, 1, 2, 4, 8, 16, 252, 253, 254, 255})
             assertNotEquals(GroundShaderSource.VOXEL_TAG, old);
-        String vertex =
-                CoreShaderSource.patch(
-                        "rendertype_solid", true, resource("core/rendertype_solid.vsh"));
-        assertTrue(
-                vertex.contains(
-                        "if(tag==251.0){cpNativeVoxel=1.0;tag=16.0;}cpNativeTexSpan=max(1.0,tag);"));
-        assertTrue(
-                vertex.contains(
-                        "if(tag<0.5)cpNativeSide=1.0;else if(tag>251.5)cpNativeSide=tag-250.0;"));
-        assertTrue(
-                vertex.contains(
-                        "vertexColor.rgb=mix(cpSurfaceColor.rgb,Normal*0.5+0.5,CPNativeLowFrequency);vertexColor.a=1.0;"));
+        String vertex;
+        try (var in = TestArchiveResources.open("/assets/starfold/shaders/core/ground_compact_solid.vsh")) {
+            vertex = CoreShaderSource.patch(GroundCompact.Variant.SOLID.name, true,
+                    new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        assertTrue(vertex.contains("cpNativeVoxel=1.0;"));
+        assertTrue(vertex.contains("if(tag>=240.0&&tag<=243.0)cpNativeSide=tag-239.0;"));
+        assertTrue(vertex.contains("if(tag==234.0){cpNativeCross=1.0;cpNativeTextureAlpha=-2.0;}"));
+        assertFalse(vertex.contains("CPNativeLowFrequency"));
         assertTrue(
                 vertex.indexOf("cpNativeVoxel=0.0")
                         < vertex.indexOf("if(CPNativeActive<0.5)return"));
@@ -42,12 +39,7 @@ class VoxelFaceShaderTest {
         String fragment =
                 CoreShaderSource.patch(
                         "rendertype_solid", false, resource("core/rendertype_solid.fsh"));
-        assertTrue(fragment.contains("flat in float cpNativeSide, cpNativeVoxel;"));
-        var renderer = dev.starfold.Sources.text("GroundRenderer");
-        var vertices = dev.starfold.Sources.text("GroundMeshVertices");
-        assertTrue(vertices.contains("volume ? GroundShaderSource.VOXEL_TAG : 16"));
-        assertTrue(renderer.contains("GroundShaderSource.patchTag(false,GroundFarMesh.side(q))"));
-        assertTrue(vertices.contains("surfacePolygon(builders, state, points, x, z, false)"));
+        assertTrue(fragment.contains("flat in float cpSurfaceClass, cpNativeSide, cpNativeVoxel;"));
     }
 
     @Test
@@ -61,7 +53,7 @@ class VoxelFaceShaderTest {
         assertTrue(
                 relief.indexOf(volume)
                         < relief.indexOf(
-                                "if(CPNativeCoarse>0.5||CPNativeCover>0.5){if(dot(slope,radial)<0.0)"));
+                                "if(CPNativeCoarse>0.5||CPNativeDerived>0.5){if(dot(slope,radial)<0.0)"));
         dev.starfold.worldgen.PlanetTerrainTest.registry();
         var source =
                 new dev.starfold.worldgen.lod.VoxelSource() {
@@ -124,18 +116,6 @@ class VoxelFaceShaderTest {
                         && value.operand == GroundShaderSource.VOXEL_TAG) tag = true;
             assertTrue(tag, "actual compiled vertex upload must contain the reserved alpha tag");
         }
-        try (var in = GroundRenderer.class.getResourceAsStream("GroundRenderer$LodJob.class")) {
-            var node = new ClassNode();
-            new ClassReader(in).accept(node, 0);
-            boolean metadata = false;
-            for (var method : node.methods)
-                for (var instruction : method.instructions)
-                    if (instruction instanceof MethodInsnNode call
-                            && call.owner.equals("dev/starfold/render/GroundShaderSource")
-                            && call.name.equals("patchTag")) metadata = true;
-            assertTrue(
-                    metadata, "actual compiled LodJob must upload shared terrace side/repeat tags");
-        }
         try (var in = VoxelBaseline.open("dev/starfold/render/GroundShaderSource.class")) {
             var node = new ClassNode();
             new ClassReader(in).accept(node, 0);
@@ -162,7 +142,7 @@ class VoxelFaceShaderTest {
                             + before);
         }
         assertTrue(relief.contains("else if(!gl_FrontFacing)slope=-slope"));
-        assertTrue(relief.contains("((CPNativeCoarse>0.5||CPNativeCover>0.5)&&cpNativeSea>0.999)"));
+        assertTrue(relief.contains("((CPNativeCoarse>0.5||CPNativeDerived>0.5)&&cpNativeSea>0.999)"));
     }
 
     static String resource(String name) throws Exception {

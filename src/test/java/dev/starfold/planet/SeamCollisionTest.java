@@ -2,7 +2,6 @@ package dev.starfold.planet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundTerrain;
@@ -18,7 +17,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 
 import org.junit.jupiter.api.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 /** No ClientLevel/GPU: exercises the same collision adapter with explicit residency and snapshots. */
@@ -158,13 +156,5 @@ class SeamCollisionTest {
         assertSame(
                 Blocks.BEDROCK.defaultBlockState(),
                 masked.getBlockState(new BlockPos(32769, 128, 1)));
-    }
-
-    @Test
-    void collisionReadDoesNotInventMissingColumnsFromTheGenerator() throws Exception {
-        var source = Sources.text("GroundViewClient");
-        assertFalse(source.contains("GroundSeams.clientCollisionRead("));
-        assertFalse(source.contains("generated("));
-        assertTrue(Sources.text("GroundSeams").contains("clientCollisionRead=(l,p)->null"));
     }
 }

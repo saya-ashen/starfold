@@ -10,9 +10,12 @@ public record GasPlayerExposureValues(int graceTicks, int safeTicks, int attempt
     public static final String ATTEMPT_KEY = "attempt_ticks";
 
     public GasPlayerExposureValues {
-        if (graceTicks < 0 || graceTicks > GRACE_TICKS
-                || safeTicks < 0 || safeTicks > RECOVERY_TICKS
-                || attemptTicks < 0 || attemptTicks > ATTEMPT_TICKS
+        if (graceTicks < 0
+                || graceTicks > GRACE_TICKS
+                || safeTicks < 0
+                || safeTicks > RECOVERY_TICKS
+                || attemptTicks < 0
+                || attemptTicks > ATTEMPT_TICKS
                 || graceTicks > 0 && attemptTicks != 0
                 || safeTicks == RECOVERY_TICKS && (graceTicks != GRACE_TICKS || attemptTicks != 0))
             throw new IllegalArgumentException("Personal gas timers");

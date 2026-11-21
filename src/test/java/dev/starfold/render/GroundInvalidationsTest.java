@@ -1,13 +1,32 @@
 package dev.starfold.render;
 
-import dev.starfold.chart.PlanetShape;
-import net.minecraft.core.BlockPos;
-import org.junit.jupiter.api.Test;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.chart.PlanetShape;
+
+import net.minecraft.core.BlockPos;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.*;
+
 class GroundInvalidationsTest {
-    @Test void deltaRetainsInteriorAndSeamEditsWithoutSnapshotImages() {
+    @Test
+    void smallPlanetUsesItsOwnEdgeWithinTheFixedStorageGrid() {
+        var shape = new PlanetShape(416);
+        long edge = GroundTileKeys.key(shape, 0, 415, 32);
+        long outside = GroundTileKeys.key(0, 1024, 32);
+        assertTrue(GroundTileKeys.owned(shape, edge));
+        assertFalse(GroundTileKeys.owned(shape, outside));
+        assertTrue(GroundTileKeys.owned(PlanetShape.STANDARD, outside));
+        assertThrows(
+                IllegalArgumentException.class, () -> GroundStreaming.neighbours(shape, outside));
+        for (long neighbour : GroundStreaming.neighbours(shape, edge))
+            assertTrue(GroundTileKeys.owned(shape, neighbour));
+    }
+
+    @Test
+    void deltaRetainsInteriorAndSeamEditsWithoutSnapshotImages() {
         var pending = new GroundInvalidations();
         long key = 0;
         var shape = PlanetShape.STANDARD;

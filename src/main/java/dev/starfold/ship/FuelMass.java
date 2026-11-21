@@ -23,9 +23,10 @@ final class FuelMass {
         if (!due(tick)) return;
         var deltas = new HashMap<>(sampled);
         applied.forEach((pos, mass) -> deltas.merge(pos, -mass, Double::sum));
-        deltas.forEach((pos, mass) -> {
-            if (mass != 0) add.accept(pos, mass);
-        });
+        deltas.forEach(
+                (pos, mass) -> {
+                    if (mass != 0) add.accept(pos, mass);
+                });
         applied = Map.copyOf(sampled);
         updated = tick;
     }

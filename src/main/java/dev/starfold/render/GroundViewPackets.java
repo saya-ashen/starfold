@@ -30,37 +30,45 @@ public final class GroundViewPackets {
         }
     }
 
-    public record Known(long session, long[] keys, long[] revisions) implements CustomPacketPayload {
+    public record Known(long session, long[] keys, long[] revisions)
+            implements CustomPacketPayload {
         public static final Type<Known> TYPE =
                 new Type<>(ResourceLocation.parse("starfold:native_ground_view_known"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Known> CODEC = StreamCodec.of(
-                (b, p) -> {
-                    b.writeLong(p.session);
-                    b.writeVarInt(p.keys.length);
-                    for (int i = 0; i < p.keys.length; i++) {
-                        b.writeVarLong(p.keys[i]);
-                        b.writeVarLong(p.revisions[i]);
-                    }
-                }, b -> {
-                    long session = b.readLong();
-                    int count = b.readVarInt();
-                    if (session == 0 || count < 0 || count > CHUNKS)
-                        throw new IllegalArgumentException("Known surface count/session");
-                    long[] keys = new long[count], revisions = new long[count];
-                    var seen = new BitSet();
-                    for (int i = 0; i < count; i++) {
-                        keys[i] = b.readVarLong();
-                        revisions[i] = b.readVarLong();
-                        if (keys[i] < 0 || keys[i] >= CHUNKS || revisions[i] < 0
-                                || seen.get((int) keys[i]))
-                            throw new IllegalArgumentException("Known surface key/revision");
-                        seen.set((int) keys[i]);
-                    }
-                    return new Known(session, keys, revisions);
-                });
+        public static final StreamCodec<RegistryFriendlyByteBuf, Known> CODEC =
+                StreamCodec.of(
+                        (b, p) -> {
+                            b.writeLong(p.session);
+                            b.writeVarInt(p.keys.length);
+                            for (int i = 0; i < p.keys.length; i++) {
+                                b.writeVarLong(p.keys[i]);
+                                b.writeVarLong(p.revisions[i]);
+                            }
+                        },
+                        b -> {
+                            long session = b.readLong();
+                            int count = b.readVarInt();
+                            if (session == 0 || count < 0 || count > CHUNKS)
+                                throw new IllegalArgumentException("Known surface count/session");
+                            long[] keys = new long[count], revisions = new long[count];
+                            var seen = new BitSet();
+                            for (int i = 0; i < count; i++) {
+                                keys[i] = b.readVarLong();
+                                revisions[i] = b.readVarLong();
+                                if (keys[i] < 0
+                                        || keys[i] >= CHUNKS
+                                        || revisions[i] < 0
+                                        || seen.get((int) keys[i]))
+                                    throw new IllegalArgumentException(
+                                            "Known surface key/revision");
+                                seen.set((int) keys[i]);
+                            }
+                            return new Known(session, keys, revisions);
+                        });
 
         @Override
-        public Type<Known> type() { return TYPE; }
+        public Type<Known> type() {
+            return TYPE;
+        }
     }
 
     public record Delta(long session, long epoch, net.minecraft.core.BlockPos pos, int state)
@@ -140,18 +148,38 @@ public final class GroundViewPackets {
         }
     }
 
-    public record Surface(long session, long key, int algorithmVersion,long revision,GroundSurface image)
+    public record Surface(
+            long session, long key, int algorithmVersion, long revision, GroundSurface image)
             implements CustomPacketPayload {
-        public Surface(long session,long key,GroundSurface image) {
-            this(session,key,dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION,image.revision(),image);
+        public Surface(long session, long key, GroundSurface image) {
+            this(
+                    session,
+                    key,
+                    dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION,
+                    image.revision(),
+                    image);
         }
-        public static Surface removal(long session,long key,long revision) {
-            return new Surface(session,key,dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION,revision,null);
+
+        public static Surface removal(long session, long key, long revision) {
+            return new Surface(
+                    session,
+                    key,
+                    dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION,
+                    revision,
+                    null);
         }
-        public boolean compatible() { return algorithmVersion==dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION; }
+
+        public boolean compatible() {
+            return algorithmVersion == dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION;
+        }
+
         public Surface {
-            if (session == 0 || key < 0 || key >= CHUNKS || algorithmVersion<1 || revision<0
-                    || image!=null && image.revision()!=revision)
+            if (session == 0
+                    || key < 0
+                    || key >= CHUNKS
+                    || algorithmVersion < 1
+                    || revision < 0
+                    || image != null && image.revision() != revision)
                 throw new IllegalArgumentException("Native surface packet");
         }
 
@@ -165,18 +193,20 @@ public final class GroundViewPackets {
                             b.writeVarInt(p.algorithmVersion);
                             b.writeVarInt(GroundSurfaceIndex.SURFACE_FORM);
                             b.writeVarLong(p.revision);
-                            b.writeBoolean(p.image!=null);
-                            if(p.image!=null) {
+                            b.writeBoolean(p.image != null);
+                            if (p.image != null) {
                                 b.writeByteArray(GroundSurfaceCodec.pack(p.image));
                                 GroundVoxelCodec.write(b, p.image.voxels());
                             }
                         },
                         b -> {
-                            long session = b.readLong(),key=b.readVarLong();
-                            int algorithm=b.readVarInt(),form=b.readVarInt();
-                            if(form!=GroundSurfaceIndex.SURFACE_FORM) throw new IllegalArgumentException("Surface form");
-                            long revision=b.readVarLong();
-                            if(!b.readBoolean()) return new Surface(session,key,algorithm,revision,null);
+                            long session = b.readLong(), key = b.readVarLong();
+                            int algorithm = b.readVarInt(), form = b.readVarInt();
+                            if (form != GroundSurfaceIndex.SURFACE_FORM)
+                                throw new IllegalArgumentException("Surface form");
+                            long revision = b.readVarLong();
+                            if (!b.readBoolean())
+                                return new Surface(session, key, algorithm, revision, null);
                             var columns =
                                     GroundSurfaceCodec.unpack(
                                             revision,
@@ -184,7 +214,9 @@ public final class GroundViewPackets {
                             var voxels = GroundVoxelCodec.read(b);
                             return new Surface(
                                     session,
-                                    key,algorithm,revision,
+                                    key,
+                                    algorithm,
+                                    revision,
                                     voxels == null
                                             ? columns
                                             : new GroundSurface(

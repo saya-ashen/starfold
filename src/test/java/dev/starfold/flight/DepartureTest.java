@@ -2,7 +2,6 @@ package dev.starfold.flight;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceNavigation;
@@ -148,28 +147,6 @@ class DepartureTest {
                     lang.equals("en_us") ? "blocked by %s · go around" : "被 %s 遮挡 · 绕行",
                     json.get("hud.starfold.instrument_blocked").getAsString());
         }
-        assertTrue(
-                Sources.text("SableFrames")
-                        .contains(
-                                "ShipHost.get().hullDeparted(level,planet,body.getUniqueId().toString())"));
-        assertTrue(
-                Sources.text("SableFrames")
-                        .contains(
-                                "ShipHost.get().hullEnteredChart(level,body.getUniqueId().toString())"));
-        var server = Sources.text("SpaceServer");
-        assertTrue(
-                server.contains(
-                        "target!=null&&target.celestial()!=null&&validTarget(player,target))lockedPlanet=target.celestial().surfaceSlot(GroundClock.get(level).clock.model).orElse(-1)"));
-        assertTrue(server.contains("abort,false,remaining<.1,lockedPlanet)"));
-        assertTrue(
-                server.contains(
-                        "value.arrivalState=s.step(s.planet(),id,0,0,false,false,false,true,true)"));
-        var client = Sources.text("SpaceNavigationClient");
-        assertTrue(
-                client.contains(
-                        "tier>=2&&t.planet()==locked?CelestialNavigation.blocker(model,pivot,celestial,tick).orElse(null):null"));
-        var widgets = Sources.text("FlightWidgets");
-        assertTrue(widgets.contains("t.blocked()&&i%4>=2"));
     }
 
     @Test

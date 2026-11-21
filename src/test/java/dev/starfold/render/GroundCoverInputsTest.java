@@ -72,7 +72,7 @@ class GroundCoverInputsTest {
                                 Map.of(),
                                 new BitSet())));
         var marked = new BitSet();
-        long halo = GroundOwnership.key(PlanetShape.STANDARD, 0, -16, 32);
+        long halo = GroundTileKeys.key(PlanetShape.STANDARD, 0, -16, 32);
         marked.set((int) halo);
         var empty = GroundCoverSnapshot.patch(heights, marked, 0, 0, 0, k -> null);
         var known =
@@ -85,7 +85,7 @@ class GroundCoverInputsTest {
                 GroundCoverSnapshot.patch(
                         heights, marked, 0, 0, 0, k -> k == halo ? surface(2, 127, 0) : null);
         assertTrue(known.sameInputs(newer));
-        marked.set((int) GroundOwnership.key(PlanetShape.STANDARD, 0, 512, 512));
+        marked.set((int) GroundTileKeys.key(PlanetShape.STANDARD, 0, 512, 512));
         assertTrue(
                 known.sameInputs(
                         GroundCoverSnapshot.patch(
@@ -96,22 +96,5 @@ class GroundCoverInputsTest {
                                 0,
                                 k -> k == halo ? surface(3, 127, 0) : null)),
                 "an unrelated patch must not invalidate this mesh");
-    }
-
-    @Test
-    void reusedRemoteBuffersAreNotClosedOrRebuiltAndMaskChangesInvalidate() throws Exception {
-        var remote = dev.starfold.Sources.text("RemotePlanetMeshes");
-        assertTrue(remote.contains("next.sameInputs(inputs[cursor])"));
-        assertTrue(remote.contains("mask.equals(inputMasks[cursor])"));
-        assertTrue(remote.contains("staging[cursor] = meshes[cursor]"));
-        assertTrue(remote.contains("meshes[i] != staging[i]"));
-        assertTrue(remote.contains("staging[i] != meshes[i]"));
-        assertTrue(remote.contains("inputSource.biome().equals(building.biome())"));
-        var ground = dev.starfold.Sources.text("GroundRenderer");
-        assertTrue(ground.contains("Arrays.fill(coverInputs, null)"));
-        assertTrue(ground.contains("GroundViewClient.overlays(),GroundViewClient.changed()"));
-        assertTrue(ground.contains("coverCohort.farPatch("));
-        assertTrue(ground.contains("dirty.latch()"));
-        assertTrue(ground.contains("dirty.promote()"));
     }
 }

@@ -1,10 +1,12 @@
 package dev.starfold.dev;
 
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.junit.jupiter.api.Test;
+
 class DevMeshProbeTest {
-    @Test void histogramIncludesZeroAndReportsConservativeBounds() {
+    @Test
+    void histogramIncludesZeroAndReportsConservativeBounds() {
         var times = new DevMeshProbe.Times();
         times.add(0);
         times.add(1_000_000);
@@ -15,7 +17,9 @@ class DevMeshProbeTest {
         times.clear();
         assertTrue(times.summary().contains("n=0 total_ms=0.000"));
     }
-    @Test void oldTasksCannotContaminateNextFlightLeg() {
+
+    @Test
+    void oldTasksCannotContaminateNextFlightLeg() {
         DevMeshProbe.begin();
         var trace = new DevMeshProbe.Trace(123, 5);
         assertTrue(DevMeshProbe.active(trace));

@@ -55,11 +55,17 @@ public final class PlanetRemoteServer {
                 });
     }
 
-    static void requestPlan(ServerPlayer player,dev.starfold.universe.PlanetPlanSync.Request request) {
-        if(request.session()!=(Space.in(player) ? SpaceServer.view(player) : GroundFlightServer.session(player)))return;
-        var mine=viewers.get(player.getUUID());
-        if(mine!=null)for(var viewer:mine.values())
-            if(viewer.profile!=null && request.matches(viewer.profile.profile()))viewer.profile=null;
+    static void requestPlan(
+            ServerPlayer player, dev.starfold.universe.PlanetPlanSync.Request request) {
+        if (request.session()
+                != (Space.in(player)
+                        ? SpaceServer.view(player)
+                        : GroundFlightServer.session(player))) return;
+        var mine = viewers.get(player.getUUID());
+        if (mine != null)
+            for (var viewer : mine.values())
+                if (viewer.profile != null && request.matches(viewer.profile.profile()))
+                    viewer.profile = null;
     }
 
     /** Every other planet of the system is kept up to date for this player, each at its own pace. */
@@ -156,11 +162,14 @@ public final class PlanetRemoteServer {
             v.planet = id;
             mine.put(id, v);
         }
-        if(v.profile==null) {
-            var profile=PlanetPackets.Profile.whenReady(session,g);
-            if(profile.isEmpty())return;
-            v.profile=dev.starfold.universe.PlanetPlanSync.prepare(profile.orElseThrow(),level.registryAccess());
-            for(var part:v.profile.parts())net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,part);
+        if (v.profile == null) {
+            var profile = PlanetPackets.Profile.whenReady(session, g);
+            if (profile.isEmpty()) return;
+            v.profile =
+                    dev.starfold.universe.PlanetPlanSync.prepare(
+                            profile.orElseThrow(), level.registryAccess());
+            for (var part : v.profile.parts())
+                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, part);
         }
         var keys = index.coverage();
         if (v.revision < 0 || clock.clock.tick() - v.last >= 20) {
@@ -207,9 +216,12 @@ public final class PlanetRemoteServer {
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                     player,
                     new PlanetRemotePackets.Surface(
-                            id, surface==null ? GroundViewPackets.Surface.removal(session,key,index.surfaceRevision(key))
+                            id,
+                            surface == null
+                                    ? GroundViewPackets.Surface.removal(
+                                            session, key, index.surfaceRevision(key))
                                     : new GroundViewPackets.Surface(session, key, surface)));
-            v.sent.put(key,index.surfaceRevision(key));
+            v.sent.put(key, index.surfaceRevision(key));
         }
     }
 

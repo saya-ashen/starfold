@@ -14,8 +14,10 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /** Hull components and aluminum stock; ore placement belongs to the planet datapack. */
 @Mod("starfold_materials")
 public final class StarfoldMaterials {
-    private static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks("starfold_materials");
-    private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems("starfold_materials");
+    private static final DeferredRegister.Blocks BLOCKS =
+            DeferredRegister.createBlocks("starfold_materials");
+    private static final DeferredRegister.Items ITEMS =
+            DeferredRegister.createItems("starfold_materials");
 
     public StarfoldMaterials(IEventBus bus) {
         // Provisional hardness/resistance; mass and pressure are datapack-defined.
@@ -25,28 +27,37 @@ public final class StarfoldMaterials {
             ITEMS.registerSimpleBlockItem(full);
             ITEMS.registerSimpleBlockItem(slab);
         }
-        for (String name : new String[] {"bauxite_ore", "deepslate_bauxite_ore", "raw_aluminum_block", "aluminum_block"}) {
-            Block template = switch (name) {
-                case "bauxite_ore" -> Blocks.IRON_ORE;
-                case "deepslate_bauxite_ore" -> Blocks.DEEPSLATE_IRON_ORE;
-                case "raw_aluminum_block" -> Blocks.RAW_IRON_BLOCK;
-                default -> Blocks.IRON_BLOCK;
-            };
-            var block = BLOCKS.register(name, () -> new Block(Block.Properties.ofFullCopy(template)));
+        for (String name :
+                new String[] {
+                    "bauxite_ore", "deepslate_bauxite_ore", "raw_aluminum_block", "aluminum_block"
+                }) {
+            Block template =
+                    switch (name) {
+                        case "bauxite_ore" -> Blocks.IRON_ORE;
+                        case "deepslate_bauxite_ore" -> Blocks.DEEPSLATE_IRON_ORE;
+                        case "raw_aluminum_block" -> Blocks.RAW_IRON_BLOCK;
+                        default -> Blocks.IRON_BLOCK;
+                    };
+            var block =
+                    BLOCKS.register(name, () -> new Block(Block.Properties.ofFullCopy(template)));
             ITEMS.registerSimpleBlockItem(block);
         }
         for (String name : new String[] {"raw_aluminum", "aluminum_ingot", "aluminum_nugget"})
             ITEMS.registerSimpleItem(name);
         BLOCKS.register(bus);
         ITEMS.register(bus);
-        bus.addListener((BuildCreativeModeTabContentsEvent e) -> {
-            if (e.getTabKey().equals(CreativeModeTabs.BUILDING_BLOCKS))
-                ITEMS.getEntries().forEach(item -> e.accept(item.get()));
-        });
+        bus.addListener(
+                (BuildCreativeModeTabContentsEvent e) -> {
+                    if (e.getTabKey().equals(CreativeModeTabs.BUILDING_BLOCKS))
+                        ITEMS.getEntries().forEach(item -> e.accept(item.get()));
+                });
     }
 
     private static Block.Properties properties() {
-        return Block.Properties.of().mapColor(MapColor.METAL).sound(SoundType.METAL)
-                .strength(3, 6).requiresCorrectToolForDrops();
+        return Block.Properties.of()
+                .mapColor(MapColor.METAL)
+                .sound(SoundType.METAL)
+                .strength(3, 6)
+                .requiresCorrectToolForDrops();
     }
 }

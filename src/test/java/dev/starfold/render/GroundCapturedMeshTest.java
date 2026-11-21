@@ -85,9 +85,9 @@ class GroundCapturedMeshTest {
                                     .cell();
                     var surfaces =
                             Map.of(
-                                    GroundOwnership.key(shape, face.ordinal(), x, z),
+                                    GroundTileKeys.key(shape, face.ordinal(), x, z),
                                     image,
-                                    GroundOwnership.key(shape, c.face().ordinal(), c.u(), c.v()),
+                                    GroundTileKeys.key(shape, c.face().ordinal(), c.u(), c.v()),
                                     image);
                     var quads = new ArrayList<VoxelMesher.Quad>();
                     try (var mesh =

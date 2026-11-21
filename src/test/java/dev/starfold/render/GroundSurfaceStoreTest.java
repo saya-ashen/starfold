@@ -1,37 +1,68 @@
 package dev.starfold.render;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import dev.starfold.worldgen.PlanetTerrainTest;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.junit.jupiter.api.Assertions.*;
 
 class GroundSurfaceStoreTest {
     @TempDir Path directory;
-    @BeforeAll static void boot() { PlanetTerrainTest.registry(); }
+
+    @BeforeAll
+    static void boot() {
+        PlanetTerrainTest.registry();
+    }
 
     static final class QueueExecutor extends AbstractExecutorService {
         final Queue<Runnable> tasks = new ArrayDeque<>();
         boolean shutdown;
-        public void execute(Runnable task) { tasks.add(task); }
-        void runAll() { while (!tasks.isEmpty()) tasks.remove().run(); }
-        public void shutdown() { shutdown = true; }
-        public List<Runnable> shutdownNow() { shutdown = true; return List.copyOf(tasks); }
-        public boolean isShutdown() { return shutdown; }
-        public boolean isTerminated() { return shutdown && tasks.isEmpty(); }
-        public boolean awaitTermination(long timeout, TimeUnit unit) { return isTerminated(); }
+
+        public void execute(Runnable task) {
+            tasks.add(task);
+        }
+
+        void runAll() {
+            while (!tasks.isEmpty()) tasks.remove().run();
+        }
+
+        public void shutdown() {
+            shutdown = true;
+        }
+
+        public List<Runnable> shutdownNow() {
+            shutdown = true;
+            return List.copyOf(tasks);
+        }
+
+        public boolean isShutdown() {
+            return shutdown;
+        }
+
+        public boolean isTerminated() {
+            return shutdown && tasks.isEmpty();
+        }
+
+        public boolean awaitTermination(long timeout, TimeUnit unit) {
+            return isTerminated();
+        }
     }
 
-    @Test void lateLoadDoesNotSendKnownToAnotherBindingAndSaveIsOrdered() throws Exception {
+    @Test
+    void lateLoadDoesNotSendKnownToAnotherBindingAndSaveIsOrdered() throws Exception {
         var io = new QueueExecutor();
         var store = new GroundSurfaceStore(io);
         var known = new AtomicInteger();
         var saved = new AtomicInteger();
         var file = directory.resolve("surface.bin");
-        var changed = new BitSet(); changed.set(7);
+        var changed = new BitSet();
+        changed.set(7);
         var image = GroundSurfaceRunsTest.forest();
         store.bind(new Object());
         store.save(file, Map.of(7L, image), changed, Map.of(), saved::incrementAndGet);
@@ -39,30 +70,41 @@ class GroundSurfaceStoreTest {
         store.load(file, changed, images -> known.incrementAndGet());
         store.bind(new Object());
         store.save(file, Map.of(), new BitSet(), Map.of(), saved::incrementAndGet);
-        io.runAll(); store.drain();
+        io.runAll();
+        store.drain();
         assertEquals(0, known.get());
         assertEquals(1, saved.get());
         assertTrue(GroundSurfaceDisk.load(file, changed).isEmpty());
         store.close();
     }
 
-    @Test void logoutBeforeLoadCallbackPreservesUnseenDiskEditsButHonorsTombstones() throws Exception {
+    @Test
+    void logoutBeforeLoadCallbackPreservesUnseenDiskEditsButHonorsTombstones() throws Exception {
         var file = directory.resolve("surface.bin");
         var image = GroundSurfaceRunsTest.forest();
         GroundSurfaceDisk.save(file, Map.of(7L, image, 9L, image));
         var io = new QueueExecutor();
         var store = new GroundSurfaceStore(io);
-        var changed = new BitSet(); changed.set(7); changed.set(9);
+        var changed = new BitSet();
+        changed.set(7);
+        changed.set(9);
         store.bind(new Object());
         store.load(file, changed, images -> fail("logout must invalidate Known callback"));
-        store.save(file, Map.of(), changed, Map.of(9L, image.revision()), () -> fail("old save callback"));
+        store.save(
+                file,
+                Map.of(),
+                changed,
+                Map.of(9L, image.revision()),
+                () -> fail("old save callback"));
         store.bind(null);
-        io.runAll(); store.drain();
+        io.runAll();
+        store.drain();
         assertEquals(Set.of(7L), GroundSurfaceDisk.load(file, changed).keySet());
         store.close();
     }
 
-    @Test void delayedLoadMergesAgainstNetworkRevisionsAndCoverageBeforeKnown() throws Exception {
+    @Test
+    void delayedLoadMergesAgainstNetworkRevisionsAndCoverageBeforeKnown() throws Exception {
         var file = directory.resolve("merge.bin");
         var disk = new GroundSurface(4, new int[256], new int[256]);
         var network = new GroundSurface(8, new int[256], new int[256]);
@@ -73,10 +115,13 @@ class GroundSurfaceStoreTest {
         state.changed.set(7, 11);
         var known = new ArrayList<Map<Long, GroundSurface>>();
         store.bind(new Object());
-        store.load(file, state.changed, images -> {
-            state.loaded(images);
-            known.add(Map.copyOf(state.overlays));
-        });
+        store.load(
+                file,
+                state.changed,
+                images -> {
+                    state.loaded(images);
+                    known.add(Map.copyOf(state.overlays));
+                });
         state.surface(7, 8, network);
         state.surface(8, 8, null);
         var coverage = (BitSet) state.changed.clone();
@@ -93,21 +138,55 @@ class GroundSurfaceStoreTest {
         assertEquals(4, state.overlays.get(10L).revision());
         store.save(file, state.overlays, state.changed, state.surfaceRevisions, () -> {});
         store.bind(null);
-        io.runAll(); store.drain();
+        io.runAll();
+        store.drain();
         var saved = GroundSurfaceDisk.load(file, state.changed);
         assertEquals(Set.of(7L, 10L), saved.keySet());
         assertEquals(8, saved.get(7L).revision());
         store.close();
     }
 
-    @Test void changedOrFailedSaveDoesNotClearDirty() throws Exception {
+    @Test
+    void coverageWithoutSurfaceDoesNotDirtyGeometryAndCommittedRemovalDoes() {
+        var state = new GroundViewState<Object>();
+        long key = 5 * 128 + 5;
+        var covered = new BitSet();
+        covered.set((int) key);
+        state.coverage(covered, 1);
+        state.coverage(new BitSet(), 2);
+        assertTrue(state.invalidated.drain().isEmpty());
+
+        state.coverage(covered, 3);
+        assertTrue(state.invalidated.drain().isEmpty());
+        assertTrue(state.surface(key, 3, new GroundSurface(3, new int[256], new int[256])));
+        assertTrue(state.invalidated.drain().contains(key));
+        assertTrue(state.coverage(new BitSet(), 4));
+        assertTrue(state.invalidated.drain().contains(key));
+        assertFalse(state.surface(key, 3, new GroundSurface(3, new int[256], new int[256])));
+    }
+
+    @Test
+    void changedOrFailedSaveDoesNotClearDirty() throws Exception {
         var io = new QueueExecutor();
         var store = new GroundSurfaceStore(io);
         store.bind(new Object());
-        store.save(directory.resolve("ok.bin"), Map.of(), new BitSet(), Map.of(), () -> fail("changed save"));
+        store.save(
+                directory.resolve("ok.bin"),
+                Map.of(),
+                new BitSet(),
+                Map.of(),
+                () -> fail("changed save"));
         store.changed();
-        var obstruction = directory.resolve("file"); Files.writeString(obstruction, "x");
-        store.save(obstruction.resolve("bad.bin"), Map.of(), new BitSet(), Map.of(), () -> fail("failed save"));
-        io.runAll(); store.drain(); store.close();
+        var obstruction = directory.resolve("file");
+        Files.writeString(obstruction, "x");
+        store.save(
+                obstruction.resolve("bad.bin"),
+                Map.of(),
+                new BitSet(),
+                Map.of(),
+                () -> fail("failed save"));
+        io.runAll();
+        store.drain();
+        store.close();
     }
 }

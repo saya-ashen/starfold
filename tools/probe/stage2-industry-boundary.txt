@@ -1,0 +1,62 @@
+strict
+waitworld
+cmd scoreboard objectives add sfIndProbe dummy
+wait 160
+# Native flight host returns spectators to their saved home; retain creative during fixture placement.
+cmd gamemode creative
+cmd execute in starfold:native_planet run tp @s 21570 180 945
+wait 100
+check native-fixture-dimension if dimension starfold:native_planet
+# Disposable setup pad: keep the operator at y=180 so fixture/observation coordinates agree.
+cmd fill 21569 179 942 21588 179 951 minecraft:stone keep
+check industry-setup-pad if block 21570 179 945 minecraft:stone
+cmd tp @s 21570.5 180 945.5
+wait 20
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest setup
+check industry-1-setup if score @s sfIndProbe matches 1
+wait 160
+cmd tp @s 21578 180 947
+cmd gamemode survival
+wait 20
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest convert
+check industry-2-convert if score @s sfIndProbe matches 1
+wait 40
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest snapshot
+check industry-3-snapshot if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest boundary-crude-1000
+check industry-4-boundary-crude-1000 if score @s sfIndProbe matches 1
+wait 160
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest snapshot
+check industry-5-snapshot if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest heat-tower
+check industry-6-heat-tower if score @s sfIndProbe matches 1
+# Let the first finite coal finish and cool before the second native refuel.
+wait 1800
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest verify-distillation
+check industry-7-verify-distillation if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest snapshot
+check industry-8-snapshot if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest boundary-repeat-1000
+check industry-repeat-input if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest heat-tower
+check industry-repeat-coal if score @s sfIndProbe matches 1
+wait 1000
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest verify-distillation
+check industry-repeat-verify if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest liquid-checkpoint
+check industry-liquid-checkpoint if score @s sfIndProbe matches 1
+shot stage2-industry-boundary-distillation
+wait 20
+quit

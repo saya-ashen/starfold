@@ -6,13 +6,16 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.FriendlyByteBuf;
 
 /** Resolved once per planet; shared by generation, atmosphere visuals and surface gameplay. */
-public record PlanetEnvironment(PlanetAtmosphere atmosphere, double gravity, double temperatureOffset) {
+public record PlanetEnvironment(
+        PlanetAtmosphere atmosphere, double gravity, double temperatureOffset) {
     public static final Codec<Double> TEMPERATURE_OFFSET =
             Codec.DOUBLE.validate(
-                    v -> Double.isFinite(v) && Float.isFinite(v.floatValue())
-                            ? com.mojang.serialization.DataResult.success(v)
-                            : com.mojang.serialization.DataResult.error(
-                                    () -> "Temperature offset must be finite in Java and GLSL"));
+                    v ->
+                            Double.isFinite(v) && Float.isFinite(v.floatValue())
+                                    ? com.mojang.serialization.DataResult.success(v)
+                                    : com.mojang.serialization.DataResult.error(
+                                            () ->
+                                                    "Temperature offset must be finite in Java and GLSL"));
     public static final Codec<Double> GRAVITY =
             Codec.DOUBLE.validate(
                     v ->
@@ -29,8 +32,10 @@ public record PlanetEnvironment(PlanetAtmosphere atmosphere, double gravity, dou
                                                     .forGetter(PlanetEnvironment::atmosphere),
                                             GRAVITY.fieldOf("gravity")
                                                     .forGetter(PlanetEnvironment::gravity),
-                                            TEMPERATURE_OFFSET.optionalFieldOf("temperature_offset", 0.0)
-                                                    .forGetter(PlanetEnvironment::temperatureOffset))
+                                            TEMPERATURE_OFFSET
+                                                    .optionalFieldOf("temperature_offset", 0.0)
+                                                    .forGetter(
+                                                            PlanetEnvironment::temperatureOffset))
                                     .apply(i, PlanetEnvironment::new));
 
     public PlanetEnvironment {
@@ -41,7 +46,8 @@ public record PlanetEnvironment(PlanetAtmosphere atmosphere, double gravity, dou
     public static PlanetEnvironment defaults(boolean temperate, int size) {
         return new PlanetEnvironment(
                 temperate ? PlanetAtmosphere.EARTH : PlanetAtmosphere.NONE,
-                Math.clamp(Math.sqrt(size / 1024.0), .35, 1.4), 0);
+                Math.clamp(Math.sqrt(size / 1024.0), .35, 1.4),
+                0);
     }
 
     public void write(FriendlyByteBuf b) {

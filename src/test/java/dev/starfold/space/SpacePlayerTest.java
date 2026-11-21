@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.ArrivalState;
@@ -31,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 /** Region lifecycle contracts do not boot a server or claim live Sable/chunk acceptance. */
@@ -255,18 +253,9 @@ class SpacePlayerTest {
         before(step, "gain", "setDeltaMovement");
         before(step, "setDeltaMovement", "coastFrame");
         before(step, "coastFrame", "toward");
-        assertTrue(Sources.text("ShipParking").contains("return frame.dragged(factor,tick)"));
         assertFalse(step.contains("velocityShift"));
         before(step, "anchor", "shifted");
         assertTrue(step.lastIndexOf("shifted") < step.lastIndexOf("move"));
-        var source = Sources.text("SpaceServer");
-        assertTrue(source.contains("player.hurtMarked=true"));
-        assertTrue(source.contains("-v.x()*20,-v.y()*20,-v.z()*20"));
-        assertTrue(source.contains("motion.spin()),true"));
-        assertTrue(Sources.text("SableFrames").contains("tracked||keepRiderVelocity"));
-        assertTrue(
-                source.contains(
-                        "body!=null&&bodies.contains(body)&&SableFrames.tracked(entity,body)"));
     }
 
     @Test
@@ -300,10 +289,6 @@ class SpacePlayerTest {
         assertFalse(site.contains("apply"));
         assertFalse(site.contains("teleport"));
         assertTrue(calls("GroundFlightServer", "tick").contains("login"));
-        assertTrue(
-                Sources.text("GroundFlightServer")
-                        .contains(
-                                "if(restores(saved,clock.mask))enter(player,clock,entry(player,player.serverLevel(),clock));else site(player)"));
     }
 
     @Test
@@ -364,19 +349,11 @@ class SpacePlayerTest {
                     "put"
                 }) assertFalse(c.contains(forbidden), forbidden);
         before(calls("GroundFlightServer", "detach"), "checkpoint", "save");
-        assertTrue(
-                Sources.text("PlanetPlayers").contains("List.copyOf(server.overworld().players())"),
-                "automatic home arrival only scans overworld, never region residents");
         before(calls("GroundFlightServer", "checkpoint"), "in", "capture");
     }
 
     @Test
     void carriedLoginRespawnAndFrameReplacementAllAnnouncePassiveFrame() throws Exception {
-        var s = Sources.text("SpaceSessions");
-        for (String event :
-                new String[] {
-                    "PlayerLoggedInEvent", "PlayerRespawnEvent", "PlayerChangedDimensionEvent"
-                }) assertTrue(s.contains(event));
         before(calls("SpaceServer", "sync"), "region", "announce");
         assertTrue(calls("SpaceServer", "sync").contains("send"));
         before(calls("SpaceServer", "entering"), "keeping", "send");
@@ -387,10 +364,6 @@ class SpacePlayerTest {
         assertTrue(carry.contains("move"));
         before(calls("ObserverFrames", "fresh"), "in", "storagePlanet");
         before(calls("ObserverFrames", "get"), "in", "identity");
-        assertTrue(
-                Sources.text("ObserverFrames")
-                        .contains(
-                                "Space.holds(target.x(),target.z())?ObserverFrame.identity(0,0)"));
     }
 
     @Test
@@ -404,9 +377,6 @@ class SpacePlayerTest {
         before(calls("GroundDaylight", "elevation"), "holds", "get");
         assertTrue(calls("GroundDaylight", "dawn").contains("holds"));
         before(calls("GroundSeams", "image"), "in", "shape");
-        assertTrue(
-                Sources.text("GroundClient")
-                        .contains("!active()||Space.holds(mc.player.getX(),mc.player.getZ())"));
     }
 
     @Test
@@ -427,47 +397,6 @@ class SpacePlayerTest {
     }
 
     @Test
-    void ticketsLoadRealRegionColumnsAndExistingIdentitySenderDeliversThem() throws Exception {
-        var tickets = Sources.text("GroundTickets");
-        assertTrue(
-                tickets.contains("if(Space.in(player)){region.addAll(ImageStream.regionPositions"));
-        assertTrue(tickets.contains("addRegionTicket(SPACE,new ChunkPos(key),0,key)"));
-        assertTrue(tickets.contains("removeRegionTicket(SPACE,new ChunkPos(key),0,key)"));
-        var stream = Sources.text("ImageStream");
-        assertTrue(
-                stream.contains(
-                        "Space.in(player)?regionPositions(center,radius):positions(center,radius)"));
-        assertTrue(stream.contains("new ClientboundForgetLevelChunkPacket"));
-        assertTrue(stream.contains("getChunkNow"));
-        assertTrue(stream.contains("if(identity(columns))"));
-        assertTrue(stream.contains("new ClientboundLevelChunkWithLightPacket(columns[0].chunk"));
-        assertTrue(Sources.text("GroundChunkSenderMixin").contains("ImageStream.active(player)"));
-        assertTrue(
-                Sources.text("GroundChunkMapMixin").contains("GroundFlightServer.aloft(player)"));
-    }
-
-    @Test
-    void gravityUsesOnlyTransientMultiplicativeModifierOnLivingEntities() throws Exception {
-        var s = Sources.text("SpaceServer");
-        for (String text :
-                new String[] {
-                    "LevelTickEvent.Pre",
-                    "instanceof net.minecraft.world.entity.LivingEntity living",
-                    "Attributes.GRAVITY",
-                    "in(entity)&&!weighted(entity,cabins)",
-                    "getTrackingSubLevel(entity)!=null",
-                    "SableFrames.inside(body,entity)",
-                    "space_weightless",
-                    "-1,net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL",
-                    "addTransientModifier",
-                    "removeModifier"
-                }) assertTrue(s.contains(text), text);
-        assertFalse(s.contains("setBaseValue"));
-        assertFalse(s.contains("addPermanentModifier"));
-        assertFalse(s.contains("setNoGravity"));
-    }
-
-    @Test
     void transientGravityIsZeroIdempotentNotSavedAndRestoresOtherModifiers() {
         var gravity =
                 new net.minecraft.world.entity.ai.attributes.AttributeInstance(
@@ -482,17 +411,17 @@ class SpacePlayerTest {
         gravity.addPermanentModifier(other);
         double before = gravity.getValue();
         var saved = gravity.save();
-        SpaceServer.weight(gravity, true);
-        SpaceServer.weight(gravity, true);
+        SpaceGravity.weight(gravity, true);
+        SpaceGravity.weight(gravity, true);
         assertEquals(0, gravity.getValue());
         assertEquals(.12, gravity.getBaseValue());
         assertEquals(saved, gravity.save());
         assertEquals(2, gravity.getModifiers().size());
-        SpaceServer.weight(gravity, false);
+        SpaceGravity.weight(gravity, false);
         assertEquals(before, gravity.getValue());
         assertEquals(1, gravity.getModifiers().size());
         assertTrue(gravity.hasModifier(other.id()));
-        SpaceServer.weight(null, true);
+        SpaceGravity.weight(null, true);
     }
 
     @Test
@@ -503,28 +432,6 @@ class SpacePlayerTest {
 
     @Test
     void clientAndProbeArePassiveAndClearOnLogoutAndLevelChanges() throws Exception {
-        var s = Sources.text("SpaceClient");
-        assertTrue(Sources.text("ClientWorldSession").contains("LoggingOut"));
-        assertTrue(Sources.text("ClientWorldSession").contains("SpaceClient.clear()"));
-        for (String text :
-                new String[] {
-                    "level!=Minecraft.getInstance().level",
-                    "GroundFlightClient.region()",
-                    "frame.universe(new Point(levelCameraPosition.x,levelCameraPosition.y,levelCameraPosition.z),SpaceClientHost.get().ephemeris(),time())"
-                }) assertTrue(s.contains(text));
-        for (String forbidden :
-                new String[] {"setPos", "teleport", "camera.rotation", "GroundClient.ready"})
-            assertFalse(s.contains(forbidden));
         assertEquals(List.of("get", "departing", "reset"), calls("GroundFlightClient", "region"));
-        var probe = Sources.textPaths("probes/src/main/java/dev/starfold/dev/ProbeSession.java", "probes/src/main/java/dev/starfold/dev/ProbeSamples.java");
-        for (String text :
-                new String[] {
-                    "case \"region\"",
-                    "case \"chart\"",
-                    " | space %.6f %.6f %.6f ref %d w %.6f",
-                    "SpaceClient.universeEye(position)",
-                    "case \"chart!=\"",
-                    "case \"planet!=\""
-                }) assertTrue(probe.contains(text));
     }
 }

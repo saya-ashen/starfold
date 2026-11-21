@@ -25,7 +25,8 @@ class GasShaderContractTest {
         }
     }
 
-    private static MethodNode method(String owner, String name, String descriptor) throws Exception {
+    private static MethodNode method(String owner, String name, String descriptor)
+            throws Exception {
         return type(owner).methods.stream()
                 .filter(m -> m.name.equals(name) && m.desc.equals(descriptor))
                 .findFirst()
@@ -51,16 +52,19 @@ class GasShaderContractTest {
                 }
         }
         assertTrue(reserved.containsAll(Set.of("ModelViewMat", "ProjMat", "FogColor")));
-        var json = JsonParser.parseString(
-                        Files.readString(GasRenderTest.SHADERS.resolve("native_gas_giant.json")))
-                .getAsJsonObject();
+        var json =
+                JsonParser.parseString(
+                                Files.readString(
+                                        GasRenderTest.SHADERS.resolve("native_gas_giant.json")))
+                        .getAsJsonObject();
         var managed = new TreeSet<String>();
         for (var entry : json.getAsJsonArray("uniforms")) {
             var uniform = entry.getAsJsonObject();
             var name = uniform.get("name").getAsString();
             if (!reserved.contains(name)) continue;
             managed.add(name);
-            assertTrue(Set.of("ModelViewMat", "ProjMat").contains(name),
+            assertTrue(
+                    Set.of("ModelViewMat", "ProjMat").contains(name),
                     "Custom GAS uniform collides with platform-managed " + name);
             assertEquals("matrix4x4", uniform.get("type").getAsString(), name);
             assertEquals(16, uniform.get("count").getAsInt(), name);
@@ -71,14 +75,17 @@ class GasShaderContractTest {
     @Test
     void platformWritesFourFogFloatsAfterRendererValuesBeforeApplyingShader() throws Exception {
         String shader = "net/minecraft/client/renderer/ShaderInstance";
-        var defaults = type(shader).methods.stream()
-                .filter(m -> m.name.equals("setDefaultUniforms"))
-                .findFirst().orElseThrow();
+        var defaults =
+                type(shader).methods.stream()
+                        .filter(m -> m.name.equals("setDefaultUniforms"))
+                        .findFirst()
+                        .orElseThrow();
         boolean fogWrite = false;
         for (var i : defaults.instructions) {
             if (!(i instanceof MethodInsnNode call)
                     || !call.owner.equals("com/mojang/blaze3d/shaders/Uniform")
-                    || !call.name.equals("set") || !call.desc.equals("([F)V")) continue;
+                    || !call.name.equals("set")
+                    || !call.desc.equals("([F)V")) continue;
             if (!(previous(i) instanceof MethodInsnNode getter)
                     || !getter.name.equals("getShaderFogColor")) continue;
             var field = (FieldInsnNode) previous(getter);
@@ -96,11 +103,13 @@ class GasShaderContractTest {
         var fogField = fogFields.getFirst();
         boolean fourFloats = false;
         for (var i : method(renderSystem, "<clinit>", "()V").instructions)
-            if (i instanceof IntInsnNode allocation && allocation.getOpcode() == Opcodes.NEWARRAY
+            if (i instanceof IntInsnNode allocation
+                    && allocation.getOpcode() == Opcodes.NEWARRAY
                     && allocation.operand == Opcodes.T_FLOAT
                     && previous(i).getOpcode() == Opcodes.ICONST_4) {
                 for (var next = i.getNext(); next != null; next = next.getNext())
-                    if (next instanceof FieldInsnNode field && field.getOpcode() == Opcodes.PUTSTATIC) {
+                    if (next instanceof FieldInsnNode field
+                            && field.getOpcode() == Opcodes.PUTSTATIC) {
                         fourFloats = field.name.equals(fogField.name);
                         break;
                     }
@@ -108,14 +117,24 @@ class GasShaderContractTest {
             }
         assertTrue(fourFloats, "Fog color must be the actual four-float platform array");
         var setter = method("com/mojang/blaze3d/shaders/Uniform", "set", "([F)V");
-        assertTrue(Arrays.stream(setter.instructions.toArray()).anyMatch(i ->
-                i instanceof MethodInsnNode c && c.owner.equals("java/nio/FloatBuffer")
-                        && c.name.equals("put") && c.desc.equals("([F)Ljava/nio/FloatBuffer;")));
-        var draw = type("com/mojang/blaze3d/vertex/VertexBuffer").methods.stream()
-                .filter(m -> m.name.equals("_drawWithShader")).findFirst().orElseThrow();
-        var calls = Arrays.stream(draw.instructions.toArray())
-                .filter(i -> i instanceof MethodInsnNode)
-                .map(i -> ((MethodInsnNode) i).name).toList();
+        assertTrue(
+                Arrays.stream(setter.instructions.toArray())
+                        .anyMatch(
+                                i ->
+                                        i instanceof MethodInsnNode c
+                                                && c.owner.equals("java/nio/FloatBuffer")
+                                                && c.name.equals("put")
+                                                && c.desc.equals("([F)Ljava/nio/FloatBuffer;")));
+        var draw =
+                type("com/mojang/blaze3d/vertex/VertexBuffer").methods.stream()
+                        .filter(m -> m.name.equals("_drawWithShader"))
+                        .findFirst()
+                        .orElseThrow();
+        var calls =
+                Arrays.stream(draw.instructions.toArray())
+                        .filter(i -> i instanceof MethodInsnNode)
+                        .map(i -> ((MethodInsnNode) i).name)
+                        .toList();
         assertTrue(calls.indexOf("setDefaultUniforms") >= 0);
         assertTrue(calls.indexOf("setDefaultUniforms") < calls.indexOf("apply"));
     }

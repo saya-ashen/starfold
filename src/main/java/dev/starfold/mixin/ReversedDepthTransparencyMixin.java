@@ -12,6 +12,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ReversedDepthTransparencyMixin {
     @Inject(method = "apply()V", at = @At("HEAD"))
     private void starfold$depthOrder(CallbackInfo ci) {
-        ((EffectInstance) (Object) this).safeGetUniform("ReversedDepth").set(ReversedDepth.ACTIVE ? 1 : 0);
+        ((EffectInstance) (Object) this)
+                .safeGetUniform("ReversedDepth")
+                .set(ReversedDepth.ACTIVE ? 1 : 0);
     }
 }

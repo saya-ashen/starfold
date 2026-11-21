@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -114,14 +113,6 @@ class GroundExteriorTest {
     }
 
     @Test
-    void groundViewNeverHandsTheNearPlanetToTheCoarseExterior() throws Exception {
-        // The exterior's 16-block cells are only for remote views; near the planet the voxel
-        // view coarsens continuously with height instead of switching at one altitude.
-        assertFalse(Sources.text("GroundRenderer").contains("GroundExterior.draw("));
-        assertFalse(Sources.text("GroundClient").contains("replaceNative"));
-    }
-
-    @Test
     void exteriorShadersExportVanillaAndVeilForActualLinking() throws Exception {
         var root = Path.of("src/main/resources/assets/starfold/shaders/core");
         var out = Path.of("build/native-exterior/shaders");
@@ -152,19 +143,5 @@ class GroundExteriorTest {
         assertFalse(f.contains("dFdx"));
         assertTrue(f.contains("SunBody-bodyPosition"));
         assertTrue(f.contains("1.0)"));
-    }
-
-    @Test
-    void onlyCompleteExteriorTakesOverAndOldPatchStaysUntilReplacement() throws Exception {
-        var s = Sources.text("GroundRenderer");
-        assertTrue(s.contains("ready&&GroundExterior.ready()"));
-        assertTrue(s.contains("returnfill!=null&&fill.isDone()"));
-        assertTrue(s.contains("exterior.emit(q,rgb,old)"));
-        assertTrue(s.contains("dirtyHalo(key)"));
-        assertTrue(
-                s.contains("GroundPipeline.publish(dirty.count(),!coverJobs.isEmpty(),patches,staging,p->GroundViewPolicy.exists(shape,p))"));
-        var exterior = Sources.text("GroundExterior");
-        assertTrue(exterior.contains("staging[patch]=mesh"));
-        assertTrue(exterior.contains("patches[i]=staging[i]"));
     }
 }

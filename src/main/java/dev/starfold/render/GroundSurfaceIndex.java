@@ -1,8 +1,6 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.planet.PlanetAccess;
-import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
 
 import net.minecraft.core.HolderLookup;
@@ -16,15 +14,17 @@ import java.util.*;
 /** Persistent edit-only visible surfaces. Never loads or indexes unedited generated chunks. */
 public final class GroundSurfaceIndex extends SavedData {
     public static final String FILE = "starfold_native_surface_overlay_v5";
-    static final int FORMAT=5, SURFACE_FORM=2;
+    static final int FORMAT = 5, SURFACE_FORM = 2;
     private dev.starfold.worldgen.surface.SurfaceFunction function;
     private dev.starfold.universe.PlanetChunkGenerator generator;
-    private final Map<Long,ChunkAccess> awaitingPlan=new LinkedHashMap<>();
-    private final Map<Long,Long> removals=new HashMap<>();
+    private final Map<Long, ChunkAccess> awaitingPlan = new LinkedHashMap<>();
+    private final Map<Long, Long> removals = new HashMap<>();
     static final int READS_PER_TICK = 8192;
     private static final Map<ServerLevel, Map<Integer, GroundSurfaceIndex>> active =
             new HashMap<>();
     private final BitSet generated = new BitSet(98304);
+    private final BitSet published = new BitSet(98304);
+    private long publishedCoverageRevision;
 
     private record Packed(long revision, byte[] columns) {}
 
@@ -32,12 +32,16 @@ public final class GroundSurfaceIndex extends SavedData {
     private final NavigableMap<Long, Long> recent = new TreeMap<>();
     // Retain an unloading chunk only until its queued top scan completes; no tickets or reloads.
     private final Map<Long, GroundSurfaceCapture> pending = new LinkedHashMap<>();
-    private final Set<Long> dirty = new LinkedHashSet<>(), urgent = new LinkedHashSet<>(),
+    private final Set<Long> dirty = new LinkedHashSet<>(),
+            urgent = new LinkedHashSet<>(),
             prominent = new LinkedHashSet<>();
     private long revision;
     private long identity = java.util.concurrent.ThreadLocalRandom.current().nextLong();
 
-    long identity() { return identity; }
+    long identity() {
+        return identity;
+    }
+
     private int planet;
     private final java.util.concurrent.atomic.AtomicBoolean saveFailed =
             new java.util.concurrent.atomic.AtomicBoolean();
@@ -96,10 +100,18 @@ public final class GroundSurfaceIndex extends SavedData {
                         id,
                         owner -> {
                             var index = new GroundSurfaceIndex(owner);
-                            var source=level.getChunkSource().getGenerator();
-                            var generator=source instanceof dev.starfold.universe.SystemChunkGenerator s ? s.planet(owner)
-                                    : source instanceof dev.starfold.universe.PlanetChunkGenerator g ? g : null;
-                            index.generator=generator;
+                            var source = level.getChunkSource().getGenerator();
+                            var generator =
+                                    source instanceof dev.starfold.universe.SystemChunkGenerator s
+                                            ? s.planet(owner)
+                                            : source
+                                                            instanceof
+                                                            dev.starfold.universe
+                                                                            .PlanetChunkGenerator
+                                                                    g
+                                                    ? g
+                                                    : null;
+                            index.generator = generator;
                             // Vanilla computeIfAbsent reads/decompresses SavedData synchronously.
                             // Register
                             // this owner now; read the one current-format file off the tick thread.
@@ -153,8 +165,8 @@ public final class GroundSurfaceIndex extends SavedData {
             loading = null;
             if (restoring == null) return 0;
             identity = restoring.identity;
-            var old=(BitSet)restoring.generated.clone();
-            for(long key:removals.keySet()) old.clear((int)key);
+            var old = (BitSet) restoring.generated.clone();
+            for (long key : removals.keySet()) old.clear((int) key);
             generated.or(old);
             restoreSurfaces = restoring.surfaces.entrySet().iterator();
             restoreDirty = restoring.dirty.iterator();
@@ -163,7 +175,10 @@ public final class GroundSurfaceIndex extends SavedData {
         if (restoring != null) {
             while (restoreSurfaces.hasNext() && attached < limit && System.nanoTime() < deadline) {
                 var entry = restoreSurfaces.next();
-                if(!removals.containsKey(entry.getKey())) surfaces.putIfAbsent(entry.getKey(), entry.getValue());
+                if (!removals.containsKey(entry.getKey())) {
+                    surfaces.putIfAbsent(entry.getKey(), entry.getValue());
+                    setPublished(entry.getKey(), true);
+                }
                 attached++;
             }
             while (!restoreSurfaces.hasNext()
@@ -216,31 +231,51 @@ public final class GroundSurfaceIndex extends SavedData {
 
     /** A reload can resume an already marked edit, but never registers generated terrain. */
     public void loaded(ChunkAccess chunk) {
-        long key=chunkKey(chunk);
-        if(key>=0 && dirty.contains(key)) edited(chunk);
+        long key = chunkKey(chunk);
+        if (key >= 0 && dirty.contains(key)) edited(chunk);
     }
-    void baseline(dev.starfold.worldgen.surface.SurfaceFunction function) { this.function=function; }
+
+    void baseline(dev.starfold.worldgen.surface.SurfaceFunction function) {
+        this.function = function;
+    }
+
     private boolean baselineReady() {
-        if(generator==null || function!=null)return true;
-        if(!generator.planReady())return false;
-        function=generator.terrain().readySurface();
-        return function!=null;
+        if (generator == null || function != null) return true;
+        if (!generator.planReady()) return false;
+        function = generator.terrain().readySurface();
+        return function != null;
     }
+
     void edited(ChunkAccess chunk) {
-        long key=chunkKey(chunk); if(key<0) return;
+        long key = chunkKey(chunk);
+        if (key < 0) return;
         register(key);
-        if(!baselineReady()) { awaitingPlan.put(key,chunk);return; }
+        if (!baselineReady()) {
+            awaitingPlan.put(key, chunk);
+            return;
+        }
         awaitingPlan.remove(key);
-        pending.compute(key,(k,prior)->prior==null ? new GroundSurfaceCapture(chunk,function,key) : prior.changed(chunk));
+        pending.compute(
+                key,
+                (k, prior) ->
+                        prior == null
+                                ? new GroundSurfaceCapture(chunk, function, key)
+                                : prior.changed(chunk));
         urgent.add(key);
     }
-    public void changed(ChunkAccess chunk,net.minecraft.core.BlockPos pos) {
-        long key=chunkKey(chunk);
+
+    public void changed(ChunkAccess chunk, net.minecraft.core.BlockPos pos) {
+        long key = chunkKey(chunk);
         // Large vertical departures have the greatest silhouette error, even outside native range.
-        if(key>=0 && function!=null && pos.getY()>function.groundTop(
-                dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[(int)(key/16384)],
-                (int)(key%128)*16+(pos.getX()&15),(int)(key/128%128)*16+(pos.getZ()&15))+32)
-            prominent.add(key);
+        if (key >= 0
+                && function != null
+                && pos.getY()
+                        > function.groundTop(
+                                        dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[
+                                                (int) (key / 16384)],
+                                        (int) (key % 128) * 16 + (pos.getX() & 15),
+                                        (int) (key / 128 % 128) * 16 + (pos.getZ() & 15))
+                                + 32) prominent.add(key);
         edited(chunk);
     }
 
@@ -268,6 +303,21 @@ public final class GroundSurfaceIndex extends SavedData {
         return (BitSet) generated.clone();
     }
 
+    /** Local clients render committed overlays. An in-progress scan is only index bookkeeping. */
+    BitSet publishedCoverage() {
+        return (BitSet) published.clone();
+    }
+
+    long publishedCoverageRevision() {
+        return publishedCoverageRevision;
+    }
+
+    private void setPublished(long key, boolean present) {
+        if (published.get((int) key) == present) return;
+        published.set((int) key, present);
+        publishedCoverageRevision++;
+    }
+
     public long revision() {
         return revision;
     }
@@ -278,7 +328,7 @@ public final class GroundSurfaceIndex extends SavedData {
 
     public long surfaceRevision(long key) {
         var image = surfaces.get(key);
-        return !ready() ? -1 : image == null ? removals.getOrDefault(key,-1L) : image.revision;
+        return !ready() ? -1 : image == null ? removals.getOrDefault(key, -1L) : image.revision;
     }
 
     public GroundSurface surface(long key) {
@@ -306,35 +356,49 @@ public final class GroundSurfaceIndex extends SavedData {
     private void commit(long key, GroundSurface surface) {
         byte[] columns = GroundSurfaceCodec.pack(surface);
         surfaces.put(key, new Packed(++revision, columns));
+        setPublished(key, true);
         removals.remove(key);
         recent.put(revision, key);
         while (recent.size() > 2048) recent.pollFirstEntry();
         setDirty();
         pending.remove(key);
         dirty.remove(key);
-        urgent.remove(key); prominent.remove(key);
+        urgent.remove(key);
+        prominent.remove(key);
     }
 
     private void remove(long key) {
-        surfaces.remove(key); generated.clear((int)key);
-        removals.put(key,++revision); recent.put(revision,key);
-        while(recent.size()>2048) recent.pollFirstEntry();
-        pending.remove(key); dirty.remove(key); urgent.remove(key); prominent.remove(key); setDirty();
+        surfaces.remove(key);
+        setPublished(key, false);
+        generated.clear((int) key);
+        removals.put(key, ++revision);
+        recent.put(revision, key);
+        while (recent.size() > 2048) recent.pollFirstEntry();
+        pending.remove(key);
+        dirty.remove(key);
+        urgent.remove(key);
+        prominent.remove(key);
+        setDirty();
     }
-    boolean hasSurface(long key) { return surfaces.containsKey(key); }
+
+    boolean hasSurface(long key) {
+        return surfaces.containsKey(key);
+    }
 
     static List<Long> candidates(Set<Long> urgent, Set<Long> dirty) {
         return candidates(urgent, dirty, List.of());
     }
 
     static List<Long> candidates(Set<Long> urgent, Set<Long> dirty, List<Long> observers) {
-        return candidates(Set.of(),urgent,dirty,observers);
+        return candidates(Set.of(), urgent, dirty, observers);
     }
-    static List<Long> candidates(Set<Long> prominent,Set<Long> urgent,Set<Long> dirty,List<Long> observers) {
+
+    static List<Long> candidates(
+            Set<Long> prominent, Set<Long> urgent, Set<Long> dirty, List<Long> observers) {
         var ordered = new LinkedHashSet<Long>();
-        for(long key:prominent) {
-            if(ordered.size()>=16) break;
-            if(dirty.contains(key)) ordered.add(key);
+        for (long key : prominent) {
+            if (ordered.size() >= 16) break;
+            if (dirty.contains(key)) ordered.add(key);
         }
         for (long centre : observers) {
             int face = (int) (centre / 16384),
@@ -365,18 +429,25 @@ public final class GroundSurfaceIndex extends SavedData {
     public void tick(ServerLevel level, long epoch) {
         long deadline = System.nanoTime() + 2_000_000;
         restore(256, deadline);
-        if(!baselineReady())return;
-        for(var chunk:List.copyOf(awaitingPlan.values()))edited(chunk);
+        if (!baselineReady()) return;
+        for (var chunk : List.copyOf(awaitingPlan.values())) edited(chunk);
         awaitingPlan.clear();
-        // Resume persisted dirty edits only if their native chunk is already loaded. Never request/generate one.
-        for(long key:candidates(urgent,dirty)) {
-            if(pending.containsKey(key)) continue;
-            int x=PlanetStorage.offset(planet)/16+(int)(key/16384)*256+(int)(key%128);
-            int z=PlanetStorage.offsetZ(planet)/16+(int)(key/128%128);
-            var chunk=level.getChunkSource().getChunkNow(x,z);
-            if(chunk!=null) loaded(chunk);
-            else { dirty.remove(key); dirty.add(key); }
-            if(System.nanoTime()>=deadline) return;
+        // Resume persisted dirty edits only if their native chunk is already loaded. Never
+        // request/generate one.
+        for (long key : candidates(urgent, dirty)) {
+            if (pending.containsKey(key)) continue;
+            int x =
+                    PlanetStorage.offset(planet) / 16
+                            + (int) (key / 16384) * 256
+                            + (int) (key % 128);
+            int z = PlanetStorage.offsetZ(planet) / 16 + (int) (key / 128 % 128);
+            var chunk = level.getChunkSource().getChunkNow(x, z);
+            if (chunk != null) loaded(chunk);
+            else {
+                dirty.remove(key);
+                dirty.add(key);
+            }
+            if (System.nanoTime() >= deadline) return;
         }
         if (pending.isEmpty()) return;
         var observers =
@@ -395,13 +466,14 @@ public final class GroundSurfaceIndex extends SavedData {
             while (!capture.done() && left > 0 && System.nanoTime() < deadline)
                 left -= capture.step(Math.min(256, left));
             if (capture.done()) {
-                boolean high=prominent.contains(key);
-                if(capture.matchesBaseline()) remove(key); else commit(key,capture.result(0));
+                boolean high = prominent.contains(key);
+                if (capture.matchesBaseline()) remove(key);
+                else commit(key, capture.result(0));
                 // Publish bounded-stale coverage, then refresh; continuous random ticks must not
                 // restart a full-height scan forever and starve buildings in the same chunk.
-                if(capture.invalidated()) {
+                if (capture.invalidated()) {
                     edited(capture.chunk());
-                    if(high) prominent.add(key);
+                    if (high) prominent.add(key);
                 }
             }
             if (left <= 0 || System.nanoTime() >= deadline) break;
@@ -416,23 +488,28 @@ public final class GroundSurfaceIndex extends SavedData {
             restore(256, Long.MAX_VALUE);
         }
         // If shutdown precedes planning, preserve edits as full snapshots without joining the plan.
-        for(var entry:awaitingPlan.entrySet())
-            pending.put(entry.getKey(),new GroundSurfaceCapture(entry.getValue(),null,entry.getKey()));
+        for (var entry : awaitingPlan.entrySet())
+            pending.put(
+                    entry.getKey(),
+                    new GroundSurfaceCapture(entry.getValue(), null, entry.getKey()));
         awaitingPlan.clear();
         for (long key : List.copyOf(pending.keySet())) {
             var capture = pending.get(key);
             while (!capture.done()) capture.step(READS_PER_TICK);
-            if(capture.invalidated()) {
+            if (capture.invalidated()) {
                 capture.restart(capture.chunk());
-                while(!capture.done()) capture.step(READS_PER_TICK);
+                while (!capture.done()) capture.step(READS_PER_TICK);
             }
-            if(capture.matchesBaseline()) remove(key); else commit(key,capture.result(0));
+            if (capture.matchesBaseline()) remove(key);
+            else commit(key, capture.result(0));
         }
     }
 
     public static GroundSurfaceIndex load(CompoundTag tag, HolderLookup.Provider registry) {
-        if (tag.getInt("format") != FORMAT || tag.getInt("surface_form") != SURFACE_FORM
-                || tag.getInt("algorithm_version") != dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION
+        if (tag.getInt("format") != FORMAT
+                || tag.getInt("surface_form") != SURFACE_FORM
+                || tag.getInt("algorithm_version")
+                        != dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION
                 || !tag.contains("coverage", 12)
                 || !tag.contains("revision", 4)
                 || !tag.contains("surfaces", 9))
@@ -461,6 +538,7 @@ public final class GroundSurfaceIndex extends SavedData {
             byte[] columns = s.getByteArray("columns").clone();
             GroundSurfaceCodec.unpack(epoch, columns);
             out.surfaces.put(key, new Packed(epoch, columns));
+            out.setPublished(key, true);
         }
         // Complete persisted surfaces can be served without loading their chunks again.
         for (int key = out.generated.nextSetBit(0);
@@ -488,7 +566,9 @@ public final class GroundSurfaceIndex extends SavedData {
         net.neoforged.neoforge.common.IOUtilities.withIOWorker(
                 () -> {
                     var root = new CompoundTag();
-                    root.put("data", snapshot(new CompoundTag(), identity, savedRevision, coverage, images));
+                    root.put(
+                            "data",
+                            snapshot(new CompoundTag(), identity, savedRevision, coverage, images));
                     NbtUtils.addCurrentDataVersion(root);
                     try {
                         net.neoforged.neoforge.common.IOUtilities.writeNbtCompressed(
@@ -507,11 +587,15 @@ public final class GroundSurfaceIndex extends SavedData {
     }
 
     private static CompoundTag snapshot(
-            CompoundTag tag, long identity, long revision, BitSet coverage, Map<Long, Packed> images) {
+            CompoundTag tag,
+            long identity,
+            long revision,
+            BitSet coverage,
+            Map<Long, Packed> images) {
         tag.putInt("format", FORMAT);
         tag.putLong("identity", identity);
-        tag.putInt("surface_form",SURFACE_FORM);
-        tag.putInt("algorithm_version",dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION);
+        tag.putInt("surface_form", SURFACE_FORM);
+        tag.putInt("algorithm_version", dev.starfold.worldgen.PlanetGeneration.SURFACE_VERSION);
         tag.putLong("revision", revision);
         tag.putLongArray("coverage", coverage.toLongArray());
         var list = new ListTag();

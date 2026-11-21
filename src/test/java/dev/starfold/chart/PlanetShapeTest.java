@@ -11,9 +11,8 @@ import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.render.GroundExteriorMesh;
-import dev.starfold.render.GroundOwnership;
+import dev.starfold.render.GroundTileKeys;
 import dev.starfold.render.GroundStreaming;
-import dev.starfold.render.GroundViewCache;
 import dev.starfold.render.GroundSurface;
 import dev.starfold.render.GroundViewPolicy;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
@@ -35,7 +34,9 @@ class PlanetShapeTest {
         assertEquals(GroundOrbit.RADIUS, shape.radius());
         assertEquals(128, shape.chunks());
         assertEquals(shape, PlanetShape.STANDARD);
-        assertEquals(shape, PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION).shape());
+        assertEquals(
+                shape,
+                PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION).shape());
         for (var f : Face.values())
             for (double u : new double[] {0, .5, 300.25, 1024, 2047.5, 2048, -40.5, 2100.5})
                 for (double v : new double[] {0, 17.5, 1024, 2048, -3.5, 2060.5}) {
@@ -126,10 +127,35 @@ class PlanetShapeTest {
 
     @Test
     void aSmallerPlanetsTerrainIsItsOwnClosedSurfaceWithFeaturesOfTheSameSizeInBlocks() {
-        var policy = new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1024,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1024));
-        var small = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,policy);
+        var policy =
+                new PlanetGeneration(
+                        "rocky",
+                        PlanetGeneration.SURFACE_VERSION,
+                        dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                        1024,
+                        191,
+                        "core_shell",
+                        true,
+                        false,
+                        false,
+                        dev.starfold.worldgen.PlanetEnvironment.defaults(false, 1024));
+        var small =
+                new PlanetTerrain(20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, policy);
         var big =
-                new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),2048,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,2048)));
+                new PlanetTerrain(
+                        20261002,
+                        dev.starfold.worldgen.PlanetTerrain.VERSION,
+                        new PlanetGeneration(
+                                "rocky",
+                                PlanetGeneration.SURFACE_VERSION,
+                                dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                                2048,
+                                191,
+                                "core_shell",
+                                true,
+                                false,
+                                false,
+                                dev.starfold.worldgen.PlanetEnvironment.defaults(false, 2048)));
         assertEquals(1024, small.shape().size());
         assertEquals(2048, big.shape().size());
         // Across an edge the neighbouring face continues the same ground: the column just beyond is
@@ -178,7 +204,18 @@ class PlanetShapeTest {
                         .getOrThrow());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1000,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1000)));
+                () ->
+                        new PlanetGeneration(
+                                "rocky",
+                                PlanetGeneration.SURFACE_VERSION,
+                                dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                                1000,
+                                191,
+                                "core_shell",
+                                true,
+                                false,
+                                false,
+                                dev.starfold.worldgen.PlanetEnvironment.defaults(false, 1000)));
     }
 
     @Test
@@ -279,12 +316,6 @@ class PlanetShapeTest {
             }
         assertEquals(6 * 16, existing);
         assertTrue(GroundViewPolicy.exists(PlanetShape.STANDARD, GroundViewPolicy.PATCH_COUNT - 1));
-        var dirty = new GroundViewPolicy.DirtyPatches(() -> small);
-        assertEquals(96, dirty.count());
-        dirty.tile(100 + 128L * 5);
-        assertEquals(96, dirty.count());
-        for (int i = 0; i < 96; i++) assertTrue(GroundViewPolicy.exists(small, dirty.poll()));
-        assertEquals(-1, dirty.poll());
         // Standing at an edge, the working set continues onto the neighbouring face; every tile is
         // one the planet has.
         var pose = new PlanetShape.Pose(Face.TOP, new Point(1016.5, 10, 500.5));
@@ -305,17 +336,8 @@ class PlanetShapeTest {
         assertTrue(crossed);
         assertTrue(GroundViewPolicy.nearSeam(small, pose));
         assertFalse(GroundViewPolicy.nearSeam(PlanetShape.STANDARD, pose));
-        // The ownership atlas puts the halo ring right beyond the planet's last tile.
-        var surface = new GroundSurface(1, new int[256], new int[256]);
-        long edge = GroundOwnership.key(small, 0, 1024 + 8, 8);
+        long edge = GroundTileKeys.key(small, 0, 1024 + 8, 8);
         assertNotEquals(0, edge / 16384);
-        var atlas =
-                GroundOwnership.atlas(
-                        small,
-                        new GroundOwnership.Snapshot(
-                                java.util.Map.of(edge, surface), new java.util.BitSet()));
-        assertEquals(127, atlas[64 + 1 + GroundOwnership.SIDE * (0 + 1)] & 255);
-        assertEquals(0, atlas[65 + 1 + GroundOwnership.SIDE * (0 + 1)]);
         // The far mesh stands on the smaller sphere and closes at its own edges and vertices.
         GroundExteriorMesh.Heights flat =
                 new GroundExteriorMesh.Heights() {

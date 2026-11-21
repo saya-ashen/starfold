@@ -114,60 +114,129 @@ final class DevPlanetPackProbe {
                 });
     }
 
-    static void run(ServerPlayer p, String args) {
+    static void run(ServerPlayer p, String args)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         LOG.info("PROBE PACK COMMAND {}", args);
         var a = args.split(" ");
         var level = p.serverLevel();
-        var gen = (SystemChunkGenerator) level.getChunkSource().getGenerator();
+        if (!(level.getChunkSource().getGenerator() instanceof SystemChunkGenerator gen)) {
+            throw new com.mojang.brigadier.exceptions.SimpleCommandExceptionType(
+                            net.minecraft.network.chat.Component.literal(
+                                    "Pack probe requires a Starfold planet level"))
+                    .create();
+        }
         var clock = GroundClock.get(level);
         switch (a[0]) {
             case "season" -> {
                 int id = PlanetSystem.planet(p);
                 var pose = PlanetAccess.of(level).body(new Point(p.getX(), p.getY(), p.getZ()));
-                var up = PlanetShape.of(id).direction(pose.face(), pose.point().x(), pose.point().z());
-                double wanted = switch (a[1]) { case "summer" -> .375; case "winter" -> .875; case "autumn" -> .5; default -> Double.parseDouble(a[1]); };
+                var up =
+                        PlanetShape.of(id)
+                                .direction(pose.face(), pose.point().x(), pose.point().z());
+                double wanted =
+                        switch (a[1]) {
+                            case "summer" -> .375;
+                            case "winter" -> .875;
+                            case "autumn" -> .5;
+                            default -> Double.parseDouble(a[1]);
+                        };
                 long now = clock.clock.tick(), chosen = now;
                 double best = Double.POSITIVE_INFINITY;
                 long year = (long) clock.clock.model.orbit(id).period();
                 for (long tick = now; tick < now + year * 4; tick += 20) {
-                    var s = dev.starfold.api.PlanetSeasons.sample(clock.clock.model,id,up,pose.point().y(),tick,gen.planet(id).terrain().terrainPlan());
-                    double miss = Math.abs(s.phase()-wanted);
-                    miss = Math.min(miss,1-miss);
-                    double light = GroundDaylight.elevation(level,p.blockPosition(),tick);
-                    double score = miss + Math.max(0,.35-light)*2;
-                    if (score < best) { best=score; chosen=tick; }
+                    var s =
+                            dev.starfold.api.PlanetSeasons.sample(
+                                    clock.clock.model,
+                                    id,
+                                    up,
+                                    pose.point().y(),
+                                    tick,
+                                    gen.planet(id).terrain().terrainPlan());
+                    double miss = Math.abs(s.phase() - wanted);
+                    miss = Math.min(miss, 1 - miss);
+                    double light = GroundDaylight.elevation(level, p.blockPosition(), tick);
+                    double score = miss + Math.max(0, .35 - light) * 2;
+                    if (score < best) {
+                        best = score;
+                        chosen = tick;
+                    }
                 }
-                clock.skip(chosen-now);
-                var s = dev.starfold.api.PlanetSeasons.sample(clock.clock.model,id,up,pose.point().y(),chosen,gen.planet(id).terrain().terrainPlan());
-                LOG.info("PROBE SEASON {} tick {} planet {} latitude {} sample {} daylight {}",a[1],chosen,id,
-                        Math.toDegrees(Math.asin(up.dot(clock.clock.model.spin(id).axis()))),s,GroundDaylight.elevation(level,p.blockPosition(),chosen));
+                clock.skip(chosen - now);
+                var s =
+                        dev.starfold.api.PlanetSeasons.sample(
+                                clock.clock.model,
+                                id,
+                                up,
+                                pose.point().y(),
+                                chosen,
+                                gen.planet(id).terrain().terrainPlan());
+                LOG.info(
+                        "PROBE SEASON {} tick {} planet {} latitude {} sample {} daylight {}",
+                        a[1],
+                        chosen,
+                        id,
+                        Math.toDegrees(Math.asin(up.dot(clock.clock.model.spin(id).axis()))),
+                        s,
+                        GroundDaylight.elevation(level, p.blockPosition(), chosen));
             }
             case "seasonstate" -> {
-                int id=PlanetSystem.planet(p);
-                var pose=PlanetAccess.of(level).body(new Point(p.getX(),p.getY(),p.getZ()));
-                var up=PlanetShape.of(id).direction(pose.face(),pose.point().x(),pose.point().z());
-                long tick=clock.clock.tick();
-                LOG.info("PROBE SEASON_SAME_TICK {} here {} antipode {}",tick,
-                        dev.starfold.api.PlanetSeasons.sample(clock.clock.model,id,up,pose.point().y(),tick,gen.planet(id).terrain().terrainPlan()),
-                        dev.starfold.api.PlanetSeasons.sample(clock.clock.model,id,up.scale(-1),pose.point().y(),tick,gen.planet(id).terrain().terrainPlan()));
+                int id = PlanetSystem.planet(p);
+                var pose = PlanetAccess.of(level).body(new Point(p.getX(), p.getY(), p.getZ()));
+                var up =
+                        PlanetShape.of(id)
+                                .direction(pose.face(), pose.point().x(), pose.point().z());
+                long tick = clock.clock.tick();
+                LOG.info(
+                        "PROBE SEASON_SAME_TICK {} here {} antipode {}",
+                        tick,
+                        dev.starfold.api.PlanetSeasons.sample(
+                                clock.clock.model,
+                                id,
+                                up,
+                                pose.point().y(),
+                                tick,
+                                gen.planet(id).terrain().terrainPlan()),
+                        dev.starfold.api.PlanetSeasons.sample(
+                                clock.clock.model,
+                                id,
+                                up.scale(-1),
+                                pose.point().y(),
+                                tick,
+                                gen.planet(id).terrain().terrainPlan()));
             }
             case "seasonsite" -> {
-                int id=0;
-                var face=a[1].equals("south") ? Face.BOTTOM : Face.TOP;
-                var terrain=gen.planet(id).terrain();
-                int x=128,z=1024,y=0;
-                search: for(int u=128;u<=480;u+=16) for(int v=640;v<=1408;v+=16) {
-                    var column=terrain.surfaceColumn(face,u,v);
-                    if(column.ground()<130 || column.ground()>155)continue;
-                    for(int h=column.ground()+2;h<column.ground()+14;h++)
-                        if(column.state(h).is(net.minecraft.tags.BlockTags.LEAVES)) {x=u;z=v;y=column.ground()+6;break search;}
-                }
-                if(y==0)throw new IllegalStateException("No seasonal forest fixture");
-                p.getAbilities().flying=true;p.onUpdateAbilities();
-                GroundFlightServer.enter(p,clock,GroundDynamics.local(clock.clock.tick(),id,
-                        new PlanetShape.Pose(face,new Point(x+.5,y-128+.9,z+.5)),GroundEphemeris.ZERO,
-                        GroundCamera.capture(35,12),true,GroundDynamics.OFF));
-                LOG.info("PROBE SEASONSITE {} face {} u {} v {} y {}",a[1],face,x,z,y);
+                int id = 0;
+                var face = a[1].equals("south") ? Face.BOTTOM : Face.TOP;
+                var terrain = gen.planet(id).terrain();
+                int x = 128, z = 1024, y = 0;
+                search:
+                for (int u = 128; u <= 480; u += 16)
+                    for (int v = 640; v <= 1408; v += 16) {
+                        var column = terrain.surfaceColumn(face, u, v);
+                        if (column.ground() < 130 || column.ground() > 155) continue;
+                        for (int h = column.ground() + 2; h < column.ground() + 14; h++)
+                            if (column.state(h).is(net.minecraft.tags.BlockTags.LEAVES)) {
+                                x = u;
+                                z = v;
+                                y = column.ground() + 6;
+                                break search;
+                            }
+                    }
+                if (y == 0) throw new IllegalStateException("No seasonal forest fixture");
+                p.getAbilities().flying = true;
+                p.onUpdateAbilities();
+                GroundFlightServer.enter(
+                        p,
+                        clock,
+                        GroundDynamics.local(
+                                clock.clock.tick(),
+                                id,
+                                new PlanetShape.Pose(face, new Point(x + .5, y - 128 + .9, z + .5)),
+                                GroundEphemeris.ZERO,
+                                GroundCamera.capture(35, 12),
+                                true,
+                                GroundDynamics.OFF));
+                LOG.info("PROBE SEASONSITE {} face {} u {} v {} y {}", a[1], face, x, z, y);
             }
             case "visit", "orbit", "descent" -> {
                 int id = Integer.parseInt(a[1]);
@@ -223,35 +292,64 @@ final class DevPlanetPackProbe {
                         orbit,
                         GroundDaylight.elevation(
                                 level, BlockPos.containing(site.x(), site.y(), site.z())),
-                        java.util.stream.IntStream.range(0,gen.planet(id).terrain().terrainPlan().nodeCount()).filter(n->gen.planet(id).terrain().terrainPlan().water(n)==dev.starfold.worldgen.plan.terrain.TerrainPlan.Water.OCEAN).count()/(double)gen.planet(id).terrain().terrainPlan().nodeCount(),
+                        java.util.stream.IntStream.range(
+                                                0,
+                                                gen.planet(id).terrain().terrainPlan().nodeCount())
+                                        .filter(
+                                                n ->
+                                                        gen.planet(id)
+                                                                        .terrain()
+                                                                        .terrainPlan()
+                                                                        .water(n)
+                                                                == dev.starfold.worldgen.plan
+                                                                        .terrain.TerrainPlan.Water
+                                                                        .OCEAN)
+                                        .count()
+                                / (double) gen.planet(id).terrain().terrainPlan().nodeCount(),
                         SystemChunkGenerator.GENERATED.sum(),
                         SystemChunkGenerator.NANOS.sum());
             }
             case "colorwater" -> {
-                int id=PlanetSystem.planet(p);
-                var t=gen.planet(id).terrain();
-                int sea=128,bx=64,bz=64,best=Integer.MAX_VALUE;
-                for(int z=80;z<t.shape().size()-80;z+=8)for(int x=80;x<t.shape().size()-80;x+=8) {
-                    var liquid=t.liquid(Face.TOP,x,z);
-                    if(liquid==null)continue;
-                    int depth=liquid.level()-t.groundY(Face.TOP,x,z);
-                    if(depth<=0 || t.closure(Face.TOP,x,z))continue;
-                    int score=a[1].equals("deep") ? -depth : Math.abs(depth-3);
-                    if(score<best){best=score;bx=x;bz=z;sea=liquid.level();}
-                }
-                if(best==Integer.MAX_VALUE)throw new IllegalArgumentException("No liquid column on this planet");
-                var at=PlanetStorage.block(id,new CubeSurfaceTopology.Cell(Face.TOP,bx,0,bz));
-                LOG.info("PROBE COLOR WATER {} id {} position {} ground {} sea {} depth {}",a[1],id,at,t.groundY(Face.TOP,bx,bz),sea,sea-t.groundY(Face.TOP,bx,bz));
-                run(p,"at "+(at.getX()+.5)+" "+(sea+285)+" "+(at.getZ()+.5));
+                int id = PlanetSystem.planet(p);
+                var t = gen.planet(id).terrain();
+                int sea = 128, bx = 64, bz = 64, best = Integer.MAX_VALUE;
+                for (int z = 80; z < t.shape().size() - 80; z += 8)
+                    for (int x = 80; x < t.shape().size() - 80; x += 8) {
+                        var liquid = t.liquid(Face.TOP, x, z);
+                        if (liquid == null) continue;
+                        int depth = liquid.level() - t.groundY(Face.TOP, x, z);
+                        if (depth <= 0 || t.closure(Face.TOP, x, z)) continue;
+                        int score = a[1].equals("deep") ? -depth : Math.abs(depth - 3);
+                        if (score < best) {
+                            best = score;
+                            bx = x;
+                            bz = z;
+                            sea = liquid.level();
+                        }
+                    }
+                if (best == Integer.MAX_VALUE)
+                    throw new IllegalArgumentException("No liquid column on this planet");
+                var at = PlanetStorage.block(id, new CubeSurfaceTopology.Cell(Face.TOP, bx, 0, bz));
+                LOG.info(
+                        "PROBE COLOR WATER {} id {} position {} ground {} sea {} depth {}",
+                        a[1],
+                        id,
+                        at,
+                        t.groundY(Face.TOP, bx, bz),
+                        sea,
+                        sea - t.groundY(Face.TOP, bx, bz));
+                run(p, "at " + (at.getX() + .5) + " " + (sea + 285) + " " + (at.getZ() + .5));
             }
             case "colortorch" -> {
-                int id=PlanetSystem.planet(p);
-                var t=gen.planet(id).terrain();
-                var c=PlanetAccess.of(level).cell(p.blockPosition().offset(0,0,64));
-                int y=t.groundY(c.face(),c.u(),c.v())+1;
-                var at=PlanetStorage.block(id,new CubeSurfaceTopology.Cell(c.face(),c.u(),y-128,c.v()));
-                level.setBlock(at,Blocks.TORCH.defaultBlockState(),3);
-                LOG.info("PROBE COLOR TORCH position {}",at);
+                int id = PlanetSystem.planet(p);
+                var t = gen.planet(id).terrain();
+                var c = PlanetAccess.of(level).cell(p.blockPosition().offset(0, 0, 64));
+                int y = t.groundY(c.face(), c.u(), c.v()) + 1;
+                var at =
+                        PlanetStorage.block(
+                                id, new CubeSurfaceTopology.Cell(c.face(), c.u(), y - 128, c.v()));
+                level.setBlock(at, Blocks.TORCH.defaultBlockState(), 3);
+                LOG.info("PROBE COLOR TORCH position {}", at);
             }
             case "lightaudit" -> ImageStream.auditLight(p);
             case "surfaceaudit" -> {
@@ -372,7 +470,8 @@ final class DevPlanetPackProbe {
                                 id,
                                 pose,
                                 GroundEphemeris.ZERO,
-                                GroundCamera.capture(0, a.length > 5 ? Double.parseDouble(a[5]) : 10),
+                                GroundCamera.capture(
+                                        0, a.length > 5 ? Double.parseDouble(a[5]) : 10),
                                 flying,
                                 GroundDynamics.OFF));
             }

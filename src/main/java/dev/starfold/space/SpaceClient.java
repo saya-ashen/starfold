@@ -170,7 +170,8 @@ public final class SpaceClient {
 
     public static Space.Frame frame() {
         var mc = Minecraft.getInstance();
-        return level == mc.level && PlanetLevels.is(mc.level)
+        return level == mc.level
+                        && PlanetLevels.is(mc.level)
                         && mc.player != null
                         && Space.holds(mc.player.getX(), mc.player.getZ())
                 ? frames.sample(eye(), renderTick(), SpaceClientHost.get().ephemeris(), time())

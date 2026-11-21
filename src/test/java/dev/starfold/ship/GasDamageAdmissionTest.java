@@ -98,9 +98,16 @@ class GasDamageAdmissionTest {
         var slab = Blocks.OAK_SLAB.defaultBlockState();
         for (var type : net.minecraft.world.level.block.state.properties.SlabType.values()) {
             var state = slab.setValue(net.minecraft.world.level.block.SlabBlock.TYPE, type);
-            assertTrue(GasDamageAdmission.eligible(state, EmptyBlockGetter.INSTANCE, BlockPos.ZERO, false));
-            assertFalse(GasDamageAdmission.eligible(state.setValue(net.minecraft.world.level.block.SlabBlock.WATERLOGGED, true),
-                    EmptyBlockGetter.INSTANCE, BlockPos.ZERO, false));
+            assertTrue(
+                    GasDamageAdmission.eligible(
+                            state, EmptyBlockGetter.INSTANCE, BlockPos.ZERO, false));
+            assertFalse(
+                    GasDamageAdmission.eligible(
+                            state.setValue(
+                                    net.minecraft.world.level.block.SlabBlock.WATERLOGGED, true),
+                            EmptyBlockGetter.INSTANCE,
+                            BlockPos.ZERO,
+                            false));
         }
     }
 

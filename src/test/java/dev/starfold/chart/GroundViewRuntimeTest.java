@@ -2,16 +2,8 @@ package dev.starfold.chart;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.SourceText;
-import dev.starfold.Sources;
-import dev.starfold.render.GroundChunkSnapshot;
 import dev.starfold.render.GroundShaderSource;
-import dev.starfold.render.GroundStreaming;
-import dev.starfold.render.GroundViewCache;
-import dev.starfold.render.GroundViewPackets;
 
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.level.block.*;
 
 import org.junit.jupiter.api.*;

@@ -16,10 +16,12 @@ public final class GasPlayerExposureClient {
     private static LocalPlayer player;
 
     public static void initialize() {
-        StarfoldNetwork.clientReceiver(GasPlayerExposurePacket.TYPE, (packet, context) -> {
-            reconcile();
-            cache.receive(packet, SpaceClientHost.get().ephemeris(), clientTick);
-        });
+        StarfoldNetwork.clientReceiver(
+                GasPlayerExposurePacket.TYPE,
+                (packet, context) -> {
+                    reconcile();
+                    cache.receive(packet, SpaceClientHost.get().ephemeris(), clientTick);
+                });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientTickEvent.Pre event) -> {
                     if (clientTick < Long.MAX_VALUE) clientTick++;
@@ -45,8 +47,11 @@ public final class GasPlayerExposureClient {
             player = mc.player;
         }
         long session = SpaceClient.session();
-        cache.focus(level == null || player == null || session == 0 ? null
-                : new GasPlayerExposureCache.Identity(level.dimension().location(), session));
+        cache.focus(
+                level == null || player == null || session == 0
+                        ? null
+                        : new GasPlayerExposureCache.Identity(
+                                level.dimension().location(), session));
     }
 
     private static void render(GuiGraphics graphics) {
@@ -62,8 +67,8 @@ public final class GasPlayerExposureClient {
         for (var line : GasPlayerExposureHud.lines(packet)) {
             String text = I18n.get(line.key(), line.arguments().toArray());
             text = mc.font.plainSubstrByWidth(text, Math.max(0, width - 16));
-            graphics.drawString(mc.font, text, (width - mc.font.width(text)) / 2,
-                    y, line.color(), true);
+            graphics.drawString(
+                    mc.font, text, (width - mc.font.width(text)) / 2, y, line.color(), true);
             y += mc.font.lineHeight + 1;
         }
     }

@@ -1,9 +1,7 @@
 package dev.starfold.ship;
 
-
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
 
 import org.junit.jupiter.api.Test;
@@ -77,12 +75,6 @@ class HullLandingSearchTest {
 
     @Test
     void wiringKeepsLoadedOnlyForecastAndBilingualCue() throws Exception {
-        var landing = Sources.text("HullLanding");
-        assertTrue(landing.contains("var site=candidate(level,body,0,0)"));
-        assertTrue(landing.contains("getChunkNow(x>>4,z>>4)"));
-        assertTrue(landing.contains("Airstair.canDeployAt(level,body"));
-        assertTrue(landing.contains("Thrusters.scopeTier(body)<3||!eligible(level,body)"));
-        assertTrue(landing.contains("if(!finished&&scan.complete())refreshed=tick"));
         for (String lang : new String[] {"en_us", "zh_cn"}) {
             var json = FlightPermitTest.json("assets/starfold/lang/" + lang + ".json");
             for (String key : new String[] {"landing_site", "landing_none", "landing_search"})

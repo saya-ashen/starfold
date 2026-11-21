@@ -5,12 +5,18 @@ import java.util.List;
 
 /** Call in priority order; rejected names remain available in the hover/selection readout. */
 final class MapLabels {
-    record Rect(int x, int y, int width, int height) {
+    record Rect(double x, double y, int width, int height) {
+        boolean contains(double px, double py) {
+            return px >= x && px < x + width && py >= y && py < y + height;
+        }
+
         boolean overlaps(Rect b) {
-            return x < b.x+b.width && x+width > b.x && y < b.y+b.height && y+height > b.y;
+            return x < b.x + b.width && x + width > b.x && y < b.y + b.height && y + height > b.y;
         }
     }
+
     private final List<Rect> placed = new ArrayList<>();
+
     boolean place(Rect rect) {
         for (var other : placed) if (rect.overlaps(other)) return false;
         placed.add(rect);

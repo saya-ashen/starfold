@@ -10,13 +10,20 @@ record GasSkimDefinition(ResourceLocation fluid, double rate) {
     static GasSkimDefinition parse(JsonObject json) {
         var fluid = json.get("fluid");
         var rate = json.get("rate");
-        if (fluid == null || !fluid.isJsonPrimitive() || !fluid.getAsJsonPrimitive().isString()
-                || rate == null || !rate.isJsonPrimitive() || !rate.getAsJsonPrimitive().isNumber())
+        if (fluid == null
+                || !fluid.isJsonPrimitive()
+                || !fluid.getAsJsonPrimitive().isString()
+                || rate == null
+                || !rate.isJsonPrimitive()
+                || !rate.getAsJsonPrimitive().isNumber())
             throw new JsonParseException("Expected fluid string and positive numeric rate");
         var id = ResourceLocation.tryParse(fluid.getAsString());
         double value = rate.getAsDouble();
-        if (id == null || id.getPath().isEmpty() || !(value > 0)
-                || !Double.isFinite(value) || value > Integer.MAX_VALUE / 2.0)
+        if (id == null
+                || id.getPath().isEmpty()
+                || !(value > 0)
+                || !Double.isFinite(value)
+                || value > Integer.MAX_VALUE / 2.0)
             throw new JsonParseException("Invalid fluid id or rate (maximum 1073741823.5)");
         return new GasSkimDefinition(id, value);
     }

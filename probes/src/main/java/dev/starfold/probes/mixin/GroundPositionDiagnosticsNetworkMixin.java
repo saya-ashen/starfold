@@ -21,10 +21,13 @@ public abstract class GroundPositionDiagnosticsNetworkMixin {
     @Shadow public ServerPlayer player;
 
     @WrapMethod(method = "handleMovePlayer")
-    private void starfold$diagnosticMove(ServerboundMovePlayerPacket packet, Operation<Void> original) {
-        // The Netty pass returns a null scope: ensureRunningOnSameThread keeps its original scheduling.
-        var scope = DevPositionDiagnostics.begin(player, "handle-move",
-                () -> DevPositionDiagnostics.move(packet), false);
+    private void starfold$diagnosticMove(
+            ServerboundMovePlayerPacket packet, Operation<Void> original) {
+        // The Netty pass returns a null scope: ensureRunningOnSameThread keeps its original
+        // scheduling.
+        var scope =
+                DevPositionDiagnostics.begin(
+                        player, "handle-move", () -> DevPositionDiagnostics.move(packet), false);
         try {
             original.call(packet);
         } finally {
@@ -33,9 +36,11 @@ public abstract class GroundPositionDiagnosticsNetworkMixin {
     }
 
     @WrapMethod(method = "handleAcceptTeleportPacket")
-    private void starfold$diagnosticAck(ServerboundAcceptTeleportationPacket packet,
-                                       Operation<Void> original) {
-        var scope = DevPositionDiagnostics.begin(player, "handle-ack", () -> "ackId=" + packet.getId(), true);
+    private void starfold$diagnosticAck(
+            ServerboundAcceptTeleportationPacket packet, Operation<Void> original) {
+        var scope =
+                DevPositionDiagnostics.begin(
+                        player, "handle-ack", () -> "ackId=" + packet.getId(), true);
         try {
             original.call(packet);
         } finally {
@@ -44,11 +49,28 @@ public abstract class GroundPositionDiagnosticsNetworkMixin {
     }
 
     @WrapMethod(method = "teleport(DDDFFLjava/util/Set;)V")
-    private void starfold$diagnosticTeleport(double x, double y, double z, float yaw, float pitch,
-                                            Set<RelativeMovement> relative, Operation<Void> original) {
-        var scope = DevPositionDiagnostics.begin(player, "server-teleport",
-                () -> "xyz=" + java.util.List.of(x, y, z) + " yaw=" + yaw + " pitch=" + pitch
-                        + " relative=" + relative, true);
+    private void starfold$diagnosticTeleport(
+            double x,
+            double y,
+            double z,
+            float yaw,
+            float pitch,
+            Set<RelativeMovement> relative,
+            Operation<Void> original) {
+        var scope =
+                DevPositionDiagnostics.begin(
+                        player,
+                        "server-teleport",
+                        () ->
+                                "xyz="
+                                        + java.util.List.of(x, y, z)
+                                        + " yaw="
+                                        + yaw
+                                        + " pitch="
+                                        + pitch
+                                        + " relative="
+                                        + relative,
+                        true);
         try {
             original.call(x, y, z, yaw, pitch, relative);
         } finally {

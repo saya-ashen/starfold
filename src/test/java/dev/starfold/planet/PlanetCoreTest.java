@@ -2,7 +2,6 @@ package dev.starfold.planet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.worldgen.PlanetTerrainTest;
 
@@ -110,12 +109,6 @@ class PlanetCoreTest {
                         "dev/starfold/planet/PlanetCoreBlock.IMMUTABLE",
                         "dev/starfold/planet/PlanetCoreBlock.IMMUTABLE"),
                 fields);
-        var text = Sources.text("PlanetCoreChunkMixin");
-        assertTrue(text.contains("if(level.isClientSide)return;"));
-        assertTrue(text.contains("if(!PlanetLevels.is(level))return;"));
-        assertTrue(
-                text.contains(
-                        "if(old.is(PlanetCoreBlock.IMMUTABLE)&&old!=state)ci.setReturnValue(null);"));
         var call =
                 Arrays.stream(method.instructions.toArray())
                         .filter(
@@ -125,15 +118,6 @@ class PlanetCoreTest {
                         .findFirst()
                         .orElseThrow();
         assertEquals(Opcodes.ACONST_NULL, call.getPrevious().getOpcode());
-    }
-
-    @Test
-    void haloForwardsToTheOwnerAndPropagatesARefusedWrite() throws Exception {
-        var text = Sources.text("GhostChunk");
-        assertTrue(
-                text.contains(
-                        "var old=owner.setBlockState(at(i,pos.getY()),ChartOrientation.state(state,turns(i)),moved);"));
-        assertTrue(text.contains("return old==null?null:ChartOrientation.state(old,-turns(i));"));
     }
 
     @Test

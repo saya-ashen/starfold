@@ -112,30 +112,45 @@ public final class ShipDormancy {
                                                                             at.position().z())
                                                             <= wake * wake)) continue;
             var groupData = new HashMap<UUID, SubLevelData>();
-            var group = dependencyGroup(record.uuid(), id -> {
-                var member = ShipSave.get(level).find(id);
-                if (member == null || !(member.state() instanceof ShipRecord.InSpace inSpace)
-                        || member.locator().isEmpty() || container.getSubLevel(id) != null
-                        || !pointer(member).chunkPos().equals(pointer(record).chunkPos())) return null;
-                var original = read(container, member);
-                if (original == null) return null;
-                var motion = ShipParking.toLevel(clock.model,
-                        ShipHost.get().surroundingsFrame(level), inSpace.place(), clock.tick());
-                var data = repose(original, inSpace.place(), motion);
-                if (!fits(data.bounds())) return null;
-                groupData.put(id, data);
-                return original.dependencies();
-            });
+            var group =
+                    dependencyGroup(
+                            record.uuid(),
+                            id -> {
+                                var member = ShipSave.get(level).find(id);
+                                if (member == null
+                                        || !(member.state() instanceof ShipRecord.InSpace inSpace)
+                                        || member.locator().isEmpty()
+                                        || container.getSubLevel(id) != null
+                                        || !pointer(member)
+                                                .chunkPos()
+                                                .equals(pointer(record).chunkPos())) return null;
+                                var original = read(container, member);
+                                if (original == null) return null;
+                                var motion =
+                                        ShipParking.toLevel(
+                                                clock.model,
+                                                ShipHost.get().surroundingsFrame(level),
+                                                inSpace.place(),
+                                                clock.tick());
+                                var data = repose(original, inSpace.place(), motion);
+                                if (!fits(data.bounds())) return null;
+                                groupData.put(id, data);
+                                return original.dependencies();
+                            });
             if (group == null) continue;
             pending.putAll(groupData);
         }
         for (var data : pending.values()) {
             var box = data.bounds();
             var columns = new HashSet<Long>();
-            SableTickets.columns(columns, new net.minecraft.world.phys.AABB(
-                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ).inflate(32));
-            inputs.add(new ShipLeases.Input(data.uuid(), columns,
-                    Set.of(ShipLeases.Reason.WAKING), Set.of()));
+            SableTickets.columns(
+                    columns,
+                    new net.minecraft.world.phys.AABB(
+                                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ)
+                            .inflate(32));
+            inputs.add(
+                    new ShipLeases.Input(
+                            data.uuid(), columns, Set.of(ShipLeases.Reason.WAKING), Set.of()));
         }
         waking.put(level, pending);
         return inputs;
@@ -146,17 +161,34 @@ public final class ShipDormancy {
         var pending = waking.getOrDefault(level, Map.of());
         var attempted = new HashSet<UUID>();
         for (var entry : pending.entrySet()) {
-            if (attempted.contains(entry.getKey()) || container.getSubLevel(entry.getKey()) != null) continue;
-            var group = dependencyGroup(entry.getKey(), id -> {
-                var data = pending.get(id);
-                return data == null ? null : data.dependencies();
-            });
-            if (group == null || group.stream().anyMatch(id -> {
-                var columns = SableTickets.held(level, id);
-                return columns.isEmpty() || columns.stream().anyMatch(k ->
-                        !PhysicsChunkTicketManager.isChunkLoadedEnough(
-                                level, ChunkPos.getX(k), ChunkPos.getZ(k)));
-            })) continue;
+            if (attempted.contains(entry.getKey()) || container.getSubLevel(entry.getKey()) != null)
+                continue;
+            var group =
+                    dependencyGroup(
+                            entry.getKey(),
+                            id -> {
+                                var data = pending.get(id);
+                                return data == null ? null : data.dependencies();
+                            });
+            if (group == null
+                    || group.stream()
+                            .anyMatch(
+                                    id -> {
+                                        var columns = SableTickets.held(level, id);
+                                        return columns.isEmpty()
+                                                || columns.stream()
+                                                        .anyMatch(
+                                                                k ->
+                                                                        !PhysicsChunkTicketManager
+                                                                                .isChunkLoadedEnough(
+                                                                                        level,
+                                                                                        ChunkPos
+                                                                                                .getX(
+                                                                                                        k),
+                                                                                        ChunkPos
+                                                                                                .getZ(
+                                                                                                        k)));
+                                    })) continue;
             var record = ShipSave.get(level).find(entry.getKey());
             var active = loading.computeIfAbsent(level, l -> new HashSet<>());
             active.addAll(group);
@@ -169,11 +201,13 @@ public final class ShipDormancy {
             var missing = group.stream().filter(id -> container.getSubLevel(id) == null).toList();
             if (!missing.isEmpty())
                 org.slf4j.LoggerFactory.getLogger("starfold")
-                        .error("Space ship group did not fully load; root={} missing={}", record.uuid(), missing);
+                        .error(
+                                "Space ship group did not fully load; root={} missing={}",
+                                record.uuid(),
+                                missing);
             var requests = requested.get(level);
             if (requests != null)
-                for (var id : group)
-                    if (container.getSubLevel(id) != null) requests.remove(id);
+                for (var id : group) if (container.getSubLevel(id) != null) requests.remove(id);
         }
         for (var body : List.copyOf(container.getAllSubLevels())) {
             var at = body.logicalPose().position();
@@ -190,8 +224,8 @@ public final class ShipDormancy {
     }
 
     /** Validate Sable's flattened saved group, rejecting missing members and partial snatches. */
-    static Set<UUID> dependencyGroup(UUID root,
-            java.util.function.Function<UUID, ? extends Collection<UUID>> dependencies) {
+    static Set<UUID> dependencyGroup(
+            UUID root, java.util.function.Function<UUID, ? extends Collection<UUID>> dependencies) {
         var group = new HashSet<UUID>();
         var saved = new HashMap<UUID, Collection<UUID>>();
         var todo = new ArrayDeque<UUID>();

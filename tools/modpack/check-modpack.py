@@ -13,6 +13,8 @@ import zipfile
 
 import argparse
 
+from quest_contract import validate_graph_contract, validate_stable_ids
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--with-jars', action='store_true', help='Also audit cached pinned jars and their dependency closure; never downloads.')
 args = parser.parse_args()
@@ -78,8 +80,44 @@ for path in (data / planet_root).glob('*.json'):
     original = json.loads((source / planet_root / path.name).read_text())
     actual = json.loads(path.read_text())
     ores = actual['terrain'].pop('ores')
-    # Version 2 terrain stores ores directly; every other authored field is preserved.
+    # Preserve authored terrain, allowing the approved home structure and marine prefixes.
     original['terrain'].pop('ores', None)
+    if path.stem == 'home':
+        assert actual['terrain']['planner'].pop('structure_sets') == 'escape_velocity:home'
+        assert actual['terrain']['preferences']['damage'] == 0
+        assert actual['terrain']['preferences']['burial'] == 0
+        for key in ('damage', 'burial'):
+            actual['terrain']['preferences'][key] = original['terrain']['preferences'][key]
+        assert ores[-1] == {'block': 'minecraft:andesite', 'from': 0, 'to': .2, 'rarity': .86}
+        marine = actual['terrain']['biomes'][:10]
+        assert [b['parameters']['biome'] for b in marine] == [
+            'minecraft:deep_frozen_ocean', 'minecraft:deep_cold_ocean',
+            'minecraft:deep_lukewarm_ocean', 'minecraft:deep_lukewarm_ocean', 'minecraft:deep_ocean',
+            'minecraft:frozen_ocean', 'minecraft:cold_ocean', 'minecraft:warm_ocean',
+            'minecraft:lukewarm_ocean', 'minecraft:ocean']
+        for i, rule in enumerate(marine):
+            expected = json.loads(json.dumps(original['terrain']['biomes'][0 if i < 5 else 1]))
+            expected['parameters'].update(biome=rule['parameters']['biome'],
+                temperature_min=[-300, -2, 20, 18, -300][i % 5],
+                temperature_max=[-2, 8, 300, 20, 300][i % 5])
+            assert rule == expected, ('marine climate', path, i)
+        assert actual['terrain']['biomes'][10:] == original['terrain']['biomes'][2:]
+        beds = actual['terrain']['materials'][:12]
+        assert [(r['parameters']['biome'], r['parameters']['block']) for r in beds] == [
+            ('minecraft:beach', 'minecraft:sand'),
+            *[('minecraft:' + b, 'minecraft:sand') for b in
+              ('warm_ocean', 'lukewarm_ocean', 'deep_lukewarm_ocean', 'ocean')],
+            *[('minecraft:' + b, 'minecraft:gravel') for b in
+              ('cold_ocean', 'frozen_ocean', 'deep_cold_ocean', 'deep_frozen_ocean', 'deep_ocean')],
+            ('minecraft:river', 'minecraft:clay'), ('minecraft:swamp', 'minecraft:clay')]
+        for i, rule in enumerate(beds):
+            p = rule['parameters']
+            assert rule['type'] == 'starfold:surface' and p['water_depth_min'] == (0 if i == 0 else 1)
+            assert p['depth_min'] == 0 and p['depth_max'] == (1 if i >= 10 else 3)
+            assert (p['temperature_min'], p['temperature_max'], p['slope_min'], p['shore']) == (-300, 300, 0, False)
+        assert actual['terrain']['materials'][12:] == original['terrain']['materials']
+        actual['terrain']['biomes'] = original['terrain']['biomes']
+        actual['terrain']['materials'] = original['terrain']['materials']
     assert actual == original, f'Changed non-ore fields: {path}'
     assert 1 <= len(ores) <= 16
     for ore in ores:
@@ -292,7 +330,21 @@ assert.equal(new Set(made).size, 10);
 assert.deepEqual(removedIds, ['mekanismgenerators:separator/heavy_water']);
 '''
 subprocess.run(['node', '-e', mock], check=True)
-print('PASS: pins, JSON, 12 ores-only overrides, ship-free preset, four fuel IDs, skim definition, ten recipe replacements, terrestrial deuterium removal')
+assert pins['ftb-ultimine-forge']['filename'] == 'ftb-ultimine-neoforge-2101.1.15.jar'
+assert pins['ftb-ultimine-forge']['update']['curseforge'] == {'project-id': 386134, 'file-id': 8231400}
+ultimine = json.loads((pack / 'config/ftbultimine-server.snbt').read_text())
+assert ultimine['costs_limits']['max_blocks'] == 32
+assert ultimine['costs_limits']['require_tool'] is True
+assert ultimine['costs_limits']['require_valid_tool_for_block'] is True
+assert ultimine['costs_limits']['exhaustion_per_block'] == 20.0
+assert all(value is False for value in ultimine['features'].values())
+assert ultimine['misc']['merge_tags'] == [] and ultimine['misc']['merge_tags_shaped'] == []
+assert json.loads((pack / 'kubejs/data/ftbultimine/tags/block/block_whitelist.json').read_text()) == {
+    'replace': True, 'values': ['#c:ores', '#minecraft:base_stone_overworld', '#minecraft:logs']}
+assert json.loads((pack / 'kubejs/data/starfold/tags/item/survival_guide_enabled.json').read_text())['values'] == ['minecraft:written_book']
+assert set(json.loads((pack / 'kubejs/data/escape_velocity/tags/worldgen/structure_set/home.json').read_text())['values']) == {
+    'minecraft:villages', 'minecraft:mineshafts', 'minecraft:shipwrecks', 'minecraft:ocean_ruins'}
+print('PASS: pinned Ultimine policy, guide opt-in, home structure whitelist, 12 resource overrides, ship-free preset, fuel and recipe rules')
 
 # Quest files deliberately use JSON-compatible SNBT; the only extension is a header comment.
 def snbt(path):
@@ -307,39 +359,27 @@ if quest_root.exists():
     vanilla_items = set('coal_block oak_log crafting_table wooden_pickaxe cobblestone torch furnace coal iron_ingot iron_pickaxe copper_ingot bread white_bed shield glass golden_apple bow arrow ancient_debris netherite_scrap iron_chestplate iron_block'.split())
     quest_files = sorted((quest_root / 'chapters').glob('*.snbt'))
     assert len(quest_files) == 9
-    seen = {'0000000000000001'}
-    completed = set()
-    mainline = set()
-    quest_ids = set()
-    def unique(identifier):
-        assert len(identifier) == 16 and 0 < int(identifier, 16) < 2**63
-        assert identifier not in seen, identifier
-        seen.add(identifier)
+    chapters = [snbt(path) for path in quest_files]
+    validate_stable_ids(chapters)
+    by_id = {q['id']: q for chapter in chapters for q in chapter['quests']}
+    validate_graph_contract(by_id)
     def item(identifier):
         assert identifier in ids['item'] or identifier.removeprefix('minecraft:') in vanilla_items, identifier
     total = 0
     kinds = set()
     expected_keys = {'file.0000000000000001.title'}
-    for chapter_index, path in enumerate(quest_files):
-        chapter = snbt(path)
-        unique(chapter['id'])
+    for chapter_index, (path, chapter) in enumerate(zip(quest_files, chapters)):
         expected_keys.add(f'chapter.{chapter["id"]}.title')
-        assert chapter['order_index'] == chapter_index and 6 <= len(chapter['quests']) <= (13 if chapter_index == 4 else 12)
+        assert path.stem == chapter['id'], 'Chapter filenames must match IDs to avoid reload duplicates'
+        assert chapter['order_index'] == chapter_index and chapter['quests']
         for quest in chapter['quests']:
-            unique(quest['id'])
-            quest_ids.add(quest['id'])
             for suffix in ('title', 'quest_desc'):
                 key = f'quest.{quest["id"]}.{suffix}'
                 expected_keys.add(key)
                 for table in tables.values():
                     assert table.get(key), key
                     assert isinstance(table[key], list if suffix == 'quest_desc' else str)
-            assert set(quest.get('dependencies', [])).issubset(mainline), quest
-            completed.add(quest['id'])
-            if not quest.get('optional', False):
-                mainline.add(quest['id'])
             for task in quest['tasks']:
-                unique(task['id'])
                 kind = task['type']
                 kinds.add(kind)
                 assert kind in ('item', 'dimension', 'advancement', 'checkmark', 'kill')
@@ -352,7 +392,6 @@ if quest_root.exists():
                     assert task[kind] in ids[kind], task
                     assert task.get('dimension') not in ('minecraft:the_nether', 'minecraft:the_end'), task
             for reward in quest['rewards']:
-                unique(reward['id'])
                 assert reward['type'] == 'item'
                 assert reward['item']['id'] in ('minecraft:bread', 'minecraft:iron_ingot')
                 assert reward['count'] == 2 and reward['item']['count'] == 1
@@ -360,30 +399,28 @@ if quest_root.exists():
     assert tables['en_us'].keys() == expected_keys
     assert kinds == {'item', 'dimension', 'advancement', 'checkmark', 'kill'}
     final = snbt(quest_files[8])['quests']
-    old_final = [q for q in final if q['id'] not in ('1000000000080900', '1000000000080A00')]
-    assert [q['id'] for q in old_final] == [f'100000000008{i:02X}00' for i in range(1, 9)]
-    assert final[4]['tasks'][0]['item']['id'] == 'starfold_materials:osmium_pressure_hull'
-    assert final[5]['tasks'][0]['item']['id'] == 'starfold:gas_scoop'
-    assert final[6]['tasks'][0]['item']['id'] == 'mekanismgenerators:deuterium_bucket'
-    assert final[8]['id'] == '1000000000080A00'
-    assert final[8]['tasks'][0]['item']['id'] == 'starfold:interstellar_drive'
-    assert final[8]['dependencies'] == [final[7]['id'], '1000000000070A00']
-    assert final[9]['dependencies'] == [final[8]['id']]
-    assert final[9]['id'] == '1000000000080800'
-    assert [final[i]['tasks'][0]['type'] for i in (7, 9)] == ['checkmark', 'checkmark']
-    for q in (final[7], final[9]):
+    final_by_id = {q['id']: q for q in final}
+    assert len(final) == 16
+    assert final_by_id['1000000000080900']['tasks'][0]['item']['id'] == 'starfold_materials:osmium_pressure_hull'
+    assert final_by_id['1000000000080500']['tasks'][0]['item']['id'] == 'starfold:gas_scoop'
+    assert final_by_id['1000000000080600']['tasks'][0]['item']['id'] == 'mekanismgenerators:deuterium_bucket'
+    assert final_by_id['1000000000080A00']['tasks'][0]['item']['id'] == 'starfold:interstellar_drive'
+    for i in (7, 8, 11, 12, 13, 14, 15, 16):
+        q = final_by_id[f'100000000008{i:02X}00']
+        assert q['tasks'][0]['type'] == 'checkmark'
         assert '手动' in str(tables['zh_cn'][f'quest.{q["id"]}.quest_desc'])
     host = snbt(quest_files[7])['quests']
     assert [q['id'] for q in host] == [f'100000000007{i:02X}00' for i in (1, 2, 3, 4, 8, 9, 10, 11)]
     assert [q['tasks'][0]['type'] for q in host[-4:]] == ['checkmark', 'checkmark', 'kill', 'item']
     assert host[-2]['tasks'] == [{'id': '1000000000070A01', 'type': 'kill', 'entity': 'starfold_biotech:host', 'value': 1}]
     assert host[-1]['tasks'][0]['item']['id'] == 'starfold_biotech:host_ganglion'
-    assert total == 86
-    assert quest_ids == {f'{0x1000000000000000 + ci * 0x10000 + i * 0x100:016X}'
-                         for ci, count in enumerate([6, 8, 12, 8, 12, 11, 10, 4, 8])
-                         for i in range(1, count + 1)} | {'1000000000060B00', '1000000000080900', '1000000000080A00'} | {f'100000000007{i:02X}00' for i in range(8, 12)}
+    for identifier in ('1000000000040400', '1000000000041000'):
+        assert [t['type'] for t in by_id[identifier]['tasks']] == ['checkmark'], 'Either fuel is a manual OR record'
+        for locale, words in (('en_us', ('diesel', 'gasoline', 'manual')), ('zh_cn', ('柴油', '汽油', '手动'))):
+            description = str(tables[locale][f'quest.{identifier}.quest_desc']).lower()
+            assert all(word in description for word in words), identifier
     expansion = snbt(quest_files[6])['quests']
-    assert expansion[-1]['tasks'][0]['item']['id'] == 'starfold_materials:aluminum_hull_plating'
+    assert expansion[0]['tasks'][0]['item']['id'] == 'starfold_materials:aluminum_hull_plating'
     orbit = snbt(quest_files[4])['quests']
     nav_index = next(i for i, q in enumerate(orbit) if q['tasks'][0].get('item', {}).get('id') == 'starfold:scope_nav')
     lift_index = next(i for i, q in enumerate(orbit) if q['tasks'][0].get('advancement') == 'starfold:ship/lift_off')
@@ -401,7 +438,11 @@ for entry in index['files']:
 excluded_sources = {'README.md', 'RULES.md', 'ids.md', 'ids.json', '.gitignore', '.packwizignore'}
 assert 'RULES.md' in (pack / '.packwizignore').read_text().splitlines()
 assert not any(entry['file'] in excluded_sources or entry['file'].endswith(('.py', '.jar')) for entry in index['files'])
-print('PASS: packwiz index, pack hash and export input exclusions')
+expected_inputs = {p.relative_to(pack).as_posix() for directory in ('config', 'kubejs', 'mods')
+                   for p in (pack / directory).rglob('*')
+                   if p.is_file() and (directory != 'mods' or p.name.endswith('.pw.toml'))}
+assert {entry['file'] for entry in index['files']} == expected_inputs, 'Packwiz index must include every runtime source'
+print('PASS: complete packwiz index, pack hash and export input exclusions')
 
 # Required-mod closure includes recursively bundled libraries, without loading classes.
 audit = []
@@ -450,7 +491,18 @@ for side in ('client', 'server'):
         assert {(m['projectID'], m['fileID']) for m in manifest['files']} == expected
         assert all(m['required'] for m in manifest['files'])
         names = z.namelist()
-        assert not any(n.endswith('.jar') for n in names)
+        local = set()
+        for name in names:
+            if not name.endswith('.jar'):
+                continue
+            assert name.startswith('overrides/mods/') and name.count('/') == 2, name
+            with zipfile.ZipFile(io.BytesIO(z.read(name))) as jar:
+                descriptor_data = tomllib.loads(jar.read('META-INF/neoforge.mods.toml').decode())
+                mods = descriptor_data['mods']
+                assert len(mods) == 1 and mods[0]['modId'] not in local, name
+                local.add(mods[0]['modId'])
+        assert local == {'starfold', 'starfold_worlds', 'starfold_atlas',
+                         'starfold_materials', 'starfold_mining', 'starfold_biotech'}
         assert not any(n.startswith('overrides/src/') for n in names)
         for excluded in ('README.md', 'RULES.md', 'ids.md', 'ids.json', '.gitignore', '.packwizignore'):
             assert f'overrides/{excluded}' not in names

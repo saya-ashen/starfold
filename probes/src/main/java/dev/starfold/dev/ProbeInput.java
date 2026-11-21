@@ -1,8 +1,8 @@
 package dev.starfold.dev;
 
-import static dev.starfold.dev.ProbeSession.*;
 import static dev.starfold.dev.ProbeCamera.*;
 import static dev.starfold.dev.ProbeSamples.*;
+import static dev.starfold.dev.ProbeSession.*;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
@@ -12,12 +12,12 @@ import dev.starfold.planet.PlanetSystem;
 import dev.starfold.render.GroundClient;
 import dev.starfold.render.PlanetRemoteRenderer;
 import dev.starfold.ship.HelmClient;
-import dev.starfold.space.SpacePackets;
-import dev.starfold.sky.Space;
+import dev.starfold.ship.HullLandingClient;
 import dev.starfold.space.SpaceAttitudeClient;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceNavigation;
 import dev.starfold.space.SpaceNavigationClient;
+import dev.starfold.space.SpacePackets;
 import dev.starfold.space.SpaceView;
 import dev.starfold.waypoint.WaypointClient;
 
@@ -35,23 +35,25 @@ final class ProbeInput {
         for (int key : new int[] {87, 83, 65, 68, 32, 340, 341})
             mc.keyboardHandler.keyPress(mc.getWindow().getWindow(), key, 0, 0, 0);
         for (String name : keys.keySet()) {
-            var key = switch (name) {
-                case "forward" -> mc.options.keyUp;
-                case "back" -> mc.options.keyDown;
-                case "left" -> mc.options.keyLeft;
-                case "right" -> mc.options.keyRight;
-                case "jump" -> mc.options.keyJump;
-                case "sneak" -> mc.options.keyShift;
-                case "sprint" -> mc.options.keySprint;
-                case "use" -> mc.options.keyUse;
-                case "attack" -> mc.options.keyAttack;
-                default -> null;
-            };
+            var key =
+                    switch (name) {
+                        case "forward" -> mc.options.keyUp;
+                        case "back" -> mc.options.keyDown;
+                        case "left" -> mc.options.keyLeft;
+                        case "right" -> mc.options.keyRight;
+                        case "jump" -> mc.options.keyJump;
+                        case "sneak" -> mc.options.keyShift;
+                        case "sprint" -> mc.options.keySprint;
+                        case "use" -> mc.options.keyUse;
+                        case "attack" -> mc.options.keyAttack;
+                        default -> null;
+                    };
             if (key != null) key.setDown(false);
         }
         keys.clear();
         mc.options.keyUp.setDown(false);
         steerLeft = walkLeft = mouseTicks = mouseAimLeft = shipAimLeft = homeLeft = headingLeft = 0;
+        chartTravelTicks = 0;
         track = false;
         yaw = pitch = null;
         shipCam = null;
@@ -91,10 +93,9 @@ final class ProbeInput {
     static int walkLeft;
 
     static double walkX, walkZ;
-
     static double shipAimX = 1, shipAimY = 1;
-
     static int shipAim, shipAimLeft;
+    private static boolean shipAimUntilArrival, shipAimIntercept;
 
     static boolean mouseArrival;
 
@@ -109,7 +110,11 @@ final class ProbeInput {
     static boolean walkStep(Minecraft mc) {
         if (walkLeft > 0 && mc.player != null) {
             var bodies = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(mc.level);
-            var b = bodies.getAllSubLevels().iterator().next();
+            var b = loopHull.isEmpty()
+                    ? bodies.getAllSubLevels().iterator().next()
+                    : bodies.getAllSubLevels().stream()
+                            .filter(body -> loopHull.startsWith(body.getUniqueId() + ","))
+                            .findFirst().orElseThrow(() -> new IllegalStateException("Loop hull is not loaded"));
             var bounds = b.getPlot().getBoundingBox();
             var target =
                     b.logicalPose()
@@ -156,17 +161,29 @@ final class ProbeInput {
         // hull's own axes (forward is -X, up +Y).
         if (shipAimLeft > 0 && mc.player != null) {
             if (!SpaceAttitudeClient.mouseFlight()) {
+                if (shipAimUntilArrival && HelmClient.body() != null
+                        && SpaceClient.active() && SpaceNavigationClient.locked() == shipAim
+                        && SpaceClient.phase() != dev.starfold.flight.ArrivalState.Phase.CRUISE) {
+                    shipAimLeft = 0;
+                    return false;
+                }
                 fail(mc, "shipaim not in mouse flight");
                 return true;
             }
             var at = SpaceClient.universeEye(mc.player.getEyePosition());
-            var d =
-                    SpaceClient.frame()
-                            .levelVector(
-                                    GroundClient.ephemeris()
-                                            .at(shipAim, SpaceClient.time())
-                                            .center()
-                                            .sub(at));
+            var frame = SpaceClient.frame();
+            var model = GroundClient.ephemeris();
+            double time = SpaceClient.time();
+            var target = model.at(shipAim, time);
+            var toward = target.center().sub(at);
+            if (shipAimIntercept) {
+                var relative =
+                        frame.universeVelocity(GroundEphemeris.ZERO, model, time)
+                                .sub(target.velocity());
+                // Match the return burn's target closing speed of 1,500 blocks per second.
+                toward = toward.scale(75 / toward.length()).sub(relative);
+            }
+            var d = frame.levelVector(toward);
             var local =
                     new org.joml.Quaterniond(HelmClient.body().logicalPose().orientation())
                             .conjugate()
@@ -315,6 +332,84 @@ final class ProbeInput {
         return false;
     }
 
+    static boolean approximateHeading;
+    private static BentStripGeometry.Point chartDestination;
+    private static org.joml.Vector3d lastChartPosition;
+    private static double chartTolerance, chartDescentFloor, lastChartNose;
+    private static int chartTravelTicks;
+
+    static boolean commandChartTravel(String arg) {
+        var fields = arg.split("\\s+");
+        chartDestination = new BentStripGeometry.Point(Double.parseDouble(fields[0]), 0,
+                Double.parseDouble(fields[1]));
+        chartTolerance = Double.parseDouble(fields[2]);
+        chartTravelTicks = Integer.parseInt(fields[3]);
+        chartDescentFloor = fields.length > 4 ? Double.parseDouble(fields[4]) : Double.NaN;
+        lastChartPosition = null;
+        lastChartNose = Double.NaN;
+        cursor.line++;
+        return false;
+    }
+
+    static boolean chartTravelStep(Minecraft mc) {
+        if (chartTravelTicks <= 0) return false;
+        var hull = HelmClient.body();
+        if (hull == null || SpaceClient.active() || !GroundClient.ready()) {
+            fail(mc, "charttravel lost the surface helm");
+            return true;
+        }
+        var target = DevTripProbe.chartImage(chartDestination.x(), chartDestination.z());
+        var pose = hull.logicalPose();
+        var at = pose.position();
+        double dx = target.x() - at.x(), dz = target.z() - at.z();
+        double distance = Math.hypot(dx, dz);
+        double vx = lastChartPosition == null ? 0 : at.x() - lastChartPosition.x;
+        double vz = lastChartPosition == null ? 0 : at.z() - lastChartPosition.z;
+        lastChartPosition = new org.joml.Vector3d(at);
+        var forward = pose.orientation().transform(new org.joml.Vector3d(-1, 0, 0));
+        double bearing = Math.atan2(dz - 8 * vz, -dx + 8 * vx);
+        double nose = Math.atan2(forward.z, -forward.x);
+        double rotation = Double.isFinite(lastChartNose) ? angleDelta(nose - lastChartNose) : 0;
+        lastChartNose = nose;
+        double error = angleDelta(bearing - nose);
+        boolean descending = Double.isFinite(chartDescentFloor);
+        double predicted = angleDelta(error - rotation * (descending ? 4 : 14));
+        double clearance = HullLandingClient.clearance();
+        boolean settling = descending && clearance <= .25;
+        boolean close = distance <= chartTolerance;
+        boolean landed = settling && DevLandingProbe.loopStairDeployed(mc);
+        boolean arrived = landed || close && Math.hypot(vx, vz) < (descending ? .04 : .38);
+        double turnThreshold = descending ? .12 : .06;
+        boolean turn = !settling && !(descending ? close : arrived);
+        mc.options.keyLeft.setDown(turn && predicted > turnThreshold);
+        mc.options.keyRight.setDown(turn && predicted < -turnThreshold);
+        double closing = distance == 0 ? 0 : (dx * vx + dz * vz) / distance;
+        double limit = Math.clamp((distance - chartTolerance) / 95, .08, 1.2);
+        double axial = (forward.x * vx + forward.z * vz) / Math.hypot(forward.x, forward.z);
+        boolean aligned = !arrived && Math.abs(error) < .24 && Math.abs(predicted) < .24;
+        boolean braking = descending && close
+                ? axial > .08 : !arrived && distance < 65 && axial > limit + .08;
+        mc.options.keyUp.setDown(!settling && !braking && aligned && !close && closing < limit);
+        mc.options.keyDown.setDown(!settling && (braking || aligned && closing > limit + .2));
+        if (descending) mc.options.keyShift.setDown(!arrived && clearance > chartDescentFloor);
+        if (chartTravelTicks % 100 == 0)
+            org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
+                    "PROBE CHARTTRAVEL distance {} closing {} error {} predicted {}", distance, closing, error, predicted);
+        if (arrived) {
+            chartTravelTicks = 0;
+            org.slf4j.LoggerFactory.getLogger("starfold-probe").info(
+                    "PROBE CHARTTRAVEL finished target={} distance={} stairsDeployed={}",
+                    chartDestination, distance, landed);
+            return false;
+        }
+        if (--chartTravelTicks == 0) fail(mc, "charttravel timeout distance=" + distance);
+        return true;
+    }
+
+    private static double angleDelta(double angle) {
+        return Math.atan2(Math.sin(angle), Math.cos(angle));
+    }
+
     static boolean headingStep(Minecraft mc) {
         if (shipHeading != null && mc.player != null) {
             var body = HelmClient.body();
@@ -328,12 +423,16 @@ final class ProbeInput {
             }
             double rate = Double.isFinite(headingPrevious) ? error - headingPrevious : 0;
             headingPrevious = error;
-            headingStable =
-                    Math.abs(error) < .008 && Math.abs(rate) < .0004 ? headingStable + 1 : 0;
-            boolean done = headingStable >= 12;
             double predicted = error + rate * 14;
+            boolean aligned =
+                    approximateHeading
+                            ? Math.abs(error) < .25 && Math.abs(predicted) < .25
+                            : Math.abs(error) < .008 && Math.abs(rate) < .0004;
+            headingStable = aligned ? headingStable + 1 : 0;
+            boolean done = headingStable >= 12;
             int key =
-                    !done && Double.isFinite(predicted) && Math.abs(predicted) > .004
+                    !done && !(approximateHeading && aligned)
+                                    && Double.isFinite(predicted) && Math.abs(predicted) > .004
                             ? (predicted > 0 ? 65 : 68)
                             : 0;
             if (key != headingKey) {
@@ -602,7 +701,10 @@ final class ProbeInput {
 
     static boolean commandStairwalk(Minecraft mc, String arg) {
         var updated = new ArrayList<>(cursor.lines);
-        updated.addAll(cursor.line + 1, DevLandingProbe.stairs(mc, arg.equals("back")));
+        updated.addAll(cursor.line + 1, switch (arg) {
+            case "loop", "loop-back" -> DevLandingProbe.loopStairs(mc, arg.equals("loop-back"));
+            default -> DevLandingProbe.stairs(mc, arg.equals("back"));
+        });
         cursor.lines = updated;
         return true;
     }
@@ -641,6 +743,7 @@ final class ProbeInput {
 
     static boolean commandChartheading(String arg) {
         var a = arg.split("\\s+");
+        approximateHeading = a.length > 2 && a[2].equals("approximate");
         shipHeading = Math.toRadians(Double.parseDouble(a[0]));
         headingLeft = Integer.parseInt(a[1]);
         cursor.line++;
@@ -919,7 +1022,12 @@ final class ProbeInput {
         var a = arg.split("\\s+");
         shipAim = Integer.parseInt(a[0]);
         shipAimLeft = Integer.parseInt(a[1]);
-        shipAimX = a.length > 2 ? Double.parseDouble(a[2]) : 1;
+        shipAimUntilArrival = a.length > 2 && a[2].equals("arrival");
+        shipAimIntercept = a.length > 2 && a[2].equals("intercept");
+        shipAimX =
+                a.length > 2 && !shipAimUntilArrival && !shipAimIntercept
+                        ? Double.parseDouble(a[2])
+                        : 1;
         shipAimY = a.length > 3 ? Double.parseDouble(a[3]) : 1;
         cursor.line++;
         return false;

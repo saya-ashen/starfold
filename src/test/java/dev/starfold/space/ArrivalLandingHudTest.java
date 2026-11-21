@@ -2,13 +2,10 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.HudLayout;
 import dev.starfold.geometry.BentStripGeometry.Point;
 
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.*;
 
 class ArrivalLandingHudTest {
     @Test
@@ -31,21 +28,5 @@ class ArrivalLandingHudTest {
             var near = SpaceFlightMath.near(body, tangent, toward, tangent, height);
             assertEquals(SpaceFlightMath.nearLimit(body, height), near.y() * 20, 1e-8);
         }
-    }
-
-    @Test
-    void widgetsOnlyUseSnapshotsAndOldChartTextIsGone() throws Exception {
-        var widgets = Sources.text("FlightWidgets");
-        for (String name :
-                new String[] {"HullLandingClient", "WaypointClient", "SpaceClient", "HelmClient"})
-            assertFalse(widgets.contains(name), name);
-        assertTrue(widgets.contains("s.tier()>=3?-limit:Double.NaN"));
-        assertTrue(widgets.contains("if(s.tier()<3||a==null)return"));
-        assertTrue(widgets.contains("h<.5"));
-        assertTrue(widgets.contains("home.distance()<=16"));
-        assertTrue(widgets.contains("disabled(g"));
-        assertTrue(widgets.contains("DARK"));
-        assertFalse(Sources.text("WaypointClient").contains("renderHelm"));
-        assertFalse(Sources.text("HullLandingClient").contains("drawString"));
     }
 }

@@ -5,6 +5,9 @@ import static dev.starfold.render.RemotePlanetMeshes.spheres;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
+import dev.starfold.DevelopmentHooks;
+import dev.starfold.api.RenderWorkDiagnostics;
+import dev.starfold.api.RenderWorkDiagnostics.Metric;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSolar;
@@ -12,16 +15,12 @@ import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.geometry.PlanetSpace;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.Anomaly;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.Space;
 import dev.starfold.space.RenderFrame;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceView;
-import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrain;
 import dev.starfold.worldgen.PlanetTint;
 
@@ -29,7 +28,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 
 import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
 
 import java.util.*;
 
@@ -41,6 +39,7 @@ public final class PlanetRemoteRenderer {
     private static final Map<Integer, RemotePlanetMeshes> bodies = new HashMap<>();
 
     private static final Map<Integer, VertexBuffer> impostors = new HashMap<>();
+
     /** Latest received deterministic profile, without exposing renderer meshes or ownership. */
     public static PlanetTerrain terrain(int planet) {
         if (level != Minecraft.getInstance().level) return null;
@@ -52,6 +51,7 @@ public final class PlanetRemoteRenderer {
     private static int turn;
     private static long clock;
     private static int regionDrawn;
+    private static Boolean ownLoadingCover;
 
     /**
      * Client ticks without word of a planet before it is dropped; the server speaks of each every
@@ -60,7 +60,6 @@ public final class PlanetRemoteRenderer {
     private static final int SILENCE = 200;
 
     private static long ownTold = Long.MIN_VALUE / 2;
-
 
     public static void initialize() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -79,7 +78,7 @@ public final class PlanetRemoteRenderer {
                                         if (clock - body.heard <= SILENCE
                                                 || SpaceClient.frame() == null
                                                         && e.getKey() == GroundClient.planet()
-                                                        && !GroundRenderer.selectionReady())
+                                                        && !GroundRenderer.remoteReplacementReady())
                                             return false;
                                         body.close();
                                         return true;
@@ -89,23 +88,37 @@ public final class PlanetRemoteRenderer {
                 PlanetRemotePackets.Summary.TYPE,
                 (p, c) -> {
                     if (!accepts(p.profile().session(), p.planet())) return;
-                    var expectedWorld=Minecraft.getInstance().level;
-                    var known=level==expectedWorld ? bodies.get(p.planet()) : null;
-                    GroundViewClient.resolveProfile(p.profile(),p.planet(),known==null ? null : known.view.profile(),resolved->{
-                        if(Minecraft.getInstance().level!=expectedWorld || !accepts(resolved.session(),p.planet()))return;
-                        var packet=new PlanetRemotePackets.Summary(p.planet(),resolved,p.revision(),p.changed(),p.unknown());
-                        var world = net.minecraft.client.Minecraft.getInstance().level;
-                        if (world == null || !PlanetTint.known(packet.profile(), world.registryAccess()))
-                            return;
-                        identity(
-                                net.minecraft.client.Minecraft.getInstance().level,
-                                p.profile().session());
-                        var body = bodies.computeIfAbsent(p.planet(), k -> new RemotePlanetMeshes());
-                        body.heard = clock;
-                        var mask = mask(p.profile().session());
-                        if (mask != null) body.mask = mask;
-                        body.view.summary(packet);
-                    });
+                    var expectedWorld = Minecraft.getInstance().level;
+                    var known = level == expectedWorld ? bodies.get(p.planet()) : null;
+                    GroundViewClient.resolveProfile(
+                            p.profile(),
+                            p.planet(),
+                            known == null ? null : known.view.profile(),
+                            resolved -> {
+                                if (Minecraft.getInstance().level != expectedWorld
+                                        || !accepts(resolved.session(), p.planet())) return;
+                                var packet =
+                                        new PlanetRemotePackets.Summary(
+                                                p.planet(),
+                                                resolved,
+                                                p.revision(),
+                                                p.changed(),
+                                                p.unknown());
+                                var world = net.minecraft.client.Minecraft.getInstance().level;
+                                if (world == null
+                                        || !PlanetTint.known(
+                                                packet.profile(), world.registryAccess())) return;
+                                identity(
+                                        net.minecraft.client.Minecraft.getInstance().level,
+                                        p.profile().session());
+                                var body =
+                                        bodies.computeIfAbsent(
+                                                p.planet(), k -> new RemotePlanetMeshes());
+                                body.heard = clock;
+                                var mask = mask(p.profile().session());
+                                if (mask != null) body.mask = mask;
+                                body.view.summary(packet);
+                            });
                 });
         StarfoldNetwork.clientReceiver(
                 PlanetRemotePackets.Surface.TYPE,
@@ -147,7 +160,13 @@ public final class PlanetRemoteRenderer {
                 + bodies.size()
                 + " steps "
                 + bodies.entrySet().stream()
-                        .map(e -> e.getKey() + ":" + e.getValue().residentStep + "->" + e.getValue().requestedStep)
+                        .map(
+                                e ->
+                                        e.getKey()
+                                                + ":"
+                                                + e.getValue().residentStep
+                                                + "->"
+                                                + e.getValue().requestedStep)
                         .toList()
                 + " own "
                 + (bodies.containsKey(GroundClient.planet())
@@ -159,30 +178,35 @@ public final class PlanetRemoteRenderer {
     private static void work() {
         dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.REMOTE_WORK);
         try {
-        long deadline = System.nanoTime() + 2_000_000;
-        if (bodies.isEmpty()) return;
-        turn = (turn + 1) % bodies.size();
-        var order = bodies.entrySet().iterator();
-        for (int i = 0; i < turn; i++) order.next();
-        var mc = Minecraft.getInstance();
-        var model = GroundClient.ephemeris();
-        var eye = SpaceClient.active()
-                ? SpaceClient.universeEye(mc.gameRenderer.getMainCamera().getPosition())
-                : GroundClient.universeEye();
-        double time = SpaceClient.active() ? SpaceClient.time() : GroundClient.time();
-        for (int i = 0; i < bodies.size(); i++) {
-            if (!order.hasNext()) order = bodies.entrySet().iterator();
-            var entry = order.next();
-            var body = entry.getValue();
-            var terrain = body.view.terrain();
-            if (terrain == null || body.view.session() == 0) continue;
-            double distance = model.at(entry.getKey(), time).center().sub(eye).length();
-            body.requestedStep = GroundFarMesh.remoteLevel(
-                    Math.max(0, distance - terrain.shape().radius()), body.requestedStep,
-                    GroundMeshScheduler.lodFov, mc.getWindow().getHeight());
-            // Finish a frozen cohort before following a changing zoom; the resident stays visible.
-            body.work(deadline);
-        }
+            long deadline = System.nanoTime() + 2_000_000;
+            if (bodies.isEmpty()) return;
+            turn = (turn + 1) % bodies.size();
+            var order = bodies.entrySet().iterator();
+            for (int i = 0; i < turn; i++) order.next();
+            var mc = Minecraft.getInstance();
+            var model = GroundClient.ephemeris();
+            var eye =
+                    SpaceClient.active()
+                            ? SpaceClient.universeEye(mc.gameRenderer.getMainCamera().getPosition())
+                            : GroundClient.universeEye();
+            double time = SpaceClient.active() ? SpaceClient.time() : GroundClient.time();
+            for (int i = 0; i < bodies.size(); i++) {
+                if (!order.hasNext()) order = bodies.entrySet().iterator();
+                var entry = order.next();
+                var body = entry.getValue();
+                var terrain = body.view.terrain();
+                if (terrain == null || body.view.session() == 0) continue;
+                double distance = model.at(entry.getKey(), time).center().sub(eye).length();
+                body.requestedStep =
+                        GroundFarMesh.remoteLevel(
+                                Math.max(0, distance - terrain.shape().radius()),
+                                body.requestedStep,
+                                GroundMeshScheduler.lodFov,
+                                mc.getWindow().getHeight());
+                // Finish a frozen cohort before following a changing zoom; the resident stays
+                // visible.
+                body.work(deadline);
+            }
         } finally {
             dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.REMOTE_WORK);
         }
@@ -195,72 +219,86 @@ public final class PlanetRemoteRenderer {
     public static void draw(RenderFrame c) {
         dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.REMOTE);
         try {
-        if (SpaceClient.active()) {
-            drawRegion(c);
-            return;
-        }
-        if (!GroundClient.ready()) return;
-        identity(
-                Minecraft.getInstance().level,
-                GroundFlightClient.ready()
-                        ? GroundFlightClient.session()
-                        : SpaceClient.retainedSession());
-        // A vessel high above its planet may leave it for another: the planet is meshed as another
-        // planet would be while it is still the vessel's own,
-        // from what the client holds of it, so that it is there to be seen the moment it is left.
-        if (GroundClient.eye().y() >= GroundOrbit.END
-                && GroundViewClient.coverageReady()
-                && GroundViewClient.profile() != null
-                && GroundViewClient.profile().session() == GroundFlightClient.session()) {
-            var body = bodies.computeIfAbsent(GroundClient.planet(), k -> new RemotePlanetMeshes());
-            body.heard = clock;
-            body.mask = mask(GroundViewClient.profile().session());
-            if (clock - ownTold >= 100 || body.view.session() == 0) {
-                ownTold = clock;
-                body.view.own(
-                        GroundViewClient.profile(),
-                        GroundClient.planet(),
-                        GroundViewClient.changed(),
-                        GroundViewClient.overlays());
+            if (SpaceClient.active()) {
+                drawRegion(c);
+                return;
             }
-        }
-        if (c.event().getStage()
-                == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY)
-            work();
-        var shader = GroundExterior.shader();
-        if (shader == null) return;
-        var pass = new RenderPassState(false, false, false);
-        try {
-            RenderSystem.enableDepthTest();
-            RenderSystem.depthMask(true);
-            RenderSystem.disableCull();
-            RenderSystem.disableBlend();
-            RenderSystem.setShader(() -> shader);
-            for (var body : bodies.values()) {
-                // A planet is drawn with the meshes it had until its next are built: the one
-                // arrived at until the ground is shown, any other until then.
-                if (body.fallback != null
-                        && (body.fallback.planet() == GroundClient.planet()
-                                ? !GroundRenderer.selectionReady()
-                                : body.resident == null))
-                    probeBody(c, shader, body.fallback, body.fallbackMeshes, body.fallbackMask);
-                if (body.resident != null
-                        && (body.resident.planet() != GroundClient.planet()
-                                || body.fallback == null && !GroundRenderer.selectionReady()))
-                    probeBody(c, shader, body.resident, body.meshes, body.mask);
+            if (!GroundClient.ready()) return;
+            identity(
+                    Minecraft.getInstance().level,
+                    GroundFlightClient.ready()
+                            ? GroundFlightClient.session()
+                            : SpaceClient.retainedSession());
+            // A vessel high above its planet may leave it for another: the planet is meshed as
+            // another
+            // planet would be while it is still the vessel's own,
+            // from what the client holds of it, so that it is there to be seen the moment it is
+            // left.
+            if (GroundClient.eye().y() >= GroundOrbit.END
+                    && GroundViewClient.coverageReady()
+                    && GroundViewClient.profile() != null
+                    && GroundViewClient.profile().session() == GroundFlightClient.session()) {
+                var body =
+                        bodies.computeIfAbsent(
+                                GroundClient.planet(), k -> new RemotePlanetMeshes());
+                body.heard = clock;
+                body.mask = mask(GroundViewClient.profile().session());
+                if (clock - ownTold >= 100 || body.view.session() == 0) {
+                    ownTold = clock;
+                    body.view.own(
+                            GroundViewClient.profile(),
+                            GroundClient.planet(),
+                            GroundViewClient.changed(),
+                            GroundViewClient.overlays());
+                }
             }
             if (c.event().getStage()
                     == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY)
-                drawGroundImpostors(c, shader);
-        } finally {
-            RenderPassState.finish(() -> {
-            dev.starfold.api.PlanetSurfaceRender.exteriorContext(null);
-            shader.getUniform("BodyFade").set(1f);
-            shader.getUniform("OccluderRadius").set(0f);
-            shader.getUniform("ShadeRadius").set(0f);
-            GasLighting.clear(shader);
-            }, pass::close);
-        }
+                work();
+            var shader = GroundExterior.shader();
+            if (shader == null) return;
+            var pass = new RenderPassState(false, false, false);
+            try {
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthMask(true);
+                RenderSystem.disableCull();
+                RenderSystem.disableBlend();
+                RenderSystem.setShader(() -> shader);
+                boolean sky = c.event().getStage()
+                        == net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY;
+                boolean loadingCover = !sky && coversPartialPlanet();
+                boolean ownReplacementReady = !loadingCover && GroundRenderer.remoteReplacementReady();
+                for (var body : bodies.values()) {
+                    // A planet is drawn with the meshes it had until its next are built: the one
+                    // arrived at until the ground is shown, any other until then.
+                    if (body.fallback != null
+                            && (body.fallback.planet() == GroundClient.planet()
+                                    ? !ownReplacementReady
+                                    : body.resident == null))
+                        probeBody(c, shader, body.fallback, body.fallbackMeshes, body.fallbackMask);
+                    if (body.resident != null
+                            && (body.resident.planet() != GroundClient.planet()
+                                    || body.fallback == null && !ownReplacementReady))
+                        probeBody(c, shader, body.resident, body.meshes, body.mask);
+                }
+                if (sky) drawGroundImpostors(c, shader);
+                else if (loadingCover) {
+                    int planet = GroundClient.planet();
+                    var body = bodies.get(planet);
+                    if (body == null || (body.resident == null && body.fallback == null))
+                        drawGroundImpostor(c, shader, planet);
+                }
+            } finally {
+                RenderPassState.finish(
+                        () -> {
+                            dev.starfold.api.PlanetSurfaceRender.exteriorContext(null);
+                            shader.getUniform("BodyFade").set(1f);
+                            shader.getUniform("OccluderRadius").set(0f);
+                            shader.getUniform("ShadeRadius").set(0f);
+                            GasLighting.clear(shader);
+                        },
+                        pass::close);
+            }
         } finally {
             dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.REMOTE);
         }
@@ -303,19 +341,35 @@ public final class PlanetRemoteRenderer {
             PlanetRemoteView.Snapshot snapshot,
             VertexBuffer[] buffers,
             GroundSpace.Config mask) {
-        dev.starfold.api.PlanetSurfaceRender.exteriorContext(new dev.starfold.api.PlanetSurfaceRender.Context(
-                GroundClient.model(), snapshot.planet(), GroundClient.time(), null, snapshot.terrain().terrainPlan()));
+        if (RenderWorkDiagnostics.active())
+            RenderWorkDiagnostics.add(Metric.REMOTE_BODY_ATTEMPTS, 1);
+        dev.starfold.api.PlanetSurfaceRender.exteriorContext(
+                new dev.starfold.api.PlanetSurfaceRender.Context(
+                        GroundClient.model(),
+                        snapshot.planet(),
+                        GroundClient.time(),
+                        null,
+                        snapshot.terrain().terrainPlan()));
         var home = GroundClient.home();
         var target = GroundClient.model().at(snapshot.planet(), GroundClient.time());
         var eye = GroundClient.eye();
         var orbit = GroundClient.orbit();
         var f = orbit.observerFrame;
         boolean remote = snapshot.planet() != GroundClient.planet();
-        double scale = remote ? SpaceView.renderScale(target.center().sub(GroundClient.universeEye()).length()) : 1;
+        double scale =
+                remote
+                        ? SpaceView.renderScale(
+                                target.center().sub(GroundClient.universeEye()).length())
+                        : 1;
         var drawCenter = groundCenter(target.center(), scale);
-        vector(shader, "ChartU", target.inverseVector(home.vector(f.u())).scale(scale));
-        vector(shader, "ChartUp", target.inverseVector(home.vector(f.up())).scale(scale));
-        vector(shader, "ChartV", target.inverseVector(home.vector(f.v())).scale(scale));
+        var chartU = target.inverseVector(home.vector(f.u())).scale(scale);
+        var chartUp = target.inverseVector(home.vector(f.up())).scale(scale);
+        var chartV = target.inverseVector(home.vector(f.v())).scale(scale);
+        var bodyEye = target.local(GroundClient.universeEye());
+        var occluder = target.local(home.center());
+        vector(shader, "ChartU", chartU);
+        vector(shader, "ChartUp", chartUp);
+        vector(shader, "ChartV", chartV);
         vector(shader, "DrawCenter", drawCenter);
         vector(
                 shader,
@@ -324,8 +378,8 @@ public final class PlanetRemoteRenderer {
         var grade = GroundAtmosphere.grade();
         // Preparation runs before apply: retain the managed value, but do not upload to program 0.
         vector(shader, "AtmosphereGrade", grade);
-        vector(shader, "BodyEye", target.local(GroundClient.universeEye()));
-        vector(shader, "Occluder", target.local(home.center()));
+        vector(shader, "BodyEye", bodyEye);
+        vector(shader, "Occluder", occluder);
         shader.getUniform("OccluderRadius")
                 .set(remote ? (float) GroundClient.shape().radius() : 0f);
         skyColour(shader, remote, c);
@@ -336,29 +390,65 @@ public final class PlanetRemoteRenderer {
                         new Matrix4f(c.positionMatrix()),
                         GroundClient.face(),
                         c.camera().getPosition());
-        var bodyEye = target.local(GroundClient.universeEye());
-        var occluder = target.local(home.center());
         double core = PlanetShape.coreRadius(snapshot.planet()), extent = 0;
         boolean bounded = true;
-        for (var gpu : buffers) {
-            if (gpu == null) continue;
-            var s = spheres.get(gpu);
-            if (s == null) bounded = false;
-            else extent = Math.max(extent, Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]) + s[3]);
-        }
+        if (remote)
+            for (var gpu : buffers) {
+                if (gpu == null) continue;
+                var s = spheres.get(gpu);
+                if (s == null) {
+                    bounded = false;
+                    break;
+                }
+                extent =
+                        Math.max(extent, Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]) + s[3]);
+            }
         // The shader discards every fragment behind the occluder sphere; skip a body wholly there.
-        boolean drawn = !(remote && bounded && extent > 0 && hidden(0, 0, 0, extent, bodyEye, occluder,
-                GroundClient.shape().radius()));
-        for (var gpu : buffers) {
-            if (gpu == null || !drawn) continue;
-            var s = spheres.get(gpu);
-            // Behind the solid core the body's own surface covers the patch.
-            if (s != null && hidden(s[0], s[1], s[2], s[3], bodyEye, GroundEphemeris.ZERO, core)) continue;
-            gpu.bind();
-            try {
-                gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
-            } finally {
-                VertexBuffer.unbind();
+        boolean drawn =
+                !(remote
+                        && bounded
+                        && extent > 0
+                        && hidden(
+                                0, 0, 0, extent, bodyEye, occluder, GroundClient.shape().radius()));
+        boolean diagnostics = RenderWorkDiagnostics.active();
+        long patchDraws = 0, coreRejects = 0;
+        if (diagnostics && !drawn) RenderWorkDiagnostics.add(Metric.REMOTE_BODY_REJECTS, 1);
+        // Surface scope includes patch selection and submission, but excludes body setup and rim.
+        long surfaceTimer = RenderWorkDiagnostics.start();
+        try {
+            if (drawn) {
+                RemoteOcclusion coreOcclusion = null;
+                for (int patch = 0; patch < buffers.length; patch++) {
+                    var gpu = buffers[patch];
+                    if (gpu == null
+                            || !keepRemotePatch(
+                                    remote, !remote && !coversPartialPlanet() && GroundRenderer.remotePatchReady(patch)))
+                        continue;
+                    var s = spheres.get(gpu);
+                    // Behind the solid core the body's own surface covers the patch.
+                    if (s != null) {
+                        if (coreOcclusion == null)
+                            coreOcclusion =
+                                    new RemoteOcclusion(bodyEye, GroundEphemeris.ZERO, core);
+                        if (coreOcclusion.hidden(s[0], s[1], s[2], s[3])) {
+                            if (diagnostics) coreRejects++;
+                            continue;
+                        }
+                    }
+                    gpu.bind();
+                    try {
+                        gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
+                        if (diagnostics) patchDraws++;
+                    } finally {
+                        VertexBuffer.unbind();
+                    }
+                }
+            }
+        } finally {
+            RenderWorkDiagnostics.finish(Metric.REMOTE_SURFACE_NS, surfaceTimer);
+            if (diagnostics) {
+                RenderWorkDiagnostics.add(Metric.REMOTE_PATCH_DRAWS, patchDraws);
+                RenderWorkDiagnostics.add(Metric.REMOTE_PATCH_CORE_REJECTS, coreRejects);
             }
         }
         GroundAtmosphere.rim(
@@ -366,13 +456,18 @@ public final class PlanetRemoteRenderer {
                 GroundClient.model(),
                 snapshot.planet(),
                 GroundClient.time(),
-                target.local(GroundClient.universeEye()),
+                bodyEye,
                 matrix,
                 drawCenter,
-                target.inverseVector(home.vector(f.u())).scale(scale),
-                target.inverseVector(home.vector(f.up())).scale(scale),
-                target.inverseVector(home.vector(f.v())).scale(scale),
+                chartU,
+                chartUp,
+                chartV,
                 snapshot.terrain().shape().radius());
+    }
+
+    /** Partial chart coverage only replaces the corresponding patch of the retained own body. */
+    static boolean keepRemotePatch(boolean otherPlanet, boolean chartPatchReady) {
+        return otherPlanet || !chartPatchReady;
     }
 
     /**
@@ -380,16 +475,9 @@ public final class PlanetRemoteRenderer {
      * {@code eye}: inside the tangent cone and beyond the plane through the occluder's centre, where every
      * sight line to it crosses the occluder first.
      */
-    static boolean hidden(double x, double y, double z, double radius, Point eye, Point occluder, double size) {
-        double ax = occluder.x() - eye.x(), ay = occluder.y() - eye.y(), az = occluder.z() - eye.z();
-        double d = Math.sqrt(ax * ax + ay * ay + az * az);
-        if (size <= 0 || d <= size) return false;
-        double vx = x - eye.x(), vy = y - eye.y(), vz = z - eye.z();
-        double length = Math.sqrt(vx * vx + vy * vy + vz * vz);
-        if (length <= radius) return false;
-        double along = (vx * ax + vy * ay + vz * az) / d;
-        if (along - radius < d) return false;
-        return Math.acos(Math.min(1, along / length)) + Math.asin(radius / length) <= Math.asin(size / d);
+    static boolean hidden(
+            double x, double y, double z, double radius, Point eye, Point occluder, double size) {
+        return new RemoteOcclusion(eye, occluder, size).hidden(x, y, z, radius);
     }
 
     private static void skyColour(ShaderInstance shader, boolean remote, RenderFrame c) {
@@ -448,18 +536,22 @@ public final class PlanetRemoteRenderer {
     }
 
     public static boolean acceptsPlanSession(long session) {
-        boolean space=SpaceClient.present();
-        return dev.starfold.universe.PlanetPlanSync.acceptsSession(session,
+        boolean space = SpaceClient.present();
+        return dev.starfold.universe.PlanetPlanSync.acceptsSession(
+                session,
                 GroundFlightClient.ready() ? GroundFlightClient.session() : 0,
                 space ? SpaceClient.session() : 0,
-                !space && GroundClient.ready() && !GroundRenderer.selectionReady() ? SpaceClient.retainedSession() : 0);
+                !space && GroundClient.ready() && !GroundRenderer.remoteReplacementReady()
+                        ? SpaceClient.retainedSession()
+                        : 0);
     }
+
     private static boolean accepts(long session, int planet) {
-        if(!acceptsPlanSession(session))return false;
+        if (!acceptsPlanSession(session)) return false;
         if (SpaceClient.present()) return session != 0 && session == SpaceClient.session();
         if (GroundClient.ready()
                 && planet == GroundClient.planet()
-                && !GroundRenderer.selectionReady()
+                && !GroundRenderer.remoteReplacementReady()
                 && session != 0
                 && session == SpaceClient.retainedSession()) return true;
         return GroundFlightClient.ready()
@@ -467,23 +559,17 @@ public final class PlanetRemoteRenderer {
                 && planet != GroundClient.planet();
     }
 
-    /** Keep the exact chart exterior, including edits, until the passive stream replaces it. */
+    /** Seed the remote source on departure; retain already built remote meshes across the handoff. */
     public static void departing() {
         var profile = GroundViewClient.profile();
         int planet = GroundViewClient.cachedPlanet();
         if (profile == null || planet < 0) return;
-        var shape =
-                new PlanetTerrain(profile.seed(), profile.version(), profile.generation()).shape();
-        var meshes = GroundExterior.take(shape);
-        if (meshes == null) return;
         identity(Minecraft.getInstance().level, profile.session());
         var body = bodies.computeIfAbsent(planet, k -> new RemotePlanetMeshes());
-        body.close();
         body.mask = mask(profile.session());
         body.view.own(profile, planet, GroundViewClient.changed(), GroundViewClient.overlays());
-        body.resident = body.view.snapshot();
         body.heard = clock;
-        System.arraycopy(meshes, 0, body.meshes, 0, meshes.length);
+
     }
 
     /**
@@ -502,6 +588,21 @@ public final class PlanetRemoteRenderer {
 
     public static void beginFrame() {
         regionDrawn = 0;
+        ownLoadingCover = null;
+    }
+
+    // Both opaque passes use the same decision even if a mesh publishes between them.
+    static boolean coversPartialPlanet() {
+        if (ownLoadingCover == null) {
+            ownLoadingCover = GroundExterior.shader() != null
+                    && !SpaceClient.active()
+                    && GroundClient.ready()
+                    && GroundClient.eye().y() >= GroundOrbit.END
+                    && GroundClient.model().body(GroundClient.planet()).appearance()
+                            == GroundEphemeris.Appearance.SURFACE
+                    && !GroundRenderer.visiblePlanetReady();
+        }
+        return ownLoadingCover;
     }
 
     public static int regionDrawn() {
@@ -513,24 +614,15 @@ public final class PlanetRemoteRenderer {
         var orbit = GroundClient.orbit();
         var f = orbit.observerFrame;
         var offset = GroundClient.home().local(world);
-        var center = new Point(eye.x(), -GroundClient.shape().radius(), eye.z())
-                .add(orbit.offset)
-                .add(new Point(offset.dot(f.u()), offset.dot(f.up()), offset.dot(f.v())));
+        var center =
+                new Point(eye.x(), -GroundClient.shape().radius(), eye.z())
+                        .add(orbit.offset)
+                        .add(new Point(offset.dot(f.u()), offset.dot(f.up()), offset.dot(f.v())));
         return eye.add(center.sub(eye).scale(scale));
     }
 
     private static void drawGroundImpostors(RenderFrame c, ShaderInstance shader) {
-        var model = GroundClient.model();
-        var eye = GroundClient.universeEye();
-        var home = GroundClient.home();
-        var orbit = GroundClient.orbit();
-        var f = orbit.observerFrame;
-        var matrix =
-                GroundClient.place(
-                        new Matrix4f(c.positionMatrix()),
-                        GroundClient.face(),
-                        c.camera().getPosition());
-        for (int index = 0; index < model.count(); index++) {
+        for (int index = 0; index < GroundClient.model().count(); index++) {
             if (index == GroundClient.planet()) continue;
             var remote = bodies.get(index);
             if (remote != null) {
@@ -538,35 +630,55 @@ public final class PlanetRemoteRenderer {
                 var buffers = remote.resident != null ? remote.meshes : remote.fallbackMeshes;
                 if (snapshot != null && Arrays.stream(buffers).anyMatch(Objects::nonNull)) continue;
             }
-            var target = model.at(index, GroundClient.time());
-            double distance = target.center().sub(eye).length();
-            double scale = SpaceView.renderScale(distance);
-            var offset = home.local(target.center());
-            double radius = PlanetShape.of(index).radius();
-            vector(shader, "ChartU", target.inverseVector(home.vector(f.u())).scale(scale));
-            vector(shader, "ChartUp", target.inverseVector(home.vector(f.up())).scale(scale));
-            vector(shader, "ChartV", target.inverseVector(home.vector(f.v())).scale(scale));
-            vector(shader, "DrawCenter", groundCenter(target.center(), scale));
+            drawGroundImpostor(c, shader, index);
+        }
+    }
+
+    private static void drawGroundImpostor(RenderFrame c, ShaderInstance shader, int index) {
+        var model = GroundClient.model();
+        var eye = GroundClient.universeEye();
+        var home = GroundClient.home();
+        var f = GroundClient.orbit().observerFrame;
+        var matrix = GroundClient.place(
+                new Matrix4f(c.positionMatrix()), GroundClient.face(), c.camera().getPosition());
+        boolean remote = index != GroundClient.planet();
+        var target = model.at(index, GroundClient.time());
+        double scale = remote ? SpaceView.renderScale(target.center().sub(eye).length()) : 1;
+        double radius = PlanetShape.of(index).radius();
+        var chartU = target.inverseVector(home.vector(f.u())).scale(scale);
+        var chartUp = target.inverseVector(home.vector(f.up())).scale(scale);
+        var chartV = target.inverseVector(home.vector(f.v())).scale(scale);
+        var center = groundCenter(target.center(), scale);
+        var bodyEye = target.local(eye);
+        long impostorTimer = RenderWorkDiagnostics.start();
+        try {
+            vector(shader, "ChartU", chartU);
+            vector(shader, "ChartUp", chartUp);
+            vector(shader, "ChartV", chartV);
+            vector(shader, "DrawCenter", center);
             vector(shader, "SunBody", target.local(model.star(target.center()).position()));
-            vector(shader, "BodyEye", target.local(eye));
+            vector(shader, "BodyEye", bodyEye);
             vector(shader, "Occluder", target.local(home.center()));
-            shader.getUniform("OccluderRadius").set((float) GroundClient.shape().radius());
-            skyColour(shader, true, c);
+            vector(shader, "AtmosphereGrade", GroundAtmosphere.grade());
+            shader.getUniform("OccluderRadius").set(remote ? (float) GroundClient.shape().radius() : 0f);
+            skyColour(shader, remote, c);
             shade(shader, model, index, GroundClient.time());
             GroundClient.lensUniforms(shader);
-            var gpu = impostors.computeIfAbsent(index, key -> impostor(PlanetShape.of(key).radius()));
+            var gpu = impostors.computeIfAbsent(index, key -> impostor(radius));
             gpu.bind();
             try {
                 gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
+                if (RenderWorkDiagnostics.active())
+                    RenderWorkDiagnostics.add(Metric.REMOTE_IMPOSTOR_DRAWS, 1);
             } finally {
                 VertexBuffer.unbind();
             }
-            GroundAtmosphere.rim(c, model, index, GroundClient.time(), target.local(eye), matrix,
-                    groundCenter(target.center(), scale),
-                    target.inverseVector(home.vector(f.u())).scale(scale),
-                    target.inverseVector(home.vector(f.up())).scale(scale),
-                    target.inverseVector(home.vector(f.v())).scale(scale), radius);
+        } finally {
+            RenderWorkDiagnostics.finish(Metric.REMOTE_IMPOSTOR_NS, impostorTimer);
         }
+        GroundAtmosphere.rim(
+                c, model, index, GroundClient.time(), bodyEye, matrix, center,
+                chartU, chartUp, chartV, radius);
     }
 
     private static VertexBuffer impostor(double radius) {
@@ -575,10 +687,16 @@ public final class PlanetRemoteRenderer {
             for (int y = 0; y < latitudes; y++)
                 for (int x = 0; x < longitudes; x++) {
                     var points = new ArrayList<Point>(4);
-                    for (int[] corner : new int[][] {{x, y}, {x + 1, y}, {x + 1, y + 1}, {x, y + 1}}) {
+                    for (int[] corner :
+                            new int[][] {{x, y}, {x + 1, y}, {x + 1, y + 1}, {x, y + 1}}) {
                         double a = corner[0] * 2 * Math.PI / longitudes;
                         double b = corner[1] * Math.PI / latitudes;
-                        points.add(new Point(Math.sin(b) * Math.cos(a), Math.cos(b), Math.sin(b) * Math.sin(a)).scale(radius));
+                        points.add(
+                                new Point(
+                                                Math.sin(b) * Math.cos(a),
+                                                Math.cos(b),
+                                                Math.sin(b) * Math.sin(a))
+                                        .scale(radius));
                     }
                     // Provisional neutral fallback until a detailed surface mesh is resident.
                     out.quad(points, 0x777777, 255, true);
@@ -622,36 +740,61 @@ public final class PlanetRemoteRenderer {
             shader.getUniform("AtmosphereGrade").set(1f, 1f, 1f);
             shader.getUniform("OccluderRadius").set(0f);
             for (var body : bodies.values()) {
+                if (RenderWorkDiagnostics.active())
+                    RenderWorkDiagnostics.add(Metric.REMOTE_BODY_ATTEMPTS, 1);
                 var snapshot = body.resident != null ? body.resident : body.fallback;
                 if (snapshot == null
                         || snapshot.planet() >= model.count()
                         || model.body(snapshot.planet()).appearance()
-                                != GroundEphemeris.Appearance.SURFACE) continue;
+                                != GroundEphemeris.Appearance.SURFACE) {
+                    if (RenderWorkDiagnostics.active())
+                        RenderWorkDiagnostics.add(Metric.REMOTE_BODY_REJECTS, 1);
+                    continue;
+                }
                 var target = model.at(snapshot.planet(), tick);
                 var placement = SpaceView.place(frame, eye, target);
                 double radius =
                         snapshot.terrain().shape().radius()
                                 + Math.max(512, SpaceClient.mask().height() + Anomaly.BEAM_HEIGHT);
-                if (!SpaceView.visible(placement.center().length(), radius)) continue;
+                if (!SpaceView.visible(placement.center().length(), radius)) {
+                    if (RenderWorkDiagnostics.active())
+                        RenderWorkDiagnostics.add(Metric.REMOTE_BODY_REJECTS, 1);
+                    continue;
+                }
                 double scale = SpaceView.renderScale(placement.center().length());
                 vector(shader, "ChartU", placement.u().scale(scale));
                 vector(shader, "ChartUp", placement.up().scale(scale));
                 vector(shader, "ChartV", placement.v().scale(scale));
                 vector(shader, "DrawCenter", placement.center().scale(scale));
-                dev.starfold.api.PlanetSurfaceRender.exteriorContext(new dev.starfold.api.PlanetSurfaceRender.Context(
-                        model, snapshot.planet(), tick, null, snapshot.terrain().terrainPlan()));
+                dev.starfold.api.PlanetSurfaceRender.exteriorContext(
+                        new dev.starfold.api.PlanetSurfaceRender.Context(
+                                model,
+                                snapshot.planet(),
+                                tick,
+                                null,
+                                snapshot.terrain().terrainPlan()));
                 vector(shader, "SunBody", target.local(model.star(target.center()).position()));
                 shade(shader, model, snapshot.planet(), tick);
                 boolean drawn = false;
-                for (var gpu : body.resident != null ? body.meshes : body.fallbackMeshes) {
-                    if (gpu == null) continue;
-                    gpu.bind();
-                    try {
-                        gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
-                        drawn = true;
-                    } finally {
-                        VertexBuffer.unbind();
+                boolean diagnostics = RenderWorkDiagnostics.active();
+                long patchDraws = 0;
+                long surfaceTimer = RenderWorkDiagnostics.start();
+                try {
+                    for (var gpu : body.resident != null ? body.meshes : body.fallbackMeshes) {
+                        if (gpu == null) continue;
+                        gpu.bind();
+                        try {
+                            gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
+                            drawn = true;
+                            if (diagnostics) patchDraws++;
+                        } finally {
+                            VertexBuffer.unbind();
+                        }
                     }
+                } finally {
+                    RenderWorkDiagnostics.finish(Metric.REMOTE_SURFACE_NS, surfaceTimer);
+                    if (diagnostics)
+                        RenderWorkDiagnostics.add(Metric.REMOTE_PATCH_DRAWS, patchDraws);
                 }
                 if (drawn) {
                     GroundAtmosphere.rim(
@@ -674,39 +817,71 @@ public final class PlanetRemoteRenderer {
             }
             for (int index = 0; index < model.count(); index++) {
                 var remote = bodies.get(index);
-                var snapshot = remote == null ? null : remote.resident != null ? remote.resident : remote.fallback;
-                if (snapshot != null && snapshot.planet() == index
+                var snapshot =
+                        remote == null
+                                ? null
+                                : remote.resident != null ? remote.resident : remote.fallback;
+                if (snapshot != null
+                        && snapshot.planet() == index
                         && remote != null
-                        && Arrays.stream(remote.resident != null ? remote.meshes : remote.fallbackMeshes)
+                        && Arrays.stream(
+                                        remote.resident != null
+                                                ? remote.meshes
+                                                : remote.fallbackMeshes)
                                 .anyMatch(Objects::nonNull)) continue;
-                var placed = model.at(index, tick);
-                var placement = SpaceView.place(frame, eye, placed);
-                double scale = SpaceView.renderScale(placement.center().length());
-                vector(shader, "ChartU", placement.u().scale(scale));
-                vector(shader, "ChartUp", placement.up().scale(scale));
-                vector(shader, "ChartV", placement.v().scale(scale));
-                vector(shader, "DrawCenter", placement.center().scale(scale));
-                vector(shader, "SunBody", placed.local(model.star(placed.center(), tick).position()));
-                shade(shader, model, index, tick);
-                var gpu = impostors.computeIfAbsent(index, key -> impostor(PlanetShape.of(key).radius()));
-                gpu.bind();
+                GroundEphemeris.Frame placed;
+                SpaceView.Placement placement;
+                double scale;
+                long impostorTimer = RenderWorkDiagnostics.start();
                 try {
-                    gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
+                    placed = model.at(index, tick);
+                    placement = SpaceView.place(frame, eye, placed);
+                    scale = SpaceView.renderScale(placement.center().length());
+                    vector(shader, "ChartU", placement.u().scale(scale));
+                    vector(shader, "ChartUp", placement.up().scale(scale));
+                    vector(shader, "ChartV", placement.v().scale(scale));
+                    vector(shader, "DrawCenter", placement.center().scale(scale));
+                    vector(
+                            shader,
+                            "SunBody",
+                            placed.local(model.star(placed.center(), tick).position()));
+                    shade(shader, model, index, tick);
+                    var gpu =
+                            impostors.computeIfAbsent(
+                                    index, key -> impostor(PlanetShape.of(key).radius()));
+                    gpu.bind();
+                    try {
+                        gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
+                        if (RenderWorkDiagnostics.active())
+                            RenderWorkDiagnostics.add(Metric.REMOTE_IMPOSTOR_DRAWS, 1);
+                    } finally {
+                        VertexBuffer.unbind();
+                    }
                 } finally {
-                    VertexBuffer.unbind();
+                    RenderWorkDiagnostics.finish(Metric.REMOTE_IMPOSTOR_NS, impostorTimer);
                 }
                 GroundAtmosphere.rim(
-                        c, model, index, tick, placed.local(eye), matrix,
-                        placement.center().scale(scale), placement.u().scale(scale),
-                        placement.up().scale(scale), placement.v().scale(scale), PlanetShape.of(index).radius());
+                        c,
+                        model,
+                        index,
+                        tick,
+                        placed.local(eye),
+                        matrix,
+                        placement.center().scale(scale),
+                        placement.u().scale(scale),
+                        placement.up().scale(scale),
+                        placement.v().scale(scale),
+                        PlanetShape.of(index).radius());
                 regionDrawn++;
             }
         } finally {
-            RenderPassState.finish(() -> {
-            dev.starfold.api.PlanetSurfaceRender.exteriorContext(null);
-            shader.getUniform("ShadeRadius").set(0f);
-            GasLighting.clear(shader);
-            }, pass::close);
+            RenderPassState.finish(
+                    () -> {
+                        dev.starfold.api.PlanetSurfaceRender.exteriorContext(null);
+                        shader.getUniform("ShadeRadius").set(0f);
+                        GasLighting.clear(shader);
+                    },
+                    pass::close);
         }
     }
 

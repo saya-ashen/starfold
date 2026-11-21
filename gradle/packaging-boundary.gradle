@@ -1,16 +1,15 @@
 // Keep this list aligned with settings.gradle; core defines APIs, optional modules implement them.
-def modules = ['atlas', 'devtools', 'probes', 'worlds', 'extras', 'materials', 'biotech']
-def forbiddenModules = modules + ['monsoon']
-def packages = forbiddenModules.collect { "dev/starfold/${it}/" } + ['dev/starfold/dev/', 'dev/starfold/probe/']
+def modules = ['atlas', 'devtools', 'probes', 'worlds', 'extras', 'materials', 'biotech', 'mining']
+def packages = modules.collect { "dev/starfold/${it}/" } + ['dev/starfold/dev/', 'dev/starfold/probe/']
 ext.auditCoreEntry = { String name, byte[] bytes ->
     if (name.endsWith('.jar') || name == 'META-INF/jarjar/metadata.json' || packages.any { name.startsWith(it) }
-            || forbiddenModules.any { name.startsWith("data/starfold_${it}/") || name.startsWith("assets/starfold_${it}/") }
+            || modules.any { name.startsWith("data/starfold_${it}/") || name.startsWith("assets/starfold_${it}/") }
             || name.startsWith('data/starfold/structure/starter_ship'))
         throw new GradleException("Optional module content in core: ${name}")
     def text = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
     if (name.endsWith('.class') && packages.any { text.contains(it) || text.contains(it.replace('/', '.')) })
         throw new GradleException("Core bytecode depends on optional module: ${name}")
-    if (name.endsWith('.json') && forbiddenModules.any { text.contains("starfold_${it}:") })
+    if (name.endsWith('.json') && modules.any { text.contains("starfold_${it}:") })
         throw new GradleException("Core data depends on optional module: ${name}")
 }
 tasks.register('packagingBoundaryTest') {
@@ -20,7 +19,7 @@ tasks.register('packagingBoundaryTest') {
         def check = project.auditCoreEntry
         check('dev/starfold/api/PlanetContent.class', 'dev/starfold/worldgen/PlanetTerrain'.bytes)
         check('data/starfold/test.json', '{"type":"minecraft:stone"}'.bytes)
-        for (String module : forbiddenModules) {
+        for (String module : modules) {
             for (def bad : [
                     ["dev/starfold/${module}/Example.class", ''],
                     ['dev/starfold/Example.class', "dev/starfold/${module}/Example"],

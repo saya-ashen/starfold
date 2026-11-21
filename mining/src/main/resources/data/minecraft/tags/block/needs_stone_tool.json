@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "starfold_mining:mining_platform",
+    "starfold_mining:oil_extractor"
+  ]
+}

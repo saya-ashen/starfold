@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.serialization.Lifecycle;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -19,6 +18,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 import org.junit.jupiter.api.*;
 
@@ -41,17 +41,44 @@ class GroundFarTopLightTest {
     }
 
     static int[] texture(String name) throws Exception {
-        try (var in = TestArchiveResources.open("/assets/minecraft/textures/block/" + name + ".png");
+        try (var in =
+                        TestArchiveResources.open(
+                                "/assets/minecraft/textures/block/" + name + ".png");
                 var image = NativeImage.read(in)) {
             return image.getPixelsRGBA();
         }
     }
 
+    private static List<VoxelMesher.Quad> flatTops(
+            PlanetShape shape, Face face, BlockState block) {
+        var built = GroundQuadtreeMesher.build(
+                shape, face, 0, 0, 256, 16, 128,
+                (f, x, z, s) -> new GroundFarMesh.Surface(6, block));
+        var tops = new ArrayList<VoxelMesher.Quad>();
+        var points = new ArrayList<Point>();
+        GroundQuadtreeMesher.resolve(built, (material, corner, x, y, z) -> {
+            if (material.normalY() > 0 && material.topY() == 6) {
+                assertEquals(block, material.block());
+                assertEquals(block.is(net.minecraft.tags.BlockTags.LEAVES) ? -2 : -3, material.rgb(),
+                        "coarse albedo/tint hints survive staging and resolution");
+                points.add(new Point(x, y, z));
+                if (corner == 3) {
+                    tops.add(new VoxelMesher.Quad(material.block(), 3, List.copyOf(points)));
+                    points.clear();
+                }
+            }
+            return new GroundQuadtreeMesher.ResolvedVertex(0, corner, 0, 0);
+        });
+        assertEquals(256, tops.size(), "one flat top per 16-block deformation cell");
+        assertTrue(points.isEmpty());
+        return tops;
+    }
+
     @Test
-    void actualFarAndResidentFlatTopsHaveEqualNoonLightAndEncodedAlbedo() throws Exception {
+    void actualQuadtreeAndResidentFlatTopsHaveEqualNoonLightAndEncodedAlbedo() throws Exception {
         var shape = PlanetShape.STANDARD;
-        var materials = List.of(Blocks.STONE, Blocks.GRASS_BLOCK, Blocks.OAK_LEAVES,
-                Blocks.JUNGLE_LEAVES);
+        var materials =
+                List.of(Blocks.STONE, Blocks.GRASS_BLOCK, Blocks.OAK_LEAVES, Blocks.JUNGLE_LEAVES);
         String[] textures = {"stone", "grass_block_top", "oak_leaves", "jungle_leaves"};
         int[] tints = {0xffffff, 0x91bd59, 0x59c93c, 0x59c93c};
         var report = new StringBuilder("Flat step-16 far / resident tops, noon, sky=1, AO=1\n");
@@ -59,15 +86,28 @@ class GroundFarTopLightTest {
             var material = materials.get(m).defaultBlockState();
             int albedo = GroundAlbedo.average(texture(textures[m]), tints[m]);
             for (var face : Face.values()) {
-                var far = GroundFarMesh.build(shape, face.ordinal() * 64, 16,
-                                (f, x, z, s) -> new GroundFarMesh.Surface(6, material)).stream()
-                        .filter(q -> q.axis() == 1 && GroundFarMeshTest.min(q) == 6
-                                && q.points().stream().mapToDouble(Point::x).min().orElseThrow() == 192
-                                && q.points().stream().mapToDouble(Point::z).min().orElseThrow() == 192).findFirst().orElseThrow();
-                var resident = new VoxelMesher.Quad(material, 3,
-                        VoxelMesher.points(3, 192, 5, 192, 208, 6, 208));
+                var far =
+                        flatTops(shape, face, material).stream()
+                                .filter(
+                                        q ->
+                                                q.points().stream()
+                                                                .mapToDouble(Point::x)
+                                                                .min()
+                                                                .orElseThrow()
+                                                        == 192
+                                                && q.points().stream()
+                                                                .mapToDouble(Point::z)
+                                                                .min()
+                                                                .orElseThrow()
+                                                        == 192)
+                                .findFirst()
+                                .orElseThrow();
+                var resident =
+                        new VoxelMesher.Quad(
+                                material, 3, VoxelMesher.points(3, 192, 5, 192, 208, 6, 208));
                 assertEquals(resident.material(), far.material());
-                assertEquals(GroundAlbedo.position(face.ordinal(), resident.points()),
+                assertEquals(
+                        GroundAlbedo.position(face.ordinal(), resident.points()),
                         GroundAlbedo.position(face.ordinal(), far.points()));
                 var up = shape.direction(face, 200, 200);
                 double[] lights = new double[2];
@@ -82,18 +122,27 @@ class GroundFarTopLightTest {
                 assertEquals(lights[1], lights[0], .001);
                 for (int shift : new int[] {16, 8, 0}) {
                     double encoded = (albedo >> shift & 255) / 255.0;
-                    // BufferBuilder.setNormal stores signed normalised bytes, not AO/shade.
-                    double decoded = ((int) (GroundPipeline.channel(albedo, shift) * 127)
-                            / 127.0) * .5 + .5;
+                    // Compact and BufferBuilder normals both store signed albedo bytes.
+                    double decoded =
+                            ((int) (GroundMeshVertices.channel(albedo, shift) * 127) / 127.0) * .5 + .5;
                     assertEquals(encoded, decoded, 1 / 254.0);
                     assertEquals(decoded * lights[1], decoded * lights[0], .001);
                 }
-                report.append(textures[m]).append(' ').append(face).append(" albedo=#")
-                        .append(String.format("%06x", albedo)).append(" farLight=")
-                        .append(lights[0]).append(" residentLight=").append(lights[1]).append('\n');
+                report.append(textures[m])
+                        .append(' ')
+                        .append(face)
+                        .append(" albedo=#")
+                        .append(String.format("%06x", albedo))
+                        .append(" farLight=")
+                        .append(lights[0])
+                        .append(" residentLight=")
+                        .append(lights[1])
+                        .append('\n');
             }
         }
-        Files.writeString(Path.of("build/lod3-far-light-inputs.txt"), report);
+        var reportDirectory = Path.of("build/reports/quadtree/test-migration");
+        Files.createDirectories(reportDirectory);
+        Files.writeString(reportDirectory.resolve("far-light-inputs.txt"), report);
     }
 
     @Test
@@ -104,26 +153,28 @@ class GroundFarTopLightTest {
         Registry.register(registry, low, biome(0x204008));
         Registry.register(registry, high, biome(0x80c040));
         var access = new RegistryAccess.ImmutableRegistryAccess(List.of(registry.freeze()));
-        var terrain=PlanetBiomeFixtures.tinted(List.of(low,high));
-        var view=PlanetTint.view(null,access,0,terrain,low);
+        var terrain = PlanetBiomeFixtures.tinted(List.of(low, high));
+        var view = PlanetTint.view(null, access, 0, terrain, low);
         ColorResolver foliage = (biome, x, z) -> biome.getFoliageColor();
         var origin = PlanetTint.position(0, 0, 0, 128, 0);
         int oldTint = view.getBlockTint(origin, foliage), different = 0;
         int[] leaves = texture("jungle_leaves");
-        for (var far : GroundFarMesh.build(PlanetShape.STANDARD, 0, 16,
-                (f, x, z, s) -> new GroundFarMesh.Surface(6, Blocks.JUNGLE_LEAVES.defaultBlockState()))) {
-            if (far.axis() != 1 || GroundFarMeshTest.min(far) != 6) continue;
+        for (var far :
+                flatTops(PlanetShape.STANDARD, Face.TOP, Blocks.JUNGLE_LEAVES.defaultBlockState())) {
             int x = (int) far.points().stream().mapToDouble(Point::x).min().orElseThrow();
             int z = (int) far.points().stream().mapToDouble(Point::z).min().orElseThrow();
-            var resident = new VoxelMesher.Quad(far.material(), 3,
-                    VoxelMesher.points(3, x, 5, z, x + 16, 6, z + 16));
+            var resident =
+                    new VoxelMesher.Quad(
+                            far.material(), 3, VoxelMesher.points(3, x, 5, z, x + 16, 6, z + 16));
             var farPos = GroundAlbedo.position(0, far.points());
             var residentPos = GroundAlbedo.position(0, resident.points());
             int tint = view.getBlockTint(farPos, foliage);
             assertEquals(view.getBlockTint(residentPos, foliage), tint);
             if (tint != oldTint) {
-                assertNotEquals(GroundAlbedo.average(leaves, oldTint),
-                        GroundAlbedo.average(leaves, tint), "negative control: old patch-origin tint");
+                assertNotEquals(
+                        GroundAlbedo.average(leaves, oldTint),
+                        GroundAlbedo.average(leaves, tint),
+                        "negative control: old patch-origin tint");
                 different++;
             }
         }
@@ -131,32 +182,45 @@ class GroundFarTopLightTest {
     }
 
     static Biome biome(int foliage) {
-        return new Biome.BiomeBuilder().hasPrecipitation(false).temperature(.8f).downfall(.9f)
-                .specialEffects(new BiomeSpecialEffects.Builder().fogColor(0).waterColor(0)
-                        .waterFogColor(0).skyColor(0).foliageColorOverride(foliage).build())
+        return new Biome.BiomeBuilder()
+                .hasPrecipitation(false)
+                .temperature(.8f)
+                .downfall(.9f)
+                .specialEffects(
+                        new BiomeSpecialEffects.Builder()
+                                .fogColor(0)
+                                .waterColor(0)
+                                .waterFogColor(0)
+                                .skyColor(0)
+                                .foliageColorOverride(foliage)
+                                .build())
                 .mobSpawnSettings(MobSpawnSettings.EMPTY)
-                .generationSettings(BiomeGenerationSettings.EMPTY).build();
+                .generationSettings(BiomeGenerationSettings.EMPTY)
+                .build();
     }
 
     @Test
     void tintUsesVanillaSquareEncodedColourAverage() {
-        var low=ResourceLocation.parse("test:low");
-        var high=ResourceLocation.parse("test:high");
-        var registry=new MappedRegistry<Biome>(Registries.BIOME,Lifecycle.stable());
-        Registry.register(registry,low,biome(0x204008));
-        Registry.register(registry,high,biome(0x80c040));
-        var access=new RegistryAccess.ImmutableRegistryAccess(List.of(registry.freeze()));
-        var terrain=PlanetBiomeFixtures.tinted(List.of(low,high));
-        var exact=PlanetTint.view(null,access,0,terrain,low);
-        var blended=PlanetTint.view(null,access,0,terrain,low,2);
-        var p=new BlockPos(100,128,100);
-        ColorResolver resolver=(b,x,z)->b.getFoliageColor();
-        int r=0,g=0,b=0;
-        for(int z=-2;z<=2;z++) for(int x=-2;x<=2;x++) {
-            int c=exact.getBlockTint(p.offset(x,0,z),resolver);
-            r+=c>>16&255;g+=c>>8&255;b+=c&255;
-        }
-        assertEquals((r/25)<<16|(g/25)<<8|b/25,blended.getBlockTint(p,resolver));
+        var low = ResourceLocation.parse("test:low");
+        var high = ResourceLocation.parse("test:high");
+        var registry = new MappedRegistry<Biome>(Registries.BIOME, Lifecycle.stable());
+        Registry.register(registry, low, biome(0x204008));
+        Registry.register(registry, high, biome(0x80c040));
+        var access = new RegistryAccess.ImmutableRegistryAccess(List.of(registry.freeze()));
+        var terrain = PlanetBiomeFixtures.tinted(List.of(low, high));
+        var exact = PlanetTint.view(null, access, 0, terrain, low);
+        var blended = PlanetTint.view(null, access, 0, terrain, low, 2);
+        var p = new BlockPos(100, 128, 100);
+        ColorResolver resolver = (b, x, z) -> b.getFoliageColor();
+        int r = 0, g = 0, b = 0;
+        for (int z = -2; z <= 2; z++)
+            for (int x = -2; x <= 2; x++) {
+                int c = exact.getBlockTint(p.offset(x, 0, z), resolver);
+                r += c >> 16 & 255;
+                g += c >> 8 & 255;
+                b += c & 255;
+            }
+        assertEquals((r / 25) << 16 | (g / 25) << 8 | b / 25, blended.getBlockTint(p, resolver));
     }
 
     @Test
@@ -165,30 +229,30 @@ class GroundFarTopLightTest {
         for (int side = 0; side < 4; side++) {
             var wall = new ArrayList<VoxelMesher.Quad>();
             GroundFarMesh.wall(wall, material, 48, 64, 64, 80, 6, -64, side);
-            var pos = GroundAlbedo.position(0,wall.getFirst().points());
-            assertEquals(side == 0 ? 48 : side == 1 ? 63 : 56,pos.getX());
-            assertEquals(side == 2 ? 64 : side == 3 ? 79 : 72,pos.getZ());
+            var pos = GroundAlbedo.position(0, wall.getFirst().points());
+            assertEquals(side == 0 ? 48 : side == 1 ? 63 : 56, pos.getX());
+            assertEquals(side == 2 ? 64 : side == 3 ? 79 : 72, pos.getZ());
         }
     }
 
     @Test
     void actualAdaptersShareTintAndFullSkyWithoutAnExtraAoOrDaylightFactor() throws Exception {
-        var renderer = Sources.text("GroundMeshVertices");
-        assertTrue(renderer.contains("GroundAlbedo.position(builders.surfaceFace,points)"));
-        assertTrue(Sources.text("GroundRenderer").contains("GroundAlbedo.position(face,q.points())"));
-        assertFalse(renderer.contains("newBlockPos(builders.surfaceFace*4096+x,128,z)"));
-        assertTrue(renderer.contains(".setUv2(repeat?GroundFarTexture.upper(sprite.getU1()):240,repeat?GroundFarTexture.upper(sprite.getV1()):240).setNormal(GroundPipeline.channel(albedo,16)"));
-        String vertex = CoreShaderSource.patch("rendertype_solid", true,
-                VoxelFaceShaderTest.resource("core/rendertype_solid.vsh"));
+        String vertex =
+                CoreShaderSource.patch(
+                        GroundCompact.Variant.SOLID.name,
+                        true,
+                        java.nio.file.Files.readString(java.nio.file.Path.of(
+                                "src/main/resources/assets/starfold/shaders/core/ground_compact_solid.vsh")));
         assertTrue(vertex.contains("cpNativeSkyVisibility=1.0"));
         assertFalse(vertex.contains("vertexColor.rgb/=max"));
-        assertTrue(vertex.contains("vertexColor.rgb=texture(Sampler2,clamp(cpNativeLightUV2/256.0,vec2(0.5/16.0),vec2(15.5/16.0))).rgb"));
-        assertEquals(15,GroundFarTexture.sky(0));
-        assertEquals(12,GroundFarTexture.sky(3));
-        assertEquals(0,GroundFarTexture.sky(30));
-        assertTrue(vertex.contains("vertexColor.rgb=mix(cpSurfaceColor.rgb,Normal*0.5+0.5,CPNativeLowFrequency)"));
-        assertEquals(1, GroundPipeline.lowFrequency(360 - 128));
-        assertEquals(1, GroundPipeline.lowFrequency(360));
+        assertTrue(
+                vertex.contains(
+                        "vertexColor=vec4(texture(Sampler2,clamp(cpNativeLightUV2/256.0,vec2(0.5/16.0),vec2(15.5/16.0))).rgb,1.0)"));
+        assertEquals(15, GroundFarTexture.sky(0));
+        assertEquals(12, GroundFarTexture.sky(3));
+        assertEquals(0, GroundFarTexture.sky(30));
+        assertTrue(vertex.contains("cpNativeRepeatAlbedo=Normal*0.5+0.5"));
+        assertFalse(vertex.contains("CPNativeLowFrequency"));
         assertTrue(GroundShaderSource.SOLAR_LIGHT.contains("return 0.6*skyDay+0.4*faceDay"));
     }
 }

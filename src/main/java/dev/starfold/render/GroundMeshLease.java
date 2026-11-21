@@ -5,7 +5,9 @@ final class GroundMeshLease implements AutoCloseable {
     private final Runnable release;
     private boolean closed, writing;
 
-    GroundMeshLease(Runnable release) { this.release = release; }
+    GroundMeshLease(Runnable release) {
+        this.release = release;
+    }
 
     synchronized boolean begin() {
         if (closed) return false;
@@ -18,7 +20,8 @@ final class GroundMeshLease implements AutoCloseable {
         if (closed) release.run();
     }
 
-    @Override public synchronized void close() {
+    @Override
+    public synchronized void close() {
         if (closed) return;
         closed = true;
         if (!writing) release.run();

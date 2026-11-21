@@ -101,11 +101,21 @@ class GasDamageWiringTest {
                         .filter(m -> m.desc.contains("ServerStoppedEvent"))
                         .findFirst()
                         .orElseThrow();
-        assertTrue(calls(unload).stream().anyMatch(c -> c.owner.equals(node.name) && c.name.equals("release")));
-        assertTrue(calls(stop).stream().anyMatch(c -> c.owner.equals(node.name) && c.name.equals("clear")));
+        assertTrue(
+                calls(unload).stream()
+                        .anyMatch(c -> c.owner.equals(node.name) && c.name.equals("release")));
+        assertTrue(
+                calls(stop).stream()
+                        .anyMatch(c -> c.owner.equals(node.name) && c.name.equals("clear")));
         for (String name : List.of("release", "clear")) {
-            var reset = node.methods.stream().filter(m -> m.name.equals(name)).findFirst().orElseThrow();
-            assertTrue(calls(reset).stream().anyMatch(c -> c.owner.equals(ADAPTER) && c.name.equals(name)));
+            var reset =
+                    node.methods.stream()
+                            .filter(m -> m.name.equals(name))
+                            .findFirst()
+                            .orElseThrow();
+            assertTrue(
+                    calls(reset).stream()
+                            .anyMatch(c -> c.owner.equals(ADAPTER) && c.name.equals(name)));
         }
         var adapter = type(ADAPTER);
         for (var method : adapter.methods)

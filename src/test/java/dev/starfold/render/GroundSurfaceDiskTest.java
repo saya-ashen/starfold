@@ -1,16 +1,22 @@
 package dev.starfold.render;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import dev.starfold.worldgen.PlanetTerrainTest;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.*;
 import java.util.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 class GroundSurfaceDiskTest {
     @TempDir Path directory;
 
-    @BeforeAll static void boot() { PlanetTerrainTest.registry(); }
+    @BeforeAll
+    static void boot() {
+        PlanetTerrainTest.registry();
+    }
 
     @Test
     void roundTripKeepsSparseRunsAndDropsRemovedKeys() throws Exception {

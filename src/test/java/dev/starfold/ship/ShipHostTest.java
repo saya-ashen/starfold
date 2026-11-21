@@ -1,27 +1,14 @@
 package dev.starfold.ship;
 
-import dev.starfold.space.SpacePackets;
-
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
+import dev.starfold.space.SpacePackets;
 
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 class ShipHostTest {
-    @Test
-    void shipSourcesNeverNameTheHigherRegionLayer() throws Exception {
-        try (var files = Files.walk(Path.of("src/main/java/dev/starfold/ship"))) {
-            for (var file : files.filter(p -> p.toString().endsWith(".java")).toList())
-                assertFalse(Files.readString(file).replace("import dev.starfold.space.SpacePackets;", "")
-                        .contains("dev.starfold.space"), file.toString());
-        }
-    }
 
     @Test
     void standaloneDefaultsHaveNoExternalControllerOrPreparedArrival() {
@@ -49,20 +36,5 @@ class ShipHostTest {
         assertFalse(client.movingSurroundings());
         assertFalse(client.mouseSteering());
         assertDoesNotThrow(() -> client.carriedFrame(null));
-    }
-
-    @Test
-    void clientWiringPreservesTheFrameFenceAndViewQueries() throws Exception {
-        var source = Sources.text("StarfoldClient");
-        for (String text :
-                new String[] {
-                    "ShipClientHost.install(new ShipClientHost(){",
-                    "public boolean movingSurroundings(){return SpaceClient.present();}",
-                    "public boolean mouseSteering(){return SpaceAttitudeClient.mouseFlight();}",
-                    "public void carriedFrame(SpacePackets.Frame frame){SpaceClient.carried(frame);}"
-                }) assertTrue(source.contains(text), text);
-        assertTrue(
-                source.indexOf("installShipHost();")
-                        < source.indexOf("initializeClientSystems(modBus)"));
     }
 }

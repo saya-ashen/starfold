@@ -24,8 +24,11 @@ public final class Sources {
         try (var projects = Files.list(Path.of("."))) {
             var roots = new java.util.ArrayList<Path>();
             roots.add(Path.of("src/main/java"));
-            projects.filter(Files::isDirectory).map(p -> p.resolve("src/main/java"))
-                    .filter(Files::isDirectory).sorted().forEach(roots::add);
+            projects.filter(Files::isDirectory)
+                    .map(p -> p.resolve("src/main/java"))
+                    .filter(Files::isDirectory)
+                    .sorted()
+                    .forEach(roots::add);
             for (var root : roots) {
                 try (var files = Files.walk(root)) {
                     files.filter(Files::isRegularFile)

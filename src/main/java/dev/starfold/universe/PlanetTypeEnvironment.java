@@ -25,7 +25,9 @@ public record PlanetTypeEnvironment(
                                                     .forGetter(PlanetTypeEnvironment::gravity),
                                             PlanetEnvironment.TEMPERATURE_OFFSET
                                                     .optionalFieldOf("temperature_offset", 0.0)
-                                                    .forGetter(PlanetTypeEnvironment::temperatureOffset))
+                                                    .forGetter(
+                                                            PlanetTypeEnvironment
+                                                                    ::temperatureOffset))
                                     .apply(i, PlanetTypeEnvironment::new));
 
     public PlanetTypeEnvironment {
@@ -41,6 +43,8 @@ public record PlanetTypeEnvironment(
     public PlanetEnvironment resolve(boolean temperate, int size) {
         var defaults = PlanetEnvironment.defaults(temperate, size);
         return new PlanetEnvironment(
-                atmosphere.orElse(defaults.atmosphere()), gravity.orElse(defaults.gravity()), temperatureOffset);
+                atmosphere.orElse(defaults.atmosphere()),
+                gravity.orElse(defaults.gravity()),
+                temperatureOffset);
     }
 }

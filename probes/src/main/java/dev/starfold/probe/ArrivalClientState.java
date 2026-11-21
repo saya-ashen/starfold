@@ -13,8 +13,6 @@ public final class ArrivalClientState {
     public static void begin() {
         if (ArrivalProbe.ENABLED) {
             dev.starfold.DevelopmentHooks.remoteDraw = false;
-            dev.starfold.DevelopmentHooks.ownDraw = false;
-            dev.starfold.DevelopmentHooks.parentNanos = 0;
         }
     }
 

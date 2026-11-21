@@ -1,0 +1,122 @@
+strict
+waitworld
+cmd scoreboard objectives add sfIndProbe dummy
+wait 160
+# Native flight host returns spectators to their saved home; retain creative during fixture placement.
+cmd gamemode creative
+cmd execute in starfold:native_planet run tp @s 21570 180 945
+wait 100
+check native-fixture-dimension if dimension starfold:native_planet
+# Disposable setup pad: keep the operator at y=180 so fixture/observation coordinates agree.
+cmd fill 21569 179 942 21588 179 951 minecraft:stone keep
+check industry-setup-pad if block 21570 179 945 minecraft:stone
+cmd tp @s 21570.5 180 945.5
+wait 20
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest setup
+check industry-1-setup if score @s sfIndProbe matches 1
+wait 160
+cmd tp @s 21578 180 947
+cmd gamemode survival
+wait 20
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest recipes
+check industry-2-recipes if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest snapshot
+check industry-3-snapshot if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest convert
+check industry-4-convert if score @s sfIndProbe matches 1
+wait 40
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest press-input
+check industry-5-press-input if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest mix-input
+check industry-6-mix-input if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest heat-mixer
+check industry-7-heat-mixer if score @s sfIndProbe matches 1
+wait 600
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest verify-workshop
+check industry-8-verify-workshop if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest snapshot
+check industry-9-snapshot if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest observe 21576 185 950
+check industry-observe-deployer if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest observe 21576 185 947
+check industry-observe-press if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-input
+check industry-precision-input if score @s sfIndProbe matches 1
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-1 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-2 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-3 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-4 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-5 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-6 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-7 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-8 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-9 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-10 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-11 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-12 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-13 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-14 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest precision-next
+check industry-precision-feed-15 if score @s sfIndProbe matches 1
+wait 100
+cmd scoreboard players set @s sfIndProbe 0
+cmd execute store result score @s sfIndProbe run industrytest verify-precision
+check industry-precision-complete if score @s sfIndProbe matches 1
+shot stage2-industry-workshop
+wait 20
+quit

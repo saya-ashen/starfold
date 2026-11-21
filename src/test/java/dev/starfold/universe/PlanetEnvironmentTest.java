@@ -158,14 +158,18 @@ class PlanetEnvironmentTest {
 
     @Test
     void nonFiniteTemperatureOffsetsAreRejectedAtDataBoundaries() {
-        for (double offset : new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.MAX_VALUE}) {
+        for (double offset :
+                new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.MAX_VALUE}) {
             var json = new com.google.gson.JsonObject();
             json.addProperty("temperature_offset", offset);
-            assertTrue(PlanetTypeEnvironment.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent());
+            assertTrue(
+                    PlanetTypeEnvironment.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent());
             var b = buffer();
             try {
                 new PlanetEnvironment(PlanetAtmosphere.EARTH, 1, offset).write(b);
-                assertThrows(io.netty.handler.codec.DecoderException.class, () -> PlanetEnvironment.read(b));
+                assertThrows(
+                        io.netty.handler.codec.DecoderException.class,
+                        () -> PlanetEnvironment.read(b));
             } finally {
                 b.release();
             }

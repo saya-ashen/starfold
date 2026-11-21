@@ -3,7 +3,6 @@ package dev.starfold.render;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.ground.ImageStream;
 import dev.starfold.network.StarfoldNetwork;
-import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
@@ -29,6 +28,7 @@ public final class GroundViewServer {
         dev.starfold.universe.PlanetPlanSync.Prepared profile;
         final Map<Long, Long> surfaces = new HashMap<>();
         final long session;
+
         Viewer(long id) {
             session = id;
         }
@@ -41,32 +41,46 @@ public final class GroundViewServer {
     public static void initialize() {
         GroundSurfaceIndex.initialize();
         StarfoldNetwork.playS2C(PlanetPackets.Profile.TYPE, PlanetPackets.Profile.CODEC);
-        StarfoldNetwork.playS2C(dev.starfold.universe.PlanetPlanSync.Part.TYPE,dev.starfold.universe.PlanetPlanSync.Part.CODEC);
-        StarfoldNetwork.playC2S(dev.starfold.universe.PlanetPlanSync.Request.TYPE,dev.starfold.universe.PlanetPlanSync.Request.CODEC);
-        StarfoldNetwork.serverReceiver(dev.starfold.universe.PlanetPlanSync.Request.TYPE,(packet,c)->{
-            var player=(ServerPlayer)c.player();var viewer=viewers.get(player.getUUID());
-            if(!Space.in(player) && packet.session()==GroundFlightServer.session(player)
-                    && viewer!=null && viewer.profiled && viewer.profile!=null && packet.matches(viewer.profile.profile()))
-                viewer.profiled=false;
-            PlanetRemoteServer.requestPlan(player,packet);
-        });
+        StarfoldNetwork.playS2C(
+                dev.starfold.universe.PlanetPlanSync.Part.TYPE,
+                dev.starfold.universe.PlanetPlanSync.Part.CODEC);
+        StarfoldNetwork.playC2S(
+                dev.starfold.universe.PlanetPlanSync.Request.TYPE,
+                dev.starfold.universe.PlanetPlanSync.Request.CODEC);
+        StarfoldNetwork.serverReceiver(
+                dev.starfold.universe.PlanetPlanSync.Request.TYPE,
+                (packet, c) -> {
+                    var player = (ServerPlayer) c.player();
+                    var viewer = viewers.get(player.getUUID());
+                    if (!Space.in(player)
+                            && packet.session() == GroundFlightServer.session(player)
+                            && viewer != null
+                            && viewer.profiled
+                            && viewer.profile != null
+                            && packet.matches(viewer.profile.profile())) viewer.profiled = false;
+                    PlanetRemoteServer.requestPlan(player, packet);
+                });
         StarfoldNetwork.playS2C(GroundViewPackets.Delta.TYPE, GroundViewPackets.Delta.CODEC);
         StarfoldNetwork.playS2C(GroundViewPackets.Coverage.TYPE, GroundViewPackets.Coverage.CODEC);
         StarfoldNetwork.playS2C(GroundViewPackets.Surface.TYPE, GroundViewPackets.Surface.CODEC);
         StarfoldNetwork.playC2S(GroundViewPackets.Hello.TYPE, GroundViewPackets.Hello.CODEC);
         StarfoldNetwork.playC2S(GroundViewPackets.Known.TYPE, GroundViewPackets.Known.CODEC);
-        StarfoldNetwork.serverReceiver(GroundViewPackets.Known.TYPE, (packet, c) -> {
-            var p = (ServerPlayer) c.player();
-            var v = viewers.get(p.getUUID());
-            if (Space.in(p) || !PlanetLevels.is(p.level()) || v == null
-                    || v.session != packet.session()
-                    || packet.session() != GroundFlightServer.session(p)) return;
-            var index = GroundSurfaceIndex.get(p.serverLevel(), PlanetSystem.planet(p));
-            for (int i = 0; i < packet.keys().length; i++)
-                if (packet.revisions()[i] == index.surfaceRevision(packet.keys()[i]))
-                    v.surfaces.put(packet.keys()[i], packet.revisions()[i]);
-            v.known = true;
-        });
+        StarfoldNetwork.serverReceiver(
+                GroundViewPackets.Known.TYPE,
+                (packet, c) -> {
+                    var p = (ServerPlayer) c.player();
+                    var v = viewers.get(p.getUUID());
+                    if (Space.in(p)
+                            || !PlanetLevels.is(p.level())
+                            || v == null
+                            || v.session != packet.session()
+                            || packet.session() != GroundFlightServer.session(p)) return;
+                    var index = GroundSurfaceIndex.get(p.serverLevel(), PlanetSystem.planet(p));
+                    for (int i = 0; i < packet.keys().length; i++)
+                        if (packet.revisions()[i] == index.surfaceRevision(packet.keys()[i]))
+                            v.surfaces.put(packet.keys()[i], packet.revisions()[i]);
+                    v.known = true;
+                });
         // A fresh viewer resends profile and coverage; the client asks once its cache is bound to
         // the session.
         StarfoldNetwork.serverReceiver(
@@ -160,10 +174,11 @@ public final class GroundViewServer {
         var pending = changes.computeIfAbsent(level, l -> new LinkedHashSet<>());
         while (!pending.isEmpty() && budget-- > 0) {
             // No iterator survives callbacks, and unloaded edits must never generate chunks here.
-            var updates=pending.iterator();
-            var pos=updates.next(); updates.remove();
-            var chunk=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);
-            if(chunk==null) continue;
+            var updates = pending.iterator();
+            var pos = updates.next();
+            updates.remove();
+            var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+            if (chunk == null) continue;
             int state =
                     net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY.getId(
                             chunk.getBlockState(pos));
@@ -228,12 +243,15 @@ public final class GroundViewServer {
                 source instanceof SystemChunkGenerator system ? system.planet(planet) : null;
         if (!v.profiled && generator != null) {
             if (!p.connection.hasChannel(PlanetPackets.Profile.TYPE)) return;
-            var profile=PlanetPackets.Profile.whenReady(v.session,generator);
-            if(profile.isEmpty())return;
-            var transfer=dev.starfold.universe.PlanetPlanSync.prepare(profile.orElseThrow(),level.registryAccess());
-            v.profile=transfer;
-            for(var part:transfer.parts())net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p,part);
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p,transfer.profile());
+            var profile = PlanetPackets.Profile.whenReady(v.session, generator);
+            if (profile.isEmpty()) return;
+            var transfer =
+                    dev.starfold.universe.PlanetPlanSync.prepare(
+                            profile.orElseThrow(), level.registryAccess());
+            v.profile = transfer;
+            for (var part : transfer.parts())
+                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p, part);
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p, transfer.profile());
             v.profiled = true;
         }
         publishCoverage(level, p, v, index);
@@ -249,10 +267,12 @@ public final class GroundViewServer {
             long key = v.surfaceStream.next(index, v.surfaces, shape, eye);
             if (key < 0) break;
             var surface = index.surface(key);
-            long revision=index.surfaceRevision(key);
-            v.surfaces.put(key,revision);
+            long revision = index.surfaceRevision(key);
+            v.surfaces.put(key, revision);
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
-                    p, surface==null ? GroundViewPackets.Surface.removal(v.session,key,revision)
+                    p,
+                    surface == null
+                            ? GroundViewPackets.Surface.removal(v.session, key, revision)
                             : new GroundViewPackets.Surface(v.session, key, surface));
         }
     }
@@ -260,9 +280,9 @@ public final class GroundViewServer {
     private static void publishCoverage(
             ServerLevel level, ServerPlayer p, Viewer v, GroundSurfaceIndex index) {
         if (!index.ready()) return;
-        if (v.coverageRevision != index.revision()
+        if (v.coverageRevision != index.publishedCoverageRevision()
                 && (v.coverageRevision < 0 || level.getGameTime() - v.lastCoverageTick >= 10)) {
-            v.coverageRevision = index.revision();
+            v.coverageRevision = index.publishedCoverageRevision();
             v.lastCoverageTick = level.getGameTime();
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                     p,
@@ -271,7 +291,7 @@ public final class GroundViewServer {
                             index.identity(),
                             index.revision(),
                             flat(level),
-                            index.coverage().toLongArray()));
+                            index.publishedCoverage().toLongArray()));
         }
     }
 

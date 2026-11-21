@@ -1,0 +1,14 @@
+// Explicit offline formatting tasks; the pinned tool is supplied by the caller.
+def formatterJar = providers.gradleProperty('javaFormatterJar')
+['formatCheck': false, 'formatJava': true].each { name, applyFormat ->
+    tasks.register(name, Exec) {
+        group = 'verification'
+        description = applyFormat ? 'Apply the pinned Java format.' : 'Check the pinned Java format without rewriting sources.'
+        workingDir rootProject.projectDir
+        doFirst {
+            if (!formatterJar.isPresent())
+                throw new GradleException('Supply -PjavaFormatterJar=/path/to/google-java-format-1.28.0-all-deps.jar')
+            commandLine(['python3', 'tools/format-java.py', '--formatter', formatterJar.get()] + (applyFormat ? ['--apply'] : []))
+        }
+    }
+}

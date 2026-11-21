@@ -10,7 +10,6 @@ import dev.starfold.ship.HullLanding;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.GroundClock;
-import dev.starfold.space.SpaceServer;
 
 /** Explicit development readback; never takes or releases the helm. */
 final class DevHelmProbe {
@@ -50,19 +49,23 @@ final class DevHelmProbe {
                                                                         com.mojang.brigadier
                                                                                 .arguments
                                                                                 .DoubleArgumentType
-                                                                                .doubleArg(0, 20000))
+                                                                                .doubleArg(
+                                                                                        0, 20000))
                                                                 .executes(
                                                                         c -> {
-                                                                            dev.starfold.probes.SpaceFixtures.probeSpeed(
-                                                                                    c.getSource()
-                                                                                            .getPlayerOrException(),
-                                                                                    com.mojang
-                                                                                            .brigadier
-                                                                                            .arguments
-                                                                                            .DoubleArgumentType
-                                                                                            .getDouble(
-                                                                                                    c,
-                                                                                                    "speed"));
+                                                                            dev.starfold.probes
+                                                                                    .SpaceFixtures
+                                                                                    .probeSpeed(
+                                                                                            c.getSource()
+                                                                                                    .getPlayerOrException(),
+                                                                                            com
+                                                                                                    .mojang
+                                                                                                    .brigadier
+                                                                                                    .arguments
+                                                                                                    .DoubleArgumentType
+                                                                                                    .getDouble(
+                                                                                                            c,
+                                                                                                            "speed"));
                                                                             return 1;
                                                                         }))));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(

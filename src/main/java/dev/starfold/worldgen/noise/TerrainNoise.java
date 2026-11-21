@@ -5,17 +5,21 @@ import dev.starfold.geometry.BentStripGeometry.Point;
 /** Seeded quintic 3D value noise, in physical blocks; shared version-one kernel arithmetic. */
 public final class TerrainNoise {
     private final long seed;
+
     private static final class Cell {
         TerrainNoise owner;
         long salt;
         int a, b, c;
         final double[] values = new double[8];
     }
-    private static final ThreadLocal<Cell[]> CELLS = ThreadLocal.withInitial(() -> {
-        var cells = new Cell[64];
-        for (int i = 0; i < cells.length; i++) cells[i] = new Cell();
-        return cells;
-    });
+
+    private static final ThreadLocal<Cell[]> CELLS =
+            ThreadLocal.withInitial(
+                    () -> {
+                        var cells = new Cell[64];
+                        for (int i = 0; i < cells.length; i++) cells[i] = new Cell();
+                        return cells;
+                    });
 
     public TerrainNoise(long seed) {
         this.seed = seed;
@@ -28,14 +32,24 @@ public final class TerrainNoise {
         var cell = CELLS.get()[(int) (salt & 63)];
         var n = cell.values;
         if (cell.owner != this || cell.salt != salt || cell.a != a || cell.b != b || cell.c != c) {
-            cell.owner = this; cell.salt = salt; cell.a = a; cell.b = b; cell.c = c;
-            n[0] = value(a,b,c,salt); n[1] = value(a+1,b,c,salt);
-            n[2] = value(a,b+1,c,salt); n[3] = value(a+1,b+1,c,salt);
-            n[4] = value(a,b,c+1,salt); n[5] = value(a+1,b,c+1,salt);
-            n[6] = value(a,b+1,c+1,salt); n[7] = value(a+1,b+1,c+1,salt);
+            cell.owner = this;
+            cell.salt = salt;
+            cell.a = a;
+            cell.b = b;
+            cell.c = c;
+            n[0] = value(a, b, c, salt);
+            n[1] = value(a + 1, b, c, salt);
+            n[2] = value(a, b + 1, c, salt);
+            n[3] = value(a + 1, b + 1, c, salt);
+            n[4] = value(a, b, c + 1, salt);
+            n[5] = value(a + 1, b, c + 1, salt);
+            n[6] = value(a, b + 1, c + 1, salt);
+            n[7] = value(a + 1, b + 1, c + 1, salt);
         }
-        return lerp(lerp(lerp(n[0],n[1],u),lerp(n[2],n[3],u),v),
-            lerp(lerp(n[4],n[5],u),lerp(n[6],n[7],u),v),w);
+        return lerp(
+                lerp(lerp(n[0], n[1], u), lerp(n[2], n[3], u), v),
+                lerp(lerp(n[4], n[5], u), lerp(n[6], n[7], u), v),
+                w);
     }
 
     /** Weighted ridges modulate the next octave, producing spurs and interrupted saddles. */

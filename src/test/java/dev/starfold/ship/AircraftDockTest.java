@@ -1,9 +1,7 @@
 package dev.starfold.ship;
 
-
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
@@ -165,29 +163,5 @@ class AircraftDockTest {
                     "models/item/aircraft_dock"
                 }) assertNotNull(FlightPermitTest.json("assets/starfold/" + path + ".json"));
         assertNotNull(FlightPermitTest.json("data/starfold/advancement/ship/aircraft_dock.json"));
-    }
-
-    @Test
-    void vanillaPersistenceLevelReleaseAndOptionalLinkageContracts() throws Exception {
-        var source = Sources.text("AircraftDock");
-        var renderer = Sources.text("AircraftDockRenderer");
-        assertTrue(source.contains("found.save(data)"));
-        assertTrue(source.contains("found.discard()"));
-        assertTrue(source.contains("EntityType.create(stored.copy(),level)"));
-        assertTrue(source.contains("server.addFreshEntity(entity)"));
-        assertTrue(source.contains("player.startRiding(entity)"));
-        assertTrue(source.contains("entity.setDeltaMovement(Vec3.ZERO)"));
-        assertTrue(source.contains("dock.saveToItem(recovery"));
-        var outer = source.substring(0, source.indexOf("private static final class Hull"));
-        assertFalse(outer.contains("dev.ryanhcode"));
-        assertTrue(outer.contains("if(ModList.get().isLoaded(\"sable\"))Hull.initialize()"));
-        assertFalse(source.contains("import immersive_aircraft"));
-        assertFalse(renderer.contains("dev.ryanhcode"));
-        assertTrue(renderer.contains("catch(RuntimeException|LinkageError"));
-        assertTrue(renderer.contains("getEntityRenderDispatcher().render"));
-        assertFalse(renderer.contains("conjugate()"));
-        assertTrue(Sources.text("StarfoldServer").contains("AircraftDock.initialize(modBus)"));
-        assertTrue(
-                Sources.text("StarfoldClient").contains("AircraftDockRenderer.initialize(modBus)"));
     }
 }

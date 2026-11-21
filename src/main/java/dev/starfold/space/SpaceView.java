@@ -16,6 +16,7 @@ import java.util.*;
 public final class SpaceView {
     /** Far-plane distance shared by celestial positioning and the far-body impostor mapping. */
     public static final float FAR = 1_000_000;
+
     private static final double FAR_TRANSITION = FAR / 4.0;
 
     /** Orbital chart observers see the same distant celestial bodies as passive region observers. */
@@ -87,10 +88,7 @@ public final class SpaceView {
     }
 
     public static boolean visible(double distance, double radius) {
-        return Double.isFinite(distance)
-                && Double.isFinite(radius)
-                && distance >= 0
-                && radius >= 0;
+        return Double.isFinite(distance) && Double.isFinite(radius) && distance >= 0 && radius >= 0;
     }
 
     /** The nearest eight physical occluders, independent of whether their meshes have finished building. */

@@ -19,15 +19,26 @@ import java.util.*;
 /** Places the pieces of planned structures; biome features belong to the pointwise surface composition. */
 public final class PlanetDecoration {
     /** Mirror vanilla's AIR -> placed state notification for POIs prefilled by pointwise generation. */
-    public static void generatedPois(ChunkAccess chunk,java.util.function.BiConsumer<BlockPos,net.minecraft.world.level.block.state.BlockState> placed) {
-        for(int i=0;i<chunk.getSectionsCount();i++) {
-            var section=chunk.getSection(i);
-            if(!section.maybeHas(net.minecraft.world.entity.ai.village.poi.PoiTypes::hasPoi))continue;
-            var sectionPos=SectionPos.of(chunk.getPos(),chunk.getSectionYFromSectionIndex(i));
-            sectionPos.blocksInside().forEach(pos->{
-                var state=section.getBlockState(pos.getX()&15,pos.getY()&15,pos.getZ()&15);
-                if(net.minecraft.world.entity.ai.village.poi.PoiTypes.hasPoi(state))placed.accept(pos.immutable(),state);
-            });
+    public static void generatedPois(
+            ChunkAccess chunk,
+            java.util.function.BiConsumer<
+                            BlockPos, net.minecraft.world.level.block.state.BlockState>
+                    placed) {
+        for (int i = 0; i < chunk.getSectionsCount(); i++) {
+            var section = chunk.getSection(i);
+            if (!section.maybeHas(net.minecraft.world.entity.ai.village.poi.PoiTypes::hasPoi))
+                continue;
+            var sectionPos = SectionPos.of(chunk.getPos(), chunk.getSectionYFromSectionIndex(i));
+            sectionPos
+                    .blocksInside()
+                    .forEach(
+                            pos -> {
+                                var state =
+                                        section.getBlockState(
+                                                pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15);
+                                if (net.minecraft.world.entity.ai.village.poi.PoiTypes.hasPoi(
+                                        state)) placed.accept(pos.immutable(), state);
+                            });
         }
     }
 

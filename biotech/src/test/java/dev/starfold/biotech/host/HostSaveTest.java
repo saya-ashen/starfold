@@ -1,79 +1,86 @@
 package dev.starfold.biotech.host;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.StringTag;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.util.Set;
 import java.util.UUID;
-import static org.junit.jupiter.api.Assertions.*;
 
 class HostSaveTest {
     private static HostSave roundTrip(HostSave data) throws IOException {
         var bytes = new ByteArrayOutputStream();
         NbtIo.write(data.save(new CompoundTag(), null), new DataOutputStream(bytes));
-        return HostSave.load(NbtIo.read(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))), null);
+        return HostSave.load(
+                NbtIo.read(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))),
+                null);
     }
 
-    @Test void freshSpawnSacDeathsAndDefeatSurviveBinaryNbt() throws IOException {
+    @Test
+    void planetsHaveIndependentRespawnableEncounters() throws IOException {
         var host = UUID.randomUUID();
         var a = UUID.randomUUID();
         var b = UUID.randomUUID();
         var fresh = roundTrip(new HostSave());
-        assertFalse(fresh.spawned());
-        assertFalse(fresh.defeated());
-        fresh.spawn(host, Set.of(a, b));
+        assertTrue(fresh.canSpawn(3, 0));
+        fresh.spawn(3, host, Set.of(a, b), 0);
         var spawned = roundTrip(fresh);
-        assertTrue(spawned.spawned());
-        assertTrue(spawned.owns(host));
-        assertEquals(2, spawned.livingSacs());
+        assertTrue(spawned.active(host));
+        assertEquals(2, spawned.livingSacs(host));
+        assertTrue(spawned.canSpawn(4, 0));
+        assertFalse(spawned.canSpawn(3, HostSave.RESPAWN_DELAY_TICKS - 1));
         spawned.sacDied(UUID.randomUUID(), a);
-        assertEquals(2, spawned.livingSacs());
-        spawned.setDirty(false);
+        assertEquals(2, spawned.livingSacs(host));
         spawned.sacDied(host, a);
-        assertTrue(spawned.isDirty());
-        assertEquals(1, roundTrip(spawned).livingSacs());
-        spawned.sacDied(host, a);
-        assertEquals(1, spawned.livingSacs());
-        spawned.defeat(UUID.randomUUID());
-        assertFalse(spawned.defeated());
-        spawned.defeat(host);
+        assertEquals(1, spawned.livingSacs(host));
+        spawned.defeat(host, HostSave.RESPAWN_DELAY_TICKS);
         var defeated = roundTrip(spawned);
-        assertTrue(defeated.spawned());
-        assertTrue(defeated.defeated());
-        assertEquals(0, defeated.livingSacs());
-        assertFalse(HostRules.shouldSpawn(defeated.spawned(), defeated.defeated(), 0, 0, 60));
+        assertFalse(defeated.active(host));
+        assertEquals(0, defeated.livingSacs(host));
+        assertFalse(defeated.canSpawn(3, HostSave.RESPAWN_DELAY_TICKS * 2 - 1));
+        assertTrue(defeated.canSpawn(3, HostSave.RESPAWN_DELAY_TICKS * 2));
     }
 
-    @Test void malformedAndInconsistentSavesAreRejected() {
-        assertFalse(HostSave.fresh(false).spawned());
-        assertThrows(IllegalStateException.class, () -> HostSave.fresh(true));
+    @Test
+    void malformedAndInconsistentSavesAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> HostSave.load(new CompoundTag(), null));
         var tag = new HostSave().save(new CompoundTag(), null);
-        tag.putString("Host", "not-a-uuid");
-        assertThrows(IllegalArgumentException.class, () -> HostSave.load(tag, null));
-        tag.remove("Host");
-        tag.putBoolean("Defeated", true);
-        assertThrows(IllegalArgumentException.class, () -> HostSave.load(tag, null));
-        tag.putBoolean("Defeated", false);
+        var list = tag.getList("Encounters", 10);
+        var entry = new CompoundTag();
+        entry.putInt("Planet", 3);
+        entry.putBoolean("Defeated", false);
+        entry.putLong("RespawnAt", 0);
+        tag.put("Encounters", list);
+        assertDoesNotThrow(() -> HostSave.load(tag, null));
+        entry.putBoolean("Defeated", true);
         var invalid = new ListTag();
-        invalid.add(StringTag.valueOf("not-a-uuid"));
-        tag.put("Sacs", invalid);
+        invalid.add(entry);
+        tag.put("Encounters", invalid);
         assertThrows(IllegalArgumentException.class, () -> HostSave.load(tag, null));
     }
 
-    @Test void duplicateSacsAndDefeatedLiveSacsAreRejected() {
-        var data = new HostSave();
-        data.spawn(UUID.randomUUID(), Set.of(UUID.randomUUID()));
-        var tag = data.save(new CompoundTag(), null);
-        var list = tag.getList("Sacs", 11);
-        list.add(list.get(0).copy());
-        assertThrows(IllegalArgumentException.class, () -> HostSave.load(tag, null));
-        list.remove(1);
-        tag.putBoolean("Defeated", true);
-        assertThrows(IllegalArgumentException.class, () -> HostSave.load(tag, null));
+    @Test
+    void legacyActiveHostKeepsItsSacsAndClaimsItsOwnPlanet() throws IOException {
+        var host = UUID.randomUUID();
+        var tag = new CompoundTag();
+        tag.putUUID("Host", host);
+        tag.putBoolean("Defeated", false);
+        var sacs = new ListTag();
+        sacs.add(net.minecraft.nbt.NbtUtils.createUUID(UUID.randomUUID()));
+        tag.put("Sacs", sacs);
+        var save = HostSave.load(tag, null);
+        assertEquals(host, save.legacyHost());
+        save.track(12, host, 23L);
+        var restored = roundTrip(save);
+        assertNull(restored.legacyHost());
+        assertEquals(host, restored.activeHost(12));
+        assertEquals(23L, restored.lastChunk(12));
+        assertEquals(1, restored.livingSacs(host));
+        assertTrue(restored.canSpawn(13, 0));
     }
 }

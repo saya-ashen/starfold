@@ -7,7 +7,7 @@ over a face edge without a teleport or a reload, several planets and suns share 
 them without a loading screen, in a ship built with Create and Create Aeronautics or on a thruster pack.
 
 **Status: alpha.** Development targets single-player; multiplayer and compatibility with other mods are not a goal
-yet. Current prerelease: **0.3.0-alpha.1 — Starward**. **Saves from 0.2.0 are not supported; create a new world.** Keep backups of older worlds.
+yet. Saves are not kept compatible between versions, so back up before updating.
 
 ## What is in it
 
@@ -19,14 +19,10 @@ yet. Current prerelease: **0.3.0-alpha.1 — Starward**. **Saves from 0.2.0 are 
 - Space flight for ships built with Create and Create Aeronautics: Starfold adds the ship controller, thrusters,
   booster, gyro, navigation scopes, airstair and aircraft dock. Without those mods, the thruster pack still takes
   you to space on your own.
-- Leaving the ground is up to you: build a ship, or craft a thruster pack. Installing Worlds and Extras also provides
-  an experience preset with a ready-made starter ship at spawn as a shortcut.
+- Leaving the ground is up to you: build a ship, or craft a thruster pack. The experience world preset also places
+  a ready-made starter ship at spawn as a shortcut.
 - The eight corners of every planet are fold points that keep players out. The setting behind them is in
   [docs/LORE.md](docs/LORE.md).
-
-- Atlas adds persistent planet surveys, ground maps, 3D system/interstellar maps and ship tracking.
-- Ship fuel contributes mass and remaining delta-v; gas-giant skimming and pressure hulls extend the flight progression.
-- Optional Biotech adds Flesh hive terrain, blood and the Host encounter.
 
 ## Requirements
 
@@ -35,13 +31,11 @@ yet. Current prerelease: **0.3.0-alpha.1 — Starward**. **Saves from 0.2.0 are 
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.247 or newer |
 | Sable | 2.0.5 or 2.0.6 (required) |
-| Create, Create Aeronautics | needed to build ships and use Extras |
+| Create, Create Aeronautics | needed to build ships and for the experience preset |
 | Immersive Aircraft | optional; adds an aircraft to the starter ship |
 
 Install `starfold_worlds` for experience planets and presets; optionally add `starfold_extras` for the starter ship, landing pad and guide (requires Worlds, Create and Create Aeronautics).
 `starfold_materials` adds lightweight aluminum hull plating and heavy osmium pressure hulls (full blocks and slabs); metal ingredients come from other mods via common tags. See [provisional material values](materials/BALANCE.md).
-
-`starfold_atlas` supplies maps and ship tracking. `starfold_biotech` requires Worlds and exactly GeckoLib 4.8.2; its balance values are provisional. The survival pack under `modpack/` is source configuration, not an accepted complete survival release.
 
 Planet rendering needs the vanilla renderer: shader packs are not supported. The mod declares itself incompatible
 with `gravity_changer`.
@@ -63,12 +57,23 @@ A JDK 21 is required; Gradle is run through the wrapper.
 
 ```
 ./gradlew build                  # jar in build/libs, runs every test
-./gradlew packagedContractTest   # checks every mixin of the built jar against Minecraft
+./gradlew packagedContractTest   # checks selected bytecode contracts in the built archives
 ./gradlew runClient              # development client; its game directory is run/
 ```
 
-Java sources are formatted with google-java-format 1.28.0 in its AOSP style
-(`--aosp --skip-reflowing-long-strings --skip-javadoc-formatting`); it is run by hand, not by the build.
+Java sources are formatted with the google-java-format 1.28.0 all-deps jar in its AOSP style
+(`--aosp --skip-reflowing-long-strings --skip-javadoc-formatting`). The formatter is supplied locally;
+the script verifies its SHA-256 and never downloads tools:
+
+```
+python3 tools/format-java.py --formatter /path/to/google-java-format-1.28.0-all-deps.jar
+python3 tools/format-java.py --formatter /path/to/google-java-format-1.28.0-all-deps.jar --apply
+./gradlew formatCheck -PjavaFormatterJar=/path/to/google-java-format-1.28.0-all-deps.jar
+```
+
+The first command checks tracked and newly added Java sources without rewriting them. Mixin contracts
+enumerate the registered mixins and require an explicit audit decision for each; generic selector checks
+and dedicated semantic checks have different scopes.
 
 Optional mods for the development client go in `run/mods`, which is not versioned. Tests that check item ids of
 those mods skip that check when the directory is absent.
@@ -108,13 +113,13 @@ those mods skip that check when the directory is absent.
   | `biotech` | Flesh hive terrain, organic materials and the Host encounter: `biotech/src/main/java/dev/starfold/biotech` and `biotech/src/main/resources` |
 
 - `docs/DATAPACKS.md`: the reference for datapack authors, also in Chinese; tests read its examples.
-- `docs/DEVELOPMENT.md`: architecture, verification commands and current validation limits.
 - `docs/ROADMAP.md`: what is planned and how far it has been thought through, also in Chinese.
 - `tools/ship`: generators for the starter ship structures and block resources.
 - `tools/probe`: scripted in-game checks for the development client, see [tools/probe/README.md](tools/probe/README.md).
   The launch scripts are written for the maintainer's Linux setup.
 - `tools/rename_project.py`: renames the project (ids, packages, paths) in one run from `project-names.json`.
 
+Earlier prototypes and their release notes are kept on the `archive/*` branches.
 
 ## License
 

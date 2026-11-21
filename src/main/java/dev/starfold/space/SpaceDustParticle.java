@@ -2,8 +2,8 @@ package dev.starfold.space;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
-import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.DevelopmentHooks;
+import dev.starfold.geometry.BentStripGeometry.Point;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;

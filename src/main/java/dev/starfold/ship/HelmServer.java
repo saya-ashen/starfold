@@ -113,7 +113,8 @@ public final class HelmServer {
         if (deltaV >= 0)
             player.displayClientMessage(
                     net.minecraft.network.chat.Component.translatable(
-                            "hud.starfold.instrument_delta_v", Math.round(deltaV)), true);
+                            "hud.starfold.instrument_delta_v", Math.round(deltaV)),
+                    true);
     }
 
     private static boolean valid(Session s) {
@@ -222,12 +223,36 @@ public final class HelmServer {
                     boolean space =
                             PlanetLevels.is(player.level())
                                     && Space.holds(player.getX(), player.getZ());
-                    if (s.exit.leave(
-                            player.gameMode.getGameModeForPlayer(),
-                            space,
-                            HullLanding.landedWithStair(player.serverLevel(), s.body),
-                            player.level().getGameTime())) drop(s);
-                    else
+                    boolean landedWithStair =
+                            !space && HullLanding.landedWithStair(player.serverLevel(), s.body);
+                    long now = player.level().getGameTime();
+                    boolean leaving =
+                            s.exit.leave(
+                                    player.gameMode.getGameModeForPlayer(),
+                                    space,
+                                    landedWithStair,
+                                    now);
+                    if (Boolean.getBoolean("starfold.helmProbe"))
+                        org.slf4j.LoggerFactory.getLogger("starfold-airstair")
+                                .info(
+                                        "AIRSTAIR HELM EXIT tick={} hull={} result={} space={} landedWithStair={}",
+                                        now,
+                                        s.body.getUniqueId(),
+                                        leaving ? "leave" : "confirm-required",
+                                        space,
+                                        landedWithStair);
+                    if (leaving) {
+                        if (!space && !landedWithStair) {
+                            boolean lowered = Airstair.deployOnExit(player.serverLevel(), s.body);
+                            player.displayClientMessage(
+                                    net.minecraft.network.chat.Component.translatable(
+                                            lowered
+                                                    ? "message.starfold.airstair_manual_deployed"
+                                                    : "message.starfold.airstair_manual_unavailable"),
+                                    true);
+                        }
+                        drop(s);
+                    } else
                         player.displayClientMessage(
                                 net.minecraft.network.chat.Component.translatable(
                                         space
@@ -288,7 +313,9 @@ public final class HelmServer {
         double deltaV = active ? ThrusterFuel.deltaV(s.body) : -1;
         if (active && ThrusterFuel.missingDrive(s.body))
             s.player.displayClientMessage(
-                    net.minecraft.network.chat.Component.translatable("message.starfold.interstellar_drive_missing"), true);
+                    net.minecraft.network.chat.Component.translatable(
+                            "message.starfold.interstellar_drive_missing"),
+                    true);
         for (var player : s.body.getLevel().players())
             if (player == s.player || s.body.getTrackingPlayers().contains(player.getUUID()))
                 if (player.connection.hasChannel(HelmPackets.State.TYPE))

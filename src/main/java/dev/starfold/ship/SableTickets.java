@@ -1,10 +1,13 @@
 package dev.starfold.ship;
 
+import dev.ryanhcode.sable.companion.math.BoundingBox3i;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.GroundSeams;
+import dev.starfold.ground.GroundTickets;
 
 import net.minecraft.server.level.*;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
 
 import java.util.*;
 
@@ -13,13 +16,22 @@ public final class SableTickets {
     private static final TicketType<Long> TYPE =
             TicketType.create("starfold_sable_cargo", Long::compare);
     private static final Map<ServerLevel, ShipLeases.Plan> held = new HashMap<>();
+    private static final TicketType<Long> APPROACH = TicketType.create("starfold_sable_approach", Long::compare);
+    private static final Map<ServerLevel, Set<Long>> approaches = new HashMap<>();
+    private static final int APPROACH_LIMIT = 64;
+    private static final int APPROACH_RADIUS = 1;
 
     static void update(
             ServerLevel level, dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
         var inputs = new ArrayList<ShipLeases.Input>();
-        if (container != null)
-            for (var body : container.getAllSubLevels())
-                if (!body.isRemoved()) inputs.add(input(level, body));
+        var approach = new LinkedHashSet<Long>();
+        if (container != null) {
+            for (var body : container.getAllSubLevels()) {
+                if (body.isRemoved()) continue;
+                inputs.add(input(level, body, approach));
+            }
+        }
+        applyApproach(level, approach);
         inputs.addAll(ShipDormancy.prepare(level, container));
         apply(level, ShipLeases.plan(inputs));
         ShipDormancy.finish(level, container);
@@ -27,6 +39,11 @@ public final class SableTickets {
 
     public static ShipLeases.Input input(
             ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
+        return input(level, body, null);
+    }
+
+    private static ShipLeases.Input input(
+            ServerLevel level, dev.ryanhcode.sable.sublevel.ServerSubLevel body, Set<Long> approach) {
         var bounds = body.boundingBox();
         var raw =
                 new net.minecraft.world.phys.AABB(
@@ -40,20 +57,57 @@ public final class SableTickets {
         columns(footprint, raw.inflate(1));
         var cargo = new HashSet<Long>();
         var box = raw.inflate(32);
-        columns(cargo, box);
-        // Ask ahead of the bow, including the destination's noncanonical trailing sections.
-        for (int i = 0; i < 4; i++) {
-            var t =
-                    GroundSeams.transport(
-                            level,
-                            new Point(
-                                    (i & 1) == 0 ? box.minX : box.maxX,
-                                    body.logicalPose().position().y,
-                                    (i & 2) == 0 ? box.minZ : box.maxZ));
-            if (t != null) columns(cargo, box, t);
+        var ahead = box;
+        var container =
+                dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer.getContainer(level);
+        if (container != null) {
+            // Sable velocities are blocks/second; ticket lookahead is expressed in ticks.
+            var velocity =
+                    container
+                            .physicsSystem()
+                            .getPipeline()
+                            .getLinearVelocity(body, new org.joml.Vector3d());
+            ahead = GroundTickets.prefetch(box, velocity.x / 20, velocity.z / 20);
+            if (approach != null && HelmServer.hasPilot(body)
+                    && raw.minY < level.getMaxBuildHeight() && raw.maxY >= level.getMinBuildHeight())
+                approachColumns(approach, raw.inflate(1), velocity.x, velocity.z);
+        }
+        // Retain the current halo's seam transports as well as the predicted destination's.
+        for (var area : ahead == box ? List.of(box) : List.of(box, ahead)) {
+            columns(cargo, area);
+            for (int i = 0; i < 4; i++) {
+                var t =
+                        GroundSeams.transport(
+                                level,
+                                new Point(
+                                        (i & 1) == 0 ? area.minX : area.maxX,
+                                        body.logicalPose().position().y,
+                                        (i & 2) == 0 ? area.minZ : area.maxZ));
+                if (t != null) columns(cargo, area, t);
+            }
         }
         return new ShipLeases.Input(
                 body.getUniqueId(), footprint, reasons(level, body, raw), cargo);
+    }
+
+    static void approachColumns(Set<Long> result, AABB box, double vx, double vz) {
+        double speed = Math.hypot(vx, vz);
+        if (!Double.isFinite(speed) || speed <= 64) return;
+        double distance = Math.min(speed * 3, 640);
+        double dx = vx / speed, dz = vz / speed;
+        // Cargo already gives the first 64 blocks a stronger ticket. Give the
+        // approach a head start over the surrounding FULL-only view tickets.
+        for (double near = 64; near < distance && result.size() < APPROACH_LIMIT; near += 16) {
+            double step = Math.min(16, distance - near);
+            var swept = box.move(dx * near, 0, dz * near).expandTowards(dx * step, 0, dz * step);
+            int minX = net.minecraft.util.Mth.floor(swept.minX) >> 4;
+            int maxX = net.minecraft.util.Mth.floor(swept.maxX) >> 4;
+            int minZ = net.minecraft.util.Mth.floor(swept.minZ) >> 4;
+            int maxZ = net.minecraft.util.Mth.floor(swept.maxZ) >> 4;
+            for (int x = minX; x <= maxX && result.size() < APPROACH_LIMIT; x++)
+                for (int z = minZ; z <= maxZ && result.size() < APPROACH_LIMIT; z++)
+                    result.add(ChunkPos.asLong(x, z));
+        }
     }
 
     private static Set<ShipLeases.Reason> reasons(
@@ -116,6 +170,19 @@ public final class SableTickets {
         return x * x + y * y + z * z <= distance * distance;
     }
 
+    /** Match Sable's section-index check before it acquires any XZ columns. */
+    public static BoundingBox3i collisionBounds(
+            BoundingBox3i bounds, int minSection, int sectionsCount) {
+        if (sectionsCount > 0
+                && bounds.maxY() >= minSection
+                && bounds.minY() < (long) minSection + sectionsCount) return bounds;
+        // The companion constructor normalizes endpoints. Set an empty X range explicitly so
+        // both upstream column loops skip work; ticket expiry and other physics objects still run.
+        bounds.minX = 1;
+        bounds.maxX = 0;
+        return bounds;
+    }
+
     public static Set<Long> held(ServerLevel level, UUID ship) {
         var plan = held.get(level);
         return plan == null ? Set.of() : plan.columns(ship);
@@ -133,6 +200,18 @@ public final class SableTickets {
                 level.getChunkSource().removeRegionTicket(TYPE, new ChunkPos(key), 2, key);
         if (wanted.isEmpty()) held.remove(level);
         else held.put(level, plan);
+    }
+
+    private static void applyApproach(ServerLevel level, Set<Long> wanted) {
+        var previous = approaches.getOrDefault(level, Set.of());
+        for (long key : wanted)
+            if (!previous.contains(key))
+                level.getChunkSource().addRegionTicket(APPROACH, new ChunkPos(key), APPROACH_RADIUS, key);
+        for (long key : previous)
+            if (!wanted.contains(key))
+                level.getChunkSource().removeRegionTicket(APPROACH, new ChunkPos(key), APPROACH_RADIUS, key);
+        if (wanted.isEmpty()) approaches.remove(level);
+        else approaches.put(level, wanted);
     }
 
     /** Quarter turns preserve an axis-aligned box, including its noncanonical trailing edge. */
@@ -153,6 +232,7 @@ public final class SableTickets {
     }
 
     static void clear() {
+        for (var level : List.copyOf(approaches.keySet())) applyApproach(level, Set.of());
         for (var level : List.copyOf(held.keySet())) update(level, null);
     }
 

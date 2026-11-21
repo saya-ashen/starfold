@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "starfold_mining:block/mining_platform"
+    }
+  }
+}

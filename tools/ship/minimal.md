@@ -1,6 +1,12 @@
 # B6: measured small survival ship (dev.71)
 
-**185 placed blocks, Sable mass 312.5.** First passing design in the tested A/B
+**Historical dev.71 result: 185 placed blocks, reported Sable mass 312.5.**
+Current heavy-component tags imply a different dry mass (330.5 by static accounting);
+this fuel-less layout and its old mass/handling measurements are not a current-pack
+flight qualification. See [B6-F](../../docs/modpack-design/first-ship-reference.md)
+for the fuel/cargo proposal and its explicit validation limits.
+
+First passing design in the tested A/B
 sequence, **not a proof of the global minimum**. It is a heavy 5×5 platform on
 six ballast layers, not a sleek cabin. No boosters. Measurements and failures:
 `build/space/blueprint1.md`. The 5×7 C fallback was not needed.

@@ -64,28 +64,29 @@ public final class GroundCelestials {
     private static void drawSky(RenderFrame c) {
         dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.SKY);
         try {
-        var projection = new Matrix4f(RenderSystem.getProjectionMatrix());
-        var sorting = RenderSystem.getVertexSorting();
-        boolean write = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
-        try {
-            if (!ReversedDepth.ACTIVE)
-                RenderSystem.setProjectionMatrix(SpaceView.skyProjection(projection), sorting);
-            GroundAtmosphere.drawSky(c);
-            GroundStars.draw(c);
-            if (!RendererGuard.submerged(c.camera())) {
-                PlanetRemoteRenderer.draw(c);
-                GasGiantRenderer.draw(c);
-                if (Minecraft.getInstance()
-                                .level
-                                .getRainLevel(c.tickCounter().getGameTimeDeltaPartialTick(false))
-                        == 0) GroundSunRenderer.draw(c);
+            var projection = new Matrix4f(RenderSystem.getProjectionMatrix());
+            var sorting = RenderSystem.getVertexSorting();
+            boolean write = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+            try {
+                if (!ReversedDepth.ACTIVE)
+                    RenderSystem.setProjectionMatrix(SpaceView.skyProjection(projection), sorting);
+                GroundAtmosphere.drawSky(c);
+                GroundStars.draw(c);
+                if (!RendererGuard.submerged(c.camera())) {
+                    PlanetRemoteRenderer.draw(c);
+                    GasGiantRenderer.draw(c);
+                    if (Minecraft.getInstance()
+                                    .level
+                                    .getRainLevel(
+                                            c.tickCounter().getGameTimeDeltaPartialTick(false))
+                            == 0) GroundSunRenderer.draw(c);
+                }
+            } finally {
+                RenderSystem.depthMask(true);
+                RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+                RenderSystem.depthMask(write);
+                if (!ReversedDepth.ACTIVE) RenderSystem.setProjectionMatrix(projection, sorting);
             }
-        } finally {
-            RenderSystem.depthMask(true);
-            RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
-            RenderSystem.depthMask(write);
-            if (!ReversedDepth.ACTIVE) RenderSystem.setProjectionMatrix(projection, sorting);
-        }
         } finally {
             dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.SKY);
         }

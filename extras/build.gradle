@@ -15,3 +15,24 @@ dependencies {
     testCompileOnly files(rootProject.configurations.testCompileClasspath)
 }
 apply from: rootProject.file('gradle/core-test-launcher.gradle')
+
+def presetPath = 'data/starfold_worlds/worldgen/world_preset/experience.json'
+def worldsPreset = rootProject.file("worlds/src/main/resources/${presetPath}")
+def generatedPresets = layout.buildDirectory.dir('generated/extras-presets')
+def extrasPreset = generatedPresets.map { it.file(presetPath) }
+def generateExtrasPreset = tasks.register('generateExtrasPreset') {
+    inputs.file(worldsPreset).withPathSensitivity(PathSensitivity.NONE)
+    outputs.file(extrasPreset)
+    doLast {
+        def preset = new groovy.json.JsonSlurper().parse(worldsPreset)
+        preset.dimensions['starfold:native_planet'].generator.starter_ship = [structure: 'starfold_extras:starter_ship']
+        def target = extrasPreset.get().asFile
+        target.parentFile.mkdirs()
+        target.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(preset)) + '\n', 'UTF-8')
+    }
+}
+sourceSets.main.resources.srcDir(files(generatedPresets).builtBy(generateExtrasPreset))
+tasks.named('test', Test) {
+    inputs.file(extrasPreset).withPropertyName('extrasPreset').withPathSensitivity(PathSensitivity.NONE)
+    systemProperty 'starfold.extrasPreset', extrasPreset.get().asFile.absolutePath
+}

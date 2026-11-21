@@ -14,7 +14,8 @@ class GasPlayerExposureSaveTest {
     void missingLegacyPlayerDefaultsButPresentMalformedRecordNeverRefillsGrace() {
         var root = new CompoundTag();
         assertEquals(GasPlayerExposureValues.initial(), GasPlayerExposureSave.read(root));
-        for (Tag bad : new Tag[] {IntTag.valueOf(100), StringTag.valueOf("bad"), new CompoundTag()}) {
+        for (Tag bad :
+                new Tag[] {IntTag.valueOf(100), StringTag.valueOf("bad"), new CompoundTag()}) {
             root.put(GasPlayerExposureSave.KEY, bad);
             assertEquals(new GasPlayerExposureValues(0, 0, 0), GasPlayerExposureSave.read(root));
         }
@@ -22,8 +23,15 @@ class GasPlayerExposureSaveTest {
 
     @Test
     void strictNbtTypesBoundsPartialFieldsAndCrossFieldInvariantsFailClosed() {
-        for (Tag bad : new Tag[] {ByteTag.valueOf((byte) 5), LongTag.valueOf(5),
-                DoubleTag.valueOf(5), StringTag.valueOf("5"), IntTag.valueOf(-1), IntTag.valueOf(101)}) {
+        for (Tag bad :
+                new Tag[] {
+                    ByteTag.valueOf((byte) 5),
+                    LongTag.valueOf(5),
+                    DoubleTag.valueOf(5),
+                    StringTag.valueOf("5"),
+                    IntTag.valueOf(-1),
+                    IntTag.valueOf(101)
+                }) {
             var root = new CompoundTag();
             GasPlayerExposureSave.write(root, GasPlayerExposureValues.initial());
             root.getCompound(GasPlayerExposureSave.KEY).put("grace_ticks", bad);
@@ -50,11 +58,17 @@ class GasPlayerExposureSaveTest {
         var clone = player.cloneFor(new Object(), true);
         assertEquals(new GasPlayerExposureValues(0, 0, 20), clone.exposure.values());
         assertEquals(42, clone.exposure.lastTick());
-        var sameTick = clone.exposure.tick(42, dev.starfold.chart.GasPlayerExposure.confirmedSafe(),
-                GasPlayerExposureState.Participation.ACTIVE);
+        var sameTick =
+                clone.exposure.tick(
+                        42,
+                        dev.starfold.chart.GasPlayerExposure.confirmedSafe(),
+                        GasPlayerExposureState.Participation.ACTIVE);
         assertSame(clone.exposure, sameTick.state());
-        var next = clone.exposure.tick(43, dev.starfold.chart.GasPlayerExposure.confirmedSafe(),
-                GasPlayerExposureState.Participation.ACTIVE);
+        var next =
+                clone.exposure.tick(
+                        43,
+                        dev.starfold.chart.GasPlayerExposure.confirmedSafe(),
+                        GasPlayerExposureState.Participation.ACTIVE);
         assertEquals(new GasPlayerExposureValues(0, 1, 20), next.state().values());
         assertFalse(next.damageAttempt());
     }
@@ -83,7 +97,9 @@ class GasPlayerExposureSaveTest {
         var clone = player.cloneFor(newOwner, false);
         assertSame(original, clone.exposure);
         assertFalse(clone.completedDeath(oldOwner, false));
-        assertFalse(clone.completedDeath(newOwner, true), "canceled death/totem leaves an alive player alone");
+        assertFalse(
+                clone.completedDeath(newOwner, true),
+                "canceled death/totem leaves an alive player alone");
         assertSame(original, clone.exposure);
         assertEquals(42, clone.exposure.lastTick());
     }
@@ -91,8 +107,10 @@ class GasPlayerExposureSaveTest {
     @Test
     void repeatedCompletedDeathIsIdempotentAndPreservesDangerCountdownAndLastTick() {
         var owner = new Object();
-        var player = new GasPlayerExposureServer.PlayerState<>(owner,
-                new GasPlayerExposureState(new GasPlayerExposureValues(0, 99, 7), 42));
+        var player =
+                new GasPlayerExposureServer.PlayerState<>(
+                        owner,
+                        new GasPlayerExposureState(new GasPlayerExposureValues(0, 99, 7), 42));
         assertTrue(player.completedDeath(owner, false));
         var once = player.exposure;
         assertTrue(player.completedDeath(owner, false));
@@ -103,8 +121,12 @@ class GasPlayerExposureSaveTest {
 
     @Test
     void playerValuesRoundTripAcrossDiskCopyAndKeepUnrelatedData() {
-        for (var values : new GasPlayerExposureValues[] {GasPlayerExposureValues.initial(),
-                new GasPlayerExposureValues(0, 37, 19), new GasPlayerExposureValues(100, 100, 0)}) {
+        for (var values :
+                new GasPlayerExposureValues[] {
+                    GasPlayerExposureValues.initial(),
+                    new GasPlayerExposureValues(0, 37, 19),
+                    new GasPlayerExposureValues(100, 100, 0)
+                }) {
             var persistent = new CompoundTag();
             persistent.putString("other_mod", "retained");
             GasPlayerExposureSave.write(persistent, values);
@@ -113,9 +135,15 @@ class GasPlayerExposureSaveTest {
             var restored = savedEntity.copy().getCompound("NeoForgeData");
             assertEquals(values, GasPlayerExposureSave.read(restored));
             assertEquals("retained", restored.getString("other_mod"));
-            assertEquals(-1, GasPlayerExposureState.restored(GasPlayerExposureSave.read(restored)).lastTick());
-            assertEquals(1, restored.getCompound(GasPlayerExposureSave.KEY).getAllKeys().stream()
-                    .filter("attempt_ticks"::equals).count());
+            assertEquals(
+                    -1,
+                    GasPlayerExposureState.restored(GasPlayerExposureSave.read(restored))
+                            .lastTick());
+            assertEquals(
+                    1,
+                    restored.getCompound(GasPlayerExposureSave.KEY).getAllKeys().stream()
+                            .filter("attempt_ticks"::equals)
+                            .count());
         }
     }
 }

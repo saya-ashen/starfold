@@ -5,7 +5,7 @@
 Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭六面世界。走过面的边缘时不传送、不重载；多颗星球和恒星
 处在同一个维度里，在它们之间飞行没有加载画面：开一艘用机械动力（Create）和机械动力：航空学（Create Aeronautics）造的飞船，或者背上推进背包。
 
-**状态：alpha。** 目前以单人游戏为主，多人和与其他模组的兼容暂不是目标。当前预发布版本：**0.3.0-alpha.1 — Starward「向星而行」**。**不支持 0.2.0 存档，请新建世界，并保留旧世界备份。**
+**状态：alpha。** 目前以单人游戏为主，多人和与其他模组的兼容暂不是目标。版本之间不保证存档兼容，更新前请备份。
 
 ## 内容
 
@@ -14,12 +14,8 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 - 星球大小不同，深度随大小变化，有洞穴、矿物、群系和结构。
 - 恒星系包含恒星、轨道、自转和昼夜，由数据包定义：见 [docs/DATAPACKS_zh-CN.md](docs/DATAPACKS_zh-CN.md)。
 - 为用机械动力和机械动力：航空学建造的飞船提供太空航行：本模组加入飞船控制器、推进器、加力器、陀螺仪、导航观察镜、舷梯和停机位。不装这两个模组时，仍可以靠推进背包独自飞进太空。
-- 离开地面要靠自己：造一艘船，或者做一个推进背包。安装 Worlds 和 Extras 后，体验世界预设会在出生点放置起始飞船，作为捷径。
+- 离开地面要靠自己：造一艘船，或者做一个推进背包。体验包世界预设另外在出生点放了一艘现成的起始飞船，作为捷径。
 - 每颗星球的八个顶角是把玩家挡在外面的折点。背后的世界观见 [docs/LORE_zh-CN.md](docs/LORE_zh-CN.md)。
-
-- Atlas 提供持久化星球测绘、地面地图、三维星系／星际地图和飞船追踪。
-- 飞船燃料参与质量与剩余 Δv 计算；气态巨行星采集和耐压外壳扩展了航行进度。
-- 可选 Biotech 提供血肉虫巢星球、血液和宿主遭遇。
 
 ## 运行要求
 
@@ -28,17 +24,17 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.247 或更新 |
 | Sable | 2.0.5 或 2.0.6（必需） |
-| 机械动力（Create）、机械动力：航空学（Create Aeronautics） | 造船和使用 Extras 需要 |
+| 机械动力（Create）、机械动力：航空学（Create Aeronautics） | 造船和体验包预设需要 |
 | Immersive Aircraft | 可选；给起始飞船加一架飞行器 |
 
 安装 `starfold_worlds` 获得体验星球和预设；可选安装 `starfold_extras` 获得初始飞船、停机坪和指南书（需要 Worlds、Create 和 Create Aeronautics）。
 `starfold_materials` 提供轻质铝合金外壳板与重型锇合金耐压壳（完整方块、半砖）；金属原料由其他模组通过通用标签提供。数值见[暂定材料平衡](materials/BALANCE.md)。
 
-`starfold_atlas` 提供地图和飞船追踪。`starfold_biotech` 需要 Worlds 和固定版本 GeckoLib 4.8.2，其平衡数值仍为暂定。`modpack/` 是生存整合包配置源码，尚未完成完整生存流程验收。
-
 星球渲染需要原版渲染器，不支持光影包。模组声明与 `gravity_changer` 不兼容。
 
 ## 游玩
+
+想从空手生存一路玩到星际返航，请看 [Escape Velocity 玩家手册](docs/escape-velocity-player-guide_zh-CN.md)。
 
 新建世界并选择世界类型：
 
@@ -95,13 +91,13 @@ Java 源码用 google-java-format 1.28.0 的 AOSP 风格格式化
   | `biotech` | 血肉虫巢地形、有机材料与宿主遭遇：`biotech/src/main/java/dev/starfold/biotech` 及 `biotech/src/main/resources` |
 
 - `docs/DATAPACKS_zh-CN.md`：给数据包作者的参考，另有英文版 `docs/DATAPACKS.md`；测试会读取其中的示例。
-- `docs/DEVELOPMENT.md`：架构、验证命令与当前验收边界。
 - `docs/ROADMAP_zh-CN.md`：计划做什么、想到了什么程度，另有英文版 `docs/ROADMAP.md`。
 - `tools/ship`：起始飞船结构和方块资源的生成器。
 - `tools/probe`：开发客户端的脚本化游戏内检查，见 [tools/probe/README.md](tools/probe/README.md)。启动脚本按维护者的
   Linux 环境编写。
 - `tools/rename_project.py`：根据 `project-names.json` 一次性重命名项目（ID、包名、路径）。
 
+早期原型及其版本说明保留在 `archive/*` 分支。
 
 ## 许可
 

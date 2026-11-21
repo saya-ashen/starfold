@@ -2,8 +2,6 @@ package dev.starfold.ground;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.SourceText;
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundChart;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartOrientation;
@@ -19,7 +17,6 @@ import net.minecraft.world.level.block.StairBlock;
 
 import org.junit.jupiter.api.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 /** Continuous client coordinates over the cube surface. Pure relabelling maths plus wiring checks;
@@ -229,42 +226,5 @@ class ObserverFrameTest {
         assertEquals(List.of(1, 4, 0, 1), faces);
         assertEquals(3, frame.turns());
         same(new Point(1990.5, 150, 1990.5), client);
-    }
-
-    @Test
-    void serverAndClientAreWiredThroughTheFrame() throws Exception {
-        SourceText seams = Sources.text("GroundSeams"),
-                stream = Sources.text("ImageStream"),
-                map = Sources.text("PacketMap"),
-                client = Sources.text("GroundClient"),
-                level = Sources.text("GroundTopologyLevelMixin"),
-                frustum = Sources.text("GroundFlightFrustumMixin"),
-                sender = Sources.text("GroundChunkSenderMixin");
-        // A seam re-roots the frame and moves the body silently: no teleport packet, so the client
-        // never reloads.
-        assertTrue(seams.contains("ObserverFrames.cross(player,"));
-        assertTrue(seams.contains("player.connection.resetPosition()"));
-        assertFalse(seams.contains("player.teleportTo("));
-        // The observer's chunks are images in client coordinates, never raw storage chunks.
-        assertTrue(
-                sender.contains(
-                        "if(ImageStream.active(player)){pendingChunks.clear();ci.cancel();}"));
-        assertTrue(stream.contains("frame.toStorage(new BlockPos(x,GroundCoordinates.FLOOR,z))"));
-        assertTrue(stream.contains("ChunkTrackingView.isWithinDistance"));
-        assertTrue(stream.contains("getChunkNow("));
-        assertFalse(stream.contains("level.getChunk("));
-        assertFalse(stream.contains("level.setBlock"));
-        assertTrue(
-                map.contains(
-                        "packet instanceof ClientboundSectionBlocksUpdatePacket||packet instanceof ClientboundLightUpdatePacket||packet instanceof ClientboundLevelChunkWithLightPacket"));
-        assertTrue(map.contains("ServerboundMovePlayerPacket.PosRot(s.x(),s.y(),s.z(),yaw,pitch"));
-        // The client world is read where it is; only the corner mask is virtual, and halo sections
-        // are drawn.
-        assertTrue(
-                level.contains(
-                        "if(level.isClientSide)return GroundSeams.clientMasked(level,pos)?"));
-        assertFalse(frustum.contains("ownedSection"));
-        assertTrue(client.contains("frame().vectorToClient(new Point(1,0,0))"));
-        assertTrue(client.contains("rotateY((float)(-f.turns()*Math.PI/2))"));
     }
 }

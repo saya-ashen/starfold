@@ -32,10 +32,11 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     if (level != null
                             && level.getBlockEntity(p.pos()) instanceof Airstair.Stair stair) {
                         stair.length = p.length();
+                        stair.treadRun = p.treadRun();
                         stair.width = p.width();
                         stair.published.set(p.x(), p.y(), p.z());
                         stair.publishedOut.set(p.ox(), 0, p.oz());
-                        stair.received = level.getGameTime();
+                        stair.receivedNanos = System.nanoTime();
                     }
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -69,7 +70,8 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
         if (fraction <= 0) return;
         if (stair.length > 0) lengths.put(stair, stair.length);
         double drop = lengths.getOrDefault(stair, 1d);
-        int steps = (int) Math.ceil(drop / .5 - 1e-8);
+        int steps = AirstairGeometry.steps(drop);
+        double run = stair.treadRun, reach = steps * run;
         double half = stair.width * .5;
         var local = Airstair.localTop(stair);
         var p = stair.getBlockPos();
@@ -88,7 +90,7 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
         stack.scale(1, (float) (.12 + .88 * ease), (float) (.12 + .88 * ease));
         drawTopPlate(stack, buffers, half, light, overlay);
         for (int i = 0; i < steps; i++) {
-            double y = -Math.min(drop, (i + 1) * .5) + (i == steps - 1 ? .0125 : 0), z = i * .5;
+            double y = AirstairGeometry.treadHeight(drop, i, steps), z = i * run;
             int sampled =
                     net.minecraft.client.renderer.LevelRenderer.getLightColor(
                             level,
@@ -101,7 +103,7 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     z,
                     half,
                     y,
-                    z + .5,
+                    z + run,
                     sampled,
                     overlay);
             box(
@@ -109,10 +111,10 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     buffers.getBuffer(material("cyan")),
                     -half + .045,
                     y - .035,
-                    z + .464,
+                    z + run - .036,
                     half - .045,
                     y + .006,
-                    z + .493,
+                    z + run - .007,
                     0xf000f0,
                     overlay);
         }
@@ -120,11 +122,11 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
         int railLight =
                 net.minecraft.client.renderer.LevelRenderer.getLightColor(
                         level, BlockPos.containing(top.x, top.y, top.z));
-        double end = steps * .5 - .12;
+        double end = reach - .12, slope = drop / reach;
         for (double side : new double[] {-half + .035, half - .035}) {
             stack.pushPose();
             stack.translate(side, -.16, 0);
-            stack.mulPose(new Quaternionf().rotationX((float) Math.atan2(drop, steps * .5)));
+            stack.mulPose(new Quaternionf().rotationX((float) Math.atan2(drop, reach)));
             box(
                     stack,
                     metal,
@@ -133,19 +135,19 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     0,
                     .055,
                     .10,
-                    Math.hypot(drop, steps * .5),
+                    Math.hypot(drop, reach),
                     railLight,
                     overlay);
             stack.popPose();
             // Six-sided tubular rails; no invisible rail collision. Posts on alternate treads and
             // at the foot.
             for (int i = 0; i < steps; i += 2) {
-                double y = -Math.min(drop, (i + 1) * .5), z = i * .5 + .12;
+                double y = AirstairGeometry.treadHeight(drop, i, steps), z = i * run + .12;
                 tube(
                         stack,
                         metal,
                         new Vector3f((float) side, (float) y, (float) z),
-                        new Vector3f((float) side, (float) (.62 - z), (float) z),
+                        new Vector3f((float) side, (float) (.62 - z * slope), (float) z),
                         .032f,
                         railLight,
                         overlay);
@@ -154,7 +156,7 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     stack,
                     metal,
                     new Vector3f((float) side, (float) -drop, (float) end),
-                    new Vector3f((float) side, (float) (.62 - end), (float) end),
+                    new Vector3f((float) side, (float) (.62 - end * slope), (float) end),
                     .032f,
                     railLight,
                     overlay);
@@ -162,7 +164,7 @@ public final class AirstairRenderer implements BlockEntityRenderer<Airstair.Stai
                     stack,
                     metal,
                     new Vector3f((float) side, .5f, .12f),
-                    new Vector3f((float) side, (float) (.62 - end), (float) end),
+                    new Vector3f((float) side, (float) (.62 - end * slope), (float) end),
                     .045f,
                     railLight,
                     overlay);

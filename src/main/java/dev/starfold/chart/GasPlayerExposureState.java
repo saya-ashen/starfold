@@ -7,7 +7,11 @@ public record GasPlayerExposureState(GasPlayerExposureValues values, long lastTi
     public static final float DAMAGE = 4;
 
     /** ACTIVE means online, alive survival/adventure; EXEMPT means creative/spectator. */
-    public enum Participation { ACTIVE, EXEMPT, DEAD }
+    public enum Participation {
+        ACTIVE,
+        EXEMPT,
+        DEAD
+    }
 
     /** Commit state before attempting ordinary hurt; cancellation still consumes the attempt. */
     public record Transition(
@@ -63,10 +67,13 @@ public record GasPlayerExposureState(GasPlayerExposureValues values, long lastTi
                         attempt = GasPlayerExposureValues.ATTEMPT_TICKS;
                     }
                 }
-                case UNKNOWN -> { /* No damage and no evidence for recovery. */ }
+                case UNKNOWN -> {
+                    /* No damage and no evidence for recovery. */
+                }
             }
         }
-        var next = new GasPlayerExposureState(new GasPlayerExposureValues(grace, safe, attempt), tick);
+        var next =
+                new GasPlayerExposureState(new GasPlayerExposureValues(grace, safe, attempt), tick);
         return new Transition(next, sample, hurt);
     }
 }

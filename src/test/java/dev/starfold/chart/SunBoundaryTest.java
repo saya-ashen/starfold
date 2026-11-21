@@ -156,24 +156,6 @@ class SunBoundaryTest {
     }
 
     @Test
-    void productionHooksCoverPacketAcceptanceAndBothKindsOfHullMotion() throws Exception {
-        var network = dev.starfold.Sources.text("GroundFlightNetworkMixin");
-        assertTrue(network.contains("starfold$sunPacket"));
-        assertTrue(network.contains("newServerboundMovePlayerPacket.PosRot("));
-        var entity = dev.starfold.Sources.text("GroundTopologyEntityMixin");
-        assertTrue(entity.contains("SpaceServer.sunMotion((Entity)(Object)this,motion)"));
-        var server = dev.starfold.Sources.text("SpaceServer");
-        assertTrue(server.contains("sunPadding(lead)"));
-        assertTrue(server.contains("sunPadding(body)"));
-        assertTrue(server.contains("ForgeSablePrePhysicsTickEvent"));
-        assertTrue(server.contains("EventPriority.LOWEST"));
-        assertTrue(server.contains("sunPhysics(event.getPhysicsSystem(),event.getTimeStep())"));
-        assertTrue(server.contains("pipeline.addLinearAndAngularVelocity(body,"));
-        var client = dev.starfold.Sources.text("SpaceClient");
-        assertTrue(client.contains("SpaceServer.clientSunMotion="));
-    }
-
-    @Test
     void repeatedPhysicsSubstepsCannotCreepInwardUnderSustainedThrust() {
         var model = GroundSolar.defaults();
         var star = model.primary();

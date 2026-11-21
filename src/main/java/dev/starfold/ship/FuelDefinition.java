@@ -9,7 +9,8 @@ import java.util.Collection;
 import java.util.function.Predicate;
 
 /** Impulse is in Sable force-seconds per mB (the same force unit as Thrusters.THRUST). */
-record FuelDefinition(ResourceLocation fluid, boolean tag, double impulse, boolean interstellar, double mass) {
+record FuelDefinition(
+        ResourceLocation fluid, boolean tag, double impulse, boolean interstellar, double mass) {
     static FuelDefinition parse(JsonObject json) {
         var fluid = json.get("fluid");
         var impulse = json.get("impulse");
@@ -33,10 +34,16 @@ record FuelDefinition(ResourceLocation fluid, boolean tag, double impulse, boole
             throw new JsonParseException("Expected boolean interstellar");
         var mass = json.get("mass");
         if (mass != null
-                && (!mass.isJsonPrimitive() || !mass.getAsJsonPrimitive().isNumber()
-                        || !Double.isFinite(mass.getAsDouble()) || mass.getAsDouble() < 0))
+                && (!mass.isJsonPrimitive()
+                        || !mass.getAsJsonPrimitive().isNumber()
+                        || !Double.isFinite(mass.getAsDouble())
+                        || mass.getAsDouble() < 0))
             throw new JsonParseException("Expected finite nonnegative numeric mass per 1000 mB");
-        return new FuelDefinition(id, tag, value, interstellar != null && interstellar.getAsBoolean(),
+        return new FuelDefinition(
+                id,
+                tag,
+                value,
+                interstellar != null && interstellar.getAsBoolean(),
                 mass == null ? 0 : mass.getAsDouble());
     }
 
@@ -56,7 +63,8 @@ record FuelDefinition(ResourceLocation fluid, boolean tag, double impulse, boole
     }
 
     static double best(
-            Collection<FuelDefinition> definitions, Predicate<FuelDefinition> matches,
+            Collection<FuelDefinition> definitions,
+            Predicate<FuelDefinition> matches,
             boolean restricted) {
         return best(definitions, d -> (!restricted || d.interstellar()) && matches.test(d));
     }
@@ -67,7 +75,8 @@ record FuelDefinition(ResourceLocation fluid, boolean tag, double impulse, boole
 
     /** Exact rocket integral; massless definitions use its constant-mass limit. */
     double deltaV(double currentMass, double millibuckets) {
-        return FuelBudget.velocityChange(currentMass, millibuckets * impulse, fuelMass(millibuckets));
+        return FuelBudget.velocityChange(
+                currentMass, millibuckets * impulse, fuelMass(millibuckets));
     }
 
     static double consumption(double thrust, double seconds, double impulse) {

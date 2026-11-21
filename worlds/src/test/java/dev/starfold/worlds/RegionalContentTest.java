@@ -1,7 +1,5 @@
 package dev.starfold.worlds;
 
-import dev.starfold.worlds.fixtures.ExperienceFixtures;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.mojang.serialization.JsonOps;
@@ -48,7 +46,8 @@ class RegionalContentTest {
                     name.equals("desert_barren")
                             ? java.util.List.of()
                             : java.util.List.of(
-                                    "starfold_worlds:regional_cactus", "minecraft:patch_dead_bush_2"),
+                                    "starfold_worlds:regional_cactus",
+                                    "minecraft:patch_dead_bush_2"),
                     ids);
         }
         for (String name :
@@ -77,12 +76,14 @@ class RegionalContentTest {
             var expected =
                     new java.util.HashSet<>(
                             java.util.Set.of(
-                                    "starfold_worlds:desert_barren", "starfold_worlds:desert_scrub"));
+                                    "starfold_worlds:desert_barren",
+                                    "starfold_worlds:desert_scrub"));
             if (java.util.Set.of(
                             "has_structure/trial_chambers", "is_overworld", "stronghold_biased_to")
                     .contains(name))
                 expected.addAll(
-                        java.util.Set.of("starfold_worlds:lush_glade", "starfold_worlds:lush_jungle"));
+                        java.util.Set.of(
+                                "starfold_worlds:lush_glade", "starfold_worlds:lush_jungle"));
             assertEquals(
                     expected,
                     java.util.stream.StreamSupport.stream(

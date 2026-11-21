@@ -195,13 +195,30 @@ public final class GroundEphemeris {
 
         public Body withAtmosphere(dev.starfold.worldgen.PlanetAtmosphere atmosphere) {
             return new Body(
-                    motion, radius, light, slot, reach, appearance, id, atmosphere, temperatureOffset, gas);
+                    motion,
+                    radius,
+                    light,
+                    slot,
+                    reach,
+                    appearance,
+                    id,
+                    atmosphere,
+                    temperatureOffset,
+                    gas);
         }
 
         public Body withEnvironment(dev.starfold.worldgen.PlanetEnvironment environment) {
             return new Body(
-                    motion, radius, light, slot, reach, appearance, id,
-                    environment.atmosphere(), environment.temperatureOffset(), gas);
+                    motion,
+                    radius,
+                    light,
+                    slot,
+                    reach,
+                    appearance,
+                    id,
+                    environment.atmosphere(),
+                    environment.temperatureOffset(),
+                    gas);
         }
 
         public static Body gas(Motion motion, double radius, GasGiant policy) {
@@ -304,7 +321,10 @@ public final class GroundEphemeris {
     public record Star(Point position, double radius) {
         public Star {
             point(position);
-            if (!Double.isFinite(radius) || radius < 32 || radius > 16384 || position.length() > 1e9)
+            if (!Double.isFinite(radius)
+                    || radius < 32
+                    || radius > 16384
+                    || position.length() > 1e9)
                 throw new IllegalArgumentException("Star parameters");
         }
     }

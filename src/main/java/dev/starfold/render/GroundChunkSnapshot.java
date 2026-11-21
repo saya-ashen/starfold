@@ -1,8 +1,8 @@
 package dev.starfold.render;
 
 import dev.starfold.planet.GroundCoordinates;
-import dev.starfold.storage.ChunkKeys;
 import dev.starfold.planet.PlanetAccess;
+import dev.starfold.storage.ChunkKeys;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;

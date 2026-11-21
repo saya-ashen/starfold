@@ -3,18 +3,17 @@ package dev.starfold.space;
 import static dev.starfold.space.SpaceFlightMath.*;
 import static dev.starfold.space.SpaceSessions.*;
 
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.chart.CelestialTarget;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.ArrivalState;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundServer;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.network.StarfoldNetwork;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.HelmServer;
 import dev.starfold.ship.SableFrames;
@@ -43,8 +42,7 @@ public final class SpaceServer extends SavedData {
     private dev.ryanhcode.sable.sublevel.ServerSubLevel inboundBody;
     private int inboundPlanet = -1;
     private boolean inbound, arriving;
-    private static final net.minecraft.resources.ResourceLocation WEIGHTLESS =
-            net.minecraft.resources.ResourceLocation.parse("starfold:space_weightless");
+    private boolean anchorBlocked;
 
     public static void initialize() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -99,10 +97,6 @@ public final class SpaceServer extends SavedData {
     }
 
     static void send(net.minecraft.server.level.ServerPlayer player) {
-        send(player, false);
-    }
-
-    private static void send(net.minecraft.server.level.ServerPlayer player, boolean turning) {
         var packet = packet(player);
         if (!SableFrames.carrying(player) && player.connection.hasChannel(SpacePackets.Frame.TYPE))
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, packet);
@@ -127,90 +121,7 @@ public final class SpaceServer extends SavedData {
         for (var player : level.players())
             if (Space.in(player) ? observers.get(player) != level : observers.containsKey(player))
                 sync(player);
-        // Only those previously made free need their gravity restored after leaving the region.
-        weightless
-                .entrySet()
-                .removeIf(
-                        e -> {
-                            var living = e.getKey();
-                            if (e.getValue() != level) return false;
-                            if (!living.isRemoved() && living.level() == level && Space.in(living))
-                                return false;
-                            weight(
-                                    living.getAttribute(
-                                            net.minecraft.world.entity.ai.attributes.Attributes
-                                                    .GRAVITY),
-                                    false);
-                            return true;
-                        });
-        var cabins = cabins(level);
-        for (var entity : regionEntities(level))
-            if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
-                boolean free = Space.in(entity) && !weighted(entity, cabins);
-                weight(
-                        living.getAttribute(
-                                net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY),
-                        free);
-                if (free) weightless.put(living, level);
-                else weightless.remove(living);
-            }
-    }
-
-    /** Membership ignores height, including entities above or below the terrain storage band. */
-    private static java.util.List<net.minecraft.world.entity.Entity> regionEntities(
-            ServerLevel level) {
-        return dev.starfold.ground.GroundSeams.entities(
-                level,
-                new net.minecraft.world.phys.AABB(
-                        Space.X - Space.REACH,
-                        Double.NEGATIVE_INFINITY,
-                        Space.Z - Space.REACH,
-                        Space.X + Space.REACH,
-                        Double.POSITIVE_INFINITY,
-                        Space.Z + Space.REACH));
-    }
-
-    /** Visit each cabin's local entities once, rather than visiting every hull for each space mob. */
-    private static java.util.Set<net.minecraft.world.entity.Entity> cabins(ServerLevel level) {
-        var found = new java.util.HashSet<net.minecraft.world.entity.Entity>();
-        var container = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(level);
-        if (container != null)
-            for (var candidate : container.getAllSubLevels())
-                if (candidate instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel body
-                        && !body.isRemoved()) {
-                    var bounds = SableFrames.cabinBounds(body);
-                    if (bounds == null
-                            || bounds.maxX < Space.X - Space.REACH
-                            || bounds.minX > Space.X + Space.REACH
-                            || bounds.maxZ < Space.Z - Space.REACH
-                            || bounds.minZ > Space.Z + Space.REACH) continue;
-                    for (var entity : dev.starfold.ground.GroundSeams.entities(level, bounds))
-                        if (Space.in(entity) && SableFrames.inside(body, entity)) found.add(entity);
-                }
-        return found;
-    }
-
-    /** Weight uses contact NOW or cabin feet, never the passage/handover grace. */
-    private static boolean weighted(
-            net.minecraft.world.entity.Entity entity,
-            java.util.Set<net.minecraft.world.entity.Entity> cabins) {
-        return dev.ryanhcode.sable.Sable.HELPER.getTrackingSubLevel(entity) != null
-                || cabins.contains(entity);
-    }
-
-    /** Multiplying the final attribute by zero leaves its base and every other mod's modifiers intact. */
-    public static void weight(
-            net.minecraft.world.entity.ai.attributes.AttributeInstance gravity, boolean free) {
-        if (gravity == null) return;
-        if (free) {
-            if (!gravity.hasModifier(WEIGHTLESS))
-                gravity.addTransientModifier(
-                        new net.minecraft.world.entity.ai.attributes.AttributeModifier(
-                                WEIGHTLESS,
-                                -1,
-                                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation
-                                        .ADD_MULTIPLIED_TOTAL));
-        } else gravity.removeModifier(WEIGHTLESS);
+        SpaceGravity.tick(level);
     }
 
     private java.util.function.Supplier<dev.starfold.chart.GroundEphemeris.Model> savedModel =
@@ -430,8 +341,10 @@ public final class SpaceServer extends SavedData {
         if (container == null) return;
         var f = frame(level);
         var drift = f.levelVector(f.drift()).scale(20);
-        double drag = dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
-                .getUniversalDrag(level) * step;
+        double drag =
+                dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
+                                .getUniversalDrag(level)
+                        * step;
         var pipeline = physics.getPipeline();
         for (var body : spaceBodies(container)) {
             var v = pipeline.getLinearVelocity(body, new org.joml.Vector3d());
@@ -440,8 +353,10 @@ public final class SpaceServer extends SavedData {
             var relative = restored.add(drift).scale(1.0 / 20);
             var limited = SpaceSpeed.limit(relative).scale(20).sub(drift);
             var change = limited.sub(old);
-            pipeline.addLinearAndAngularVelocity(body,
-                    new org.joml.Vector3d(change.x(), change.y(), change.z()), new org.joml.Vector3d());
+            pipeline.addLinearAndAngularVelocity(
+                    body,
+                    new org.joml.Vector3d(change.x(), change.y(), change.z()),
+                    new org.joml.Vector3d());
         }
     }
 
@@ -647,8 +562,12 @@ public final class SpaceServer extends SavedData {
                         var f = value.frame.rebased(tick);
                         var forward = HelmServer.forward(lead);
                         var nose = f.universeVector(forward);
-                        guided = assist(f.drift(), nose, Thrusters.forward(
-                                lead, level.getGameTime(), forward), targetVelocity);
+                        guided =
+                                assist(
+                                        f.drift(),
+                                        nose,
+                                        Thrusters.forward(lead, level.getGameTime(), forward),
+                                        targetVelocity);
                     }
                     break;
                 }
@@ -678,8 +597,14 @@ public final class SpaceServer extends SavedData {
             value.setDirty();
         }
         var bounded = value.frame.rebased(tick);
-        value.frame = new Space.Frame(bounded.rotation(), bounded.shift(), bounded.planet(),
-                bounded.offset(), SpaceSpeed.limit(bounded.drift()), tick);
+        value.frame =
+                new Space.Frame(
+                        bounded.rotation(),
+                        bounded.shift(),
+                        bounded.planet(),
+                        bounded.offset(),
+                        SpaceSpeed.limit(bounded.drift()),
+                        tick);
         // Sable's lead impulse has already been folded into the moving region. Limit that
         // region's next displacement here, after cruise/arrival, without relocating the hull.
         {
@@ -730,16 +655,15 @@ public final class SpaceServer extends SavedData {
         }
         SpaceApproach.update(level, container, lead);
         var delta = anchor(point);
-        if (delta == null) {
+        if (delta == null || !shiftRegion(level, container, bodies, value, delta, tick)) {
+            if (delta == null) value.anchorBlocked = false;
             if (!oldArrival.equals(value.arrivalState)
                     || wasArriving != value.arriving
                     || !before.rebased(tick).equals(value.frame)) {
                 value.epoch = tick;
-                for (var player : level.players()) if (Space.in(player)) send(player, true);
+                for (var player : level.players()) if (Space.in(player)) send(player);
             }
-            return;
         }
-        shiftRegion(level, container, bodies, value, delta, tick);
     }
 
     private static int lockedPlanet(
@@ -762,7 +686,7 @@ public final class SpaceServer extends SavedData {
             ServerLevel level,
             java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
             Point v) {
-        for (var entity : regionEntities(level))
+        for (var entity : SpaceGravity.regionEntities(level))
             if (Space.in(entity)) {
                 var body = SableFrames.aboard(entity);
                 if (body != null && bodies.contains(body) && SableFrames.tracked(entity, body))
@@ -980,13 +904,24 @@ public final class SpaceServer extends SavedData {
                         body, new org.joml.Vector3d(linear.x(), linear.y(), linear.z()), angular);
     }
 
-    private static void shiftRegion(
+    private static boolean shiftRegion(
             ServerLevel level,
             dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container,
             java.util.List<dev.ryanhcode.sable.sublevel.ServerSubLevel> bodies,
             SpaceServer value,
             Point delta,
             long tick) {
+        for (var body : bodies) {
+            if (SableFrames.canShiftRegion(level, body, delta)) continue;
+            if (!value.anchorBlocked)
+                org.slf4j.LoggerFactory.getLogger("starfold")
+                        .warn(
+                                "Skipped space re-anchor: hull {} or its crew would cross a chart boundary",
+                                body);
+            value.anchorBlocked = true;
+            return false;
+        }
+        value.anchorBlocked = false;
         long probeStart = Boolean.getBoolean("starfold.chunkPerf") ? System.nanoTime() : 0;
         value.frame = value.frame.shifted(delta);
         value.epoch = tick;
@@ -1008,8 +943,13 @@ public final class SpaceServer extends SavedData {
         for (var player : level.players()) if (Space.in(player)) send(player);
         if (probeStart != 0)
             org.slf4j.LoggerFactory.getLogger("starfold-chunk-perf")
-                    .info("PROBE REANCHOR tick {} nanos {} bodies {} delta {}", tick,
-                            System.nanoTime() - probeStart, bodies.size(), delta);
+                    .info(
+                            "PROBE REANCHOR tick {} nanos {} bodies {} delta {}",
+                            tick,
+                            System.nanoTime() - probeStart,
+                            bodies.size(),
+                            delta);
+        return true;
     }
 
     private static java.util.ArrayList<dev.ryanhcode.sable.sublevel.ServerSubLevel> spaceBodies(
@@ -1036,11 +976,7 @@ public final class SpaceServer extends SavedData {
     }
 
     private static void absorbLeadImpulse(
-            SpaceServer value,
-            long tick,
-            Point v,
-            Point towardEntry,
-            double blend) {
+            SpaceServer value, long tick, Point v, Point towardEntry, double blend) {
         var f = value.frame.rebased(tick);
         value.frame =
                 new Space.Frame(
@@ -1108,13 +1044,8 @@ public final class SpaceServer extends SavedData {
         if (!(container instanceof dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer server)
                 || lead(level, server) != body
                 || level.players().stream().noneMatch(player -> helm(player, body))) return false;
-        var clock = GroundClock.get(level).clock;
-        var model = clock.model;
-        long tick = clock.tick();
-        var f = frame(level);
-        var universe = f.universe(new Point(at.x, at.y, at.z), model, tick);
-        int nearest = Space.nearest(model, universe, tick);
-        var shape = PlanetShape.of(nearest);
+        // Keep saved-clock initialization/model reconciliation before loading the space frame.
+        GroundClock.get(level);
         return !get(level).arriving;
     }
 
@@ -1125,8 +1056,11 @@ public final class SpaceServer extends SavedData {
                 || !helm(player, target.body())
                 || Thrusters.scopeTier(target.body()) < 2
                 || (target.ship() == null
-                        ? !knownTarget(target.celestial().bodyIndex(), GroundClock.get(target.level()).clock.model)
-                        : !dev.starfold.ship.ShipSave.get(target.level()).owns(player.getUUID(), target.ship()))) return false;
+                        ? !knownTarget(
+                                target.celestial().bodyIndex(),
+                                GroundClock.get(target.level()).clock.model)
+                        : !dev.starfold.ship.ShipSave.get(target.level())
+                                .owns(player.getUUID(), target.ship()))) return false;
         var container =
                 dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(target.level());
         return container instanceof dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer server
@@ -1195,15 +1129,26 @@ public final class SpaceServer extends SavedData {
             targets.remove(player);
             return null;
         }
-        var record = target.ship() == null ? null : dev.starfold.ship.ShipSave.get(player.serverLevel()).find(target.ship());
-        if (target.ship() != null && record == null) { targets.remove(player); return null; }
-        return (record == null ? target.celestial().frame(model, tick).velocity()
-                : MapNavigation.velocity(model, record, tick)).sub(model.at(reference, tick).velocity());
+        var record =
+                target.ship() == null
+                        ? null
+                        : dev.starfold.ship.ShipSave.get(player.serverLevel()).find(target.ship());
+        if (target.ship() != null && record == null) {
+            targets.remove(player);
+            return null;
+        }
+        return (record == null
+                        ? target.celestial().frame(model, tick).velocity()
+                        : MapNavigation.velocity(model, record, tick))
+                .sub(model.at(reference, tick).velocity());
     }
 
-    public static void targetShip(net.minecraft.server.level.ServerPlayer player, java.util.UUID ship) {
+    public static void targetShip(
+            net.minecraft.server.level.ServerPlayer player, java.util.UUID ship) {
         target(player, -1);
-        if (!Space.in(player) || !dev.starfold.ship.ShipSave.get(player.serverLevel()).owns(player.getUUID(), ship)) return;
+        if (!Space.in(player)
+                || !dev.starfold.ship.ShipSave.get(player.serverLevel())
+                        .owns(player.getUUID(), ship)) return;
         var body = SableFrames.aboard(player);
         if (body != null && helm(player, body) && Thrusters.scopeTier(body) >= 2) {
             targets.put(player, new Target(player.serverLevel(), body, null, ship));

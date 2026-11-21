@@ -1,10 +1,9 @@
 package dev.starfold.render;
 
-import dev.starfold.universe.PlanetTypeFixtures;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+import dev.starfold.universe.PlanetTypeFixtures;
 import dev.starfold.worldgen.PlanetTerrain;
 import dev.starfold.worldgen.PlanetTerrainTest;
 import dev.starfold.worldgen.lod.VoxelMesher;
@@ -120,25 +119,76 @@ class GroundSurfaceMipTest {
     }
 
     @Test
-    void biomeScatterPlantsStayAboveTheSampledBaseWithoutBuildingFullTerrainColumns()throws Exception {
+    void biomeScatterSeparatesSubmergedPlantsFromLandObjectsWithoutBuildingFullTerrainColumns()
+            throws Exception {
         PlanetTypeFixtures.boot();
         dev.starfold.worldgen.surface.SurfaceTestTags.bind();
         var type = PlanetTypeFixtures.type("lush");
-        var terrain=type.planet(42,java.util.Optional.of(type.minSize())).terrain();int plants=0;
-        search: for(var face:Face.VALUES)for(int z=96;z<terrain.shape().size()-96;z+=3)for(int x=96;x<terrain.shape().size()-96;x+=3) {
-            var runs=terrain.scatter().column(face,x,z);
-            if(runs.stream().noneMatch(r->VoxelMesher.plant(r.block())))continue;
-            var c=GroundSurfaceMip.sample(terrain,face,x,z,null,null);
-            assertFalse(c.material().isAir());assertEquals(terrain.surfaceY(face,x,z),c.y());
-            for(var run:runs)assertTrue(run.bottom()>c.y());
-            if(++plants==32)break search;
-        }
-        assertTrue(plants>0);assertEquals(0,terrain.cachedColumns());
+        var terrain = type.planet(42, java.util.Optional.of(type.minSize())).terrain();
+        var function = new dev.starfold.worldgen.surface.SurfaceFunction(terrain);
+        int land = 0, underwater = 0;
+        search:
+        for (var face : Face.VALUES)
+            for (int z = 96; z < terrain.shape().size() - 96; z += 3)
+                for (int x = 96; x < terrain.shape().size() - 96; x += 3) {
+                    var runs = terrain.scatter().column(face, x, z);
+                    if (runs.stream().noneMatch(r -> VoxelMesher.plant(r.block()))) continue;
+                    var visible = function.visible(face, x, z);
+                    // The legacy mip's last run is below submerged objects; test the actual
+                    // surface cap independently of that three-layer test adapter.
+                    var c = new GroundSurfaceMip.Column(visible.top(), visible.block());
+                    assertFalse(c.material().isAir());
+                    assertEquals(terrain.surfaceY(face, x, z), c.y());
+                    boolean dryPlant = false, wetPlant = false;
+                    for (var run : runs) {
+                        boolean aquatic =
+                                run.block().getFluidState().is(net.minecraft.tags.FluidTags.WATER)
+                                        || run.block()
+                                                .is(net.minecraft.tags.BlockTags.CORAL_BLOCKS);
+                        if (aquatic) {
+                            assertTrue(terrain.submerged(face, x, z, terrain.groundY(face, x, z)));
+                            assertTrue(run.bottom() > terrain.groundY(face, x, z));
+                            assertTrue(
+                                    run.top() < c.y(), "Aquatics must leave the water cap intact");
+                            assertTrue(c.material().is(Blocks.WATER));
+                            wetPlant = true;
+                        } else dryPlant |= VoxelMesher.plant(run.block());
+                        // Every aquatic voxel survives composition; land retains the old cap
+                        // clipping.
+                        for (int y = aquatic ? run.bottom() : Math.max(c.y() + 1, run.bottom());
+                                y <= run.top();
+                                y++) {
+                            final int at = y;
+                            assertTrue(
+                                    visible.objects().stream()
+                                            .anyMatch(
+                                                    r ->
+                                                            r.bottom() <= at
+                                                                    && r.top() >= at
+                                                                    && r.block()
+                                                                            .equals(run.block())));
+                        }
+                    }
+                    for (var run : visible.objects())
+                        if (!run.block().getFluidState().is(net.minecraft.tags.FluidTags.WATER)
+                                && !run.block().is(net.minecraft.tags.BlockTags.CORAL_BLOCKS))
+                            assertTrue(
+                                    run.bottom() > c.y(),
+                                    "Land objects must stay above the sampled cap");
+                    if (dryPlant) land++;
+                    if (wetPlant) underwater++;
+                    if (land >= 32 && underwater >= 32) break search;
+                }
+        assertTrue(land > 0, "Exercise land plants");
+        assertTrue(underwater > 0, "Exercise submerged plants");
+        assertEquals(0, terrain.cachedColumns());
     }
 
     @Test
     void servedRealAirIsNotReplacedByProceduralGroundOrFakeTrees() {
-        var terrain = new PlanetTerrain(PlanetTerrain.TEST_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION);
+        var terrain =
+                new PlanetTerrain(
+                        PlanetTerrain.TEST_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION);
         var real = image(-65, Blocks.AIR.defaultBlockState());
         var actual =
                 GroundSurfaceMip.sample(
@@ -209,6 +259,6 @@ class GroundSurfaceMipTest {
                 assertTrue(tree.y() >= plain.y());
                 if (tree.canopy() != null && tree.canopy().material().equals(LEAVES)) leaves++;
             }
-        assertEquals(0,leaves,"Dry volcanic terrain must not acquire approximate trees");
+        assertEquals(0, leaves, "Dry volcanic terrain must not acquire approximate trees");
     }
 }

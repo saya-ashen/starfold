@@ -1,0 +1,170 @@
+strict
+waitworld
+wait 65
+check survival-recovery if entity @s[gamemode=survival]
+atlas away {loopShip} 3
+press 77 1
+wait 2
+press 77 0
+wait 20
+atlas ship {loopShip}
+shot fleck-restart-atlas-original
+press 256 1
+wait 2
+press 256 0
+wait 8
+press 256 1
+wait 2
+press 256 0
+wait 10
+frames fleck-recovery 180
+until loopstair 1400
+baritone stair 1000
+stairwalk loop-back
+wait 15
+atlas aboard {loopShip}
+atlas useblock starfold:helm
+wait 20
+requirehelm
+check cargo-eight-after-restart if data block {loopCargo} Items[{Slot:0b,id:"mekanism:raw_osmium",count:8}]
+cmd execute store result score $recoveredDiesel sfLoop run data get block {loopDiesel} TankContent.Fluid.amount
+cmd execute store result score $recoveredGasoline sfLoop run data get block {loopGasoline} TankContent.Fluid.amount
+check reboot-diesel-preserved if score $recoveredDiesel sfLoop = $savedDiesel sfLoop
+check reboot-gasoline-preserved if score $recoveredGasoline sfLoop = $savedGasoline sfLoop
+nav s-chart
+helmstate fleck-recovered-helm
+shot fleck-recovered-helm
+
+# Return with cargo
+check departing-with-eight-osmium if data block {loopCargo} Items[{Slot:0b,id:"mekanism:raw_osmium",count:8}]
+nav s-chart
+press 32 1
+until clearance> 25 260
+nav s-lift
+until region 1100
+press 32 0
+wait 25
+nav s-space
+requirehelm
+atlas aboard {loopShip}
+cmd data get block {loopGasoline} TankContent
+shot copper-swift-fleck-departure
+until region 80
+shipaim 0 900
+nav s-aimed
+press 70 1
+wait 2
+press 70 0
+wait 30
+lock s-lock
+navplanets hearth-departure
+frames return-burn 180
+shipaim 0 420 intercept
+press 87 1
+press 341 1
+wait 70
+press 341 0
+shipaim 0 300 arrival
+navplanets hearth-first-burn
+press 87 0
+nav s-final-burn
+until notice 1100
+nav s-notice
+until chart 1500
+nav s-chart
+requirehelm
+atlas aboard {loopShip}
+until ready 0 160
+check returned-with-eight-osmium if data block {loopCargo} Items[{Slot:0b,id:"mekanism:raw_osmium",count:8}]
+nav s-hearth-return
+helmstate hearth-returned
+shot copper-swift-hearth-return
+cmd execute store result score $approachHealth sfLoop run data get entity @s Health 1000
+frames hearth-approach 180
+charttravel 18222.8 1776.4 4 1600 180
+until faceinset> 96 80
+press 340 1
+until clearance< 110 1800
+press 340 0
+wait 60
+until faceinset> 96 80
+nav s-survey
+shot copper-swift-hearth-descent
+
+cmd execute store result score $fold sfLoop run loopfold
+check hearth-away-from-fold if score $fold sfLoop matches 136..
+press 340 1
+until loopstair 1200
+press 340 0
+wait 40
+until loopstair 180
+until drysite 80
+until faceinset> 96 60
+cmd execute store result score $fold sfLoop run loopfold
+check hearth-contact-away-from-fold if score $fold sfLoop matches 136..
+nav s-hearth-contact
+helmstate hearth-returned
+cmd execute store result score $contactHealth sfLoop run data get entity @s Health 1000
+check hearth-contact-health if score $contactHealth sfLoop >= $approachHealth sfLoop
+check cargo-before-unload if data block {loopCargo} Items[{Slot:0b,id:"mekanism:raw_osmium",count:8}]
+press 82 1
+wait 2
+press 82 0
+wait 6
+press 82 1
+wait 2
+press 82 0
+wait 20
+nav s-exit-first-press
+walklocal 0.7 1 100
+walklocal 2.6 1 120
+atlas useblock minecraft:barrel {loopCargo}
+wait 14
+guide take 0
+wait 12
+guide close
+check received-eight-osmium if data entity @s Inventory[{id:"mekanism:raw_osmium",count:8}]
+check emptied-cargo unless data block {loopCargo} Items[{id:"mekanism:raw_osmium"}]
+shot hearth-osmium-unloaded
+check survival-circuits if entity @s[gamemode=survival]
+check only-returned-osmium if data entity @s Inventory[{id:"mekanism:raw_osmium",count:8}]
+check no-osmium-ingots unless data entity @s Inventory[{id:"mekanism:ingot_osmium"}]
+check no-basic-circuits unless data entity @s Inventory[{id:"mekanism:basic_control_circuit"}]
+until loopstair 180
+stairwalk loop
+until ground 80
+atlas away {loopShip} 2
+frames hearth-workshop 180
+cmd loopworkshop
+cmd give @s minecraft:coal 1
+cmd give @s minecraft:redstone 4
+atlas useblock minecraft:furnace
+wait 14
+guide store mekanism:raw_osmium 0 2
+wait 8
+guide store minecraft:coal 1 1
+wait 430
+guide take 2
+wait 12
+guide close
+check smelted-two-returned-osmium if data entity @s Inventory[{id:"mekanism:ingot_osmium",count:2}]
+check six-raw-osmium-left if data entity @s Inventory[{id:"mekanism:raw_osmium",count:6}]
+atlas useblock mekanism:metallurgic_infuser
+wait 16
+guide store minecraft:redstone 2 1
+wait 10
+guide store minecraft:redstone 2 1
+wait 10
+guide store minecraft:redstone 2 1
+wait 10
+guide store minecraft:redstone 2 1
+wait 10
+guide store mekanism:ingot_osmium 3 2
+wait 440
+guide take 4
+wait 12
+guide close
+check first-two-basic-circuits if data entity @s Inventory[{id:"mekanism:basic_control_circuit",count:2}]
+check consumed-osmium-ingots unless data entity @s Inventory[{id:"mekanism:ingot_osmium"}]
+shot hearth-first-basic-circuits
+quit

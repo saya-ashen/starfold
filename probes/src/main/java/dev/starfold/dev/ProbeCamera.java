@@ -1,8 +1,8 @@
 package dev.starfold.dev;
 
-import static dev.starfold.dev.ProbeSession.*;
 import static dev.starfold.dev.ProbeInput.*;
 import static dev.starfold.dev.ProbeSamples.*;
+import static dev.starfold.dev.ProbeSession.*;
 
 import dev.starfold.chart.PlanetOrbit;
 import dev.starfold.chart.PlanetShape;
@@ -605,8 +605,7 @@ final class ProbeCamera {
         var frame = PlanetOrbit.frame(GroundClient.shape(), GroundClient.state().pose());
         var d =
                 ChartLabSpace.rotate(
-                        frame.local(
-                                home.inverseVector(target.sub(GroundClient.universeEye()))),
+                        frame.local(home.inverseVector(target.sub(GroundClient.universeEye()))),
                         GroundClient.frame().turns());
         yaw = (float) Math.toDegrees(Math.atan2(-d.x(), d.z()));
         pitch = (float) -Math.toDegrees(Math.atan2(d.y(), Math.hypot(d.x(), d.z())));

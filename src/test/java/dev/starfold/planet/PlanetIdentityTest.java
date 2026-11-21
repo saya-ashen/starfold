@@ -103,7 +103,9 @@ class PlanetIdentityTest {
         var system =
                 SystemChunkGenerator.CODEC
                         .codec()
-                        .parse(PlanetTypeFixtures.ops(), PlanetTypeFixtures.preset("native_universe"))
+                        .parse(
+                                PlanetTypeFixtures.ops(),
+                                PlanetTypeFixtures.preset("native_universe"))
                         .getOrThrow();
         for (int i = 0; i < 2; i++) {
             var id = system.planet(i).identity();

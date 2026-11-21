@@ -26,8 +26,8 @@ import dev.starfold.ship.ShipRecords;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.GroundDaylight;
-import dev.starfold.space.SpaceServer;
 import dev.starfold.space.SpaceDust;
+import dev.starfold.space.SpaceServer;
 import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.universe.Universe;
@@ -60,7 +60,13 @@ public final class StarfoldServer {
         Universe.grown =
                 (level, system, updateClock) -> {
                     GroundServer.system(system);
-                    var clock = updateClock.get();
+                    GroundClock clock;
+                    try {
+                        clock = updateClock.get();
+                    } catch (IllegalArgumentException | IllegalStateException error) {
+                        // Preserve the clock origin across Universe.grow's other state changes.
+                        throw new ClockUpdateFailure(error);
+                    }
                     for (var player : level.players()) {
                         GroundServer.shapes(player);
                         GroundFlightServer.restart(player, clock);
@@ -104,7 +110,7 @@ public final class StarfoldServer {
                             instanceof SystemChunkGenerator system) {
                         system.materialize(level.getSeed());
                         Universe.bind(level, system);
-                        dev.starfold.worldgen.plan.PlanetPlanStore.bind(level,system);
+                        dev.starfold.worldgen.plan.PlanetPlanStore.bind(level, system);
                         GroundServer.system(system);
                     }
                     ShipRecords.attach(level);
@@ -134,7 +140,8 @@ public final class StarfoldServer {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(PlanetPlayers::respawn);
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) ->
-                        PlanetPlayers.joined((net.minecraft.server.level.ServerPlayer) event.getEntity()));
+                        PlanetPlayers.joined(
+                                (net.minecraft.server.level.ServerPlayer) event.getEntity()));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.tick.ServerTickEvent.Post cpEvent) -> {
                     var server = cpEvent.getServer();
@@ -212,12 +219,13 @@ public final class StarfoldServer {
                     try {
                         if (a != null) GroundClock.get(a).advance();
                     } catch (IllegalArgumentException | IllegalStateException error) {
+                        tickFailure(a, "clock advance", error);
+                        var message =
+                                Component.translatable(
+                                        "message.starfold.clock_stopped",
+                                        WaypointServer.failureMessage(error));
                         for (var p : server.getPlayerList().getPlayers())
-                            if (PlanetLevels.is(p.level()))
-                                p.sendSystemMessage(
-                                        Component.translatable(
-                                                "message.starfold.clock_stopped",
-                                                WaypointServer.failure(error)));
+                            if (PlanetLevels.is(p.level())) p.sendSystemMessage(message);
                     }
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -225,31 +233,107 @@ public final class StarfoldServer {
                     if (!(cpEvent.getLevel()
                             instanceof net.minecraft.server.level.ServerLevel level)) return;
                     if (!PlanetLevels.is(level)) return;
+                    var saved = tickFlight(level);
+                    tickGroundViews(level, saved);
+                    if (saved == null) return;
                     try {
-                        var saved = GroundClock.get(level);
-                        GroundFlightServer.tick(level, saved);
-                        ImageStream.tick(level);
-                        ChunkTickReadiness.postProcessHeld(level);
-                        GroundViewServer.tick(level, saved);
                         AnomalyZone.tick(level);
                         DevelopmentHooks.tickLevel.accept(level);
-                        if (level.getGameTime() % 20 == 0) {
-                            ShipRecords.refresh(level);
-                            for (var player : List.copyOf(level.players())) {
-                                var at = GroundFlightServer.position(player, saved);
-                                if (at != null && Universe.grow(level, at))
-                                    saved = GroundClock.get(level);
-                            }
-                            for (var player : level.players()) PlanetPlayers.send(player, saved);
-                        }
                     } catch (IllegalArgumentException | IllegalStateException error) {
-                        for (var player : level.players())
-                            player.sendSystemMessage(
-                                    Component.translatable(
-                                            "message.starfold.clock_failed",
-                                            WaypointServer.failure(error)));
+                        tickFailure(level, "player environment", error);
                     }
+                    if (level.getGameTime() % 20 == 0) tickPeriodic(level, saved);
                 });
+    }
+
+    /** A failed clock or flight update must not feed partially updated state to its consumers. */
+    private static GroundClock tickFlight(ServerLevel level) {
+        var saved = tickClock(level);
+        if (saved == null) return null;
+        try {
+            GroundFlightServer.tick(level, saved);
+            return saved;
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            tickFailure(level, "flight", error);
+            return null;
+        }
+    }
+
+    private static GroundClock tickClock(ServerLevel level) {
+        try {
+            return GroundClock.get(level);
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            clockFailed(level, error);
+            return null;
+        }
+    }
+
+    private static void clockFailed(ServerLevel level, RuntimeException error) {
+        tickFailure(level, "clock load/update", error);
+        var message =
+                Component.translatable(
+                        "message.starfold.clock_failed", WaypointServer.failureMessage(error));
+        for (var player : level.players()) player.sendSystemMessage(message);
+    }
+
+    /** Only errors from the growth callback's clock supplier carry this origin marker. */
+    private static final class ClockUpdateFailure extends IllegalStateException {
+        private ClockUpdateFailure(RuntimeException cause) {
+            super(cause);
+        }
+    }
+
+    private static void tickGroundViews(ServerLevel level, GroundClock saved) {
+        // Image and far-view publication both consume flight state, but neither owns the other's
+        // queues. Held-chunk maintenance needs neither the celestial clock nor a flight update.
+        if (saved != null) {
+            try {
+                ImageStream.tick(level);
+            } catch (IllegalArgumentException | IllegalStateException error) {
+                tickFailure(level, "image stream", error);
+            }
+        }
+        try {
+            ChunkTickReadiness.postProcessHeld(level);
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            tickFailure(level, "held chunk post-processing", error);
+        }
+        if (saved != null) {
+            try {
+                GroundViewServer.tick(level, saved);
+            } catch (IllegalArgumentException | IllegalStateException error) {
+                tickFailure(level, "ground view", error);
+            }
+        }
+    }
+
+    private static void tickPeriodic(ServerLevel level, GroundClock saved) {
+        try {
+            ShipRecords.refresh(level);
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            tickFailure(level, "ship records", error);
+        }
+        // Growth changes the model and restarts flight sessions. Do not publish the sky or continue
+        // to another traveller if that transition failed partway through.
+        try {
+            for (var player : List.copyOf(level.players())) {
+                var at = GroundFlightServer.position(player, saved);
+                if (at != null && Universe.grow(level, at)) {
+                    saved = tickClock(level);
+                    if (saved == null) return;
+                }
+            }
+            for (var player : level.players()) PlanetPlayers.send(player, saved);
+        } catch (ClockUpdateFailure error) {
+            clockFailed(level, (RuntimeException) error.getCause());
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            tickFailure(level, "universe growth and sky sync", error);
+        }
+    }
+
+    private static void tickFailure(ServerLevel level, String phase, RuntimeException error) {
+        org.slf4j.LoggerFactory.getLogger("starfold")
+                .warn("Starfold {} tick failed in {}", phase, level.dimension().location(), error);
     }
 
     private static void registerCommands() {
@@ -258,5 +342,4 @@ public final class StarfoldServer {
                     StarfoldCommands.register(cpEvent.getDispatcher());
                 });
     }
-
 }

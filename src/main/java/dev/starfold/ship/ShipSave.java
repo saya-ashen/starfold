@@ -30,11 +30,14 @@ public final class ShipSave extends SavedData {
         return true;
     }
 
-    public boolean owns(UUID player, UUID ship) { return player.equals(owners.get(ship)); }
+    public boolean owns(UUID player, UUID ship) {
+        return player.equals(owners.get(ship));
+    }
 
     public List<ShipRecord> owned(UUID player) {
         return list().stream().filter(r -> owns(player, r.uuid())).toList();
     }
+
     private final Map<Integer, Integer> nextIndices = new LinkedHashMap<>();
     private final Map<UUID, ShipRecord> records = new LinkedHashMap<>();
 
@@ -164,12 +167,15 @@ public final class ShipSave extends SavedData {
                 throw new IllegalArgumentException("Duplicate ship or invalid counter");
         }
         var owners = tag.getList("owners", Tag.TAG_COMPOUND);
-        if (owners.size() != ((ListTag) tag.get("owners")).size()) throw new IllegalArgumentException("Ship owners type");
+        if (owners.size() != ((ListTag) tag.get("owners")).size())
+            throw new IllegalArgumentException("Ship owners type");
         for (var entry : owners) {
             var owner = (CompoundTag) entry;
-            if (!owner.hasUUID("ship") || !owner.hasUUID("player")) throw new IllegalArgumentException("Ship owner UUID");
+            if (!owner.hasUUID("ship") || !owner.hasUUID("player"))
+                throw new IllegalArgumentException("Ship owner UUID");
             var ship = owner.getUUID("ship");
-            if (!saved.records.containsKey(ship) || saved.owners.putIfAbsent(ship, owner.getUUID("player")) != null)
+            if (!saved.records.containsKey(ship)
+                    || saved.owners.putIfAbsent(ship, owner.getUUID("player")) != null)
                 throw new IllegalArgumentException("Ship owner");
         }
         return saved;
@@ -191,11 +197,13 @@ public final class ShipSave extends SavedData {
         for (var record : list()) list.add(ShipCodec.write(record));
         tag.put("records", list);
         var ownership = new ListTag();
-        owners.forEach((ship, player) -> {
-            var owner = new CompoundTag();
-            owner.putUUID("ship", ship); owner.putUUID("player", player);
-            ownership.add(owner);
-        });
+        owners.forEach(
+                (ship, player) -> {
+                    var owner = new CompoundTag();
+                    owner.putUUID("ship", ship);
+                    owner.putUUID("player", player);
+                    ownership.add(owner);
+                });
         tag.put("owners", ownership);
         return tag;
     }

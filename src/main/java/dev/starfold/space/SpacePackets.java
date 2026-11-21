@@ -161,8 +161,10 @@ public final class SpacePackets {
         }
 
         public boolean finite() {
-            return Float.isFinite(pitch) && Float.isFinite(roll)
-                    && Float.isFinite(mouseYaw) && Float.isFinite(mousePitch);
+            return Float.isFinite(pitch)
+                    && Float.isFinite(roll)
+                    && Float.isFinite(mouseYaw)
+                    && Float.isFinite(mousePitch);
         }
 
         public static final Type<Attitude> TYPE =

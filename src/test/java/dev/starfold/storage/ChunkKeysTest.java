@@ -20,7 +20,8 @@ class ChunkKeysTest {
         for (int[] xy : new int[][] {{-1, 0}, {0, -1}, {128, 0}, {0, 128}, {1536, 0}})
             assertEquals(-1, ChunkKeys.local(xy[0], xy[1]));
         assertThrows(IllegalArgumentException.class, () -> ChunkKeys.chunkX(-1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> ChunkKeys.chunkZ(ChunkKeys.CHUNKS_PER_PLANET));
     }
 }

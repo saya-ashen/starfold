@@ -29,7 +29,7 @@ public final class PlanetHeightCache {
         }
         int i = (u & 15) + 16 * (v & 15);
         if (tile[i] == Integer.MIN_VALUE) {
-            tile[i] = terrain.surfaceY(face,u,v);
+            tile[i] = terrain.surfaceY(face, u, v);
             samples++;
         }
         return tile[i];
@@ -70,7 +70,7 @@ public final class PlanetHeightCache {
     }
 
     public int surfaceY(Face face, int u, int v) {
-        return terrain.surfaceY(face,u,v);
+        return terrain.surfaceY(face, u, v);
     }
 
     public net.minecraft.world.level.block.state.BlockState surfaceState(Face face, int u, int v) {

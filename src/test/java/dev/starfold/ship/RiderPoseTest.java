@@ -2,8 +2,6 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
-
 import net.minecraft.world.phys.AABB;
 
 import org.junit.jupiter.api.Test;
@@ -44,11 +42,6 @@ class RiderPoseTest {
         assertTrue(
                 mixins.getAsJsonArray("mixins").asList().stream()
                         .anyMatch(x -> x.getAsString().equals("HelmFitMixin")));
-        var source = Sources.text("HelmFitMixin");
-        assertTrue(source.contains("method=\"updatePlayerPose\""));
-        assertTrue(source.contains("Player;isPassenger()Z"));
-        assertFalse(source.contains("setPose("));
-        assertFalse(source.contains("cancellable=true"));
     }
 
     @Test

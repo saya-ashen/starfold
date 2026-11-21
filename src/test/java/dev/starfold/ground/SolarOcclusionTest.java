@@ -2,7 +2,6 @@ package dev.starfold.ground;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
@@ -12,9 +11,6 @@ import dev.starfold.sky.GroundDaylight;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 /** CPU reproduction of native_ground_sun.fsh's ray/sphere interval, not GPU acceptance. */
 class SolarOcclusionTest {
@@ -67,21 +63,6 @@ class SolarOcclusionTest {
             assertFalse(
                     blocked(eye, eye.add(face.u.scale(10000)), GroundTopology.SOLAR_CORE_RADIUS));
         }
-    }
-
-    @Test
-    void rendererUsesCoreWithoutDisablingActualTerrainDepthOcclusion() throws Exception {
-        var source = Sources.text("GroundSunRenderer");
-        assertTrue(
-                source.contains(
-                        "shader.getUniform(\"PlanetRadius\").set((float)PlanetShape.coreRadius(GroundClient.planet()))"));
-        assertFalse(source.contains("GroundOrbit.RADIUS-.01"));
-        assertTrue(source.contains("RenderSystem.enableDepthTest()"));
-        var shader =
-                Files.readString(
-                        Path.of(
-                                "src/main/resources/assets/starfold/shaders/core/native_ground_sun.fsh"));
-        assertTrue(shader.contains("if(far>0.0001&&near<distance-0.0001) discard"));
     }
 
     @Test

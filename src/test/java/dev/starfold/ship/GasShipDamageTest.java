@@ -122,7 +122,8 @@ class GasShipDamageTest {
         assertTrue(mutation > calls.lastIndexOf("eligible"));
         assertTrue(mutation > calls.lastIndexOf("exposed"));
         assertTrue(calls.indexOf("succeeded") > mutation);
-        assertTrue(calls.lastIndexOf("getBlockState") > mutation, "only count a confirmed AIR write");
+        assertTrue(
+                calls.lastIndexOf("getBlockState") > mutation, "only count a confirmed AIR write");
         var step =
                 node.methods.stream().filter(m -> m.name.equals("step")).findFirst().orElseThrow();
         var serviceCalls = new ArrayList<String>();

@@ -8,37 +8,63 @@ import org.objectweb.asm.tree.*;
 
 import java.util.*;
 
-/** Inspect COMPILED annotation selectors against real upstream bytecode. No Minecraft startup. */
+/**
+ * Inspect compiled annotation selectors against original dependency bytecode. No Minecraft startup.
+ * The explicit inventory is exhaustive; "audited" means these structural contracts, not a complete
+ * Mixin transformer simulation. Injection ordering, shifts/slices, cancellation behavior, remapping,
+ * bridge/coercion assignability and interactions with other mods require runtime coverage. Local
+ * capture supports unique typed locals; ThrusterOcclusion/WaterAppearance have dedicated contracts.
+ * Other mutable local captures, local-variable modification, injector kinds and allocation/field
+ * forms need an audit extension or an exact named exemption before they can be included.
+ */
 class MixinContractTest {
     private static java.io.InputStream resource(String path) throws Exception {
         if (path.startsWith("dev/starfold/mixin/")) {
             String name = path.substring(path.lastIndexOf('/') + 1).replace(".class", "");
             for (var config : CONFIGS.entrySet()) {
                 try (var in = resource(config.getKey(), config.getValue())) {
-                    var json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in)).getAsJsonObject();
-                    for (String side : List.of("mixins", "client")) {
+                    var json =
+                            com.google.gson.JsonParser.parseReader(
+                                            new java.io.InputStreamReader(in))
+                                    .getAsJsonObject();
+                    for (String side : List.of("mixins", "client", "server")) {
                         if (!json.has(side)) continue;
                         for (var entry : json.getAsJsonArray(side)) {
                             if (name.equals(entry.getAsString()))
-                                return resource(json.get("package").getAsString().replace('.', '/') + "/" + name + ".class", config.getValue());
+                                return resource(
+                                        json.get("package").getAsString().replace('.', '/')
+                                                + "/"
+                                                + name
+                                                + ".class",
+                                        config.getValue());
                         }
                     }
                 }
             }
             throw new IllegalArgumentException("Mixin not declared in a configuration: " + name);
         }
-        return resource(path, CONFIGS.getOrDefault(path,
-                path.startsWith("net/minecraft/") ? "starfold.auditUpstream"
-                : path.startsWith("dev/ryanhcode/sable/") ? "starfold.auditSable"
-                : path.startsWith("foundry/veil/") ? "starfold.auditVeil" : "starfold.auditJar"));
+        return resource(
+                path,
+                CONFIGS.getOrDefault(
+                        path,
+                        (path.startsWith("net/minecraft/")
+                                        || path.startsWith("com/mojang/blaze3d/"))
+                                ? "starfold.auditUpstream"
+                                : path.startsWith("dev/ryanhcode/sable/")
+                                        ? "starfold.auditSable"
+                                        : path.startsWith("foundry/veil/")
+                                                ? "starfold.auditVeil"
+                                                : "starfold.auditJar"));
     }
 
-    private static final Map<String, String> CONFIGS = Map.of(
-            "starfold.mixins.json", "starfold.auditJar",
-            "starfold_probes.mixins.json", "starfold.auditProbes",
-            "starfold_worlds.mixins.json", "starfold.auditPack");
+    private static final Map<String, String> CONFIGS =
+            Map.of(
+                    "starfold.mixins.json", "starfold.auditJar",
+                    "starfold_probes.mixins.json", "starfold.auditProbes",
+                    "starfold_worlds.mixins.json", "starfold.auditPack");
 
-    private static java.io.InputStream resource(String path, String archiveProperty) throws Exception {
+    private static java.io.InputStream resource(String path, String archiveProperty)
+            throws Exception {
         String archive = System.getProperty(archiveProperty);
         if (archive == null) return TestArchiveResources.open("/" + path);
         try (var zip = new java.util.zip.ZipFile(archive)) {
@@ -80,62 +106,212 @@ class MixinContractTest {
                 : o == null ? List.of() : List.of(o.toString());
     }
 
-    private static List<String> names() throws Exception {
-        var result = new ArrayList<String>();
-        for (String config : List.of("starfold.mixins.json", "starfold_probes.mixins.json", "starfold_worlds.mixins.json")) {
-        try (var in = resource(config)) {
-            var json =
-                    com.google.gson.JsonParser.parseString(new String(in.readAllBytes()))
-                            .getAsJsonObject();
-            result.addAll(java.util.stream.Stream.concat(
-                            json.getAsJsonArray("mixins").asList().stream(),
-                            json.getAsJsonArray("client").asList().stream())
-                    .map(e -> e.getAsString())
-                    .filter(
-                            s ->
-                                    Set.of(
-                                                            "SpriteAccess",
-                                                            "SavedDataFileAccess",
-                                                            "BlockEntityAccess",
-                                                            "BlockEntityPacketAccess",
-                                                            "ChunkPacketAccess",
-                                                            "TeleportPacketAccess",
-                                                            "TrackedAccess")
-                                                    .contains(s)
-                                            || s.equals("ChunkPerfSaveMixin")
-                                            || s.equals("HullBottomCacheMixin")
-                                            || s.equals("SableShipWriteMixin")
-                                            || s.equals("SableShipStorageMixin")
-                                            || s.equals("SableShipSerializationMixin")
-                                            || s.equals("SableShipSplitMixin")
-                                            || s.equals("SableFuelMassMixin")
-                                            || s.equals("SableShipReadinessMixin")
-                                            || s.startsWith("Mesh")
-                                            || s.equals("ThrusterOcclusionMixin")
-                                            || s.equals("WaterAppearanceMixin")
-                                            || s.startsWith("Ground")
-                                            || s.startsWith("Planet")
-                                            || s.equals("CoreShaderShaderMixin")
-                                            || s.equals("CoreShaderVeilProcessorMixin"))
-                    .toList());
+    private record RegisteredMixin(String className, String archiveProperty) {
+        String simpleName() {
+            return className.substring(className.lastIndexOf('.') + 1);
         }
+    }
+
+    private static ClassNode read(RegisteredMixin mixin) throws Exception {
+        try (var in =
+                resource(mixin.className().replace('.', '/') + ".class", mixin.archiveProperty())) {
+            assertNotNull(in, mixin.className());
+            var node = new ClassNode();
+            new ClassReader(in).accept(node, 0);
+            return node;
+        }
+    }
+
+    /**
+     * Every registration needs an explicit decision, including optional/plugin-disabled mixins.
+     * Keep this in the two packaged test entry points: a separate @Test would not be selected there.
+     * The inventory is a TEST resource, never read from the production audit jar.
+     */
+    private static List<RegisteredMixin> names() throws Exception {
+        com.google.gson.JsonObject inventory;
+        try (var in =
+                MixinContractTest.class.getResourceAsStream("/dev/starfold/mixin-audit.json")) {
+            assertNotNull(in, "Explicit mixin audit inventory");
+            inventory =
+                    com.google.gson.JsonParser.parseReader(
+                                    new java.io.InputStreamReader(
+                                            in, java.nio.charset.StandardCharsets.UTF_8))
+                            .getAsJsonObject();
+        }
+        assertEquals(CONFIGS.keySet(), inventory.keySet(), "Audit configuration inventory");
+        var result = new ArrayList<RegisteredMixin>();
+        for (var config : CONFIGS.entrySet()) {
+            var decision = inventory.getAsJsonObject(config.getKey());
+            assertEquals(Set.of("audited", "exemptions"), decision.keySet(), config.getKey());
+            var audited = new TreeSet<String>();
+            for (var entry : decision.getAsJsonArray("audited"))
+                assertTrue(audited.add(entry.getAsString()), "Duplicate audit decision: " + entry);
+            var exemptions = decision.getAsJsonObject("exemptions");
+            var decided = new TreeSet<>(audited);
+            for (String exempt : exemptions.keySet())
+                assertTrue(decided.add(exempt), "Both audited and exempt: " + exempt);
+            var registered = new TreeSet<String>();
+            try (var in = resource(config.getKey(), config.getValue())) {
+                var manifest =
+                        com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in))
+                                .getAsJsonObject();
+                for (String side : List.of("mixins", "client", "server")) {
+                    if (!manifest.has(side)) continue;
+                    for (var entry : manifest.getAsJsonArray(side)) {
+                        String name =
+                                manifest.get("package").getAsString() + "." + entry.getAsString();
+                        assertTrue(registered.add(name), "Duplicate registration: " + name);
+                    }
+                }
+            }
+            var undecided = new TreeSet<>(registered);
+            undecided.removeAll(decided);
+            var stale = new TreeSet<>(decided);
+            stale.removeAll(registered);
+            assertTrue(
+                    undecided.isEmpty() && stale.isEmpty(),
+                    config.getKey()
+                            + " needs explicit audit decisions; undecided="
+                            + undecided
+                            + "; stale="
+                            + stale);
+            for (String name : registered) {
+                var registration = new RegisteredMixin(name, config.getValue());
+                var targetNames = targetNames(read(registration));
+                assertFalse(targetNames.isEmpty(), name + " has no @Mixin targets");
+                if (audited.contains(name)) result.add(registration);
+                else {
+                    var exemption = exemptions.getAsJsonObject(name);
+                    assertEquals(Set.of("targets", "reason", "coverage"), exemption.keySet(), name);
+                    for (String key : List.of("reason", "coverage"))
+                        assertFalse(
+                                exemption.get(key).getAsString().isBlank(),
+                                name + " missing " + key);
+                    var expectedTargets =
+                            exemption.getAsJsonArray("targets").asList().stream()
+                                    .map(e -> e.getAsString().replace('.', '/'))
+                                    .toList();
+                    assertEquals(expectedTargets, targetNames, name + " exemption target drift");
+                    System.out.println(
+                            "Mixin audit exemption: "
+                                    + name
+                                    + " — "
+                                    + exemption.get("reason").getAsString()
+                                    + " Coverage: "
+                                    + exemption.get("coverage").getAsString());
+                }
+            }
+            System.out.println(
+                    "Mixin audit "
+                            + config.getKey()
+                            + ": "
+                            + registered.size()
+                            + " registered = "
+                            + audited.size()
+                            + " generic + "
+                            + exemptions.size()
+                            + " exempt");
         }
         return result;
+    }
+
+    @Test
+    void aquaticSpawnHeightHandlersCaptureTheExactUpstreamArguments() throws Exception {
+        for (String name : List.of("WaterAnimalSpawnMixin", "TurtleSpawnMixin")) {
+            var mixin = read("dev/starfold/mixin/" + name);
+            var upstream = target(mixin);
+            String selector =
+                    name.equals("WaterAnimalSpawnMixin")
+                            ? "checkSurfaceWaterAnimalSpawnRules"
+                            : "checkTurtleSpawnRules";
+            var predicate = selected(upstream, selector).getFirst();
+            var handler = selected(mixin, "starfold$spawnSeaLevel").getFirst();
+            var injection =
+                    annotations(handler.visibleAnnotations, handler.invisibleAnnotations).stream()
+                            .filter(
+                                    a ->
+                                            a.desc.equals(
+                                                    "Lcom/llamalad7/mixinextras/injector/ModifyExpressionValue;"))
+                            .findFirst()
+                            .orElseThrow();
+            assertEquals(List.of(selector), strings(value(injection, "method")));
+            var positions = new ArrayList<AnnotationNode>();
+            ats(injection, positions);
+            assertEquals(1, positions.size());
+            assertEquals("INVOKE", value(positions.getFirst(), "value"));
+            assertEquals(
+                    "Lnet/minecraft/world/level/LevelAccessor;getSeaLevel()I",
+                    value(positions.getFirst(), "target"));
+            assertNotEquals(0, handler.access & Opcodes.ACC_STATIC);
+            assertEquals(Type.INT_TYPE, Type.getReturnType(handler.desc));
+            var captured = new ArrayList<Type>();
+            captured.add(Type.INT_TYPE);
+            captured.addAll(List.of(Type.getArgumentTypes(predicate.desc)));
+            assertEquals(captured, List.of(Type.getArgumentTypes(handler.desc)), name);
+            assertEquals(
+                    1,
+                    invocations(predicate).stream()
+                            .filter(
+                                    c ->
+                                            c.owner.equals(
+                                                            "net/minecraft/world/level/LevelAccessor")
+                                                    && c.name.equals("getSeaLevel")
+                                                    && c.desc.equals("()I"))
+                            .count(),
+                    name);
+            assertEquals(
+                    1,
+                    invocations(handler).stream()
+                            .filter(
+                                    c ->
+                                            c.owner.equals(
+                                                            "dev/starfold/planet/PlanetWaterSpawning")
+                                                    && c.name.equals("seaLevel")
+                                                    && c.desc.equals(
+                                                            "(Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;I)I"))
+                            .count(),
+                    name);
+        }
     }
 
     @Test
     void waterAppearanceLocalsAreBeforeTheFirstShadeInsideTheVisibleBranch() throws Exception {
         var node = read("net/minecraft/client/renderer/block/LiquidBlockRenderer");
         var method = selected(node, "tesselate").getFirst();
-        var shade = java.util.stream.StreamSupport.stream(method.instructions.spliterator(), false)
-                .filter(i -> i instanceof MethodInsnNode m && m.name.equals("getShade")).findFirst().orElseThrow();
+        var shade =
+                java.util.stream.StreamSupport.stream(method.instructions.spliterator(), false)
+                        .filter(i -> i instanceof MethodInsnNode m && m.name.equals("getShade"))
+                        .findFirst()
+                        .orElseThrow();
         int at = method.instructions.indexOf(shade);
-        var locals = method.localVariables.stream().filter(v -> method.instructions.indexOf(v.start) <= at
-                && method.instructions.indexOf(v.end) > at).toList();
-        assertEquals(List.of("alpha", "f", "f1", "f2"), locals.stream().filter(v -> v.desc.equals("F")).map(v -> v.name).toList());
-        assertEquals(1, locals.stream().filter(v -> v.desc.equals("[Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;")).count());
-        assertEquals(9, java.util.stream.StreamSupport.stream(method.instructions.spliterator(), false)
-                .limit(at).filter(i -> i instanceof JumpInsnNode j && (j.getOpcode() == Opcodes.IFNE || j.getOpcode() == Opcodes.IFEQ)).count());
+        var locals =
+                method.localVariables.stream()
+                        .filter(
+                                v ->
+                                        method.instructions.indexOf(v.start) <= at
+                                                && method.instructions.indexOf(v.end) > at)
+                        .toList();
+        assertEquals(
+                List.of("alpha", "f", "f1", "f2"),
+                locals.stream().filter(v -> v.desc.equals("F")).map(v -> v.name).toList());
+        assertEquals(
+                1,
+                locals.stream()
+                        .filter(
+                                v ->
+                                        v.desc.equals(
+                                                "[Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;"))
+                        .count());
+        assertEquals(
+                9,
+                java.util.stream.StreamSupport.stream(method.instructions.spliterator(), false)
+                        .limit(at)
+                        .filter(
+                                i ->
+                                        i instanceof JumpInsnNode j
+                                                && (j.getOpcode() == Opcodes.IFNE
+                                                        || j.getOpcode() == Opcodes.IFEQ))
+                        .count());
     }
 
     private static ClassNode target(ClassNode node) throws Exception {
@@ -143,20 +319,21 @@ class MixinContractTest {
     }
 
     private static List<ClassNode> targets(ClassNode node) throws Exception {
+        var result = new ArrayList<ClassNode>();
+        for (String name : targetNames(node)) result.add(read(name));
+        return result;
+    }
+
+    private static List<String> targetNames(ClassNode node) {
         var a =
                 annotations(node.visibleAnnotations, node.invisibleAnnotations).stream()
                         .filter(v -> v.desc.equals("Lorg/spongepowered/asm/mixin/Mixin;"))
                         .findFirst()
                         .orElseThrow();
+        var result = new ArrayList<String>();
         var types = (List<?>) value(a, "value");
-        var names =
-                types != null
-                        ? types.stream().map(t -> ((Type) t).getInternalName()).toList()
-                        : strings(value(a, "targets")).stream()
-                                .map(t -> t.replace('.', '/'))
-                                .toList();
-        var result = new ArrayList<ClassNode>();
-        for (String name : names) result.add(read(name));
+        if (types != null) for (var type : types) result.add(((Type) type).getInternalName());
+        for (String name : strings(value(a, "targets"))) result.add(name.replace('.', '/'));
         return result;
     }
 
@@ -183,38 +360,217 @@ class MixinContractTest {
     @Test
     void everyTypeInTheMixinPackageIsAListedMixin() throws Exception {
         for (String module : List.of("", "probes/", "worlds/")) {
-        Set<String> listed;
-        try (var in = resource(module.isEmpty() ? "starfold.mixins.json" : "starfold_" + module.substring(0, module.length() - 1) + ".mixins.json")) {
-            var json =
-                    com.google.gson.JsonParser.parseString(new String(in.readAllBytes()))
-                            .getAsJsonObject();
-            listed = new TreeSet<>();
-            for (var key : List.of("mixins", "client", "server"))
-                if (json.has(key))
-                    json.getAsJsonArray(key).forEach(e -> listed.add(e.getAsString()));
+            Set<String> listed;
+            try (var in =
+                    resource(
+                            module.isEmpty()
+                                    ? "starfold.mixins.json"
+                                    : "starfold_"
+                                            + module.substring(0, module.length() - 1)
+                                            + ".mixins.json")) {
+                var json =
+                        com.google.gson.JsonParser.parseString(new String(in.readAllBytes()))
+                                .getAsJsonObject();
+                listed = new TreeSet<>();
+                for (var key : List.of("mixins", "client", "server"))
+                    if (json.has(key))
+                        json.getAsJsonArray(key).forEach(e -> listed.add(e.getAsString()));
+            }
+            var files = new TreeSet<String>();
+            try (var paths =
+                    java.nio.file.Files.list(
+                            java.nio.file.Path.of(
+                                    module
+                                            + "src/main/java/dev/starfold/"
+                                            + (module.isEmpty() ? "mixin" : module + "mixin")))) {
+                paths.map(path -> path.getFileName().toString())
+                        .filter(name -> name.endsWith(".java"))
+                        .forEach(name -> files.add(name.substring(0, name.length() - 5)));
+            }
+            assertEquals(listed, files);
         }
-        var files = new TreeSet<String>();
-        try (var paths =
-                java.nio.file.Files.list(
-                        java.nio.file.Path.of(module + "src/main/java/dev/starfold/" + (module.isEmpty() ? "mixin" : module + "mixin")))) {
-            paths.map(path -> path.getFileName().toString())
-                    .filter(name -> name.endsWith(".java"))
-                    .forEach(name -> files.add(name.substring(0, name.length() - 5)));
+    }
+
+    private static final Type OPERATION =
+            Type.getObjectType("com/llamalad7/mixinextras/injector/wrapoperation/Operation");
+    private static final Set<String> SUPPORTED_INJECTORS =
+            Set.of(
+                    "Lorg/spongepowered/asm/mixin/injection/Inject;",
+                    "Lorg/spongepowered/asm/mixin/injection/ModifyVariable;",
+                    "Lorg/spongepowered/asm/mixin/injection/ModifyArg;",
+                    "Lorg/spongepowered/asm/mixin/injection/Redirect;",
+                    "Lcom/llamalad7/mixinextras/injector/ModifyExpressionValue;",
+                    "Lcom/llamalad7/mixinextras/injector/wrapoperation/WrapOperation;",
+                    "Lcom/llamalad7/mixinextras/injector/wrapmethod/WrapMethod;");
+
+    private static boolean walkingProjectionHandler(String mixin, String handler) {
+        return mixin.equals("GroundFlightRenderMixin")
+                && (handler.equals("starfold$captureWalkingProjection")
+                        || handler.equals("starfold$publishWalkingProjection"));
+    }
+
+    private static void verifyWalkingProjectionLocal(
+            String handler, MethodNode upstream, Type type, AnnotationNode local,
+            String invocation, AnnotationNode position) {
+        assertEquals("renderLevel", upstream.name);
+        assertEquals(Type.getObjectType("org/joml/Matrix4f"), type);
+        assertEquals(0, value(local, "ordinal"));
+        assertNull(value(local, "index"));
+        assertFalse(Boolean.TRUE.equals(value(local, "argsOnly")));
+
+        String renderer = "net/minecraft/client/renderer/GameRenderer";
+        String reset = "resetProjectionMatrix(Lorg/joml/Matrix4f;)V";
+        boolean publish = handler.equals("starfold$publishWalkingProjection");
+        assertEquals("L" + renderer + ";" + (publish ? reset
+                : "bobView(Lcom/mojang/blaze3d/vertex/PoseStack;F)V"), invocation);
+        if (publish) {
+            assertArrayEquals(new String[] {"Lorg/spongepowered/asm/mixin/injection/At$Shift;", "AFTER"},
+                    (String[]) value(position, "shift"));
+        } else {
+            assertNull(value(position, "shift"));
         }
-        assertEquals(listed, files);
+
+        var calls = invocations(upstream);
+        var resets = calls.stream().filter(call -> call.owner.equals(renderer)
+                && (call.name + call.desc).equals(reset)).toList();
+        var points = calls.stream().filter(call -> invocation.equals(
+                "L" + call.owner + ";" + call.name + call.desc)).toList();
+        assertEquals(1, resets.size());
+        assertEquals(1, points.size());
+        var resetCall = resets.getFirst();
+        var projection = assertInstanceOf(VarInsnNode.class, resetCall.getPrevious());
+        assertEquals(Opcodes.ALOAD, projection.getOpcode());
+        var point = points.getFirst();
+        var injection = publish ? point.getNext() : point;
+        while (injection.getOpcode() < 0) injection = injection.getNext();
+        int at = upstream.instructions.indexOf(injection);
+        var liveMatrices = upstream.localVariables.stream()
+                .filter(v -> v.desc.equals(type.getDescriptor())
+                        && upstream.instructions.indexOf(v.start) <= at
+                        && at < upstream.instructions.indexOf(v.end))
+                .map(v -> v.index).distinct().sorted().toList();
+        assertEquals(List.of(projection.var), liveMatrices,
+                handler + " captures the live matrix passed to resetProjectionMatrix");
+    }
+
+    /** Supports enclosing argument prefixes and unambiguous, typed @Local captures. */
+    private static void verifyCapturedArguments(
+            String name,
+            MethodNode handler,
+            int start,
+            MethodNode upstream,
+            String invocation,
+            AnnotationNode position) {
+        var args = Type.getArgumentTypes(handler.desc);
+        var enclosing = Type.getArgumentTypes(upstream.desc);
+        int captured = 0;
+        for (int i = start; i < args.length; i++) {
+            var parameter =
+                    annotations(
+                            handler.visibleParameterAnnotations == null
+                                    ? null
+                                    : handler.visibleParameterAnnotations[i],
+                            handler.invisibleParameterAnnotations == null
+                                    ? null
+                                    : handler.invisibleParameterAnnotations[i]);
+            var local =
+                    parameter.stream()
+                            .filter(a -> a.desc.equals("Lcom/llamalad7/mixinextras/sugar/Local;"))
+                            .findFirst()
+                            .orElse(null);
+            if (local == null) {
+                assertTrue(captured < enclosing.length, name + " excess enclosing arguments");
+                assertEquals(enclosing[captured++], args[i], name + " captured enclosing argument");
+                continue;
+            }
+            if (walkingProjectionHandler(name, handler.name)) {
+                verifyWalkingProjectionLocal(handler.name, upstream, args[i], local, invocation, position);
+                continue;
+            }
+            assertNull(
+                    value(local, "ordinal"),
+                    name + " typed @Local ordinal needs a dedicated contract");
+            assertNull(
+                    value(local, "index"), name + " typed @Local index needs a dedicated contract");
+            assertFalse(
+                    args[i].getInternalName().startsWith("com/llamalad7/mixinextras/sugar/ref/"),
+                    name + " mutable @Local needs a dedicated contract");
+            final Type type = args[i];
+            if (Boolean.TRUE.equals(value(local, "argsOnly"))) {
+                assertEquals(
+                        1,
+                        Arrays.stream(enclosing).filter(type::equals).count(),
+                        name + " unique @Local argument " + type);
+            } else {
+                assertNotNull(invocation, name + " @Local requires an audited invocation point");
+                var calls =
+                        invocations(upstream).stream()
+                                .filter(
+                                        call ->
+                                                invocation.equals(
+                                                        "L"
+                                                                + call.owner
+                                                                + ";"
+                                                                + call.name
+                                                                + call.desc))
+                                .toList();
+                assertFalse(calls.isEmpty(), name + " @Local invocation");
+                var ordinal = (Integer) value(position, "ordinal");
+                var points = ordinal == null || ordinal < 0 ? calls : List.of(calls.get(ordinal));
+                for (var call : points) {
+                    int at = upstream.instructions.indexOf(call);
+                    assertNotNull(
+                            upstream.localVariables,
+                            name + " @Local requires upstream debug locals");
+                    assertEquals(
+                            1,
+                            upstream.localVariables.stream()
+                                    .filter(
+                                            v ->
+                                                    v.desc.equals(type.getDescriptor())
+                                                            && upstream.instructions.indexOf(
+                                                                            v.start)
+                                                                    <= at
+                                                            && upstream.instructions.indexOf(v.end)
+                                                                    > at)
+                                    .map(v -> v.index)
+                                    .distinct()
+                                    .count(),
+                            name + " unique live @Local " + type);
+                }
+            }
         }
     }
 
     @Test
     void everySelectedInjectionSelectsRealMethodsAndEveryInvokeMatchesExactly() throws Exception {
         int injectors = 0, invokes = 0;
-        for (String name : names()) {
-            var mixin = read("dev/starfold/mixin/" + name);
+        for (var registration : names()) {
+            String name = registration.simpleName();
+            var mixin = read(registration);
             for (var target : targets(mixin))
                 for (var method : mixin.methods)
                     for (var a :
                             annotations(method.visibleAnnotations, method.invisibleAnnotations)) {
+                        assertNotEquals(
+                                "Lorg/spongepowered/asm/mixin/Overwrite;",
+                                a.desc,
+                                name + " @Overwrite needs a dedicated contract or named exemption");
+                        boolean injector =
+                                a.desc.startsWith("Lorg/spongepowered/asm/mixin/injection/")
+                                        || a.desc.startsWith(
+                                                "Lcom/llamalad7/mixinextras/injector/");
+                        if (!injector) continue;
+                        assertTrue(
+                                SUPPORTED_INJECTORS.contains(a.desc),
+                                name
+                                        + " unsupported injector "
+                                        + a.desc
+                                        + "; extend the audit or record a named exemption");
                         var selectors = strings(value(a, "method"));
+                        assertFalse(
+                                selectors.isEmpty(),
+                                name + " missing method selectors: " + method.name);
                         for (String selector : selectors) {
                             var methods = selected(target, selector);
                             assertFalse(
@@ -225,36 +581,90 @@ class MixinContractTest {
                                 var args = Type.getArgumentTypes(method.desc);
                                 var original = Type.getArgumentTypes(upstream.desc);
                                 if (a.desc.endsWith("/Inject;")) {
+                                    // Mixin permits a callback-only handler, including for
+                                    // constructors.
+                                    boolean walkingProjection = walkingProjectionHandler(name, method.name);
+                                    int captured = args.length == 1 || walkingProjection ? 0 : original.length;
                                     assertEquals(
-                                            original.length + (name.equals("ThrusterOcclusionMixin") ? 2 : name.equals("WaterAppearanceMixin") ? 6 : 1),
+                                            captured
+                                                    + (walkingProjection || name.equals("ThrusterOcclusionMixin")
+                                                            ? 2
+                                                            : name.equals("WaterAppearanceMixin")
+                                                                    ? 6
+                                                                    : 1),
                                             args.length,
                                             name + " callback args " + selector);
-                                    for (int i = 0; i < original.length; i++) {
-                                        boolean coerced = method.invisibleParameterAnnotations != null
-                                                && method.invisibleParameterAnnotations[i] != null
-                                                && method.invisibleParameterAnnotations[i].stream().anyMatch(p -> p.desc.endsWith("/Coerce;"));
+                                    for (int i = 0; i < captured; i++) {
+                                        boolean coerced =
+                                                method.invisibleParameterAnnotations != null
+                                                        && method.invisibleParameterAnnotations[i]
+                                                                != null
+                                                        && method
+                                                                .invisibleParameterAnnotations[i]
+                                                                .stream()
+                                                                .anyMatch(
+                                                                        p ->
+                                                                                p.desc.endsWith(
+                                                                                        "/Coerce;"));
                                         if (coerced) {
                                             assertEquals(Type.OBJECT, original[i].getSort());
                                             assertEquals(Type.getType(Object.class), args[i]);
-                                        } else assertEquals(original[i], args[i], name + " callback argument " + i);
+                                        } else
+                                            assertEquals(
+                                                    original[i],
+                                                    args[i],
+                                                    name + " callback argument " + i);
                                     }
                                     assertEquals(Type.VOID_TYPE, Type.getReturnType(method.desc));
                                     assertEquals(
                                             Type.getReturnType(upstream.desc).equals(Type.VOID_TYPE)
                                                     ? "org/spongepowered/asm/mixin/injection/callback/CallbackInfo"
                                                     : "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable",
-                                            args[original.length].getInternalName(),
+                                            args[captured].getInternalName(),
                                             name + " callback type");
                                 }
-                                if (name.equals("ThrusterOcclusionMixin") && a.desc.endsWith("/Inject;")) {
-                                    var local = args[Type.getArgumentTypes(upstream.desc).length + 1];
-                                    assertEquals(Type.getObjectType("net/minecraft/world/level/block/state/BlockState"), local);
-                                    var call = java.util.stream.StreamSupport.stream(upstream.instructions.spliterator(), false)
-                                            .filter(i -> i instanceof MethodInsnNode m && m.name.equals("skipRendering")).findFirst().orElseThrow();
+                                if (name.equals("ThrusterOcclusionMixin")
+                                        && a.desc.endsWith("/Inject;")) {
+                                    var local =
+                                            args[Type.getArgumentTypes(upstream.desc).length + 1];
+                                    assertEquals(
+                                            Type.getObjectType(
+                                                    "net/minecraft/world/level/block/state/BlockState"),
+                                            local);
+                                    var call =
+                                            java.util.stream.StreamSupport.stream(
+                                                            upstream.instructions.spliterator(),
+                                                            false)
+                                                    .filter(
+                                                            i ->
+                                                                    i instanceof MethodInsnNode m
+                                                                            && m.name.equals(
+                                                                                    "skipRendering"))
+                                                    .findFirst()
+                                                    .orElseThrow();
                                     int at = upstream.instructions.indexOf(call);
-                                    assertEquals(1, upstream.localVariables.stream().filter(v -> v.index == Type.getArgumentTypes(upstream.desc).length
-                                            && v.desc.equals(local.getDescriptor())
-                                            && upstream.instructions.indexOf(v.start) <= at && upstream.instructions.indexOf(v.end) > at).count());
+                                    assertEquals(
+                                            1,
+                                            upstream.localVariables.stream()
+                                                    .filter(
+                                                            v ->
+                                                                    v.index
+                                                                                    == Type
+                                                                                            .getArgumentTypes(
+                                                                                                    upstream.desc)
+                                                                                            .length
+                                                                            && v.desc.equals(
+                                                                                    local
+                                                                                            .getDescriptor())
+                                                                            && upstream.instructions
+                                                                                            .indexOf(
+                                                                                                    v.start)
+                                                                                    <= at
+                                                                            && upstream.instructions
+                                                                                            .indexOf(
+                                                                                                    v.end)
+                                                                                    > at)
+                                                    .count());
                                 }
                                 if (a.desc.endsWith("/WrapMethod;")) {
                                     assertEquals(
@@ -264,39 +674,88 @@ class MixinContractTest {
                                     for (int i = 0; i < original.length; i++)
                                         assertEquals(original[i], args[i]);
                                     assertEquals(
+                                            OPERATION,
+                                            args[original.length],
+                                            name + " wrapper Operation");
+                                    assertEquals(
                                             Type.getReturnType(upstream.desc),
                                             Type.getReturnType(method.desc));
                                 }
                             }
                             var at = new ArrayList<AnnotationNode>();
                             ats(a, at);
+                            if (!a.desc.endsWith("/WrapMethod;"))
+                                assertFalse(at.isEmpty(), name + " missing injection point");
                             for (var position : at) {
-                                if ("FIELD".equals(value(position, "value"))
-                                        && name.equals("GroundPositionDiagnosticsMixin")) {
+                                String kind = (String) value(position, "value");
+                                var supportedPoints =
+                                        a.desc.endsWith("/Inject;")
+                                                ? Set.of("HEAD", "TAIL", "RETURN", "INVOKE")
+                                                : a.desc.endsWith("/WrapOperation;")
+                                                        ? Set.of("INVOKE", "FIELD", "NEW")
+                                                        : a.desc.endsWith("/ModifyVariable;")
+                                                                ? Set.of("HEAD")
+                                                                : Set.of("INVOKE");
+                                assertTrue(
+                                        supportedPoints.contains(kind),
+                                        name
+                                                + " unsupported injection point "
+                                                + kind
+                                                + " for "
+                                                + a.desc);
+                                if ("NEW".equals(kind))
+                                    assertEquals(
+                                            "PlanetLevelSoundMixin",
+                                            name,
+                                            "NEW is covered by verifyPlanetSoundCallChain; add an exact contract for other allocations");
+                                if ("FIELD".equals(kind)) {
+                                    assertTrue(
+                                            a.desc.endsWith("/WrapOperation;"),
+                                            name + " unsupported FIELD injector");
                                     var expected = (String) value(position, "target");
                                     var opcode = (Integer) value(position, "opcode");
                                     assertEquals(Opcodes.PUTFIELD, opcode);
                                     for (var upstream : methods) {
-                                        var writes = java.util.stream.StreamSupport.stream(
-                                                        upstream.instructions.spliterator(), false)
-                                                .filter(i -> i instanceof FieldInsnNode f
-                                                        && f.getOpcode() == opcode
-                                                        && expected.equals("L" + f.owner + ";" + f.name + ":" + f.desc))
-                                                .map(i -> (FieldInsnNode) i).toList();
-                                        assertEquals(1, writes.size(), name + " exact field write " + selector);
+                                        var writes =
+                                                java.util.stream.StreamSupport.stream(
+                                                                upstream.instructions.spliterator(),
+                                                                false)
+                                                        .filter(
+                                                                i ->
+                                                                        i instanceof FieldInsnNode f
+                                                                                && f.getOpcode()
+                                                                                        == opcode
+                                                                                && expected.equals(
+                                                                                        "L"
+                                                                                                + f.owner
+                                                                                                + ";"
+                                                                                                + f.name
+                                                                                                + ":"
+                                                                                                + f.desc))
+                                                        .map(i -> (FieldInsnNode) i)
+                                                        .toList();
+                                        assertEquals(
+                                                1,
+                                                writes.size(),
+                                                name + " exact field write " + selector);
                                         var args = Type.getArgumentTypes(method.desc);
                                         assertEquals(3, args.length);
-                                        assertEquals(Type.getObjectType(writes.getFirst().owner), args[0]);
+                                        assertEquals(
+                                                Type.getObjectType(writes.getFirst().owner),
+                                                args[0]);
                                         assertEquals(Type.getType(writes.getFirst().desc), args[1]);
-                                        assertEquals("com/llamalad7/mixinextras/injector/wrapoperation/Operation",
+                                        assertEquals(
+                                                "com/llamalad7/mixinextras/injector/wrapoperation/Operation",
                                                 args[2].getInternalName());
-                                        assertEquals(Type.VOID_TYPE, Type.getReturnType(method.desc));
+                                        assertEquals(
+                                                Type.VOID_TYPE, Type.getReturnType(method.desc));
                                     }
                                 }
                                 if ("INVOKE".equals(value(position, "value"))) {
                                     var expected = (String) value(position, "target");
                                     assertNotNull(expected);
                                     boolean found = false, staticInvoke = false;
+                                    int matches = 0;
                                     for (var upstream : methods)
                                         for (var instruction : upstream.instructions)
                                             if (instruction instanceof MethodInsnNode call
@@ -307,12 +766,26 @@ class MixinContractTest {
                                                                     + call.name
                                                                     + call.desc)) {
                                                 found = true;
+                                                matches++;
                                                 staticInvoke =
                                                         call.getOpcode() == Opcodes.INVOKESTATIC;
                                             }
                                     assertTrue(found, name + ": " + selector + " -> " + expected);
+                                    var ordinal = (Integer) value(position, "ordinal");
+                                    if (ordinal != null && ordinal >= 0)
+                                        assertTrue(
+                                                ordinal < matches,
+                                                name
+                                                        + " invocation ordinal "
+                                                        + ordinal
+                                                        + " -> "
+                                                        + expected);
                                     invokes++;
                                     String descriptor = expected.substring(expected.indexOf('('));
+                                    if (a.desc.endsWith("/Inject;") && walkingProjectionHandler(name, method.name)) {
+                                        for (var upstream : methods)
+                                            verifyCapturedArguments(name, method, 1, upstream, expected, position);
+                                    }
                                     if (a.desc.endsWith("/ModifyExpressionValue;")) {
                                         assertEquals(
                                                 Type.getReturnType(descriptor),
@@ -320,6 +793,47 @@ class MixinContractTest {
                                         assertEquals(
                                                 Type.getReturnType(descriptor),
                                                 Type.getReturnType(method.desc));
+                                        for (var upstream : methods)
+                                            verifyCapturedArguments(
+                                                    name, method, 1, upstream, expected, position);
+                                    }
+                                    if (a.desc.endsWith("/ModifyArg;")) {
+                                        var args = Type.getArgumentTypes(method.desc);
+                                        var invoked = Type.getArgumentTypes(descriptor);
+                                        var index = (Integer) value(a, "index");
+                                        assertNotNull(
+                                                index,
+                                                name
+                                                        + " ModifyArg requires an explicit audited index");
+                                        assertTrue(
+                                                index >= 0 && index < invoked.length,
+                                                name + " ModifyArg index");
+                                        assertEquals(
+                                                List.of(invoked[index]),
+                                                List.of(args),
+                                                name + " ModifyArg parameter");
+                                        assertEquals(
+                                                invoked[index],
+                                                Type.getReturnType(method.desc),
+                                                name + " ModifyArg return");
+                                    }
+                                    if (a.desc.endsWith("/Redirect;")) {
+                                        var expectedArgs = new ArrayList<Type>();
+                                        if (!staticInvoke)
+                                            expectedArgs.add(
+                                                    Type.getObjectType(
+                                                            expected.substring(
+                                                                    1, expected.indexOf(';'))));
+                                        expectedArgs.addAll(
+                                                List.of(Type.getArgumentTypes(descriptor)));
+                                        assertEquals(
+                                                expectedArgs,
+                                                List.of(Type.getArgumentTypes(method.desc)),
+                                                name + " redirect arguments");
+                                        assertEquals(
+                                                Type.getReturnType(descriptor),
+                                                Type.getReturnType(method.desc),
+                                                name + " redirect return");
                                     }
                                     if (a.desc.endsWith("/WrapOperation;")) {
                                         var args = Type.getArgumentTypes(method.desc);
@@ -334,63 +848,54 @@ class MixinContractTest {
                                         for (int i = 0; i < invoked.length; i++)
                                             assertEquals(invoked[i], args[i + receiver]);
                                         int operation = invoked.length + receiver;
+                                        if (walkingProjectionHandler(name, method.name))
+                                            assertEquals(operation + 2, args.length);
                                         assertEquals(
                                                 "com/llamalad7/mixinextras/injector/wrapoperation/Operation",
                                                 args[operation].getInternalName());
                                         assertEquals(
                                                 Type.getReturnType(descriptor),
                                                 Type.getReturnType(method.desc));
-                                        boolean capturedLocal = method.invisibleParameterAnnotations != null
-                                                && Arrays.stream(method.invisibleParameterAnnotations)
-                                                        .filter(Objects::nonNull)
-                                                        .flatMap(Collection::stream)
-                                                        .anyMatch(n -> n.desc.equals("Lcom/llamalad7/mixinextras/sugar/Local;"));
-                                        if (capturedLocal && name.equals("MeshDispatcherProbeMixin")) {
-                                            for (var upstream : methods)
-                                                assertEquals(1, Arrays.stream(Type.getArgumentTypes(upstream.desc))
-                                                        .filter(t -> t.equals(args[operation + 1])).count(), "unique upload data argument");
-                                        } else if (capturedLocal) {
-                                            assertTrue(Set.of("GroundNativeDrawMixin", "MeshLevelProbeMixin").contains(name));
-                                            assertEquals("net/minecraft/client/renderer/chunk/SectionRenderDispatcher$RenderSection",
-                                                    args[operation + 1].getInternalName());
-                                            for (var upstream : methods) {
-                                                var draws = java.util.stream.StreamSupport.stream(upstream.instructions.spliterator(), false)
-                                                        .filter(i -> i instanceof MethodInsnNode call && expected.equals("L" + call.owner + ";" + call.name + call.desc))
-                                                        .toList();
-                                                assertEquals(1, draws.size());
-                                                int draw = upstream.instructions.indexOf(draws.getFirst());
-                                                assertEquals(1, upstream.localVariables.stream()
-                                                        .filter(v -> v.desc.equals(args[operation + 1].getDescriptor())
-                                                                && upstream.instructions.indexOf(v.start) <= draw
-                                                                && upstream.instructions.indexOf(v.end) > draw)
-                                                        .count(), "unique live section at the real draw call");
-                                            }
-                                        }
-                                        if (!capturedLocal && args.length > operation + 1)
-                                            for (var upstream : methods) {
-                                                var enclosing =
-                                                        Type.getArgumentTypes(upstream.desc);
-                                                assertEquals(
-                                                        enclosing.length + operation + 1,
-                                                        args.length);
-                                                for (int i = 0; i < enclosing.length; i++)
-                                                    assertEquals(
-                                                            enclosing[i], args[i + operation + 1]);
-                                            }
+                                        for (var upstream : methods)
+                                            verifyCapturedArguments(
+                                                    name,
+                                                    method,
+                                                    operation + 1,
+                                                    upstream,
+                                                    expected,
+                                                    position);
                                     }
                                 }
                             }
                             if (a.desc.endsWith("/ModifyVariable;")) {
-                                var type = Type.getArgumentTypes(method.desc)[0];
+                                assertEquals(
+                                        Boolean.TRUE,
+                                        value(a, "argsOnly"),
+                                        name + " only argument ModifyVariable is audited");
+                                var args = Type.getArgumentTypes(method.desc);
+                                var type = args[0];
+                                assertEquals(
+                                        type,
+                                        Type.getReturnType(method.desc),
+                                        name + " variable return type");
                                 var ordinal = (Integer) value(a, "ordinal");
                                 for (var upstream : methods) {
                                     long count =
                                             Arrays.stream(Type.getArgumentTypes(upstream.desc))
                                                     .filter(type::equals)
                                                     .count();
-                                    assertTrue(
-                                            count > (ordinal == null ? 0 : ordinal),
-                                            name + " variable type/ordinal " + selector);
+                                    if (ordinal == null || ordinal < 0)
+                                        assertEquals(
+                                                1,
+                                                count,
+                                                name
+                                                        + " implicit variable discriminator "
+                                                        + selector);
+                                    else
+                                        assertTrue(
+                                                count > ordinal,
+                                                name + " variable type/ordinal " + selector);
+                                    verifyCapturedArguments(name, method, 1, upstream, null, null);
                                 }
                             }
                         }
@@ -399,58 +904,80 @@ class MixinContractTest {
         assertTrue(injectors >= 30);
         assertTrue(invokes >= 2);
         verifyPlanetSoundCallChain();
+        aquaticSpawnHeightHandlersCaptureTheExactUpstreamArguments();
+        waterAppearanceLocalsAreBeforeTheFirstShadeInsideTheVisibleBranch();
     }
 
     @Test
     void shadowFieldsAndPacketAccessorsMatchUpstreamDescriptors() throws Exception {
         int checked = 0;
-        for (String name : names()) {
-            var mixin = read("dev/starfold/mixin/" + name);
-            var target = target(mixin);
-            for (var field : mixin.fields)
-                if (annotations(field.visibleAnnotations, field.invisibleAnnotations).stream()
-                        .anyMatch(a -> a.desc.endsWith("/Shadow;"))) {
-                    assertTrue(
-                            target.fields.stream()
-                                    .anyMatch(
-                                            f ->
-                                                    f.name.equals(field.name)
-                                                            && f.desc.equals(field.desc)),
-                            name + " shadow " + field.name);
-                    checked++;
-                }
-            for (var method : mixin.methods)
-                for (var a : annotations(method.visibleAnnotations, method.invisibleAnnotations)) {
-                    if (a.desc.endsWith("/Accessor;")) {
-                        var field =
-                                target.fields.stream()
-                                        .filter(f -> f.name.equals(value(a, "value")))
-                                        .findFirst()
-                                        .orElseThrow();
-                        var args = Type.getArgumentTypes(method.desc);
-                        var result = Type.getReturnType(method.desc);
-                        assertTrue(args.length <= 1, name + " accessor arity");
-                        if (args.length == 0)
-                            assertEquals(field.desc, result.getDescriptor(), name + " getter");
-                        else {
-                            assertEquals("V", result.getDescriptor(), name + " setter return");
-                            assertEquals(field.desc, args[0].getDescriptor(), name + " setter");
-                        }
-                        checked++;
-                    }
-                    if (a.desc.endsWith("/Invoker;")) {
-                        String called = (String) value(a, "value");
-                        String descriptor = method.desc;
-                        if (called.equals("<init>"))
-                            descriptor = descriptor.substring(0, descriptor.indexOf(')') + 1) + "V";
-                        final String d = descriptor;
+        for (var registration : names()) {
+            String name = registration.simpleName();
+            var mixin = read(registration);
+            for (var target : targets(mixin)) {
+                for (var field : mixin.fields)
+                    if (annotations(field.visibleAnnotations, field.invisibleAnnotations).stream()
+                            .anyMatch(a -> a.desc.endsWith("/Shadow;"))) {
                         assertTrue(
-                                target.methods.stream()
-                                        .anyMatch(m -> m.name.equals(called) && m.desc.equals(d)),
-                                name + " invoker " + called);
+                                target.fields.stream()
+                                        .anyMatch(
+                                                f ->
+                                                        f.name.equals(field.name)
+                                                                && f.desc.equals(field.desc)),
+                                name + " shadow " + field.name);
                         checked++;
                     }
-                }
+                for (var method : mixin.methods)
+                    for (var a :
+                            annotations(method.visibleAnnotations, method.invisibleAnnotations)) {
+                        if (a.desc.endsWith("/Shadow;")) {
+                            assertTrue(
+                                    target.methods.stream()
+                                            .anyMatch(
+                                                    m ->
+                                                            m.name.equals(method.name)
+                                                                    && m.desc.equals(method.desc)),
+                                    name
+                                            + " method shadow "
+                                            + target.name
+                                            + "."
+                                            + method.name
+                                            + method.desc);
+                            checked++;
+                        }
+                        if (a.desc.endsWith("/Accessor;")) {
+                            var field =
+                                    target.fields.stream()
+                                            .filter(f -> f.name.equals(value(a, "value")))
+                                            .findFirst()
+                                            .orElseThrow();
+                            var args = Type.getArgumentTypes(method.desc);
+                            var result = Type.getReturnType(method.desc);
+                            assertTrue(args.length <= 1, name + " accessor arity");
+                            if (args.length == 0)
+                                assertEquals(field.desc, result.getDescriptor(), name + " getter");
+                            else {
+                                assertEquals("V", result.getDescriptor(), name + " setter return");
+                                assertEquals(field.desc, args[0].getDescriptor(), name + " setter");
+                            }
+                            checked++;
+                        }
+                        if (a.desc.endsWith("/Invoker;")) {
+                            String called = (String) value(a, "value");
+                            String descriptor = method.desc;
+                            if (called.equals("<init>"))
+                                descriptor =
+                                        descriptor.substring(0, descriptor.indexOf(')') + 1) + "V";
+                            final String d = descriptor;
+                            assertTrue(
+                                    target.methods.stream()
+                                            .anyMatch(
+                                                    m -> m.name.equals(called) && m.desc.equals(d)),
+                                    name + " invoker " + called);
+                            checked++;
+                        }
+                    }
+            }
         }
         assertTrue(checked >= 10);
         verifyMultiTargetShadowRuntimeRule();
@@ -556,8 +1083,9 @@ class MixinContractTest {
             }
         }
         int checked = 0;
-        for (String name : names()) {
-            var mixin = read("dev/starfold/mixin/" + name);
+        for (var registration : names()) {
+            String name = registration.simpleName();
+            var mixin = read(registration);
             if (targets(mixin).size() <= 1) continue;
             var shadows = new ArrayList<AnnotationNode>();
             for (var field : mixin.fields)
@@ -654,7 +1182,8 @@ class MixinContractTest {
                 invocations(selected(production, "created").getFirst()).stream()
                         .anyMatch(
                                 c ->
-                                        c.owner.equals("dev/starfold/planet/PlanetSoundClient$Observer")
+                                        c.owner.equals(
+                                                        "dev/starfold/planet/PlanetSoundClient$Observer")
                                                 && c.name.equals("created")));
         for (String name : List.of("AbstractSoundInstance", "SimpleSoundInstance"))
             assertTrue(

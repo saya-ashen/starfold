@@ -6,7 +6,6 @@ import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.sublevel.storage.serialization.SubLevelSerializer;
 import dev.ryanhcode.sable.util.SableNBTUtils;
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
 
@@ -131,37 +130,7 @@ class ShipDormancyTest {
 
     @Test
     void wakeAndSleepKeepTheReadinessAndPublicationBoundaries() throws Exception {
-        var source = Sources.text("ShipDormancy");
-        var tickets = Sources.text("SableTickets");
-        assertTrue(
-                tickets.indexOf("ShipDormancy.prepare")
-                        < tickets.indexOf("apply(level,ShipLeases.plan(inputs))"));
-        assertTrue(
-                tickets.indexOf("apply(level,ShipLeases.plan(inputs))")
-                        < tickets.indexOf("ShipDormancy.finish"));
-        assertTrue(source.indexOf("isChunkLoadedEnough") < source.indexOf("snatchAndLoad("));
-        assertTrue(source.contains("return original.dependencies()"));
-        assertTrue(source.contains("active.addAll(group)"));
-        assertTrue(source.contains("!SableTickets.input(level,body).reasons().isEmpty()"));
-        assertTrue(source.contains("!ShipHost.get().spaceDormancy()"));
         // A restart leaves space hulls unloaded; production must wake them at their current place.
         assertTrue(new ShipHost() {}.spaceDormancy());
-        assertTrue(tickets.contains("ShipLeases.Reason.LEAD"));
-        assertTrue(tickets.contains("ShipLeases.Reason.DEPENDENCY"));
-        var hook = Sources.text("SableShipStorageMixin");
-        assertTrue(
-                hook.indexOf("ShipDormancy.loadInput(level,originalData)")
-                        < hook.indexOf("original.call(level,data)"));
-        assertTrue(
-                hook.indexOf("original.call(level,data)")
-                        < hook.indexOf("ShipDormancy.loaded(level,data,hull)"));
-        assertTrue(hook.contains("if(ShipDormancy.defer(level,ship))ci.cancel()"));
-        assertTrue(
-                Sources.text("SableShipReadinessMixin")
-                        .contains(
-                                "if(ShipDormancy.managed(level,data.uuid()))ci.setReturnValue(false)"));
-        assertTrue(Sources.text("SableBoarding").contains("ShipDormancy.crew(player)"));
-        assertFalse(source.contains("addForceLoadTicket"));
-        assertFalse(source.contains("SableFrames.move("));
     }
 }

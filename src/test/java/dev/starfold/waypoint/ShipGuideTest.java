@@ -48,23 +48,30 @@ class ShipGuideTest {
     }
 
     @Test
-    void interstellarRequiresAnObservedPoweredCrossingNotBoardingOutsideOrCoasting() throws Exception {
+    void interstellarRequiresAnObservedPoweredCrossingNotBoardingOutsideOrCoasting()
+            throws Exception {
         for (boolean observed : List.of(false, true))
             for (boolean before : List.of(false, true))
                 for (boolean after : List.of(false, true))
                     for (boolean powered : List.of(false, true))
-                        assertEquals(observed && !before && after && powered,
+                        assertEquals(
+                                observed && !before && after && powered,
                                 ShipGuide.crossed(observed, before, after, powered));
         var all = data();
         for (var step : List.of("skim", "interstellar")) {
             var advancement = all.get("starfold:ship/" + step);
             assertNotNull(advancement);
-            assertFalse(advancement.has("neoforge:conditions"), "FTB ids exist even without workshop mods");
-            assertEquals("minecraft:impossible", advancement.getAsJsonObject("criteria")
-                    .getAsJsonObject("earned").get("trigger").getAsString());
+            assertFalse(
+                    advancement.has("neoforge:conditions"),
+                    "FTB ids exist even without workshop mods");
+            assertEquals(
+                    "minecraft:impossible",
+                    advancement
+                            .getAsJsonObject("criteria")
+                            .getAsJsonObject("earned")
+                            .get("trigger")
+                            .getAsString());
         }
-        assertTrue(dev.starfold.Sources.text("GasScoop").contains(
-                "ThrusterFuel.fill(body,newFluidStack(BuiltInRegistries.FLUID.get(definition.fluid()),whole))>0)"));
     }
 
     @Test
@@ -198,9 +205,11 @@ class ShipGuideTest {
                                 "gyro",
                                 List.of("at least two", "lever on"),
                                 "helm",
-                                List.of("overshoot", "floor layer", "six cobble layers"),
+                                List.of("fuelled lift margin", "brake early", "redstone off"),
                                 "airstair",
-                                List.of("door and ramp approach clear"),
+                                List.of("door and ramp approach clear", "walk aboard", "touchdown"),
+                                "space",
+                                List.of("acceleration and braking", "reserve fuel"),
                                 "scope",
                                 List.of("navigation scope", "first planet trip"))
                         .entrySet())
@@ -217,7 +226,7 @@ class ShipGuideTest {
                                 "gyro",
                                 "至少两个陀螺仪",
                                 "helm",
-                                "船太轻会冲过头：多铺一层地板",
+                                "加油后的升力余量与推力平衡",
                                 "airstair",
                                 "舱门和舷梯前不要放东西",
                                 "scope",

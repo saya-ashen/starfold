@@ -16,9 +16,7 @@ public final class GroundCoverSnapshot {
     private final int terraceStep;
 
     public GroundCoverSnapshot(
-            PlanetHeightCache heights,
-            Map<Long, GroundSurface> surfaces,
-            BitSet unknown) {
+            PlanetHeightCache heights, Map<Long, GroundSurface> surfaces, BitSet unknown) {
         this(heights, surfaces, unknown, Map.of(), 0);
     }
 
@@ -42,7 +40,7 @@ public final class GroundCoverSnapshot {
             if (q.axis() == 1) {
                 var p = q.points().getFirst();
                 if ((int) p.x() % step == 0 && (int) p.z() % step == 0)
-                    tops.put(GroundOwnership.key(shape(), face, (int) p.x(), (int) p.z()), p.y());
+                    tops.put(GroundTileKeys.key(shape(), face, (int) p.x(), (int) p.z()), p.y());
             }
         return new GroundCoverSnapshot(heights, surfaces, unknown, tops, step);
     }
@@ -74,9 +72,7 @@ public final class GroundCoverSnapshot {
     }
 
     static GroundCoverSnapshot far(
-            PlanetHeightCache heights,
-            Map<Long, GroundSurface> captures,
-            BitSet changed) {
+            PlanetHeightCache heights, Map<Long, GroundSurface> captures, BitSet changed) {
         var surfaces = new HashMap<Long, GroundSurface>();
         captures.forEach((key, image) -> surfaces.put(key, image.surfaceOnly()));
         return new GroundCoverSnapshot(heights, surfaces, changed);
@@ -84,22 +80,6 @@ public final class GroundCoverSnapshot {
 
     public static GroundCoverSnapshot parent(PlanetHeightCache heights, BitSet changed) {
         return new GroundCoverSnapshot(heights, Map.of(), changed);
-    }
-
-    /**
-     * Bounded reference snapshot: surfaces and their optional voxel payloads are immutable and
-     * shared.
-     */
-    public static GroundCoverSnapshot cohort(
-            PlanetHeightCache heights,
-            BitSet changed,
-            LongFunction<GroundSurface> lookup) {
-        var surfaces = new HashMap<Long, GroundSurface>();
-        for (int key = changed.nextSetBit(0); key >= 0; key = changed.nextSetBit(key + 1)) {
-            var surface = lookup.apply(key);
-            if (surface != null) surfaces.put((long) key, surface);
-        }
-        return new GroundCoverSnapshot(heights, surfaces, changed);
     }
 
     public static GroundCoverSnapshot patch(
@@ -122,7 +102,7 @@ public final class GroundCoverSnapshot {
         var missing = new BitSet();
         for (int x = x0 - 64; x < x0 + 320; x += 16)
             for (int z = z0 - 64; z < z0 + 320; z += 16) {
-                long key = GroundOwnership.key(shape(), face, x, z);
+                long key = GroundTileKeys.key(shape(), face, x, z);
                 var s = surfaces.get(key);
                 if (s != null) selected.put(key, s);
                 if (unknown.get((int) key) && s == null) missing.set((int) key);
@@ -141,7 +121,7 @@ public final class GroundCoverSnapshot {
         var unknown = new BitSet();
         for (int x = x0 - 16; x <= x0 + 256; x += 16)
             for (int z = z0 - 16; z <= z0 + 256; z += 16) {
-                long key = GroundOwnership.key(shape(heights), face, x, z);
+                long key = GroundTileKeys.key(shape(heights), face, x, z);
                 if (changed.get((int) key)) {
                     var s = lookup.apply(key);
                     if (s == null) unknown.set((int) key);
@@ -188,20 +168,17 @@ public final class GroundCoverSnapshot {
     }
 
     public double height(int face, int columnX, int columnZ, double edgeX, double edgeZ) {
-        long key = GroundOwnership.key(shape(), face, columnX, columnZ);
+        long key = GroundTileKeys.key(shape(), face, columnX, columnZ);
         var c =
                 shape().topology()
                         .canonical(
                                 new CubeSurfaceTopology.Cell(
-                                        CubeSurfaceTopology.Face.VALUES[face],
-                                        columnX,
-                                        0,
-                                        columnZ))
+                                        CubeSurfaceTopology.Face.VALUES[face], columnX, 0, columnZ))
                         .cell();
         if (terraceStep != 0) {
             var top =
                     terraces.get(
-                            GroundOwnership.key(
+                            GroundTileKeys.key(
                                     shape(),
                                     c.face().ordinal(),
                                     c.u() / terraceStep * terraceStep,

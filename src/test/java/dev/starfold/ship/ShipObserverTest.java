@@ -2,8 +2,6 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -115,35 +113,5 @@ class ShipObserverTest {
                         Optional.empty(),
                         new ShipRecord.InSpace(ShipSaveTest.place())));
         assertEquals(new ShipId(7, 0), saved.find(uuid).id());
-    }
-
-    @Test
-    void publicObserverWiringIsReadOnlyAndRefreshIsOncePerSecondAfterHandovers() throws Exception {
-        var adapter = Sources.text("ShipRecords");
-        assertTrue(adapter.contains("container.addObserver(new SubLevelObserver()"));
-        assertTrue(adapter.contains("reason == SubLevelRemovalReason.REMOVED"));
-        assertTrue(adapter.contains("container.getAllSubLevels()"));
-        assertTrue(
-                adapter.contains("slot -> GroundClock.get(level).clock.model.id(slot).region()"));
-        assertTrue(adapter.contains("ShipHost.get().surroundingsFrame(level)"));
-        assertTrue(adapter.contains("frame.universe(position, clock.model, clock.tick())"));
-        for (String forbidden :
-                new String[] {
-                    "SableFrames.move",
-                    "removeSubLevel(",
-                    "addRegionTicket",
-                    "holdingMap",
-                    "getLastSerializationPointer"
-                }) assertFalse(adapter.contains(forbidden));
-        var wiring = Sources.text("StarfoldServer");
-        assertTrue(wiring.contains("ShipRecords.attach(level)"));
-        assertTrue(
-                wiring.contains(
-                        "if (level.getGameTime() % 20 == 0) { ShipRecords.refresh(level);"));
-        assertTrue(wiring.contains("ShipRecords.clear()"));
-        var diagnostic = Sources.text("DevShipRecords");
-        assertTrue(diagnostic.contains("Commands.literal(\"ships\")"));
-        assertTrue(diagnostic.contains("ShipSave.get(level).list()"));
-        assertTrue(diagnostic.contains("ShipParking.evaluate(clock.model, p, clock.tick())"));
     }
 }

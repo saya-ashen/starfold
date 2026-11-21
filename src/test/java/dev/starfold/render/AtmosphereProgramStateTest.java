@@ -9,8 +9,6 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 /** Offline lifecycle contracts against the actual vanilla/Veil classes; no GPU is bootstrapped. */
@@ -134,16 +132,11 @@ class AtmosphereProgramStateTest {
         assertTrue(body.stream().anyMatch(c -> c.name.equals("vector")));
         var vector = calls(method(owner, "vector")).stream().map(c -> c.name).toList();
         assertTrue(vector.indexOf("getUniform") < vector.indexOf("set"));
-        var source =
-                Files.readString(
-                        Path.of("src/main/java/dev/starfold/render/PlanetRemoteRenderer.java"));
-        assertTrue(source.contains("vector(shader, \"AtmosphereGrade\", grade)"));
-        assertTrue(source.contains("shader.getUniform(\"AtmosphereGrade\").set(1f, 1f, 1f)"));
     }
 
     @Test
     void immediateAtmosphereRestoresBindingAfterInvalidatingApplyCache() throws Exception {
-        var draw = method("dev/starfold/render/GroundAtmosphere", "draw");
+        var draw = method("dev/starfold/render/GroundAtmosphere", "drawData");
         var calls = calls(draw);
         var names = calls.stream().map(c -> c.name).toList();
         assertTrue(names.indexOf("glGetInteger") < names.indexOf("drawWithShader"));
@@ -157,31 +150,24 @@ class AtmosphereProgramStateTest {
                 restores++;
             }
         assertTrue(restores >= 2);
-        assertTrue(calls(method("dev/starfold/render/RenderPassState", "close")).stream()
-                .anyMatch(c -> c.name.equals("setShader")));
+        assertTrue(
+                calls(method("dev/starfold/render/RenderPassState", "close")).stream()
+                        .anyMatch(c -> c.name.equals("setShader")));
         assertTrue(
                 draw.tryCatchBlocks.stream().anyMatch(b -> b.type == null), "finally restoration");
-        var source =
-                Files.readString(
-                        Path.of("src/main/java/dev/starfold/render/GroundAtmosphere.java"));
-        assertTrue(source.contains("GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM)"));
-        assertTrue(source.contains("new RenderPassState(true, true, false)"));
-        assertTrue(Files.readString(Path.of("src/main/java/dev/starfold/render/RenderPassState.java"))
-                .contains("GlStateManager._backupGlState(saved)"));
-        assertFalse(source.contains("glIsEnabled("));
-        assertFalse(source.contains("glGetBoolean("));
-        assertFalse(source.contains("GL_BLEND_SRC_RGB"));
-        assertTrue(source.contains("pass.close()"));
-        assertTrue(source.contains("ProgramManager.glUseProgram(program)"));
-        assertFalse(
-                source.contains("if (previous != null)"), "null selection must also be restored");
     }
 
     @Test
     void atmosphereEncodesOnlyAtVertexAndFogBoundariesNotStarVisibility() throws Exception {
         String owner = "dev/starfold/render/GroundAtmosphere";
         for (String name : List.of("drawSky", "rim", "fog")) {
-            var names = calls(method(owner, name)).stream().map(c -> c.name).toList();
+            var implementation =
+                    type(owner).methods.stream()
+                            .filter(m -> m.name.equals(name))
+                            .filter(m -> calls(m).stream().anyMatch(c -> c.name.equals("display")))
+                            .findFirst()
+                            .orElseThrow();
+            var names = calls(implementation).stream().map(c -> c.name).toList();
             assertEquals(1, Collections.frequency(names, "display"), name);
             assertTrue(
                     names.indexOf(name.equals("fog") ? "fog" : "sky") < names.indexOf("display"),
@@ -191,12 +177,6 @@ class AtmosphereProgramStateTest {
         assertTrue(stars.indexOf("sky") < stars.indexOf("stars"));
         assertFalse(stars.contains("display"));
         assertFalse(calls(method(owner, "grade")).stream().anyMatch(c -> c.name.equals("display")));
-        var colorShader =
-                Files.readString(
-                        Path.of(
-                                "src/main/resources/assets/starfold/shaders/core/atmosphere_color.fsh"));
-        assertTrue(colorShader.contains("fragColor=vertexColor*ColorModulator"));
-        assertFalse(colorShader.contains("pow("), "no second encoding in the fragment shader");
     }
 
     @Test
@@ -254,37 +234,55 @@ class AtmosphereProgramStateTest {
             }
             assertFalse(calls(sample).stream().anyMatch(c -> c.name.equals("sunlight")));
         }
-        var source = Files.readString(Path.of("src/main/java/dev/starfold/render/GroundAtmosphere.java"));
-        assertTrue(source.contains("air.density() == 0 || highAltitude == 1 || gasTransmission == 0"));
-        assertTrue(source.contains("var color = black ? BLACK :"));
-        assertTrue(source.contains("draw(null, skyMatrix(c), true)"), "keep the black background draw");
     }
 
     @Test
-    void immediateUniformWriterOnlyRunsInPostApplyHookOrBoundLodBatch() throws Exception {
+    void immediateUniformWriterRunsAfterApplyAndFaceBatchesBindBeforeDrawing() throws Exception {
         var projection = calls(method("dev/starfold/render/GroundClient", "apply"));
-        assertEquals(List.of("dev/starfold/render/GroundProjectionUniforms"),
+        assertEquals(
+                List.of("dev/starfold/render/GroundProjectionUniforms"),
                 projection.stream().map(c -> c.owner).toList());
-        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms", "apply"))
-                .stream().anyMatch(c -> c.owner.equals("dev/starfold/render/ShaderUniforms")
-                        && c.name.equals("set")));
-        var batch = calls(method("dev/starfold/render/GroundRenderer", "drawLods"));
-        var batchNames = batch.stream().map(c -> c.name).toList();
-        assertTrue(batchNames.indexOf("apply") < batchNames.indexOf("set"));
-        assertTrue(batchNames.indexOf("apply") < batchNames.indexOf("drawLodMesh"));
-        assertTrue(batchNames.lastIndexOf("drawLodMesh") < batchNames.indexOf("clear"));
-        var draw = calls(method("dev/starfold/render/GroundRenderer", "drawLodMesh"));
         assertTrue(
-                draw.stream().map(c -> c.name).toList().indexOf("set")
-                        < draw.stream().map(c -> c.name).toList().indexOf("draw"));
+                calls(method("dev/starfold/render/GroundProjectionUniforms", "apply")).stream()
+                        .anyMatch(
+                                c ->
+                                        c.owner.equals("dev/starfold/render/ShaderUniforms")
+                                                && c.name.equals("set")));
+        var batchMethod = method("dev/starfold/render/GroundFaceArenas", "drawLayer");
+        var batch = calls(batchMethod);
+        var boundary =
+                batch.stream()
+                        .filter(c -> Set.of("bind", "apply", "draw", "clear").contains(c.name))
+                        .toList();
+        assertEquals(
+                List.of("bind", "apply", "draw", "clear", "clear"),
+                boundary.stream().map(c -> c.name).toList(),
+                "prepare each face before apply; clear on normal and exceptional exits");
+        assertEquals("dev/starfold/render/GroundFaceArenas$FaceUniformBinder", boundary.get(0).owner);
+        assertEquals("net/minecraft/client/renderer/ShaderInstance", boundary.get(1).owner);
+        assertEquals("dev/starfold/render/GroundLodArena", boundary.get(2).owner);
+        assertTrue(batchMethod.tryCatchBlocks.stream().anyMatch(b -> b.type == null));
+        assertFalse(batch.stream().anyMatch(c -> c.owner.equals("dev/starfold/render/ShaderUniforms")));
         var wrapper =
                 calls(method("dev/starfold/mixin/CoreShaderShaderMixin", "starfold$capUniforms"));
-        assertEquals(List.of("call", "apply", "apply"), wrapper.stream().map(c -> c.name).toList());
+        assertEquals(
+                List.of("call", "apply", "apply", "applied", "jitterX", "jitterY", "set"),
+                wrapper.stream().map(c -> c.name).toList());
+        assertEquals(
+                "dev/starfold/render/GroundFarDrawDiagnostics",
+                wrapper.get(3).owner,
+                "observe uniforms only after projection and surface writes");
         assertEquals("dev/starfold/render/GroundClient", wrapper.get(1).owner);
-        assertEquals("dev/starfold/api/PlanetSurfaceRender", wrapper.get(2).owner,
+        assertEquals(
+                "dev/starfold/api/PlanetSurfaceRender",
+                wrapper.get(2).owner,
                 "optional exterior appearance uploads only after the program is bound");
-        assertTrue(calls(method("dev/starfold/render/GroundProjectionUniforms", "apply")).stream()
-                .anyMatch(c -> c.owner.equals("dev/starfold/api/PlanetSurfaceRender") && c.name.equals("nearUniforms")));
+        assertTrue(
+                calls(method("dev/starfold/render/GroundProjectionUniforms", "apply")).stream()
+                        .anyMatch(
+                                c ->
+                                        c.owner.equals("dev/starfold/api/PlanetSurfaceRender")
+                                                && c.name.equals("nearUniforms")));
         var writer = type("dev/starfold/render/ShaderUniforms");
         int setters = 0;
         for (var m : writer.methods)

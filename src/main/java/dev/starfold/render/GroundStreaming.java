@@ -1,8 +1,8 @@
 package dev.starfold.render;
 
 import dev.starfold.chart.PlanetShape;
-import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.GroundTopology;
+import dev.starfold.storage.ChunkKeys;
 
 import net.minecraft.core.BlockPos;
 
@@ -167,16 +167,14 @@ public final class GroundStreaming {
     }
 
     public static long[] neighbours(PlanetShape shape, long key) {
-        if (key < 0 || key >= 98304) throw new IllegalArgumentException("Native tile");
-        int face = (int) (key / 16384),
-                x = face * GroundCoordinates.STRIDE + (int) (key % 128) * 16,
-                z = (int) (key / 128 % 128) * 16;
+        if (!GroundTileKeys.owned(shape, key)) throw new IllegalArgumentException("Native tile");
+        int x = ChunkKeys.chunkX(key) * 16, z = ChunkKeys.chunkZ(key) * 16;
         var out = new long[4];
         int i = 0;
         for (int[] p :
                 new int[][] {{x - 1, z + 8}, {x + 16, z + 8}, {x + 8, z - 1}, {x + 8, z + 16}}) {
             var owner = GroundTopology.address(shape, new BlockPos(p[0], 128, p[1])).owner();
-            out[i++] = GroundSurfaceIndex.key(owner.getX() >> 4, owner.getZ() >> 4);
+            out[i++] = ChunkKeys.local(owner.getX() >> 4, owner.getZ() >> 4, shape.chunks());
         }
         return out;
     }

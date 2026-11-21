@@ -120,47 +120,34 @@ public final class PlanetSystem {
         return ((Saved) current.getChunkSource().getGenerator()).model(current);
     }
 
-    /** A, B, C … in storage order. */
-    private static volatile java.util.List<PlanetIdentity> identities = java.util.List.of();
-
     /** Back to the two standard planets nobody has named, as before any world was loaded. */
     public static void reset() {
-        identities(java.util.List.of());
-        names(java.util.List.of());
-        PlanetShape.reset();
+        PlanetCatalog.reset();
     }
 
+    /** Compatibility setup API; complete runtime catalogs are installed with PlanetCatalog.install. */
     public static void identities(java.util.List<PlanetIdentity> values) {
-        identities = java.util.List.copyOf(values);
+        PlanetCatalog.identities(values);
     }
 
     public static java.util.List<PlanetIdentity> identities() {
-        return identities;
+        return PlanetCatalog.current().identities();
     }
 
     public static PlanetIdentity identity(int planet) {
-        var values = identities;
-        return planet >= 0 && planet < values.size()
-                ? values.get(planet)
-                : new PlanetIdentity(
-                        java.util.Optional.empty(),
-                        planet == 0 ? "temperate" : "rocky",
-                        java.util.Optional.empty());
+        return PlanetCatalog.current().identity(planet);
     }
 
-    private static volatile java.util.List<String> names = java.util.List.of();
-
     public static void names(java.util.List<String> saved) {
-        names = java.util.List.copyOf(saved);
+        PlanetCatalog.names(saved);
     }
 
     public static java.util.List<String> names() {
-        return names;
+        return PlanetCatalog.current().names();
     }
 
     public static String name(int planet) {
-        var saved = names;
-        return planet >= 0 && planet < saved.size() ? saved.get(planet) : defaultName(planet);
+        return PlanetCatalog.current().name(planet);
     }
 
     public static Component label(int planet) {

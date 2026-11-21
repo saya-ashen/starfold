@@ -5,40 +5,40 @@ file = "config/ftbquests/quests/chapter_groups.snbt"
 hash = "e9e0daacf0a4fe587c0231cea95dc56f1aae62c5e8b1d3371829360a50f1b332"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/00.snbt"
-hash = "5f6ef62722f2a2e4a31aefb79aedee441736a60b080a3e99fc5e2b26b7f4ec19"
+file = "config/ftbquests/quests/chapters/1000000000000000.snbt"
+hash = "44208e1b53bdedab419bc0a1fbc97023547ad3c83bdbd6f22d382b90f676d0d0"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/01.snbt"
-hash = "27ac04beadeb026addf2fbb61b6f46eda2c4eff6ddbf1188430ce71d392a5b78"
+file = "config/ftbquests/quests/chapters/1000000000010000.snbt"
+hash = "24e2dce0d8d823206d201248284cb8320aa22b1e3b5c49712a15cda96e0bf976"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/02.snbt"
-hash = "48f92c6842dbfaf84bcc263a55e804f58e1ed06778e97a40d59192bcdca9d8c4"
+file = "config/ftbquests/quests/chapters/1000000000020000.snbt"
+hash = "f618b5ff3b217a0708fb595f999212dc63b8f992587e8a494ca698e49522b365"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/03.snbt"
-hash = "21478b9e1ac5069703cb59e9a8a38c524a190d6828bdb3b2703845749fee3f7b"
+file = "config/ftbquests/quests/chapters/1000000000030000.snbt"
+hash = "38eb27449b67fc6ff39073b649974c2663c0f87da6b1f99d43af7696910290f4"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/04.snbt"
-hash = "ad1513f909c6270e5c254e70be66b499055094b8cffab10f46664d4276e3c811"
+file = "config/ftbquests/quests/chapters/1000000000040000.snbt"
+hash = "414daff9d9865ef93f5c88ad9a821fdbbd857d73577f63ef161f1a0223121613"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/05.snbt"
-hash = "c068f3e45e89c2a100d393770fcb1272bb1267b18aea8b8b4134f9e04e3bdc5b"
+file = "config/ftbquests/quests/chapters/1000000000050000.snbt"
+hash = "caa8222f9fc3da7bf0aaeaa82ccc036ec5cc1e35b7a9abe3941a120a99d02fa9"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/06.snbt"
-hash = "e0471dbcbcf50f718f759795615c58a2f755ff881cabd31c30cf852095232423"
+file = "config/ftbquests/quests/chapters/1000000000060000.snbt"
+hash = "bd2b349ff6004152f4a1a5463e714651a36fb594244c216874bed0b4d28afa7d"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/07.snbt"
-hash = "fd3726a160a7cef46c6b84ba92df43f0b25e129cafece30c07483daca4286e4c"
+file = "config/ftbquests/quests/chapters/1000000000070000.snbt"
+hash = "20b8ac8c45c3238d18507f8ac917b1ae031b3e90d3cc73dedbc49b9cb5041fb4"
 
 [[files]]
-file = "config/ftbquests/quests/chapters/08.snbt"
-hash = "fe68e628cd9d509a3797261d33a295f60bfa0d8ec41688b94e4dccf25a21cdd5"
+file = "config/ftbquests/quests/chapters/1000000000080000.snbt"
+hash = "98835e736bccc546e8f767f17934b21328f9ef2422b81d0244f9d678308caeed"
 
 [[files]]
 file = "config/ftbquests/quests/data.snbt"
@@ -46,15 +46,23 @@ hash = "57c3ef422b94cc77bdeb326f7920202cc39144bc2cedb3816f7d27a24560d4d4"
 
 [[files]]
 file = "config/ftbquests/quests/lang/en_us.snbt"
-hash = "5a6b9c0299e33a24a19f063d3c4ca7e1875364dd8fe2e58b8df17ceb1bb26a87"
+hash = "20e12977fd41dd5c153684aea145625c8ecee20994f2ba8660125c6cbecef491"
 
 [[files]]
 file = "config/ftbquests/quests/lang/zh_cn.snbt"
-hash = "cb37ee84a9386eb149608be594e24ccaf4ba2bd7a4f8819c4a21adab9236f820"
+hash = "046d58029dae045a2a8a753e50d4cb3f94d6d3714843aeb285e288cb6da41a73"
+
+[[files]]
+file = "config/ftbultimine-server.snbt"
+hash = "4f3d92d68f81068b4b6f3fe2374957e0ed2e5ed421b990ca365fb0a4e8c294a7"
 
 [[files]]
 file = "kubejs/BALANCE.md"
 hash = "cdb1e5b8c7d507a3d384d1815d43a3ae6eabfdc3f9e28b8a3c4ae4b38909064e"
+
+[[files]]
+file = "kubejs/data/createdieselgenerators/loot_table/blocks/andesite_girder_strut.json"
+hash = "a254bb72e36f24435fbd70819cf202bde39bc6ca0bbaddf434b7ba2fcc156c5f"
 
 [[files]]
 file = "kubejs/data/createdieselgenerators/tags/block/oil_deposit.json"
@@ -81,8 +89,20 @@ file = "kubejs/data/escape_velocity/starfold/thruster_fuel/hydrogen.json"
 hash = "c8dc21a2271dccea04a62562be4015eff2fb91635912f54c491ad73080e9cb9b"
 
 [[files]]
+file = "kubejs/data/escape_velocity/tags/worldgen/structure_set/home.json"
+hash = "641c101e62ff5d95fdad80aa685d83f6b0413b2eb5ee682c671ea640d48cd9dd"
+
+[[files]]
+file = "kubejs/data/ftbultimine/tags/block/block_whitelist.json"
+hash = "55338bb2452cd6981f9b882e738e3813ed19726a95ea59d7b8e759f18a958ff6"
+
+[[files]]
 file = "kubejs/data/minecraft/tags/worldgen/world_preset/normal.json"
 hash = "07e3404ef903c3a14c58ebeb7a39f96e8cfc3a8937b6a613f14caac9f862baec"
+
+[[files]]
+file = "kubejs/data/starfold/tags/item/survival_guide_enabled.json"
+hash = "798bad8d743848635dae1f8bacf1e23d32a21afe9c88f58b74d7a405bfb20afa"
 
 [[files]]
 file = "kubejs/data/starfold_worlds/starfold/planet_type/archipelago.json"
@@ -110,7 +130,7 @@ hash = "4587767eb790c96a967658d1178b6af9218e91c2376b1cbb27e9a0e5c1932bd3"
 
 [[files]]
 file = "kubejs/data/starfold_worlds/starfold/planet_type/home.json"
-hash = "a90ca46e36596baa5a7241d22b17137ec5c621503a1e4fb10b547588a70858ad"
+hash = "a3fd8bacb2f8374acf4b1bdacb6857e17dcce917a28554b76cc590070b0a1f1a"
 
 [[files]]
 file = "kubejs/data/starfold_worlds/starfold/planet_type/ice.json"
@@ -198,6 +218,11 @@ metafile = true
 [[files]]
 file = "mods/ftb-teams-forge.pw.toml"
 hash = "ddcee408deec0c57623f6ae144e2bd683c91068a5d63deb56a92c3c92d883e9b"
+metafile = true
+
+[[files]]
+file = "mods/ftb-ultimine-forge.pw.toml"
+hash = "b7dc821a1217d99ec53a8356931d020ae34bcbc7bf0ff9aee100bee711beec35"
 metafile = true
 
 [[files]]

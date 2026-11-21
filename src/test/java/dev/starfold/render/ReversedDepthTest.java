@@ -11,8 +11,11 @@ class ReversedDepthTest {
     void projectionReversesDepthWithoutChangingCallerOrBobbing() {
         float near = .05f;
         var plain = new Matrix4f().perspective((float) Math.toRadians(70), 16f / 9, near, 224);
-        var bobbing = new Matrix4f().translate(.04f, -.06f, 0)
-                .rotateZ((float) Math.toRadians(2.5)).rotateX((float) Math.toRadians(1.8));
+        var bobbing =
+                new Matrix4f()
+                        .translate(.04f, -.06f, 0)
+                        .rotateZ((float) Math.toRadians(2.5))
+                        .rotateX((float) Math.toRadians(1.8));
         for (var view : new Matrix4f[] {new Matrix4f(), bobbing}) {
             var matrix = new Matrix4f(plain).mul(view);
             var original = new Matrix4f(matrix);

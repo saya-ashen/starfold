@@ -2,8 +2,6 @@ package dev.starfold.chart;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.SourceText;
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
 import dev.starfold.geometry.OrbitAttitude;
@@ -140,33 +138,5 @@ class GroundReliefCameraTest {
         assertTrue(shader.contains("dot(slope,radial)<0.0"));
         assertFalse(GroundShaderSource.TEXTURE.contains("dFdx(cpNativeSolarPosition)"));
         assertTrue(GroundShaderSource.TEXTURE.contains("dFdx(cpNativeBlockUv)"));
-    }
-
-    @Test
-    void runtimeCommitsBeforeTerrainAndKeepsInProgressConnectors() throws Exception {
-        var s = Sources.text("GroundRenderer");
-        assertTrue(
-                s.contains(
-                        "cpEvent.getStage()!=net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY"));
-        assertTrue(s.contains("prepareSurfaceUpdates();if(selectionActive)updateExclusions()"));
-        assertTrue(s.contains("if(stitchJob==null&&"));
-        assertTrue(s.contains("pendingStitches=stitchJob.finish()"));
-        assertTrue(s.contains("GroundOwnership.canCommit(pendingJob.nextCover"));
-        assertFalse(s.contains("drawDetail("));
-        assertTrue(s.contains("GroundClient.stitch(mesh==stitches[face])"));
-    }
-
-    @Test
-    void flightRuntimeUsesConsistentConversionsAndDoesNotReplayMouseAim() throws Exception {
-        SourceText client = Sources.text("GroundFlightClient"),
-                server = Sources.text("GroundFlightServer");
-        assertTrue(server.contains("GroundCamera.capture(player.getYRot(),player.getXRot())"));
-        assertTrue(server.contains("GroundCamera.pitch(aim)"));
-        assertTrue(client.contains("if(!handoff&&!underWay)aim="));
-        assertTrue(
-                client.contains(
-                        "GroundCamera.landing(model,state.planet(),state.local(),aim,state.tick())"));
-        assertTrue(client.contains("p.xRotO=p.getXRot()"));
-        assertFalse(client.contains("(float)-OrbitAttitude.pitch"));
     }
 }

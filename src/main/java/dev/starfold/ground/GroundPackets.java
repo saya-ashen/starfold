@@ -2,9 +2,9 @@ package dev.starfold.ground;
 
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
+import dev.starfold.planet.PlanetCatalog;
 import dev.starfold.planet.PlanetIdentity;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
 import dev.starfold.sky.GroundEphemerisSave;
 import dev.starfold.universe.SystemDefinition;
 import dev.starfold.universe.Universe;
@@ -74,6 +74,8 @@ public final class GroundPackets {
         }
 
         public Shapes {
+            sizes = sizes.clone();
+            depths = depths.clone();
             identities = java.util.List.copyOf(identities);
             if (identities.size() != sizes.length)
                 throw new IllegalArgumentException("Planet identities/shapes disagree");
@@ -86,7 +88,21 @@ public final class GroundPackets {
                     || sizes.length > PlanetStorage.MAX_PLANETS
                     || depths.length != sizes.length)
                 throw new IllegalArgumentException("Planet shapes");
-            for (int size : sizes) new PlanetShape(size);
+            for (int id = 0; id < sizes.length; id++) {
+                var shape = new PlanetShape(sizes[id]);
+                if (depths[id] < PlanetShape.STANDARD_DEPTH || depths[id] >= shape.radius())
+                    throw new IllegalArgumentException("Planet depth " + depths[id]);
+            }
+        }
+
+        @Override
+        public int[] sizes() {
+            return sizes.clone();
+        }
+
+        @Override
+        public int[] depths() {
+            return depths.clone();
         }
 
         public static final Type<Shapes> TYPE =
@@ -134,9 +150,7 @@ public final class GroundPackets {
         }
 
         public void assign() {
-            PlanetShape.system(sizes, depths);
-            PlanetSystem.names(names);
-            PlanetSystem.identities(identities);
+            PlanetCatalog.install(new PlanetCatalog(sizes, depths, names, identities));
         }
 
         @Override

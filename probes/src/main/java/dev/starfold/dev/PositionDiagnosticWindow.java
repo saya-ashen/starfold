@@ -64,7 +64,8 @@ final class PositionDiagnosticWindow {
     }
 
     boolean stack(long event, boolean meaningful) {
-        if (!enabled() || event == 0 || event != events || !meaningful || stacks == MAX_STACKS) return false;
+        if (!enabled() || event == 0 || event != events || !meaningful || stacks == MAX_STACKS)
+            return false;
         stacks++;
         return true;
     }

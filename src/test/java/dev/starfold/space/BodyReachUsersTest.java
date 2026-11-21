@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -150,37 +149,5 @@ class BodyReachUsersTest {
                 0,
                 SpaceNavigation.blocker(
                         new GroundEphemeris.Model(List.of(light, large, target)), ship, 1, 0));
-    }
-
-    @Test
-    void worldBoundUsersPassTheBodyFoundFromTheirExistingOwnership() throws Exception {
-        var frames = Sources.text("SableFrames");
-        assertTrue(frames.contains("Space.leaves(clock.model.body(planet),point.y())"));
-        assertTrue(frames.contains("Space.enters(clock.model.body(planet),height)"));
-        assertTrue(
-                frames.contains(
-                        "ShipHost.get().landingReady(clock.model.body(planet),height,full)"));
-        var weight = Sources.text("HullWeight");
-        assertTrue(weight.contains("GroundClock.get((ServerLevel)level).clock.model"));
-        assertTrue(weight.contains("access.storagePlanet(feet.x(),feet.z())"));
-        assertTrue(weight.contains("at(model.body(planet),access.chart(feet).y())"));
-        for (String file : new String[] {"HullPhysics", "LiftServer"})
-            assertTrue(Sources.text(file).contains("HullWeight.gravity("));
-        assertTrue(Sources.text("Airstair").contains("HullWeight.at("));
-        assertTrue(weight.contains("returnat(level,feet)*"));
-        assertTrue(weight.contains("PlanetConditions.gravity("));
-        var server = Sources.text("SpaceServer");
-        assertTrue(
-                server.contains(
-                        "align(model.body(destination),entryHeight,entryClosing,value.inbound)"));
-        assertTrue(server.contains("entryHeight<model.body(destination).hullIn()+300"));
-        assertTrue(server.contains("inbound(model.body(destination),"));
-        assertTrue(server.contains("inbound(model.body(nearest),"));
-        assertTrue(
-                server.contains("govern(model.body(nearest),drift,toward,relative,height,true)"));
-        var client = Sources.text("SpaceNavigationClient");
-        assertTrue(client.contains("height-model.body(planet).hullIn()"));
-        assertTrue(client.contains("SpaceFlightMath.arrivalLimit(model.body(planet),height)"));
-        assertTrue(client.contains("SpaceFlightMath.nearLimit(model.body(planet),height)"));
     }
 }

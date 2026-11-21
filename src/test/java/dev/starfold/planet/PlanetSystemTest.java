@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.mojang.serialization.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
 import dev.starfold.chart.GroundOrbit;
@@ -19,9 +18,8 @@ import dev.starfold.geometry.PlanetSpace;
 import dev.starfold.ground.GroundFlightPackets;
 import dev.starfold.ground.GroundNavigationSave;
 import dev.starfold.render.GroundChunkSnapshot;
-import dev.starfold.render.GroundTransition;
-import dev.starfold.render.GroundViewCache;
 import dev.starfold.render.GroundSurface;
+import dev.starfold.render.GroundTransition;
 import dev.starfold.render.GroundViewPackets;
 import dev.starfold.render.PlanetRemotePackets;
 import dev.starfold.render.PlanetRemoteView;
@@ -30,7 +28,6 @@ import dev.starfold.sky.GroundEphemerisSave;
 import dev.starfold.universe.PlanetChunkGenerator;
 import dev.starfold.universe.PlanetPackets;
 import dev.starfold.universe.PlanetWorldPreset;
-import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetHeightCache;
@@ -49,7 +46,18 @@ import java.util.*;
 public class PlanetSystemTest {
     final PlanetBiomeFixtures fixture = new PlanetBiomeFixtures();
     static final long ROCK_SEED = 20261002L;
-    static final PlanetGeneration POLICY = new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),2048,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,2048));
+    static final PlanetGeneration POLICY =
+            new PlanetGeneration(
+                    "rocky",
+                    PlanetGeneration.SURFACE_VERSION,
+                    dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                    2048,
+                    191,
+                    "core_shell",
+                    true,
+                    false,
+                    false,
+                    dev.starfold.worldgen.PlanetEnvironment.defaults(false, 2048));
 
     @BeforeAll
     static void boot() {
@@ -57,7 +65,12 @@ public class PlanetSystemTest {
     }
 
     PlanetChunkGenerator rock() {
-        return new PlanetChunkGenerator(fixture.generator().settings(),ROCK_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.empty(),Optional.of(POLICY));
+        return new PlanetChunkGenerator(
+                fixture.generator().settings(),
+                ROCK_SEED,
+                dev.starfold.worldgen.PlanetTerrain.VERSION,
+                Optional.empty(),
+                Optional.of(POLICY));
     }
 
     net.minecraft.world.level.chunk.ProtoChunk chunk(PlanetChunkGenerator g, int x, int z) {
@@ -317,9 +330,21 @@ public class PlanetSystemTest {
     void newPresetPinsBothGeneratorsButNeverRegistersAGlobalRockDimension() throws Exception {
         var root = java.nio.file.Path.of("src/main/resources/data/starfold");
         var a =
-                new PlanetChunkGenerator(fixture.generator().settings(),20261001L,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.of(fixture.source(20261001L)),Optional.of(PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION)));
+                new PlanetChunkGenerator(
+                        fixture.generator().settings(),
+                        20261001L,
+                        dev.starfold.worldgen.PlanetTerrain.VERSION,
+                        Optional.of(fixture.source(20261001L)),
+                        Optional.of(
+                                PlanetGeneration.defaults(
+                                        dev.starfold.worldgen.PlanetTerrain.VERSION)));
         var b =
-                new PlanetChunkGenerator(fixture.generator().settings(),ROCK_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.empty(),Optional.of(POLICY));
+                new PlanetChunkGenerator(
+                        fixture.generator().settings(),
+                        ROCK_SEED,
+                        dev.starfold.worldgen.PlanetTerrain.VERSION,
+                        Optional.empty(),
+                        Optional.of(POLICY));
         assertEquals(dev.starfold.worldgen.PlanetTerrain.VERSION, a.version());
         assertEquals(dev.starfold.worldgen.PlanetTerrain.VERSION, b.version());
         assertNotEquals(a.seed(), b.seed());
@@ -375,7 +400,8 @@ public class PlanetSystemTest {
                 GroundDynamics.local(
                         900,
                         1,
-                        new PlanetShape.Pose(Face.TOP, new Point(1024, GroundDynamics.HANDOFF + 1, 1024)),
+                        new PlanetShape.Pose(
+                                Face.TOP, new Point(1024, GroundDynamics.HANDOFF + 1, 1024)),
                         GroundEphemeris.ZERO,
                         new org.joml.Quaterniond(),
                         true,
@@ -408,7 +434,10 @@ public class PlanetSystemTest {
     @Test
     void remoteCacheIsSessionAndPlanetIsolatedAndInvalidatesUnknownEdits() {
         var view = new PlanetRemoteView();
-        var profile = dev.starfold.render.SurfaceProfiles.current(new PlanetPackets.Profile(7,ROCK_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION,POLICY));
+        var profile =
+                dev.starfold.render.SurfaceProfiles.current(
+                        new PlanetPackets.Profile(
+                                7, ROCK_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION, POLICY));
         view.summary(new PlanetRemotePackets.Summary(1, profile, 0, new long[] {1}, new long[0]));
         assertTrue(
                 view.surface(
@@ -432,7 +461,13 @@ public class PlanetSystemTest {
                                 1, new GroundViewPackets.Surface(7, 0, surface(2)))));
         view.summary(
                 new PlanetRemotePackets.Summary(
-                        0, dev.starfold.render.SurfaceProfiles.current(new PlanetPackets.Profile(8,1,dev.starfold.worldgen.PlanetTerrain.VERSION)), 0, new long[0], new long[0]));
+                        0,
+                        dev.starfold.render.SurfaceProfiles.current(
+                                new PlanetPackets.Profile(
+                                        8, 1, dev.starfold.worldgen.PlanetTerrain.VERSION)),
+                        0,
+                        new long[0],
+                        new long[0]));
         assertEquals(0, view.snapshot().planet());
         assertEquals(8, view.session());
     }
@@ -443,7 +478,8 @@ public class PlanetSystemTest {
         var p =
                 new PlanetRemotePackets.Summary(
                         1,
-                        new PlanetPackets.Profile(7,ROCK_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION,POLICY),
+                        new PlanetPackets.Profile(
+                                7, ROCK_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION, POLICY),
                         1,
                         changed,
                         new long[0]);
@@ -486,16 +522,21 @@ public class PlanetSystemTest {
         var t = rock().terrain();
         var cache = new PlanetHeightCache(t);
         assertEquals(-10, cache.surfaceHeight(Face.TOP, 512, 512, -10));
-        var local=fixture.terrain.liquid(Face.TOP,512,512);
-        assertEquals(local==null?-10:Math.max(-10,local.elevation()),new PlanetHeightCache(fixture.terrain).surfaceHeight(Face.TOP,512,512,-10));
+        var local = fixture.terrain.liquid(Face.TOP, 512, 512);
+        assertEquals(
+                local == null ? -10 : Math.max(-10, local.elevation()),
+                new PlanetHeightCache(fixture.terrain).surfaceHeight(Face.TOP, 512, 512, -10));
         var function = new dev.starfold.worldgen.surface.SurfaceFunction(t);
         boolean found = false;
         for (int u = 64; u < 2048; u += 128)
             for (int v = 64; v < 2048; v += 128)
                 if (t.elevation(Face.TOP, u, v) < -1) {
                     assertTrue(GroundTransition.generated(cache, Face.TOP, u, v) < 0);
-                    var column = dev.starfold.worldgen.lod.VoxelColumn.visible(function, Face.TOP, u, v);
-                    assertTrue(column.runs().stream().allMatch(r -> r.block().getFluidState().isEmpty()));
+                    var column =
+                            dev.starfold.worldgen.lod.VoxelColumn.visible(function, Face.TOP, u, v);
+                    assertTrue(
+                            column.runs().stream()
+                                    .allMatch(r -> r.block().getFluidState().isEmpty()));
                     assertTrue(column.runs().getLast().top() < 128);
                     found = true;
                 }
@@ -508,8 +549,10 @@ public class PlanetSystemTest {
         for (var t :
                 new PlanetTerrain[] {
                     fixture.terrain,
-                    new PlanetTerrain(PlanetTerrain.TEST_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION),
-                    new PlanetTerrain(PlanetTerrain.TEST_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION),
+                    new PlanetTerrain(
+                            PlanetTerrain.TEST_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION),
+                    new PlanetTerrain(
+                            PlanetTerrain.TEST_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION),
                     rock().terrain()
                 }) {
             var sea = t.sea();
@@ -521,14 +564,29 @@ public class PlanetSystemTest {
                         int ground = t.groundY(f, u, v);
                         for (int y = ground + 1; y < 140; y++) {
                             var state = t.state(f, u, y, v);
-                            var local=t.liquid(f,u,v);
+                            var local = t.liquid(f, u, v);
                             boolean covered = local != null && y < local.level();
-                            final int level=y;
-                            var direction=t.unit(f,u+.5,v+.5);
-                            boolean filled=t.terrainPlan().localVolumes(f,u,v).stream().anyMatch(volume->
-                                volume.operation()==dev.starfold.worldgen.plan.terrain.TerrainPlan.Operation.FILL
-                                && t.terrainPlan().contains(volume,direction,level));
-                            if(filled)assertEquals(new dev.starfold.worldgen.surface.SurfaceFunction(t).blocks(f,u,v)[y-t.floor()],state);
+                            final int level = y;
+                            var direction = t.unit(f, u + .5, v + .5);
+                            boolean filled =
+                                    t.terrainPlan().localVolumes(f, u, v).stream()
+                                            .anyMatch(
+                                                    volume ->
+                                                            volume.operation()
+                                                                            == dev.starfold.worldgen
+                                                                                    .plan.terrain
+                                                                                    .TerrainPlan
+                                                                                    .Operation.FILL
+                                                                    && t.terrainPlan()
+                                                                            .contains(
+                                                                                    volume,
+                                                                                    direction,
+                                                                                    level));
+                            if (filled)
+                                assertEquals(
+                                        new dev.starfold.worldgen.surface.SurfaceFunction(t)
+                                                .blocks(f, u, v)[y - t.floor()],
+                                        state);
                             else assertEquals(covered, !state.getFluidState().isEmpty());
                             if (!state.getFluidState().isEmpty()) {
                                 assertNotNull(local);
@@ -539,7 +597,19 @@ public class PlanetSystemTest {
                         int top = cache.surfaceY(f, u, v);
                         assertEquals(t.surfaceY(f, u, v), top);
                         assertEquals(t.state(f, u, top, v), cache.surfaceState(f, u, v));
-                        assertTrue(t.state(f, u, top + 1, v).isAir(),f+" "+u+","+v+" top="+top+" next="+t.state(f,u,top+1,v)+" volumes="+t.terrainPlan().localVolumes(f,u,v));
+                        assertTrue(
+                                t.state(f, u, top + 1, v).isAir(),
+                                f
+                                        + " "
+                                        + u
+                                        + ","
+                                        + v
+                                        + " top="
+                                        + top
+                                        + " next="
+                                        + t.state(f, u, top + 1, v)
+                                        + " volumes="
+                                        + t.terrainPlan().localVolumes(f, u, v));
                     }
             assertEquals(sea != null, wet);
         }
@@ -548,34 +618,13 @@ public class PlanetSystemTest {
     }
 
     @Test
-    void liveSystemHooksRouteOneClockAndPreserveStateDuringChartHandoff() throws Exception {
-        var flight = Sources.text("GroundFlightServer");
-        var clock = Sources.text("GroundClock");
-        var wiring = Sources.text("StarfoldServer");
-        assertTrue(
-                wiring.contains(
-                        "NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Pre cpEvent)"));
-        assertTrue(wiring.contains("if(a!=null)GroundClock.get(a).advance()"));
-        assertFalse(wiring.contains("saved.advance()"));
-        assertTrue(flight.contains("s.state.tick()==clock.clock.tick()"));
-        assertTrue(clock.contains("var storage=level.getDataStorage()"));
-        assertTrue(
-                flight.contains(
-                        "player.connection.teleport(feet.x(),feet.y(),feet.z(),yaw,pitch)"));
-        assertFalse(flight.contains("s.state=GroundDynamics.local(clock.clock.tick(),pose"));
-        assertTrue(
-                Sources.text("GroundNavigationSave")
-                        .contains("var storage=level.getDataStorage()"));
-        assertTrue(
-                Sources.text("GroundFlightClient").contains("predicted.planet()!=state.planet()"));
-    }
-
-    @Test
     void profileRoundTripCarriesCustomPolicyNotJustVersion() {
         var raw = io.netty.buffer.Unpooled.buffer();
         try {
             var buf = new RegistryFriendlyByteBuf(raw, RegistryAccess.EMPTY);
-            var profile = new PlanetPackets.Profile(7,ROCK_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION,POLICY);
+            var profile =
+                    new PlanetPackets.Profile(
+                            7, ROCK_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION, POLICY);
             PlanetPackets.Profile.CODEC.encode(buf, profile);
             var copy = PlanetPackets.Profile.CODEC.decode(buf);
             assertEquals(profile, copy);

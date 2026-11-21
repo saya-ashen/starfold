@@ -1,7 +1,9 @@
 package dev.starfold.planet;
 
 import static org.junit.jupiter.api.Assertions.*;
+
 import dev.starfold.geometry.BentStripGeometry.Point;
+
 import org.junit.jupiter.api.Test;
 
 class GroundCoordinatesTest {

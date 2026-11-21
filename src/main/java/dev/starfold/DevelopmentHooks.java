@@ -19,28 +19,54 @@ public final class DevelopmentHooks {
     public static MoveListener mappedMove = (player, packet, mapped) -> {};
     public static Arrival arrival = new Arrival() {};
     public static Relight relight = new Relight() {};
-    public static boolean remoteDraw, ownDraw;
-    public static long parentNanos;
+    public static boolean remoteDraw;
 
     public interface MoveListener {
-        void accept(ServerPlayer player, ServerboundMovePlayerPacket packet, ServerboundMovePlayerPacket mapped);
+        void accept(
+                ServerPlayer player,
+                ServerboundMovePlayerPacket packet,
+                ServerboundMovePlayerPacket mapped);
     }
 
     public interface Arrival {
-        default boolean enabled() { return false; }
-        default long start() { return 0; }
+        default boolean enabled() {
+            return false;
+        }
+
+        default long start() {
+            return 0;
+        }
+
         default void end(String name, long start) {}
+
         default void seamHeld(ServerLevel level, long chunk, boolean ready) {}
+
         default void missingRead(ServerLevel level, BlockPos query, BlockPos owner) {}
+
         default void log(String message, Object... values) {}
     }
 
     public interface Relight {
-        default boolean enabled() { return false; }
+        default boolean enabled() {
+            return false;
+        }
+
         default void changed(ServerLevel level, BlockPos owner) {}
-        default void stream(ServerPlayer player, int queued, int processed, long nanos, int sent,
-                int pending, int remaining, int dirty, int lit, long oldestAge) {}
-        default void mismatch(int planet, long image, boolean identity, byte[] emitted, byte[] reference) {}
+
+        default void stream(
+                ServerPlayer player,
+                int queued,
+                int processed,
+                long nanos,
+                int sent,
+                int pending,
+                int remaining,
+                int dirty,
+                int lit,
+                long oldestAge) {}
+
+        default void mismatch(
+                int planet, long image, boolean identity, byte[] emitted, byte[] reference) {}
     }
 
     private DevelopmentHooks() {}

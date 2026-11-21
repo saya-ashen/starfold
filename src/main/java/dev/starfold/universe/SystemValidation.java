@@ -1,11 +1,11 @@
 package dev.starfold.universe;
 
 import static dev.starfold.universe.SystemDefinition.*;
+
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.chart.SunSettings;
-import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.planet.PlanetSystem;
+
 import java.util.*;
 
 /** Whole-system orbital constraints, independent of materialization. */
@@ -67,11 +67,7 @@ final class SystemValidation {
                             e);
                 }
                 families[p] =
-                        family(
-                                planet,
-                                radii[p],
-                                planetGm(planet),
-                                "sun " + s + " planet " + p);
+                        family(planet, radii[p], planetGm(planet), "sun " + s + " planet " + p);
                 double reach = families[p] + MARGIN / 2;
                 if (planet.orbit().radius() <= sun.radius() + reach)
                     throw new IllegalArgumentException(
@@ -87,7 +83,10 @@ final class SystemValidation {
                     double distance = distance(planet.orbit(), other.orbit(), sun.gm());
                     double required =
                             planet.moons().isEmpty() && other.moons().isEmpty()
-                                    ? radii[p] + radii[q] + (planet.reach() + other.reach()) + MARGIN
+                                    ? radii[p]
+                                            + radii[q]
+                                            + (planet.reach() + other.reach())
+                                            + MARGIN
                                     : families[p] + families[q] + MARGIN;
                     if (!Double.isFinite(distance) || distance < required)
                         throw new IllegalArgumentException(
@@ -112,7 +111,8 @@ final class SystemValidation {
                 if (gas.orbit().radius() <= sun.radius() + shell + MARGIN / 2)
                     throw new IllegalArgumentException("Gas giant orbit too close to sun " + s);
                 for (int p = 0; p < sun.planets().size(); p++) {
-                    double separation = distance(gas.orbit(), sun.planets().get(p).orbit(), sun.gm());
+                    double separation =
+                            distance(gas.orbit(), sun.planets().get(p).orbit(), sun.gm());
                     if (separation < gasFamily + families[p] + MARGIN)
                         throw new IllegalArgumentException(
                                 "Gas giant/planet orbital shells overlap");

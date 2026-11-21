@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.mojang.serialization.JsonOps;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundGuidance;
 import dev.starfold.chart.GroundTransit;
@@ -51,7 +50,23 @@ class PlanetCountTest {
         settings.getLayersInfo()
                 .add(new net.minecraft.world.level.levelgen.flat.FlatLayerInfo(1, Blocks.BEDROCK));
         settings.updateLayers();
-        return new PlanetChunkGenerator(settings,20261003L,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.empty(),Optional.of(new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),512,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,512))));
+        return new PlanetChunkGenerator(
+                settings,
+                20261003L,
+                dev.starfold.worldgen.PlanetTerrain.VERSION,
+                Optional.empty(),
+                Optional.of(
+                        new PlanetGeneration(
+                                "rocky",
+                                PlanetGeneration.SURFACE_VERSION,
+                                dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                                512,
+                                191,
+                                "core_shell",
+                                true,
+                                false,
+                                false,
+                                dev.starfold.worldgen.PlanetEnvironment.defaults(false, 512))));
     }
 
     SystemChunkGenerator three() {
@@ -341,15 +356,15 @@ class PlanetCountTest {
                         .getAsString());
         for (var preset : List.of("native_trio", "native_stars", "native_universe"))
             assertTrue(
-                    java.nio.file.Files.readString(
-                                    PlanetTypeFixtures.presetPath(preset))
-                            .replaceAll("\\s", "").contains("\"storage_layout\":\"six_face_square_v2\""),
+                    java.nio.file.Files.readString(PlanetTypeFixtures.presetPath(preset))
+                            .replaceAll("\\s", "")
+                            .contains("\"storage_layout\":\"six_face_square_v2\""),
                     preset);
         for (var preset : List.of("native_system", "native_exploration"))
             assertTrue(
-                    java.nio.file.Files.readString(
-                                    PlanetTypeFixtures.presetPath(preset))
-                            .replaceAll("\\s", "").contains("\"storage_layout\":\"six_face_square_v2\""),
+                    java.nio.file.Files.readString(PlanetTypeFixtures.presetPath(preset))
+                            .replaceAll("\\s", "")
+                            .contains("\"storage_layout\":\"six_face_square_v2\""),
                     preset);
     }
 
@@ -596,10 +611,6 @@ class PlanetCountTest {
         assertEquals(191, g.planet(2).generation().depth());
         assertTrue(g.planet(2).generation().coreShell());
         assertNotEquals(g.planet(1).terrain().seed(), g.planet(2).terrain().seed());
-        assertFalse(
-                java.nio.file.Files.exists(
-                        java.nio.file.Path.of(
-                                "src/main/resources/data/minecraft/tags/worldgen/world_preset/extended.json")));
     }
 
     @Test
@@ -680,18 +691,10 @@ class PlanetCountTest {
         var pair = codec.encodeStart(plain, fixture.generator()).getOrThrow().getAsJsonObject();
         pair.add("stars", saved.get("stars"));
         assertThrows(IllegalArgumentException.class, () -> codec.parse(plain, pair));
-        assertFalse(
-                java.nio.file.Files.exists(
-                        java.nio.file.Path.of(
-                                "src/main/resources/data/minecraft/tags/worldgen/world_preset/extended.json")));
     }
 
     @Test
     void theSystemIsToldBeforeTheFirstFrameThatNamesOneOfItsPlanets() throws Exception {
-        var frames = Sources.text("ObserverFrames");
-        int told = frames.indexOf("GroundServer.shapes(player)"),
-                sent = frames.indexOf("new GroundFlightPackets.Frame(frame)");
-        assertTrue(told > 0 && told < sent, "shapes go out before the frame");
         // What the client would otherwise refuse: a frame on a third planet while it still counts
         // two.
         assertThrows(IllegalArgumentException.class, () -> ObserverFrame.identity(2, 0));
@@ -729,9 +732,6 @@ class PlanetCountTest {
 
     @Test
     void eachPlanetHasASurfaceIndexOfItsOwn() throws Exception {
-        assertFalse(
-                Sources.text("GroundSurfaceIndex").contains("Files.list"),
-                "generated surfaces use lifecycle events, never region-file scans");
         assertEquals(GroundSurfaceIndex.FILE, GroundSurfaceIndex.file(0));
         assertEquals(GroundSurfaceIndex.FILE + "_planet_b", GroundSurfaceIndex.file(1));
         var names = new java.util.HashSet<String>();

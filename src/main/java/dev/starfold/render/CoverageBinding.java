@@ -1,6 +1,7 @@
 package dev.starfold.render;
 
 import com.mojang.blaze3d.platform.GlStateManager;
+
 import org.lwjgl.opengl.*;
 
 /** Unit 3 is borrowed by coverage uniforms for one pass or projected frame. */
@@ -20,7 +21,8 @@ final class CoverageBinding implements AutoCloseable {
         }
     }
 
-    @Override public void close() {
+    @Override
+    public void close() {
         int active = GlStateManager._getActiveTexture();
         try {
             GlStateManager._activeTexture(GL13.GL_TEXTURE3);

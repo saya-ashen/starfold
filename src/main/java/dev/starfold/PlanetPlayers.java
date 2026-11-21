@@ -1,5 +1,6 @@
 package dev.starfold;
 
+import dev.starfold.api.PlanetContent;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.FlightPermit;
 import dev.starfold.flight.GroundFlightServer;
@@ -11,7 +12,6 @@ import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.api.PlanetContent;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.sky.Space;
@@ -83,7 +83,7 @@ public final class PlanetPlayers {
             if (!player.isAlive()
                     || player.isSpectator()
                     || player.getTags().contains(STAY)
-                    || !GroundFlightServer.entryReady(player,planet)
+                    || !GroundFlightServer.entryReady(player, planet)
                     || !GroundServer.arrivalAttempted(player.getUUID())) continue;
             enter(player, PlanetLevels.PLANET);
         }
@@ -109,7 +109,7 @@ public final class PlanetPlayers {
             return 0;
         }
         var level = player.getServer().getLevel(destination);
-        if (level == null || !GroundFlightServer.entryReady(player,level)) return 0;
+        if (level == null || !GroundFlightServer.entryReady(player, level)) return 0;
         if (!level.players().isEmpty()) {
             player.sendSystemMessage(Component.translatable("message.starfold.one_player"));
             return 0;
@@ -138,12 +138,16 @@ public final class PlanetPlayers {
             dev.starfold.geometry.BentStripGeometry.Point spawn,
             float yaw) {}
 
-    private static Arrival arrival(ServerPlayer player, net.minecraft.server.level.ServerLevel level) {
+    private static Arrival arrival(
+            ServerPlayer player, net.minecraft.server.level.ServerLevel level) {
         var clock = GroundClock.get(level);
         var saved = GroundFlightServer.entry(player, level, clock);
-        var home = saved == null
-                ? PlanetContent.get().home(level, GroundDaylight.homeFace(clock.clock.model, PlanetShape.of(0)))
-                : null;
+        var home =
+                saved == null
+                        ? PlanetContent.home(
+                                level,
+                                GroundDaylight.homeFace(clock.clock.model, PlanetShape.of(0)))
+                        : null;
         var spawn =
                 saved == null
                         ? home.position()
@@ -201,7 +205,8 @@ public final class PlanetPlayers {
     }
 
     /** Someone reborn with no bed to wake in is reborn on the home planet, not in the overworld. */
-    public static void respawn(net.neoforged.neoforge.event.entity.player.PlayerRespawnPositionEvent event) {
+    public static void respawn(
+            net.neoforged.neoforge.event.entity.player.PlayerRespawnPositionEvent event) {
         var player = (ServerPlayer) event.getEntity();
         var to = event.getDimensionTransition();
         var arrival = arrival(player.connection.getConnection(), player, to.newLevel());
@@ -209,7 +214,8 @@ public final class PlanetPlayers {
         event.setDimensionTransition(
                 new net.minecraft.world.level.portal.DimensionTransition(
                         arrival.level,
-                        new net.minecraft.world.phys.Vec3(arrival.spawn.x(), arrival.spawn.y(), arrival.spawn.z()),
+                        new net.minecraft.world.phys.Vec3(
+                                arrival.spawn.x(), arrival.spawn.y(), arrival.spawn.z()),
                         net.minecraft.world.phys.Vec3.ZERO,
                         arrival.yaw,
                         0,
@@ -230,7 +236,7 @@ public final class PlanetPlayers {
                 || !(planet.getChunkSource().getGenerator() instanceof SystemChunkGenerator)
                 || player.getTags().contains(STAY)
                 || !planet.players().isEmpty()
-                || !GroundFlightServer.entryReady(player,planet)
+                || !GroundFlightServer.entryReady(player, planet)
                 || !java.util.stream.Stream.of(
                                 PlanetPackets.Profile.TYPE,
                                 GroundPackets.Sky.TYPE,
@@ -241,16 +247,17 @@ public final class PlanetPlayers {
                                         net.neoforged.neoforge.network.registration.NetworkRegistry
                                                 .hasChannel(
                                                         connection,
-                                                        net.minecraft.network.ConnectionProtocol.PLAY,
-                                                        type.id())))
-            return null;
+                                                        net.minecraft.network.ConnectionProtocol
+                                                                .PLAY,
+                                                        type.id()))) return null;
         Arrival arrival;
         try {
             arrival = arrival(player, planet);
         } catch (IllegalArgumentException | IllegalStateException error) {
             return null; // the overworld poll retries and reports the failure
         }
-        // Only an overworld place is worth returning to on leaving; the dead are still where they fell.
+        // Only an overworld place is worth returning to on leaving; the dead are still where they
+        // fell.
         if (player.level() == server.overworld()) WorldSessionSave.get(planet).remember(player);
         border(planet, 0);
         GroundServer.arrivalAttempted(player.getUUID());
@@ -272,7 +279,8 @@ public final class PlanetPlayers {
     public static int face(ServerPlayer player, int face) {
         if (Space.in(player)) return GroundServer.regionMessage(player);
         if (!PlanetLevels.is(player.level())) return 0;
-        if(!dev.starfold.worldgen.plan.PlanetPlanStore.ready(player.serverLevel(),PlanetSystem.planet(player)))return 0;
+        if (!dev.starfold.worldgen.plan.PlanetPlanStore.ready(
+                player.serverLevel(), PlanetSystem.planet(player))) return 0;
         border(player.serverLevel(), face);
         var spawn = PlanetSpawn.site(player.serverLevel(), PlanetSystem.planet(player), face);
         player.teleportTo(player.serverLevel(), spawn.x(), spawn.y(), spawn.z(), 0, 0);
@@ -305,9 +313,25 @@ public final class PlanetPlayers {
         var access = PlanetAccess.of(player.level());
         int planet = access.storagePlanet(player.getX(), player.getZ());
         var clock = GroundClock.get(player.serverLevel()).clock;
-        var pose = access.body(new dev.starfold.geometry.BentStripGeometry.Point(player.getX(), player.getY(), player.getZ()));
+        var pose =
+                access.body(
+                        new dev.starfold.geometry.BentStripGeometry.Point(
+                                player.getX(), player.getY(), player.getZ()));
         var eye = clock.model.at(planet, clock.tick()).world(PlanetShape.of(planet).position(pose));
-        player.sendSystemMessage(climate(dev.starfold.api.PlanetSeasons.reading(clock.model, planet, eye, clock.tick(), ((SystemChunkGenerator)player.serverLevel().getChunkSource().getGenerator()).planet(planet).terrain().terrainPlan())));
+        player.sendSystemMessage(
+                climate(
+                        dev.starfold.api.PlanetSeasons.reading(
+                                clock.model,
+                                planet,
+                                eye,
+                                clock.tick(),
+                                ((SystemChunkGenerator)
+                                                player.serverLevel()
+                                                        .getChunkSource()
+                                                        .getGenerator())
+                                        .planet(planet)
+                                        .terrain()
+                                        .terrainPlan())));
         return 1;
     }
 
@@ -350,7 +374,13 @@ public final class PlanetPlayers {
                             g.terrain().shape().size(),
                             g.generation().depth(),
                             Component.translatable(
-                                    g.generation().recipe().minerals().strata().getFirst().block().getDescriptionId()),
+                                    g.generation()
+                                            .recipe()
+                                            .minerals()
+                                            .strata()
+                                            .getFirst()
+                                            .block()
+                                            .getDescriptionId()),
                             model.everyStar().indexOf(star) + 1,
                             Math.round(centre.sub(from).length())));
         }

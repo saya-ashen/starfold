@@ -1,11 +1,14 @@
 package dev.starfold.render;
 
-import dev.starfold.geometry.BentStripGeometry.Point;
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.starfold.geometry.BentStripGeometry.Point;
+
+import org.junit.jupiter.api.Test;
+
 class GroundRenderFrameTest {
-    @Test void resetReleasesFrameReferencesAndIsIdempotent() {
+    @Test
+    void resetReleasesFrameReferencesAndIsIdempotent() {
         var frame = new GroundRenderFrame();
         frame.active = true;
         frame.frameEye = new Point(1, 2, 3);

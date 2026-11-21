@@ -145,9 +145,12 @@ public final class SystemSkyCodec {
                                             dev.starfold.worldgen.PlanetAtmosphere.CODEC
                                                     .fieldOf("atmosphere")
                                                     .forGetter(GroundEphemeris.Body::atmosphere),
-                                            dev.starfold.worldgen.PlanetEnvironment.TEMPERATURE_OFFSET
+                                            dev.starfold.worldgen.PlanetEnvironment
+                                                    .TEMPERATURE_OFFSET
                                                     .optionalFieldOf("temperature_offset", 0.0)
-                                                    .forGetter(GroundEphemeris.Body::temperatureOffset),
+                                                    .forGetter(
+                                                            GroundEphemeris.Body
+                                                                    ::temperatureOffset),
                                             dev.starfold.chart.GasGiant.CODEC
                                                     .optionalFieldOf("gas")
                                                     .forGetter(GroundEphemeris.Body::gas))

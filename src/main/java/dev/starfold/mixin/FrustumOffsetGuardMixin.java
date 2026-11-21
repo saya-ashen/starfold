@@ -25,14 +25,23 @@ public abstract class FrustumOffsetGuardMixin {
 
     @Inject(method = "offsetToFullyIncludeCameraCube", at = @At("HEAD"), cancellable = true)
     private void starfold$boundedOffset(int step, CallbackInfoReturnable<Frustum> ci) {
-        var camera = dev.starfold.render.FrustumOffset.offset(intersection, viewVector, camX, camY, camZ, step);
+        var camera =
+                dev.starfold.render.FrustumOffset.offset(
+                        intersection, viewVector, camX, camY, camZ, step);
         if (camera != null) {
-            camX = camera[0]; camY = camera[1]; camZ = camera[2];
+            camX = camera[0];
+            camY = camera[1];
+            camZ = camera[2];
         } else if (!starfold$reported) {
             starfold$reported = true;
-            org.slf4j.LoggerFactory.getLogger("starfold-frustum").warn(
-                    "Camera cube never fit the frustum; offset skipped. camera=({}, {}, {}) view={} matrix={}",
-                    camX, camY, camZ, viewVector, matrix);
+            org.slf4j.LoggerFactory.getLogger("starfold-frustum")
+                    .warn(
+                            "Camera cube never fit the frustum; offset skipped. camera=({}, {}, {}) view={} matrix={}",
+                            camX,
+                            camY,
+                            camZ,
+                            viewVector,
+                            matrix);
         }
         ci.setReturnValue((Frustum) (Object) this);
     }

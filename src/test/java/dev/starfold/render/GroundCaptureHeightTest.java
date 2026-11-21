@@ -52,8 +52,7 @@ class GroundCaptureHeightTest {
             var capture = new VoxelColumns.Capture(floor, 320);
             while (!capture.done())
                 capture.step((x, y, z) -> chunk.getBlockState(new BlockPos(x, y, z)), 8192);
-            var surface =
-                    new GroundSurface(1, heights, states, capture.result().orElseThrow());
+            var surface = new GroundSurface(1, heights, states, capture.result().orElseThrow());
             assertEquals(floor + 20, surface.height(0, 0));
             assertEquals(127, surface.height(1, 0));
             assertEquals(319, surface.height(2, 0));

@@ -7,16 +7,17 @@ import dev.starfold.ground.*;
 import dev.starfold.render.GroundViewServer;
 import dev.starfold.ship.SableFrames;
 import dev.starfold.ship.ShipHost;
-import dev.starfold.space.SpacePackets;
 import dev.starfold.sky.GroundEphemerisSave;
 import dev.starfold.sky.SkyHost;
 import dev.starfold.space.SpaceApproach;
 import dev.starfold.space.SpaceHost;
+import dev.starfold.space.SpacePackets;
 import dev.starfold.space.SpaceServer;
 import dev.starfold.space.SpaceView;
 import dev.starfold.waypoint.ShipGuide;
 import dev.starfold.waypoint.WaypointSave;
 import dev.starfold.waypoint.WaypointServer;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 
@@ -118,7 +119,9 @@ final class StarfoldHostBindings {
         ShipHost.install(
                 new ShipHost() {
                     @Override
-                    public void mapSync(ServerLevel level) { dev.starfold.waypoint.MapNavigationServer.sync(level); }
+                    public void mapSync(ServerLevel level) {
+                        dev.starfold.waypoint.MapNavigationServer.sync(level);
+                    }
 
                     @Override
                     public boolean alwaysTicket(java.util.UUID ship) {
@@ -261,7 +264,9 @@ final class StarfoldHostBindings {
         SpaceHost.install(
                 new SpaceHost() {
                     @Override
-                    public void targetCleared(net.minecraft.server.level.ServerPlayer player) { dev.starfold.waypoint.MapNavigationServer.markerSelected(player); }
+                    public void targetCleared(net.minecraft.server.level.ServerPlayer player) {
+                        dev.starfold.waypoint.MapNavigationServer.markerSelected(player);
+                    }
 
                     @Override
                     public void targetSync(
@@ -270,5 +275,4 @@ final class StarfoldHostBindings {
                     }
                 });
     }
-
 }

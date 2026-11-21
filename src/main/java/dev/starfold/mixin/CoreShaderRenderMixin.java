@@ -36,7 +36,11 @@ public abstract class CoreShaderRenderMixin {
         try {
             dev.starfold.render.GroundClient.begin(
                     camera, time.getGameTimeDeltaPartialTick(false), view);
+            dev.starfold.render.GroundAntiAliasing.begin();
+            dev.starfold.render.GroundTemporalFilter.begin(camera, view);
             original.call(renderer, time, outline, camera, game, light, view, projection);
+            dev.starfold.render.GroundEdgeFilter.endNative();
+            dev.starfold.render.GroundTemporalFilter.resolve();
         } finally {
             dev.starfold.render.GroundClient.end();
         }

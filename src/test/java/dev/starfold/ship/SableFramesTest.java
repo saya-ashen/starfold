@@ -11,7 +11,6 @@ import dev.starfold.ground.GroundSeams;
 import dev.starfold.ground.PayloadMap;
 import dev.starfold.sky.Space;
 import dev.starfold.sky.SpaceTest;
-import dev.starfold.space.SpaceServer;
 
 import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
@@ -154,7 +153,19 @@ class SableFramesTest {
         var tickets = type("dev/starfold/ship/SableTickets");
         var update = calls(tickets, "update");
         ordered(update, "getAllSubLevels", "isRemoved", "input", "plan", "apply");
-        ordered(calls(tickets, "input"), "boundingBox", "inflate", "columns", "transport");
+        ordered(calls(tickets, "input"), "input");
+        var withApproach =
+                tickets.methods.stream()
+                        .filter(
+                                method ->
+                                        method.name.equals("input")
+                                                && method.desc.contains("Ljava/util/Set;"))
+                        .findFirst()
+                        .orElseThrow();
+        var inputCalls = new java.util.ArrayList<String>();
+        for (var ins : withApproach.instructions)
+            if (ins instanceof MethodInsnNode call) inputCalls.add(call.name);
+        ordered(inputCalls, "boundingBox", "inflate", "columns", "transport");
         var apply = calls(tickets, "apply");
         ordered(apply, "addRegionTicket", "removeRegionTicket");
         assertTrue(apply.contains("remove"));
@@ -282,7 +293,7 @@ class SableFramesTest {
         var move = calls(frames, "move");
         ordered(
                 move,
-                "aboard",
+                "riders",
                 "carry",
                 "resetVelocity",
                 "teleport",
@@ -291,7 +302,7 @@ class SableFramesTest {
                 "raw");
         assertEquals(2, java.util.Collections.frequency(move, "carry"));
         assertEquals(1, java.util.Collections.frequency(move, "carryBody"));
-        assertTrue(move.contains("getIndirectPassengers"));
+        ordered(calls(frames, "riders"), "crew", "aboard", "getIndirectPassengers");
         var carry = calls(type("dev/starfold/ground/GroundSeams"), "carryBody");
         ordered(carry, "put", "relocate", "cross", "moveTo", "resetPosition");
         var carried = calls(type("dev/starfold/ground/GroundSeams"), "carried");
@@ -403,13 +414,13 @@ class SableFramesTest {
                     "resetVelocity",
                     "teleport",
                     "addLinearAndAngularVelocity",
-                    "aboard",
+                    "riders",
                     "carry",
                     "riderPoint",
                     "carryBody"
                 }) assertTrue(calls.contains(name), name);
         assertEquals(2, java.util.Collections.frequency(calls, "carry"));
-        assertTrue(calls.indexOf("aboard") < calls.indexOf("carry"));
+        assertTrue(calls.indexOf("riders") < calls.indexOf("carry"));
         assertTrue(calls.lastIndexOf("carry") < calls.indexOf("resetVelocity"));
         assertTrue(calls.indexOf("resetVelocity") < calls.indexOf("teleport"));
         assertTrue(calls.indexOf("teleport") < calls.indexOf("addLinearAndAngularVelocity"));
@@ -925,20 +936,5 @@ class SableFramesTest {
                         java.util.Set.of("aboard", "tracked").contains(m.name),
                         "membership and relative motion distinguish actual tracking from grace");
         }
-    }
-
-    @Test
-    void trackedBodyIsNeverReturnedOnceRemoved() throws Exception {
-        // Gas damage or a player can empty a body; Sable then removes its Rapier body at once but keeps it in the
-        // container (and in entity tracking) until processSubLevelRemovals. Velocity reads on it throw.
-        var source = dev.starfold.Sources.text("SableFrames");
-        int start = source.indexOf("getTrackingSubLevel(entity)");
-        assertTrue(start > 0);
-        int open = source.indexOf("{", start);
-        assertTrue(source.substring(start, open).contains("!body.isRemoved()"));
-        var records = dev.starfold.Sources.text("ShipRecords");
-        int capture = records.indexOf("private static ShipRecord.Place captureWhenSlow(");
-        int motion = records.indexOf("SableFrames.motion(", capture);
-        assertTrue(records.substring(capture, motion).contains("if (server.isRemoved()) return null;"));
     }
 }

@@ -1,12 +1,15 @@
 package dev.starfold.render;
 
 import static dev.starfold.render.GroundClient.*;
+
 import dev.starfold.chart.*;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
+
 import org.joml.Vector3f;
 
 /** Projection uniform writes for the explicitly active ground frame. */
@@ -28,9 +31,16 @@ final class GroundProjectionUniforms {
                 (float) gap.outer,
                 (float) GroundTransition.clip(e.y(), gap.clip, view(), shape().radius()));
         var observer = Face.VALUES[face()];
-        dev.starfold.api.PlanetSurfaceRender.nearUniforms(shader,
-                new dev.starfold.api.PlanetSurfaceRender.Context(model(), planet(), time(), observer,
-                        GroundViewClient.terrain()==null?null:GroundViewClient.terrain().terrainPlan()));
+        dev.starfold.api.PlanetSurfaceRender.nearUniforms(
+                shader,
+                new dev.starfold.api.PlanetSurfaceRender.Context(
+                        model(),
+                        planet(),
+                        time(),
+                        observer,
+                        GroundViewClient.terrain() == null
+                                ? null
+                                : GroundViewClient.terrain().terrainPlan()));
         var owner = Face.VALUES[renderFrame.source < 0 ? face() : renderFrame.source];
         var tile = gap.chart.tile(owner);
         set(shader, "CPNativeSourcePlot", origin(owner.ordinal()).sub(origin()));
@@ -54,7 +64,8 @@ final class GroundProjectionUniforms {
                 tile == null ? new Point(0, 0, 1) : tile.point(new Point(0, 0, 1)).sub(flat));
         String name = shader.getVertexProgram().getName().replace("minecraft:", "");
         boolean terrain =
-                name.equals("rendertype_solid") || name.equals(GroundCompact.NAME)
+                name.equals("rendertype_solid")
+                        || GroundShaderSource.compact(name)
                         || name.equals("rendertype_cutout")
                         || name.equals("rendertype_cutout_mipped")
                         || name.equals("rendertype_translucent")
@@ -62,13 +73,26 @@ final class GroundProjectionUniforms {
                         || name.equals("rendertype_tripwire");
         ShaderUniforms.set(shader, "CPNativeTerrain", terrain ? 1 : 0);
         ShaderUniforms.set(shader, "CPNativeDerived", renderFrame.derived ? 1 : 0);
+        // Appearance providers use this for sky/up semantics, not coverage ownership.
+        ShaderUniforms.set(shader, "CPNativeCover", renderFrame.derived ? 1 : 0);
         ShaderUniforms.set(shader, "CPNativeCoarse", renderFrame.coarse ? 1 : 0);
+        var sun = home().local(star().position()).sub(home().local(universeEye()));
+        sun = sun.length() < 1e-9 ? new Point(0, 1, 0) : sun.scale(1 / sun.length());
+        set(shader, "CPNativeSunDirection", faceLocal(observer, sun));
+        float direct = (float) (.88
+                * dev.starfold.sky.GroundDaylight.parentShade(model(), planet(), universeEye(), time())
+                * dev.starfold.chart.GasOcclusion.sunlight(model(), universeEye(), time()));
+        ShaderUniforms.set(shader, "CPNativeSunColor", direct, direct, direct);
+        ShaderUniforms.set(shader, "CPNativeAmbientLight", .12f, .12f, .12f);
+        var mc = Minecraft.getInstance();
+        float nightVision = mc.player != null
+                        && mc.player.hasEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION)
+                ? net.minecraft.client.renderer.GameRenderer.getNightVisionScale(
+                        mc.player, mc.getTimer().getGameTimeDeltaPartialTick(false))
+                : 0;
+        ShaderUniforms.set(shader, "CPNativeNightVision", nightVision);
         var mask = GroundFlightServer.mask(Minecraft.getInstance().level);
-        ShaderUniforms.set(
-                shader,
-                "CPNativeMask",
-                mask.core(),
-                mask.height());
+        ShaderUniforms.set(shader, "CPNativeMask", mask.core(), mask.height());
         int corners = GroundRenderer.realCorners(owner.ordinal());
         ShaderUniforms.set(
                 shader,
@@ -77,36 +101,18 @@ final class GroundProjectionUniforms {
                 (corners & 2) != 0 ? 1 : 0,
                 (corners & 4) != 0 ? 1 : 0,
                 (corners & 8) != 0 ? 1 : 0);
-        ShaderUniforms.set(
-                shader, "CPNativeLowFrequency", (float) GroundPipeline.lowFrequency(e.y()));
-        ShaderUniforms.set(shader, "CPNativeCover", renderFrame.cover ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeLodPass", renderFrame.lodKey >= 0 ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeLodFade", renderFrame.lodFade);
-        ShaderUniforms.set(shader, "CPNativePatchFade", renderFrame.patchFade);
         ShaderUniforms.set(shader, "CPNativeFace", owner.ordinal());
-        // Ground-level ownership is unchanged; altitude dithering requires committed fallback.
-        var fade = fade(view());
-        ShaderUniforms.set(shader, "CPNativeFade", fade[0], fade[1], fade[2], fade[3]);
-        ShaderUniforms.set(
-                shader,
-                "CPNativeFadeMix",
-                GroundRenderer.selectionReady() && GroundRenderer.covered()
-                        ? (float) GroundTransition.fade(e.y()) : 0f);
-        ShaderUniforms.set(
-                shader, "CPNativeVolume", GroundRenderer.nativeVolume(owner.ordinal()) ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeSelection", GroundRenderer.selectionReady() ? 1 : 0);
-        ShaderUniforms.set(shader, "CPNativeStitch", renderFrame.stitch ? 1 : 0);
-        if (renderFrame.cover || renderFrame.stitch || terrain && GroundRenderer.selectionReady()) {
-            // Runs on every shader apply: read Minecraft's tracked unit, a GL query stalls the driver.
+        if (renderFrame.derived && GroundRenderer.selectionReady()) {
             int active = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
-            com.mojang.blaze3d.platform.GlStateManager._activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE3);
+            com.mojang.blaze3d.platform.GlStateManager._activeTexture(
+                    org.lwjgl.opengl.GL13.GL_TEXTURE3);
             org.lwjgl.opengl.GL11.glBindTexture(
                     org.lwjgl.opengl.GL11.GL_TEXTURE_2D, GroundRenderer.coverageTexture());
             if (org.lwjgl.opengl.GL.getCapabilities().OpenGL33
                     || org.lwjgl.opengl.GL.getCapabilities().GL_ARB_sampler_objects)
                 org.lwjgl.opengl.ARBSamplerObjects.glBindSampler(3, 0);
             com.mojang.blaze3d.platform.GlStateManager._activeTexture(active);
-            ShaderUniforms.setInt(shader, "CPNativeCoverage", 3);
+            ShaderUniforms.setInt(shader, GroundFaceArenas.MASK_UNIFORM, 3);
         }
         applyViewUniforms(shader, e, gap);
     }

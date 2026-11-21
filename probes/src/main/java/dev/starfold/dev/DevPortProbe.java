@@ -42,7 +42,7 @@ public final class DevPortProbe {
                     for (int i = 0; i < 4096; i++) {
                         sky = period * i / 4096;
                         double e = GroundClient.sunElevation();
-                        double score=a[1].equals("night") ? -e : e;
+                        double score = a[1].equals("night") ? -e : e;
                         if (score > best) {
                             best = score;
                             chosen = sky;
@@ -62,13 +62,7 @@ public final class DevPortProbe {
         var t = GroundViewClient.terrain();
         var profile = GroundViewClient.profile();
         int id = GroundClient.planet(), face = GroundClient.face();
-        var view =
-                PlanetTint.view(
-                        mc.level,
-                        mc.level.registryAccess(),
-                        id,
-                        t,
-                        profile.biome());
+        var view = PlanetTint.view(mc.level, mc.level.registryAccess(), id, t, profile.biome());
         var seen = new java.util.HashSet<String>();
         for (int x = 64; x < t.shape().size() - 64 && seen.size() < 3; x += 32)
             for (int z = 64; z < t.shape().size() - 64 && seen.size() < 3; z += 32) {

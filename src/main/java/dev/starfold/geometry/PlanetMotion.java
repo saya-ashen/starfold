@@ -10,10 +10,7 @@ import java.util.List;
 
 /** Same fixed-space capsule sweep for server authority and client prediction. Units per tick. */
 public final class PlanetMotion {
-    public static final double RADIUS = .3,
-            HALF = .6,
-            SKIN = .002,
-            MIN_DISTANCE = 2;
+    public static final double RADIUS = .3, HALF = .6, SKIN = .002, MIN_DISTANCE = 2;
     public static final Point ZERO = new Point(0, 0, 0);
 
     private PlanetMotion() {}

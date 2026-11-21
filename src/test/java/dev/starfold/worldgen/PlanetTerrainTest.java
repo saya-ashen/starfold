@@ -4,15 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.mojang.serialization.*;
 
-import dev.starfold.Sources;
-import dev.starfold.geometry.BentStripGeometry.Point;
-import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.GroundTopology;
 import dev.starfold.render.GroundChunkSnapshot;
-import dev.starfold.render.GroundSurfaceIndex;
 import dev.starfold.universe.PlanetChunkGenerator;
-import dev.starfold.universe.PlanetPackets;
-import dev.starfold.universe.PlanetSpawn;
 
 import net.minecraft.core.*;
 import net.minecraft.core.registries.*;
@@ -70,7 +63,11 @@ public class PlanetTerrainTest {
 
     static PlanetChunkGenerator currentGenerator(FlatLevelGeneratorSettings settings, long seed) {
         var biome = settings.getBiome();
-        return new PlanetChunkGenerator(settings,seed,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.of(new PlanetBiomes(seed,java.util.List.of(biome,biome,biome,biome))));
+        return new PlanetChunkGenerator(
+                settings,
+                seed,
+                dev.starfold.worldgen.PlanetTerrain.VERSION,
+                Optional.of(new PlanetBiomes(seed, java.util.List.of(biome, biome, biome, biome))));
     }
 
     ProtoChunk chunk(PlanetChunkGenerator g, int x, int z) {
@@ -95,5 +92,9 @@ public class PlanetTerrainTest {
         return states;
     }
 
-    @Test void unifiedTerrainUsesOnlyCurrentVersion(){assertTrue(PlanetTerrain.supported(PlanetTerrain.VERSION));assertFalse(PlanetTerrain.supported(4));}
+    @Test
+    void unifiedTerrainUsesOnlyCurrentVersion() {
+        assertTrue(PlanetTerrain.supported(PlanetTerrain.VERSION));
+        assertFalse(PlanetTerrain.supported(4));
+    }
 }

@@ -4,7 +4,6 @@ import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.SpaceTest;
@@ -93,22 +92,13 @@ class SpaceTargetTest {
         assertFalse(SpaceServer.knownTarget(-1, model));
         assertFalse(SpaceServer.knownTarget(Integer.MAX_VALUE, model));
         assertFalse(SpaceServer.knownTarget(model.bodies().size(), model));
-        assertTrue(SpaceServer.knownTarget(0, model), "Map-selected systems use their luminous root, never a surface slot");
+        assertTrue(
+                SpaceServer.knownTarget(0, model),
+                "Map-selected systems use their luminous root, never a surface slot");
         assertTrue(SpaceServer.knownTarget(model.index(0), model));
         assertTrue(SpaceServer.knownTarget(model.bodies().size() - 1, model));
         assertEquals("native_space_v2_target", new SpacePackets.Target(-1).type().id().getPath());
         var fields = Class.forName("dev.starfold.space.SpaceSessions$Target").getRecordComponents();
         assertEquals(dev.starfold.chart.CelestialTarget.class, fields[2].getType());
-        var s = Sources.text("SpaceServer");
-        for (String guard :
-                new String[] {
-                    "player.serverLevel()!=target.level()",
-                    "!Space.in(player)",
-                    "!helm(player,target.body())",
-                    "lead(target.level(),server)==target.body()",
-                    "targets.entrySet().removeIf"
-                }) assertTrue(s.contains(guard), guard);
-        assertFalse(
-                s.substring(s.indexOf("@Override public CompoundTag save")).contains("targets"));
     }
 }

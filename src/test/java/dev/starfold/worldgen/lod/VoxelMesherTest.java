@@ -110,7 +110,8 @@ class VoxelMesherTest {
         var leaves = Blocks.OAK_LEAVES.defaultBlockState();
         assertEquals(leaves, VoxelMesher.shown(leaves));
         var poppy = Blocks.POPPY.defaultBlockState();
-        var flowered = fixture((x, z) -> y -> y < 0 ? solid : x == 5 && z == 5 && y == 0 ? poppy : air);
+        var flowered =
+                fixture((x, z) -> y -> y < 0 ? solid : x == 5 && z == 5 && y == 0 ? poppy : air);
         try (var job = new VoxelMesher.Job(flowered, Face.values()[0], 0, 0, 1, 4096)) {
             finish(job);
             assertTrue(job.quads().stream().noneMatch(q -> q.material() == poppy));
@@ -181,7 +182,9 @@ class VoxelMesherTest {
 
     @Test
     void realSourceMatchesWholeColumnsRockOceanDryAndCanonicalEdges() {
-        var ecology = new PlanetTerrain(PlanetTerrain.TEST_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION);
+        var ecology =
+                new PlanetTerrain(
+                        PlanetTerrain.TEST_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION);
         var source = new TerrainVoxelSource(ecology);
         for (int version : new int[] {PlanetTerrain.VERSION}) {
             var t = new PlanetTerrain(PlanetTerrain.TEST_SEED, version);
@@ -252,7 +255,9 @@ class VoxelMesherTest {
 
     @Test
     void boundedInterestHasThreeActualLodsAndMeasuredProductionWork() throws Exception {
-        var t = new PlanetTerrain(PlanetTerrain.TEST_SEED,dev.starfold.worldgen.PlanetTerrain.VERSION);
+        var t =
+                new PlanetTerrain(
+                        PlanetTerrain.TEST_SEED, dev.starfold.worldgen.PlanetTerrain.VERSION);
         var source = new TerrainVoxelSource(t);
         long start = System.nanoTime(), cells = 0;
         int columns = 0, quads = 0, tiles = 0, overflow = 0;

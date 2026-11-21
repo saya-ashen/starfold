@@ -5,8 +5,14 @@ public final class TestArchiveResources {
     public static java.io.InputStream open(String path) throws java.io.IOException {
         String name = path.startsWith("/") ? path.substring(1) : path;
         for (String module : java.util.List.of("probes", "worlds", "extras")) {
-            var output = java.nio.file.Path.of(module, "build", name.endsWith(".class") ? "classes/java/main" : "resources/main", name);
-            if (java.nio.file.Files.isRegularFile(output)) return java.nio.file.Files.newInputStream(output);
+            var output =
+                    java.nio.file.Path.of(
+                            module,
+                            "build",
+                            name.endsWith(".class") ? "classes/java/main" : "resources/main",
+                            name);
+            if (java.nio.file.Files.isRegularFile(output))
+                return java.nio.file.Files.newInputStream(output);
         }
         var local = TestArchiveResources.class.getResourceAsStream("/" + name);
         if (local != null) return local;

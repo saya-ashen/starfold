@@ -59,19 +59,7 @@ public final class HelmPackets {
                 HullLanding.Site landing,
                 boolean boosted) {
             this(
-                    body,
-                    pos,
-                    facing,
-                    active,
-                    pilot,
-                    bits,
-                    free,
-                    cx,
-                    cy,
-                    cz,
-                    landing,
-                    boosted,
-                    -1,
+                    body, pos, facing, active, pilot, bits, free, cx, cy, cz, landing, boosted, -1,
                     -1);
         }
 
@@ -113,19 +101,7 @@ public final class HelmPackets {
                 double cy,
                 double cz,
                 HullLanding.Site landing) {
-            this(
-                    body,
-                    pos,
-                    facing,
-                    active,
-                    pilot,
-                    bits,
-                    free,
-                    cx,
-                    cy,
-                    cz,
-                    landing,
-                    false);
+            this(body, pos, facing, active, pilot, bits, free, cx, cy, cz, landing, false);
         }
 
         public static final Type<State> TYPE =

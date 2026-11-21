@@ -28,28 +28,40 @@ final class HullPressure extends SimplePreparableReloadListener<List<HullPressur
 
     static final class Table {
         private record Rule(Predicate<BlockState> matches, double pressure) {}
+
         private final List<Rule> rules;
         private final Map<BlockState, Double> cache = new IdentityHashMap<>();
 
         Table(List<HullPressureDefinition> definitions) {
-            rules = definitions.stream().map(d -> {
-                if (d.tag()) {
-                    var tag = TagKey.create(Registries.BLOCK, d.blocks());
-                    return new Rule(state -> state.is(tag), d.pressure());
-                }
-                return new Rule(state -> BuiltInRegistries.BLOCK.getKey(state.getBlock()).equals(d.blocks()),
-                        d.pressure());
-            }).toList();
+            rules =
+                    definitions.stream()
+                            .map(
+                                    d -> {
+                                        if (d.tag()) {
+                                            var tag = TagKey.create(Registries.BLOCK, d.blocks());
+                                            return new Rule(state -> state.is(tag), d.pressure());
+                                        }
+                                        return new Rule(
+                                                state ->
+                                                        BuiltInRegistries.BLOCK
+                                                                .getKey(state.getBlock())
+                                                                .equals(d.blocks()),
+                                                d.pressure());
+                                    })
+                            .toList();
         }
 
         double get(BlockState state) {
-            return cache.computeIfAbsent(state, s -> {
-                // Overlapping definitions choose the highest matching value, independent of file order.
-                double best = 0;
-                for (var rule : rules)
-                    if (rule.matches().test(s)) best = Math.max(best, rule.pressure());
-                return best == 0 ? DEFAULT : best;
-            });
+            return cache.computeIfAbsent(
+                    state,
+                    s -> {
+                        // Overlapping definitions choose the highest matching value, independent of
+                        // file order.
+                        double best = 0;
+                        for (var rule : rules)
+                            if (rule.matches().test(s)) best = Math.max(best, rule.pressure());
+                        return best == 0 ? DEFAULT : best;
+                    });
         }
     }
 
@@ -61,20 +73,29 @@ final class HullPressure extends SimplePreparableReloadListener<List<HullPressur
     static int damageInterval(double pressure) {
         double minimum = DEFAULT;
         for (var rule : table.rules) minimum = Math.min(minimum, rule.pressure());
-        return pressure < minimum ? 0 : dev.starfold.chart.GasGiant.damageInterval(Math.max(DEFAULT, pressure));
+        return pressure < minimum
+                ? 0
+                : dev.starfold.chart.GasGiant.damageInterval(Math.max(DEFAULT, pressure));
     }
 
     static void initialize() {
-        NeoForge.EVENT_BUS.addListener((AddReloadListenerEvent e) -> e.addListener(new HullPressure()));
+        NeoForge.EVENT_BUS.addListener(
+                (AddReloadListenerEvent e) -> e.addListener(new HullPressure()));
         NeoForge.EVENT_BUS.addListener((ServerStoppedEvent e) -> table = new Table(List.of()));
     }
 
     @Override
-    protected List<HullPressureDefinition> prepare(ResourceManager manager, ProfilerFiller profiler) {
+    protected List<HullPressureDefinition> prepare(
+            ResourceManager manager, ProfilerFiller profiler) {
         var loaded = new ArrayList<HullPressureDefinition>();
-        for (var entry : manager.listResources("starfold/hull_pressure", id -> id.getPath().endsWith(".json")).entrySet())
+        for (var entry :
+                manager.listResources(
+                                "starfold/hull_pressure", id -> id.getPath().endsWith(".json"))
+                        .entrySet())
             try (var reader = entry.getValue().openAsReader()) {
-                loaded.add(HullPressureDefinition.parse(JsonParser.parseReader(reader).getAsJsonObject()));
+                loaded.add(
+                        HullPressureDefinition.parse(
+                                JsonParser.parseReader(reader).getAsJsonObject()));
             } catch (IOException | RuntimeException e) {
                 throw new JsonParseException("Invalid hull pressure " + entry.getKey(), e);
             }
@@ -82,7 +103,8 @@ final class HullPressure extends SimplePreparableReloadListener<List<HullPressur
     }
 
     @Override
-    protected void apply(List<HullPressureDefinition> loaded, ResourceManager manager, ProfilerFiller profiler) {
+    protected void apply(
+            List<HullPressureDefinition> loaded, ResourceManager manager, ProfilerFiller profiler) {
         table = new Table(loaded);
     }
 }

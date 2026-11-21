@@ -6,22 +6,34 @@ import org.joml.Vector3d;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /** Chart-local, plumb geometry shared by authoritative terrain planning and both collision sides. */
 final class AirstairGeometry {
     static final double STEP = .5;
+    private static final double MAX_STEP_OFF_DROP = 1;
+    private static final double[] TREAD_RUNS = {STEP, .75, 1, .375};
 
     interface Terrain {
         double height(double x, double z);
     }
 
-    record Flight(Vector3d hinge, Vector3d out, int width, double drop) {
+    static int steps(double drop) {
+        return (int) Math.ceil(drop / STEP - 1e-8);
+    }
+
+    static double treadHeight(double drop, int step, int steps) {
+        return -Math.min(drop, (step + 1) * STEP) + (step == steps - 1 ? .0125 : 0);
+    }
+
+    record Flight(Vector3d hinge, Vector3d out, int width, double drop, double treadRun) {
         int steps() {
-            return (int) Math.ceil(drop / STEP - 1e-8);
+            return AirstairGeometry.steps(drop);
         }
 
         double height(int step) {
-            return hinge.y - Math.min(drop, (step + 1) * STEP) + (step == steps() - 1 ? .0125 : 0);
+            return hinge.y + treadHeight(drop, step, steps());
         }
 
         List<AABB> boxes() {
@@ -30,7 +42,7 @@ final class AirstairGeometry {
             for (int i = -1; i < steps(); i++) {
                 double[][] corners = new double[4][2];
                 int n = 0;
-                double start = i < 0 ? 0 : i * STEP, endRun = i < 0 ? .125 : (i + 1) * STEP;
+                double start = i < 0 ? 0 : i * treadRun, endRun = i < 0 ? .125 : (i + 1) * treadRun;
                 for (double[] p :
                         new double[][] {
                             {-width * .5, start},
@@ -97,6 +109,27 @@ final class AirstairGeometry {
 
     static Flight flight(
             Vector3d hinge, Vector3d facing, Vector3d gravity, int width, Terrain terrain) {
+        return flight(hinge, facing, gravity, width, terrain, candidate -> true, null);
+    }
+
+    static Flight flight(
+            Vector3d hinge,
+            Vector3d facing,
+            Vector3d gravity,
+            int width,
+            Terrain terrain,
+            Predicate<Flight> clear) {
+        return flight(hinge, facing, gravity, width, terrain, clear, null);
+    }
+
+    static Flight flight(
+            Vector3d hinge,
+            Vector3d facing,
+            Vector3d gravity,
+            int width,
+            Terrain terrain,
+            Predicate<Flight> clear,
+            Consumer<String> rejected) {
         if (!hinge.isFinite()
                 || !facing.isFinite()
                 || gravity.y >= 0
@@ -108,10 +141,29 @@ final class AirstairGeometry {
         out.normalize();
         var right = new Vector3d(out.z, 0, -out.x);
         double door = terrain.height(hinge.x + out.x * .001, hinge.z + out.z * .001);
-        if (Double.isFinite(door) && door >= hinge.y - .001) return null;
-        for (int step = 0; step < 20; step++) {
+        if (Double.isFinite(door) && door >= hinge.y - .001) {
+            if (rejected != null)
+                rejected.accept("sill-blocked surfaceY=" + door + " sillY=" + hinge.y);
+            return null;
+        }
+        for (double run : TREAD_RUNS) {
+            var candidate = flight(hinge, out, right, width, terrain, run, rejected);
+            if (candidate != null && clear.test(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private static Flight flight(
+            Vector3d hinge,
+            Vector3d out,
+            Vector3d right,
+            int width,
+            Terrain terrain,
+            double run,
+            Consumer<String> rejected) {
+        for (int step = 0; step < Airstair.MAX_REACH / STEP; step++) {
             double high = Double.NEGATIVE_INFINITY;
-            for (double along = step * STEP + .001; along < (step + 1) * STEP; along += .1245)
+            for (double along = step * run + .001; along < (step + 1) * run; along += .1245)
                 for (double side = -width * .5 + .001; side < width * .5; side += .1245) {
                     double h =
                             terrain.height(
@@ -124,11 +176,52 @@ final class AirstairGeometry {
             // leaves a
             // 0.001-block dead band just beyond every half tread: a resting hull's tiny settling
             // then folds it.
-            if (high >= previous - 1e-8)
-                return null; // wall/rising terrain cannot be mistaken for a landing tread
-            if (high >= next - 1e-8)
-                return new Flight(new Vector3d(hinge), out, width, hinge.y - high);
+            if (high >= previous - 1e-8) {
+                if (rejected != null)
+                    rejected.accept(
+                            "tread-blocked treadRun="
+                                    + run
+                                    + " step="
+                                    + (step + 1)
+                                    + " surfaceY="
+                                    + high
+                                    + " upperTreadY="
+                                    + previous);
+                return null;
+            }
+            if (high >= next - 1e-8) {
+                // The footplate can end above an ordinary one-block step down.
+                double end = (step + 1) * run;
+                for (double along = end + .001; along <= end + .375; along += .1245) {
+                    for (double side : new double[] {-.25, 0, .25}) {
+                        double x = hinge.x + out.x * along + right.x * side;
+                        double z = hinge.z + out.z * along + right.z * side;
+                        double h = terrain.height(x, z);
+                        if (!Double.isFinite(h)
+                                || h < high - MAX_STEP_OFF_DROP
+                                || h > high + .125) {
+                            if (rejected != null)
+                                rejected.accept(
+                                        "foot-transition treadRun="
+                                                + run
+                                                + " step="
+                                                + (step + 1)
+                                                + " x="
+                                                + x
+                                                + " z="
+                                                + z
+                                                + " surfaceY="
+                                                + h
+                                                + " footY="
+                                                + high);
+                            return null;
+                        }
+                    }
+                }
+                return new Flight(new Vector3d(hinge), out, width, hinge.y - high, run);
+            }
         }
+        if (rejected != null) rejected.accept("no-support-in-reach treadRun=" + run);
         return null;
     }
 

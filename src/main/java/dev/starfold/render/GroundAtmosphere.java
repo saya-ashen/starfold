@@ -3,6 +3,8 @@ package dev.starfold.render;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
+import dev.starfold.api.RenderWorkDiagnostics;
+import dev.starfold.api.RenderWorkDiagnostics.Metric;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.PlanetSpace;
@@ -65,7 +67,8 @@ public final class GroundAtmosphere {
                                         DefaultVertexFormat.POSITION_COLOR),
                                 s -> {
                                     shader = s;
-                                    shader.getUniform("DepthFar").set(ReversedDepth.ACTIVE ? 0f : 1f);
+                                    shader.getUniform("DepthFar")
+                                            .set(ReversedDepth.ACTIVE ? 0f : 1f);
                                     clear();
                                 });
                     } catch (java.io.IOException ex) {
@@ -111,9 +114,15 @@ public final class GroundAtmosphere {
     public static Point fog() {
         context();
         if (frameFog == null)
-            frameFog = AtmosphereScattering.display(
-                    AtmosphereScattering.fog(
-                            frameAir, frameRadius, frameEye, view(), frameSun, frameTransmission));
+            frameFog =
+                    AtmosphereScattering.display(
+                            AtmosphereScattering.fog(
+                                    frameAir,
+                                    frameRadius,
+                                    frameEye,
+                                    view(),
+                                    frameSun,
+                                    frameTransmission));
         return frameFog;
     }
 
@@ -126,9 +135,14 @@ public final class GroundAtmosphere {
         context();
         if (frameStars < 0) {
             // Sample zenith, not the camera aim: looking down must not make stars pop.
-            var zenith = AtmosphereScattering.sky(
-                    frameAir, frameRadius, frameEye, PlanetSpace.unit(frameEye), frameSun,
-                    frameTransmission);
+            var zenith =
+                    AtmosphereScattering.sky(
+                            frameAir,
+                            frameRadius,
+                            frameEye,
+                            PlanetSpace.unit(frameEye),
+                            frameSun,
+                            frameTransmission);
             frameStars = (float) AtmosphereScattering.stars(zenith);
         }
         return frameStars;
@@ -153,10 +167,7 @@ public final class GroundAtmosphere {
     }
 
     public static void drawSky(RenderFrame c) {
-        if (!enabled()
-                || shader == null
-                || RendererGuard.submerged(c.camera()))
-            return;
+        if (!enabled() || shader == null || RendererGuard.submerged(c.camera())) return;
         // Match 1.21.1 LevelRenderer.doesMobEffectBlockSky for this newly added sky pass.
         var entity = c.camera().getEntity();
         if (entity instanceof net.minecraft.world.entity.LivingEntity living
@@ -167,8 +178,7 @@ public final class GroundAtmosphere {
         skyMesh.begin();
         context();
         var eye = frameEye;
-        double highAltitude =
-                AtmosphereRim.highAltitudeWeight(eye.length() - frameRadius);
+        double highAltitude = AtmosphereRim.highAltitudeWeight(eye.length() - frameRadius);
         var sun = frameSun;
         double gasTransmission = frameTransmission;
         var air = frameAir;
@@ -178,11 +188,13 @@ public final class GroundAtmosphere {
         var north = up.cross(east);
         for (int i = 0; i < GroundSkyMesh.VERTICES; i++) {
             var d = GroundSkyMesh.direction(i, east, up, north);
-            var color = black ? BLACK :
-                    AtmosphereScattering.display(
-                                    AtmosphereScattering.sky(
-                                            air, frameRadius, eye, d, sun, gasTransmission))
-                            .scale(1 - highAltitude);
+            var color =
+                    black
+                            ? BLACK
+                            : AtmosphereScattering.display(
+                                            AtmosphereScattering.sky(
+                                                    air, frameRadius, eye, d, sun, gasTransmission))
+                                    .scale(1 - highAltitude);
             skyMesh.vertex(d, color);
         }
         skyMesh.upload();
@@ -202,7 +214,8 @@ public final class GroundAtmosphere {
                     home.inverseVector(new Point(1, 0, 0)),
                     home.inverseVector(new Point(0, 1, 0)),
                     home.inverseVector(new Point(0, 0, 1)),
-                    GroundClient.shape().radius());
+                    GroundClient.shape().radius(),
+                    false);
         }
     }
 
@@ -219,6 +232,25 @@ public final class GroundAtmosphere {
             Point up,
             Point v,
             double radius) {
+        rim(c, model, planet, time, bodyEye, matrix, center, u, up, v, radius, true);
+    }
+
+    private static void rim(
+            RenderFrame c,
+            GroundEphemeris.Model model,
+            int planet,
+            double time,
+            Point bodyEye,
+            Matrix4f matrix,
+            Point center,
+            Point u,
+            Point up,
+            Point v,
+            double radius,
+            boolean remote) {
+        if (RenderWorkDiagnostics.active())
+            RenderWorkDiagnostics.add(
+                    (remote ? Metric.REMOTE_RIM_ATTEMPTS : Metric.NATIVE_RIM_ATTEMPTS), 1);
         if (!RendererGuard.pipelineSupported() || shader == null) return;
         double distance = bodyEye.length();
         double passWeight = 1;
@@ -234,67 +266,99 @@ public final class GroundAtmosphere {
         var air = model.body(planet).atmosphere();
         int n = rimSegments(air.density(), distance, radius);
         if (n == 0) return;
-        var normal = PlanetSpace.unit(bodyEye);
-        var a = AtmosphereScattering.horizon(normal, new Point(1, 0, 0));
-        var b = normal.cross(a);
-        var placed = model.at(planet, time);
-        var sunBody = placed.local(model.star(placed.center(), time).position());
-        var light = PlanetSpace.unit(sunBody);
-        var gasShadows = dev.starfold.chart.GasOcclusion.relative(model, time, placed, -1);
-        int bands = AtmosphereSettings.RIM_BANDS;
-        var points = new Point[(n + 1) * (bands + 1)];
-        var colors = new Point[points.length];
-        for (int j = 0; j <= bands; j++) {
-            var section =
-                    AtmosphereRim.section(
-                            radius, distance, AtmosphereRim.height(radius) * j / bands);
-            var origin = normal.scale(section.axial());
-            for (int i = 0; i <= n; i++) {
-                double angle = i * Math.PI * 2 / n;
-                var p =
-                        origin.add(a.scale(Math.cos(angle) * section.radial()))
-                                .add(b.scale(Math.sin(angle) * section.radial()));
-                int index = j * (n + 1) + i;
-                points[index] = center.add(new Point(p.dot(u), p.dot(up), p.dot(v)));
-                colors[index] =
-                        AtmosphereScattering.display(
-                                AtmosphereScattering.sky(
-                                        air,
-                                        radius,
-                                        bodyEye,
-                                        p.sub(bodyEye),
-                                        light,
-                                        dev.starfold.chart.GasOcclusion.transmission(
-                                                gasShadows, p, sunBody)));
+        // All accepted rim CPU work, including integration, emission and MeshData finalization.
+        MeshData data;
+        long buildTimer = RenderWorkDiagnostics.start();
+        try {
+            var normal = PlanetSpace.unit(bodyEye);
+            var a = AtmosphereScattering.horizon(normal, new Point(1, 0, 0));
+            var b = normal.cross(a);
+            var placed = model.at(planet, time);
+            var sunBody = placed.local(model.star(placed.center(), time).position());
+            var light = PlanetSpace.unit(sunBody);
+            var gasShadows = dev.starfold.chart.GasOcclusion.relative(model, time, placed, -1);
+            int bands = AtmosphereSettings.RIM_BANDS;
+            var points = new Point[(n + 1) * (bands + 1)];
+            var colors = new Point[points.length];
+            for (int j = 0; j <= bands; j++) {
+                var section =
+                        AtmosphereRim.section(
+                                radius, distance, AtmosphereRim.height(radius) * j / bands);
+                var origin = normal.scale(section.axial());
+                for (int i = 0; i <= n; i++) {
+                    double angle = i * Math.PI * 2 / n;
+                    var p =
+                            origin.add(a.scale(Math.cos(angle) * section.radial()))
+                                    .add(b.scale(Math.sin(angle) * section.radial()));
+                    int index = j * (n + 1) + i;
+                    points[index] = center.add(new Point(p.dot(u), p.dot(up), p.dot(v)));
+                    colors[index] =
+                            AtmosphereScattering.display(
+                                    AtmosphereScattering.sky(
+                                            air,
+                                            radius,
+                                            bodyEye,
+                                            p.sub(bodyEye),
+                                            light,
+                                            dev.starfold.chart.GasOcclusion.transmission(
+                                                    gasShadows, p, sunBody)));
+                }
             }
+            var out =
+                    Tesselator.getInstance()
+                            .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            for (int j = 0; j < bands; j++)
+                for (int i = 0; i < n; i++) {
+                    int k = j * (n + 1) + i;
+                    for (int index : new int[] {k, k + 1, k + n + 2, k, k + n + 2, k + n + 1})
+                        vertex(
+                                out,
+                                points[index],
+                                colors[index],
+                                (float)
+                                        (passWeight
+                                                * AtmosphereRim.opacity(
+                                                        (double) (index / (n + 1)) / bands)));
+                }
+            data = out.build();
+            if (RenderWorkDiagnostics.active()) {
+                RenderWorkDiagnostics.add(
+                        remote ? Metric.REMOTE_RIM_SAMPLES : Metric.NATIVE_RIM_SAMPLES,
+                        points.length);
+                RenderWorkDiagnostics.add(
+                        (remote ? Metric.REMOTE_RIM_VERTICES : Metric.NATIVE_RIM_VERTICES),
+                        (long) n * bands * 6);
+                RenderWorkDiagnostics.add(
+                        (remote ? Metric.REMOTE_RIM_TRIANGLES : Metric.NATIVE_RIM_TRIANGLES),
+                        (long) n * bands * 2);
+            }
+        } finally {
+            RenderWorkDiagnostics.finish(
+                    (remote ? Metric.REMOTE_RIM_BUILD_NS : Metric.NATIVE_RIM_BUILD_NS), buildTimer);
         }
-        var out =
-                Tesselator.getInstance()
-                        .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        for (int j = 0; j < bands; j++)
-            for (int i = 0; i < n; i++) {
-                int k = j * (n + 1) + i;
-                for (int index : new int[] {k, k + 1, k + n + 2, k, k + n + 2, k + n + 1})
-                    vertex(
-                            out,
-                            points[index],
-                            colors[index],
-                            (float)
-                                    (passWeight
-                                            * AtmosphereRim.opacity(
-                                                    (double) (index / (n + 1)) / bands)));
-            }
-        draw(out, matrix, false);
+        // Disjoint from build; includes render-state setup, submission and restoration.
+        long drawTimer = RenderWorkDiagnostics.start();
+        try {
+            drawData(data, matrix, false);
+        } finally {
+            RenderWorkDiagnostics.finish(
+                    (remote ? Metric.REMOTE_RIM_DRAW_NS : Metric.NATIVE_RIM_DRAW_NS), drawTimer);
+        }
     }
 
     static int rimSegments(double density, double distance, double radius) {
         if (density == 0
                 || distance <= radius + AtmosphereSettings.SCALE_HEIGHT
                 || radius / distance < AtmosphereSettings.MIN_RIM_ANGULAR_RADIUS) return 0;
-        return (int) Math.clamp(
-                Math.ceil(radius / distance * AtmosphereSettings.RIM_SEGMENTS
-                        * AtmosphereSettings.RIM_ANGULAR_RESOLUTION),
-                AtmosphereSettings.MIN_RIM_SEGMENTS, AtmosphereSettings.RIM_SEGMENTS);
+        return (int)
+                Math.clamp(
+                        Math.ceil(
+                                radius
+                                        / distance
+                                        * AtmosphereSettings.RIM_SEGMENTS
+                                        * AtmosphereSettings.RIM_ANGULAR_RESOLUTION),
+                        AtmosphereSettings.MIN_RIM_SEGMENTS,
+                        AtmosphereSettings.RIM_SEGMENTS);
     }
 
     private static void vertex(BufferBuilder b, Point p, Point color, float alpha) {
@@ -303,7 +367,10 @@ public final class GroundAtmosphere {
     }
 
     private static void draw(BufferBuilder out, Matrix4f matrix, boolean background) {
-        var data = out == null ? null : out.build();
+        drawData(out == null ? null : out.build(), matrix, background);
+    }
+
+    private static void drawData(MeshData data, Matrix4f matrix, boolean background) {
         if (data == null && !background) return;
         var pass = new RenderPassState(true, true, false);
         int program = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);

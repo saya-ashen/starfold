@@ -13,7 +13,11 @@ import org.spongepowered.asm.mixin.injection.*;
 public abstract class ReversedDepthMainTargetMixin {
     @ModifyArg(
             method = "allocateDepthAttachment(Lcom/mojang/blaze3d/pipeline/MainTarget$Dimension;)Z",
-            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/GlStateManager;_texImage2D(IIIIIIIILjava/nio/IntBuffer;)V"),
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Lcom/mojang/blaze3d/platform/GlStateManager;_texImage2D(IIIIIIIILjava/nio/IntBuffer;)V"),
             index = 2)
     private int starfold$depthFormat(int format) {
         return ReversedDepth.ACTIVE ? GL30.GL_DEPTH_COMPONENT32F : format;

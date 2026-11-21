@@ -1,13 +1,9 @@
 package dev.starfold.render;
 
-import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.ground.GroundSeams;
 import dev.starfold.network.StarfoldNetwork;
-import dev.starfold.planet.GroundCoordinates;
-import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.PlanetStorage;
 import dev.starfold.universe.PlanetPackets;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTerrain;
@@ -25,10 +21,14 @@ public final class GroundViewClient {
     private static boolean surfaceDirty;
     private static final GroundSurfaceStore surfaceStore = new GroundSurfaceStore();
 
+    private static long overlayVersion;
+
     private static void surfaceChanged() {
+        overlayVersion++;
         surfaceDirty = true;
         surfaceStore.changed();
     }
+
     private static long lastSurfaceSave;
 
     static int cachedPlanet() {
@@ -91,7 +91,9 @@ public final class GroundViewClient {
                         t.version(),
                         t.generation(),
                         snapshot.biome(),
-                        java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.empty());
+                        java.util.Optional.empty(),
+                        java.util.Optional.empty(),
+                        java.util.Optional.empty());
         if (state.level == null
                 || !dev.starfold.worldgen.PlanetTint.known(candidate, state.level.registryAccess()))
             return;
@@ -106,12 +108,16 @@ public final class GroundViewClient {
 
     private static boolean flat;
     private static PlanetPackets.Profile profile;
-    private static final java.util.Map<Long,dev.starfold.universe.PlanetPlanSync.Assembler> plans=new java.util.HashMap<>();
+    private static final java.util.Map<Long, dev.starfold.universe.PlanetPlanSync.Assembler> plans =
+            new java.util.HashMap<>();
     private static Object planLevel;
-    private static final java.util.concurrent.ExecutorService planDecoder=
-            java.util.concurrent.Executors.newSingleThreadExecutor(r->{
-                var thread=new Thread(r,"starfold-plan-decode");thread.setDaemon(true);return thread;
-            });
+    private static final java.util.concurrent.ExecutorService planDecoder =
+            java.util.concurrent.Executors.newSingleThreadExecutor(
+                    r -> {
+                        var thread = new Thread(r, "starfold-plan-decode");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
 
     public static PlanetPackets.Profile profile() {
         return profile;
@@ -120,8 +126,19 @@ public final class GroundViewClient {
     public static Map<Long, GroundSurface> surfaces() {
         return state.surfaces;
     }
-    public static Map<Long,GroundSurface> overlays() { return state.overlays; }
-    public static GroundSurface overlay(long key) { return state.overlays.get(key); }
+
+    public static Map<Long, GroundSurface> overlays() {
+        return state.overlays;
+    }
+
+    /** Render-thread snapshot stamp; survives clear so a reused overlay map cannot alias old inputs. */
+    public static long overlayVersion() {
+        return overlayVersion;
+    }
+
+    public static GroundSurface overlay(long key) {
+        return state.overlays.get(key);
+    }
 
     private static PlanetTerrain terrain;
     private static PlanetHeightCache heights;
@@ -133,7 +150,6 @@ public final class GroundViewClient {
     public static PlanetTerrain terrain() {
         return terrain;
     }
-
 
     /** Coverage and invalidations belong to their bound planet and shape, even between a teleport and its new profile. */
     public static boolean coverageReady() {
@@ -149,10 +165,6 @@ public final class GroundViewClient {
         return flat;
     }
 
-    public static boolean isChanged(long key) {
-        return state.changed.get((int) key);
-    }
-
     public static BitSet changed() {
         return (BitSet) state.changed.clone();
     }
@@ -161,11 +173,8 @@ public final class GroundViewClient {
         return state.surfaces.get(key);
     }
 
-
-    private static void invalidate(long key) { state.invalidated.surface(state.shape, key); }
-
-    private static void invalidateEdit(long key, net.minecraft.core.BlockPos pos) {
-        state.invalidated.edit(state.shape, key, pos);
+    private static void invalidate(long key) {
+        state.invalidated.surface(state.shape, key);
     }
 
     private static long ticks;
@@ -177,19 +186,35 @@ public final class GroundViewClient {
     private static void saveSurfaces() {
         if (surfaceFile == null || !surfaceDirty) return;
         lastSurfaceSave = System.nanoTime();
-        surfaceStore.save(surfaceFile, state.overlays, state.changed, state.surfaceRevisions, () -> surfaceDirty = false);
+        surfaceStore.save(
+                surfaceFile,
+                state.overlays,
+                state.changed,
+                state.surfaceRevisions,
+                () -> surfaceDirty = false);
     }
 
     private static void loadSurfaces(long identity) {
-        surfaceFile = Minecraft.getInstance().gameDirectory.toPath()
-                .resolve("starfold/surface-cache/" + Long.toHexString(identity) + "-" + state.planet + ".bin");
+        surfaceFile =
+                Minecraft.getInstance()
+                        .gameDirectory
+                        .toPath()
+                        .resolve(
+                                "starfold/surface-cache/"
+                                        + Long.toHexString(identity)
+                                        + "-"
+                                        + state.planet
+                                        + ".bin");
         lastSurfaceSave = System.nanoTime();
         surfaceStore.bind(new Object());
-        surfaceStore.load(surfaceFile, state.changed, images -> {
-            state.loaded(images);
-            if (!images.isEmpty()) surfaceChanged();
-            sendKnown();
-        });
+        surfaceStore.load(
+                surfaceFile,
+                state.changed,
+                images -> {
+                    state.loaded(images);
+                    if (!images.isEmpty()) surfaceChanged();
+                    sendKnown();
+                });
     }
 
     private static void sendKnown() {
@@ -217,6 +242,7 @@ public final class GroundViewClient {
         terrain = null;
         heights = null;
         state.clear();
+        overlayVersion++;
     }
 
     public static void initialize() {
@@ -231,51 +257,86 @@ public final class GroundViewClient {
         plans.values().forEach(dev.starfold.universe.PlanetPlanSync.Assembler::clear);
         plans.clear();
     }
+
     private static dev.starfold.universe.PlanetPlanSync.Assembler planIdentity(long session) {
-        var current=Minecraft.getInstance().level;
-        if(planLevel!=current) {clearPlans();planLevel=current;}
-        plans.entrySet().removeIf(entry->{
-            if(PlanetRemoteRenderer.acceptsPlanSession(entry.getKey()))return false;
-            entry.getValue().clear();return true;
-        });
-        return plans.computeIfAbsent(session,id->new dev.starfold.universe.PlanetPlanSync.Assembler());
+        var current = Minecraft.getInstance().level;
+        if (planLevel != current) {
+            clearPlans();
+            planLevel = current;
+        }
+        plans.entrySet()
+                .removeIf(
+                        entry -> {
+                            if (PlanetRemoteRenderer.acceptsPlanSession(entry.getKey()))
+                                return false;
+                            entry.getValue().clear();
+                            return true;
+                        });
+        return plans.computeIfAbsent(
+                session, id -> new dev.starfold.universe.PlanetPlanSync.Assembler());
     }
-    public static void resolveProfile(PlanetPackets.Profile profile,Object owner,PlanetPackets.Profile known,java.util.function.Consumer<PlanetPackets.Profile> ready) {
-        if(!PlanetRemoteRenderer.acceptsPlanSession(profile.session()))return;
-        if(planIdentity(profile.session()).await(profile,owner,known,ready))
-            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new dev.starfold.universe.PlanetPlanSync.Request(
-                    profile.session(),profile.seed(),profile.planReference().orElseThrow()));
+
+    public static void resolveProfile(
+            PlanetPackets.Profile profile,
+            Object owner,
+            PlanetPackets.Profile known,
+            java.util.function.Consumer<PlanetPackets.Profile> ready) {
+        if (!PlanetRemoteRenderer.acceptsPlanSession(profile.session())) return;
+        if (planIdentity(profile.session()).await(profile, owner, known, ready))
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                    new dev.starfold.universe.PlanetPlanSync.Request(
+                            profile.session(),
+                            profile.seed(),
+                            profile.planReference().orElseThrow()));
     }
+
     private static void registerProfile() {
-        StarfoldNetwork.clientReceiver(dev.starfold.universe.PlanetPlanSync.Part.TYPE,(packet,c)->{
-            if(PlanetRemoteRenderer.acceptsPlanSession(packet.session())) {
-                planIdentity(packet.session()).accept(packet,planDecoder,Minecraft.getInstance()::execute);
-            }
-        });
+        StarfoldNetwork.clientReceiver(
+                dev.starfold.universe.PlanetPlanSync.Part.TYPE,
+                (packet, c) -> {
+                    if (PlanetRemoteRenderer.acceptsPlanSession(packet.session())) {
+                        planIdentity(packet.session())
+                                .accept(packet, planDecoder, Minecraft.getInstance()::execute);
+                    }
+                });
         StarfoldNetwork.clientReceiver(
                 PlanetPackets.Profile.TYPE,
                 (incoming, c) -> {
-                    if(incoming.session()!=GroundFlightClient.session())return;
-                    var expectedWorld=Minecraft.getInstance().level;
-                    int expectedPlanet=GroundFlightClient.planet();
-                    resolveProfile(incoming,"ground",profile,packet->{
-                        if(Minecraft.getInstance().level!=expectedWorld || GroundFlightClient.planet()!=expectedPlanet
-                                || !state.matches(expectedWorld, incoming.session(), expectedPlanet, state.shape))return;
-                        if (!GroundFlightClient.ready()
-                                || packet.session() != GroundFlightClient.session()
-                                || net.minecraft.client.Minecraft.getInstance().level != state.level
-                                || !PlanetLevels.is(state.level)
-                                || !packet.surfaceCompatible()
-                                || !dev.starfold.worldgen.PlanetTint.known(
-                                        packet, state.level.registryAccess())) return;
-                        // A re-sent profile of the same terrain must not reset the far view.
-                        if (!previewed && profile != null && terrain != null && profile.sameTerrain(packet)) return;
-                        previewed = false;
-                        profile = packet;
-                        terrain = packet.terrain();
-                        heights = new PlanetHeightCache(terrain);
-                        coverageRevision = -1;
-                    });
+                    if (!bindSurfaceSession(incoming.session())) return;
+                    var expectedWorld = Minecraft.getInstance().level;
+                    int expectedPlanet = GroundFlightClient.planet();
+                    resolveProfile(
+                            incoming,
+                            "ground",
+                            profile,
+                            packet -> {
+                                if (Minecraft.getInstance().level != expectedWorld
+                                        || GroundFlightClient.planet() != expectedPlanet
+                                        || !state.matches(
+                                                expectedWorld,
+                                                incoming.session(),
+                                                expectedPlanet,
+                                                state.shape)) return;
+                                if (!GroundFlightClient.ready()
+                                        || packet.session() != GroundFlightClient.session()
+                                        || net.minecraft.client.Minecraft.getInstance().level
+                                                != state.level
+                                        || !PlanetLevels.is(state.level)
+                                        || !packet.surfaceCompatible()
+                                        || !dev.starfold.worldgen.PlanetTint.known(
+                                                packet, state.level.registryAccess())) return;
+                                // A re-sent profile of the same terrain must not reset the far
+                                // view.
+                                if (!previewed
+                                        && profile != null
+                                        && terrain != null
+                                        && profile.sameTerrain(packet)) return;
+                                previewed = false;
+                                profile = packet;
+                                terrain = packet.terrain();
+                                heights = new PlanetHeightCache(terrain);
+                                coverageRevision = -1;
+                            });
                 });
     }
 
@@ -291,22 +352,31 @@ public final class GroundViewClient {
         StarfoldNetwork.clientReceiver(
                 GroundViewPackets.Coverage.TYPE,
                 (packet, c) -> {
-                    if (!GroundFlightClient.ready()
-                            || packet.session() != GroundFlightClient.session()
+                    if (!bindSurfaceSession(packet.session())
                             || packet.revision() < coverageRevision) return;
+                    var next = BitSet.valueOf(packet.changed());
+                    if (!next.stream().allMatch(key -> GroundTileKeys.owned(state.shape, key)))
+                        return;
+                    if (state.coverage(next, packet.revision())) surfaceChanged();
                     coverageRevision = packet.revision();
                     flat = packet.flat();
-                    var next = BitSet.valueOf(packet.changed());
-                    if (state.coverage(next, packet.revision())) surfaceChanged();
                     if (surfaceFile == null) loadSurfaces(packet.identity());
                 });
         StarfoldNetwork.clientReceiver(
                 GroundViewPackets.Surface.TYPE,
                 (packet, c) -> {
-                    if (!GroundFlightClient.ready()
-                            || packet.session() != GroundFlightClient.session() || !packet.compatible()) return;
-                    if (state.surface(packet.key(), packet.revision(), packet.image())) surfaceChanged();
+                    if (!packet.compatible()
+                            || !bindSurfaceSession(packet.session())
+                            || !GroundTileKeys.owned(state.shape, packet.key())) return;
+                    if (state.surface(packet.key(), packet.revision(), packet.image()))
+                        surfaceChanged();
                 });
+    }
+
+    private static boolean bindSurfaceSession(long session) {
+        if (!GroundFlightClient.ready() || session != GroundFlightClient.session()) return false;
+        bindSession(Minecraft.getInstance().level, session);
+        return true;
     }
 
     private static void registerBlockUpdates() {
@@ -314,11 +384,12 @@ public final class GroundViewClient {
                 GroundViewPackets.Delta.TYPE,
                 (packet, c) -> {
                     if (packet.session() != GroundFlightClient.session()
-                            || net.minecraft.client.Minecraft.getInstance().level != state.level) return;
-                    long key =
-                            GroundSurfaceIndex.key(
-                                    packet.pos().getX() >> 4, packet.pos().getZ() >> 4);
-                    invalidateEdit(key, packet.pos());
+                            || net.minecraft.client.Minecraft.getInstance().level != state.level)
+                        return;
+                    // Keep the negotiated channel, but do not remesh an unchanged input.
+                    // Delta is only a block notification; the authoritative immutable overlay
+                    // arrives on Surface and invalidates the actual changed columns there.
+                    // Native chunks receive their own vanilla block updates.
                 });
     }
 
@@ -333,7 +404,9 @@ public final class GroundViewClient {
     private static void registerClientLifecycle() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.GameShuttingDownEvent event) -> {
-                    saveSurfaces();
+                    // Minecraft disconnects after this event. Enqueue the final save and
+                    // detach now so the later logout cannot submit to the closed queue.
+                    clear();
                     surfaceStore.close();
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(

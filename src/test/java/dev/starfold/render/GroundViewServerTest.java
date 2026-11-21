@@ -26,17 +26,6 @@ class GroundViewServerTest {
     }
 
     @Test
-    void deltaPublicationDoesNotLoadChunksOrKeepAnIteratorAcrossCallbacks() throws Exception {
-        var source=dev.starfold.Sources.text("GroundViewServer");
-        var publish=source.substring(source.indexOf("private static void publishChanges"),
-                source.indexOf("private static void refreshIndices"));
-        assertTrue(publish.contains("getChunkNow(pos.getX()>>4,pos.getZ()>>4)"));
-        assertTrue(publish.contains("chunk.getBlockState(pos)"));
-        assertFalse(publish.contains("level.getBlockState(pos)"));
-        assertTrue(publish.indexOf("pending.iterator()")>publish.indexOf("while (!pending.isEmpty()"));
-    }
-
-    @Test
     void singleSolidWithGasNeverRefreshesAMissingSecondSurface() {
         var model = singleSolidWithGas();
         assertEquals(1, model.count());

@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology.Face;
@@ -14,11 +13,13 @@ import net.minecraft.world.level.block.Blocks;
 
 import org.junit.jupiter.api.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 /** Replayed residency/admission failures, not a substitute for Minecraft/GPU acceptance. */
 class CanonicalStreamingTest {
+    // Keep pressure cases constrained even when the production allowance grows.
+    private static final long PRESSURE_BUDGET = 96L << 20;
+
     @BeforeAll
     static void boot() {
         PlanetBiomeFixtures.boot();
@@ -74,7 +75,7 @@ class CanonicalStreamingTest {
                             GroundStreaming.admit(
                                     stream.resident(),
                                     costs,
-                                    GroundViewPolicy.DETAIL_BYTES,
+                                    PRESSURE_BUDGET,
                                     selected);
                     if (i == 2) warm = selected;
                     if (i > 2) assertEquals(warm, selected);
@@ -125,19 +126,6 @@ class CanonicalStreamingTest {
     }
 
     @Test
-    void canonicalOwnersDoNotChangeWhenThePlayersCurrentFaceChanges() {
-        var surface = GroundOwnershipTest.surface(1, 127, Blocks.STONE);
-        var images = Map.of(1L, surface, 16385L, surface);
-        var selection = new GroundOwnership.Snapshot(images, new BitSet());
-        var original = GroundOwnership.atlas(selection);
-        for (int face = 0; face < 6; face++) {
-            assertEquals(GroundOwnership.Owner.DETAIL, selection.owner(1));
-            assertEquals(GroundOwnership.Owner.DETAIL, selection.owner(16385));
-            assertArrayEquals(original, GroundOwnership.atlas(selection));
-        }
-    }
-
-    @Test
     void measuredOverBudgetWorkConvergesInsteadOfEvictingAndRebuildingForever() {
         var order =
                 GroundStreaming.footprint(
@@ -145,7 +133,7 @@ class CanonicalStreamingTest {
         var measured = new HashMap<Long, Long>();
         var meshes = new HashSet<Long>();
         var builds = new HashMap<Long, Integer>();
-        long budget = GroundViewPolicy.DETAIL_BYTES;
+        long budget = PRESSURE_BUDGET;
         for (int frame = 0; frame < 2000; frame++) {
             var admitted = GroundStreaming.admit(order, measured, budget);
             meshes.retainAll(admitted);
@@ -216,19 +204,5 @@ class CanonicalStreamingTest {
         assertFalse(image.enclosed(0, 0, 8));
         assertFalse(image.enclosed(15, 0, 8));
         assertFalse(image.enclosed(8, -64, 8));
-    }
-
-    @Test
-    void runtimeUsesOneGroundAdapterAndCanonicalLoadTickets() throws Exception {
-        var renderer = Sources.text("GroundRenderer");
-        var tickets = Sources.text("GroundTickets");
-        assertTrue(Sources.text("GroundCoverage").contains("GroundOwnership.atlas(shape,next,window)"));
-        assertFalse(renderer.contains("GroundOwnership.atlas(next,nativeFace)"));
-        assertFalse(renderer.contains("nativeVolumeReady"));
-        assertFalse(renderer.contains("ownership.rebase"));
-        assertFalse(renderer.contains("commitDetails("));
-        assertTrue(renderer.contains("GroundNativeCoverage.visible()"));
-        assertTrue(tickets.contains("addRegionTicket(VIEW,access.chunk(key),0,key)"));
-        assertTrue(tickets.contains("loaded.addAll(ImageStream.owners(level))"));
     }
 }

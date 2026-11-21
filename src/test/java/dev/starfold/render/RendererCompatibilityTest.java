@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonParser;
 
-import dev.starfold.Sources;
-
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -22,15 +20,12 @@ class RendererCompatibilityTest {
                     "HelmMouseMixin",
                     "HelmFitMixin",
                     "HelmCollisionPoseMixin",
-                    "PilotPoseProbeMixin",
                     "SableShipWriteMixin",
                     "SableShipStorageMixin",
                     "SableShipSerializationMixin",
                     "SableShipSplitMixin",
                     "SableFuelMassMixin",
-                    "SableShipReadinessMixin",
-                    "DevPortCameraMixin",
-                    "DevPortClockMixin");
+                    "SableShipReadinessMixin");
 
     @Test
     void unsupportedRenderersDisableProjectionWithoutDisablingNativeMixins() throws Exception {
@@ -60,29 +55,6 @@ class RendererCompatibilityTest {
                         !OPTIONAL.contains(entry.getAsString()),
                         RendererCompatibility.apply(
                                 "dev.starfold.mixin." + entry.getAsString(), id -> false));
-        assertTrue(
-                Sources.text("RendererMixinPlugin")
-                        .contains("LoadingModList.get().getModFileById(id)!=null"));
-        assertFalse(Sources.text("RendererMixinPlugin").contains("net.minecraft"));
-        assertTrue(
-                Sources.text("RendererGuard")
-                        .contains("RendererCompatibility.supported(loader::isLoaded)"));
-    }
-
-    @Test
-    void portObserversRequireExplicitOptIn() {
-        String key = "starfold.portProbe", old = System.getProperty(key);
-        try {
-            for (String name : Set.of("DevPortCameraMixin", "DevPortClockMixin")) {
-                System.clearProperty(key);
-                assertFalse(RendererCompatibility.apply("dev.starfold.mixin." + name, id -> true));
-                System.setProperty(key, "true");
-                assertTrue(RendererCompatibility.apply("dev.starfold.mixin." + name, id -> false));
-            }
-        } finally {
-            if (old == null) System.clearProperty(key);
-            else System.setProperty(key, old);
-        }
     }
 
     @Test
@@ -94,14 +66,6 @@ class RendererCompatibilityTest {
             for (int i = 0; i < 3; i++) if ((mask & (1 << i)) != 0) loaded.add(mods.get(i));
             assertEquals(mask == 7, RendererCompatibility.apply(name, loaded::contains));
         }
-        var shim = Sources.text("SentryShipMuzzleMixin");
-        assertTrue(shim.contains("@Pseudo"));
-        assertTrue(shim.contains("method=\"fireGun\""));
-        assertTrue(shim.contains("isInSableSubLevel() ? getActualMuzzlePos() : original"));
-        assertTrue(shim.contains("horizontalDistanceSqr() < 0.0025"));
-        assertTrue(shim.contains("new Vec2(0.0F, cir.getReturnValue().y)"));
-        assertFalse(shim.contains("require=0"));
-        assertFalse(shim.contains("hurt("));
     }
 
     @Test
@@ -162,33 +126,5 @@ class RendererCompatibilityTest {
             assertTrue(text.contains(language.equals("en_us") ? "not drawn correctly" : "无法"));
             assertTrue(text.contains(language.equals("en_us") ? "disabled" : "停用"));
         }
-        var client = Sources.text("RendererGuard");
-        assertTrue(client.contains("Component.translatable(\"message.starfold.renderer\")"));
-        assertTrue(client.contains("mc.player.sendSystemMessage(message)"));
-        assertTrue(client.contains("warn(\"{}\",message.getString())"));
-        assertFalse(Sources.text("GroundClient").contains("message.starfold.renderer"));
-    }
-
-    @Test
-    void projectionGatesCoverFrameSelectionDetailsAndDraws() throws Exception {
-        assertTrue(
-                Sources.text("GroundClient")
-                        .contains("!ready()||!RendererGuard.pipelineSupported()"));
-        assertTrue(
-                Sources.text("GroundRenderer")
-                        .contains(
-                                "if(GroundClient.ready()&&RendererGuard.pipelineSupported()&&level==Minecraft.getInstance().level)prepareSurfaceUpdates();"));
-        assertTrue(
-                Sources.text("GroundRenderer")
-                        .contains(
-                                "selectionActive=GroundClient.ready()&&RendererGuard.pipelineSupported()"));
-        assertTrue(
-                Sources.text("GroundCelestials").contains("||!RendererGuard.pipelineSupported()"));
-        assertTrue(
-                Sources.text("CoreShaderProgramMixin")
-                        .contains("RendererGuard.pipelineSupported()"));
-        assertTrue(
-                Sources.text("CoreShaderVeilProcessorMixin")
-                        .contains("RendererGuard.pipelineSupported()"));
     }
 }

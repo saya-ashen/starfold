@@ -8,9 +8,20 @@ import java.util.Optional;
 
 /** Personal, zero-padding gas sampling; no ship identity, world access or damage side effects. */
 public final class GasPlayerExposure {
-    public enum Condition { SAFE, DANGER, UNKNOWN }
+    public enum Condition {
+        SAFE,
+        DANGER,
+        UNKNOWN
+    }
 
-    public enum Risk { NONE, PRESSURE, STRUCTURAL, NEAR_LIMIT, SURVIVAL_LIMIT, UNKNOWN }
+    public enum Risk {
+        NONE,
+        PRESSURE,
+        STRUCTURAL,
+        NEAR_LIMIT,
+        SURVIVAL_LIMIT,
+        UNKNOWN
+    }
 
     public record Sample(Condition condition, Optional<GasPressure.Reading> reading) {
         public Sample {
@@ -61,7 +72,8 @@ public final class GasPlayerExposure {
                         || next.pressure() == worst.pressure()
                                 && next.bodyIndex() < worst.bodyIndex()) worst = next;
             }
-            return new Sample(danger ? Condition.DANGER : Condition.SAFE, Optional.ofNullable(worst));
+            return new Sample(
+                    danger ? Condition.DANGER : Condition.SAFE, Optional.ofNullable(worst));
         } catch (IllegalArgumentException | NullPointerException invalidGeometry) {
             return unknown();
         }

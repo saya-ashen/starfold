@@ -10,9 +10,7 @@ import org.objectweb.asm.tree.*;
 class RegionalClientContractTest {
     private static ClassNode node(String name) throws Exception {
         var n = new ClassNode();
-        try (var in =
-                dev.starfold.TestArchiveResources.open(
-                        "/dev/starfold/" + name + ".class")) {
+        try (var in = dev.starfold.TestArchiveResources.open("/dev/starfold/" + name + ".class")) {
             assertNotNull(in);
             new ClassReader(in).accept(n, 0);
             return n;

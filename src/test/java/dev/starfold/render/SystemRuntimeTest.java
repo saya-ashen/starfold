@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundAir;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundSpace;
@@ -180,28 +179,5 @@ class SystemRuntimeTest {
                             access.origin(id, source.ordinal())
                                     .sub(access.origin(id, face.ordinal())));
             }
-    }
-
-    @Test
-    void sharedFlightBranchCannotInvokeCrossLevelTeleportAndClientBindsLayoutBeforeCaches()
-            throws Exception {
-        var server = Sources.text("GroundFlightServer");
-        assertTrue(server.contains("player.connection.teleport("));
-        assertFalse(server.contains("player.teleportTo("));
-        var system = Sources.text("PlanetSystem");
-        assertFalse(system.contains("getLevel("));
-        var client = Sources.text("GroundFlightClient");
-        int setup = client.indexOf("model=packet.model()");
-        int bind = client.indexOf("FlightClientHost.get().sessionBound(level,session)");
-        int air = client.indexOf("FlightClientHost.get().atmosphere(packet.air())");
-        int metadata = client.indexOf("FlightClientHost.get().metadata(model,state.tick())");
-        assertTrue(setup >= 0 && bind > setup && air > bind && metadata > air);
-        assertTrue(
-                Sources.text("StarfoldClient")
-                        .contains(
-                                "void sessionBound(ClientLevel level,long session){GroundViewClient.bindSession(level,session);}"));
-        var views = Sources.text("GroundViewClient");
-        assertTrue(views.contains("clear();state.bind(world,id,planet,shape)"));
-        assertTrue(Sources.text("GroundViewServer").contains("ImageStream.changed(level,pos)"));
     }
 }

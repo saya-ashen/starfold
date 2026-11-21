@@ -17,9 +17,15 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 /** The inset model cannot hide a whole neighbour face. Rendering only; its full-cube collision is unchanged. */
 @Mixin(Block.class)
 public abstract class ThrusterOcclusionMixin {
-    @Inject(method = "shouldRenderFace", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/level/block/state/BlockState;skipRendering(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;)Z"),
-            locals = LocalCapture.CAPTURE_FAILHARD, cancellable = true)
+    @Inject(
+            method = "shouldRenderFace",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Lnet/minecraft/world/level/block/state/BlockState;skipRendering(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;)Z"),
+            locals = LocalCapture.CAPTURE_FAILHARD,
+            cancellable = true)
     private static void starfold$nozzleNeighbour(
             BlockState state,
             BlockGetter level,
@@ -28,7 +34,8 @@ public abstract class ThrusterOcclusionMixin {
             BlockPos neighbour,
             CallbackInfoReturnable<Boolean> result,
             BlockState neighbourState) {
-        // Vanilla already fetched the neighbour; keep the inset-face exception without another lookup.
+        // Vanilla already fetched the neighbour; keep the inset-face exception without another
+        // lookup.
         if (ThrusterClient.inset(neighbourState)) result.setReturnValue(true);
     }
 }

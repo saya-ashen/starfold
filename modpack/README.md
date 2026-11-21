@@ -1,15 +1,70 @@
 # Survival pack source (provisional name in `pack.toml`)
 
+## Design and progression
+
+The [中文玩家手册](../docs/escape-velocity-player-guide_zh-CN.md) walks through the survival campaign, from creating a world to returning from the first interstellar expedition.
+
+See the 整合包设计文档：从零生存流程
+for the staged design, with a separate flowchart, goals, acceptance criteria and
+open questions for each stage. Proposed designs are distinguished from current
+rules in [`RULES.md`](RULES.md). Stage one has implemented guide delivery,
+Ultimine, mining, resource-aware natural spawning and a home structure policy;
+one complete ordinary-survival route has passed acceptance. See the
+current runtime record.
+The stage-two work adds underwater ecology,
+a compact `starfold_mining:oil_extractor` using CDG's shared oil reserves, and
+revises the quest graph while preserving all existing IDs; subsequent stage-three
+through stage-seven work brings the current total to 9 chapters / 110 quests.
+Controlled oil conservation, shutdown boundaries and fresh-JVM persistence have
+passed; ocean generation has been observed on all six faces. The ordinary-survival mining, powered brass and two natural-oil batches are
+accepted; electronics and precision parts remain outside that runtime acceptance.
+Stage-two testing is closed; see its final record for the exact boundaries.
+Optional planetary transport uses the existing Create Aeronautics; its flight
+acceptance is separate from the required ground industry route. See the
+current stage-two evidence and
+material budget for precise limits.
+
+The stage-three reference adds a
+fuel/cargo hull proposal, current recipe budget and offline lift/fuel calculator.
+A manual local landing, reboarding and repair record now precedes space entry.
+A separately authorized supplied-fixture test passed short fuelled local flight,
+reboarding, repair and native assembly; survival manufacture, payload, endurance
+and off-world travel remain unqualified. Development does not authorize long
+automatic gameplay tests.
+
+The stage-four reference
+adds target selection, sequential fuel budgeting, and manual departure/loading/
+unloading records. Raw ore is unloaded at home before smelting. The offline
+voyage checker checks declared consistency only; it does not authenticate ship
+identity or cargo provenance. Full off-world mining and same-ship return have
+not been tested in this stage.
+
+The stage-five reference
+adds sustained hydrogen supply, offline lightweight/fuel comparison and manual
+upgrade/repeated-route records. Resource errands are optional choices; no fixed
+bucket-to-orbit promise remains. Recipe and model checks do not qualify actual
+hydrogen production, lightweight handling or repeated resource voyages.
+
 Minecraft 1.21.1 / NeoForge 21.1.247. Run packwiz commands **inside this directory**:
 
 ```sh
 nix run nixpkgs#packwiz -- refresh
 nix run nixpkgs#packwiz -- list
-nix run nixpkgs#packwiz -- curseforge export -o ../build/pi/escape-velocity-client.zip
-nix run nixpkgs#packwiz -- curseforge export --side server -o ../build/pi/escape-velocity-server.zip
 ```
 
-Export creates local files only; it does not upload/publish. All external files are pinned.
+Build and export from the repository root:
+
+```sh
+./gradlew :jar :worlds:jar :atlas:jar :materials:jar :mining:jar :biotech:jar
+python3 tools/modpack/export-local.py --side client --output build/pi/escape-velocity-client.zip
+python3 tools/modpack/export-local.py --side server --output build/pi/escape-velocity-server.zip
+```
+
+The client ZIP is a CurseForge-format import. For a dedicated server, resolve the
+pinned project and file IDs from the server ZIP's `manifest.json` into `mods/`,
+then copy the contents of `overrides/` into the server root. Use NeoForge 21.1.247
+and set `level-type=starfold_worlds:experience` before creating the world.
+The export runs locally. Third-party JARs are resolved at installation time.
 To deliberately upgrade one, use `packwiz unpin <slug>`, `packwiz update <slug>`,
 inspect its dependency ranges and changes, then `packwiz pin <slug>` and `packwiz refresh`.
 Do not blanket-update: Create 6.0.10, Aeronautics **bundled** 1.3.2, Sable 2.0.5,
@@ -21,25 +76,35 @@ JEI 19.70.0.460 declares MC `[1.21,1.21.1)`. This is accepted by the bundled FML
 patch third-party jars or mistake that range alone for an incompatibility.
 MezzConfig is JEI's CurseForge dependency (also embedded at an older version).
 
-## Local Starfold jars — required before testing
+The stage-six/seven reference
+opens gas collection and Host preparation in parallel and joins them at drive
+fabrication. New manual records cover withdrawal/recollection, installation,
+expedition planning, another-system landing, outpost save/rejoin and return.
+Generic late-game stock samples are optional; actual recipe costs remain.
+The experience universe defines eight additional stars beyond the one-sun home system
+(nine suns in a newly generated current layout); the named starter system is only
+the home system. The sequential planner accepts deuterium and explicit drive /
+outside-home declarations, without route or gameplay certification. The bounded stage-six/seven runtime report records gas collection, deuterium bottling and interstellar-drive crafting with prepared fixtures. It also records the open Host, outbound propulsion, landing and return checks.
 
-None has a CurseForge project/file entry yet. The lead supplies the merged builds:
+
+## Starfold JARs bundled in both exports
+
+None has a CurseForge project/file entry yet. Build the six modules first, then run `tools/modpack/export-local.py` as shown above. The final client and server ZIPs contain the merged builds under `overrides/mods/`:
 
 - `starfold-<version>.jar` (core)
 - `starfold_worlds-<version>.jar` (experience planets and presets; the pack's
   `starfold_worlds` data overrides need it)
 - `starfold_atlas-<version>.jar` (planet, system and interstellar maps, ship tracking)
 - `starfold_materials-<version>.jar` (aluminum stock, lightweight panels and osmium pressure hulls)
+- `starfold_mining-<version>.jar` (stage-one fuel/FE mining platform and discovered-site surveys)
 - `starfold_biotech-<version>.jar` (Flesh and the Host encounter; requires exactly GeckoLib 4.8.2)
 
 GeckoLib is pinned to CurseForge file **7023453**, `geckolib-neoforge-1.21.1-4.8.2.jar`.
 Biotech appends Flesh to the experience system and universe; KubeJS does not override these definitions.
 
 `starfold_extras` is not needed: this pack starts from scratch, without a supplied ship or landing pad.
-`starfold_probes` is development-only and never goes into the pack. Drop all five into **the test instance's `mods/` directory** alongside the resolved CurseForge
-mods, then copy `kubejs/` and `config/` into the instance root. For a packwiz local test,
-`modpack/mods/` can hold these jars temporarily; both Git and packwiz ignore them, so
-export will **not** contain them. Never upload a development zip as a complete pack.
+`starfold_probes` is development-only and never goes into the pack. Drop all six into **the test instance's `mods/` directory** alongside the resolved CurseForge
+mods, then copy `kubejs/` and `config/` into the instance root. For a source-based local test, `modpack/mods/` can still hold these jars temporarily. The local exporter bundles the six built jars and uses the pinned CurseForge file IDs for external dependencies. Never upload a development zip as a complete pack.
 Do not put zero-byte jars or invented CurseForge metadata here.
 
 ## Rules and verification
@@ -58,6 +123,17 @@ by default: `python3 tools/modpack/inventory.py`; `--fetch` explicitly permits
 missing downloads. Its default output is `build/modpack/ids.json`; updating
 `modpack/ids.json` requires `--output modpack/ids.json`. Quest generation requires
 `--output <directory>` or `--check` (temporary generation and byte comparison).
+`python3 tools/modpack/refresh-index.py` rebuilds the complete runtime index and
+pack hash after resource or pin changes. File-preservation regression checks run
+with `python3 tools/modpack/test_prepare_runtime.py`. For isolated source-based
+survival runs, `python3 tools/modpack/prepare-runtime.py` verifies cached pinned jars and stages
+`build/survival-stage1/instance`; Gradle `-PsurvivalPack` uses that directory and
+excludes Extras. It preserves saves, options and existing server properties,
+updating only managed config/KubeJS files. New server properties bind to IPv4
+loopback on port 25576; clients use `-PdevProbePort=25576` and may select a test
+identity with `-PdevProbeUsername=<name>`. Stop games before staging updates.
+The regular `run/` development instance is separate.
+
 No downloaded jar is executed during source preparation. Static checks do not establish
 in-game compatibility, progression balance, oil-field generation or boss spawning.
 
@@ -129,17 +205,30 @@ skimmed deuterium. No ordinary terrestrial production route remains in the pinne
 
 Deuterium impulse starts at **23500 = 25 × diesel** (provisional), not a measured one-bucket ascent.
 Only deuterium is marked interstellar: outside the home-system boundary, diesel,
-gasoline and hydrogen no longer provide thrust. The experience layout has a single sun,
-so every planet is inside home; coasting across the boundary is not forbidden. The interstellar drive requires one Host Ganglion from Flesh's Host encounter, plus
-four osmium pressure hull blocks, four elite circuits and one deuterium bucket.
-These ten ingredients use Create mechanical crafting in a 3×4 layout. Chapter 8 teaches pressure hull → scoop → Amber sample → full 8000 mB tank →
-leave home; the last two are explicitly **manual checkmarks**, not automatic travel
-or tank telemetry. Unrelated quest/task/reward IDs are preserved. Chapter 7 retains its preparation
-records and adds Flesh landing → hive crater → Host kill → Host Ganglion.
-Landing and crater entry use explicitly manual survey records; the Host uses a kill task.
+gasoline and hydrogen no longer provide thrust. A newly generated current experience
+layout adds eight stars beyond the home sun; existing saved layouts must be checked
+in-world. Coasting across the boundary is not forbidden, but propulsion and braking
+outside home also require an installed interstellar drive on the same hull.
+The drive requires one Host Ganglion from Flesh's Host encounter, four osmium
+pressure hull blocks, four elite circuits and one deuterium bucket. These ten
+ingredients use Create mechanical crafting in a nonmirrored 3×4 layout.
+
+After the Stage 5 supply-route record, gas collection and Host preparation run in
+parallel: pressure design → scoop → Amber sample → full 8000 mB tank → withdrawal
+and repeat collection; preparation → Flesh landing → hive crater → Host kill →
+Host Ganglion. Both routes join at drive crafting. The expedition then records
+same-hull installation → destination and return budget → leave home → land in
+another system → supply an outpost and save/rejoin → return, unload and resupply.
+The full-tank, travel, installation and outpost tasks are **manual checkmarks**;
+they do not automatically detect tank telemetry, transport or completed travel.
+The Host uses a kill task; ganglion and drive possession use item tasks. All 104
+prior quest/task/reward identities remain attached to their original quests.
 Retired IDs `1000000000070500`–`1000000000070700` are not reused.
-The drive task also depends directly on the Host kill record.
+The Stage 6/7 reference
+explains material costs, pressure limits and the remaining gameplay checks.
 
 Rename only `pack.toml`'s `name` and the `file.0000000000000001.title` key in quest
 `lang/en_us.snbt` (the generator reads the name from `pack.toml`).
 Other quest text does not duplicate the provisional pack name.
+
+The bounded stage-three runtime report records supplied-fixture local flight, reboarding, repair and native assembly. Survival manufacture, payload, endurance and off-world travel remain unqualified. The independent test instance is saved and stopped.

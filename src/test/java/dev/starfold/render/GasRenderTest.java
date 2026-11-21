@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonParser;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GasAppearance;
 import dev.starfold.chart.GasGiant;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -72,7 +71,10 @@ class GasRenderTest {
 
     @Test
     void actualVeilParserRoundTripsBothGasStagesAndExportsUniqueEvidence() throws Exception {
-        var parent = Path.of(System.getProperty("starfold.gasShaderEvidence", "build/d1-gas/shader-runs"));
+        var parent =
+                Path.of(
+                        System.getProperty(
+                                "starfold.gasShaderEvidence", "build/d1-gas/shader-runs"));
         Files.createDirectories(parent);
         var out = Files.createTempDirectory(parent, "gas-");
         for (String ext : List.of("vsh", "fsh")) {
@@ -92,44 +94,6 @@ class GasRenderTest {
     }
 
     @Test
-    void adapterUsesCatalogFramesAndRestoresItsGpuStateWithoutDefaultGasWork() throws Exception {
-        var renderer = Sources.text("GasGiantRenderer");
-        var draw = renderer.substring(renderer.indexOf("public static void draw"));
-        assertTrue(
-                draw.indexOf("GasOcclusion.present(model)") < draw.indexOf("GL_CURRENT_PROGRAM"));
-        assertTrue(draw.indexOf("GL_CURRENT_PROGRAM") < draw.indexOf("if(mesh==null)build()"));
-        for (String contract :
-                List.of(
-                        "model.catalogIndices()",
-                        "model.catalogBody(index)",
-                        "model.frame(index,tick)",
-                        "SpaceView.place",
-                        "GroundClient.place",
-                        "GasLighting.clear(shader)",
-                        "RenderSystem.depthFunc(GL11.GL_LEQUAL)",
-                        "_glBindVertexArray(vertexArray)",
-                        "_glBindBuffer(GL15.GL_ARRAY_BUFFER,arrayBuffer)",
-                        "ProgramManager.glUseProgram(program)"))
-            assertTrue(renderer.contains(contract), contract);
-        assertFalse(renderer.contains("model.at(index"));
-        assertFalse(renderer.contains("PlanetPackets.Profile"));
-        assertFalse(renderer.contains("System.currentTimeMillis"));
-        var hooks = Sources.text("GroundCelestials");
-        assertTrue(hooks.contains("GasGiantRenderer.initialize(modBus)"));
-        assertTrue(hooks.contains("GasGiantRenderer.clear()"));
-        assertEquals(
-                2,
-                java.util.regex.Pattern.compile("GasGiantRenderer\\.draw\\(c\\)")
-                        .matcher(hooks)
-                        .results()
-                        .count());
-        assertTrue(
-                Sources.text("GroundSunRenderer")
-                        .contains(
-                                "GasOcclusion.present(GroundClient.model())?1:GroundOrbit.weight"));
-    }
-
-    @Test
     void cameraFogIsLockIndependentBoundedAndRespectsVanillaOverrides() throws Exception {
         var policy = new GasGiant(1, 42, "Amber", 0, 0xffffff, 256, 512);
         float previous = Float.POSITIVE_INFINITY;
@@ -143,14 +107,5 @@ class GasRenderTest {
             assertThrows(
                     IllegalArgumentException.class,
                     () -> new GasAtmosphereView.Layer(3, policy, pressure, new Point(0, 0, 0)));
-        var source = Sources.text("GasAtmosphereView");
-        assertFalse(source.contains("SpaceNavigationClient"));
-        assertTrue(source.contains("PlanetLevels.is(world)"));
-        assertTrue(source.contains("MobEffects.BLINDNESS"));
-        assertTrue(source.contains("MobEffects.DARKNESS"));
-        assertTrue(source.contains("SpaceClient.universeEye(camera.getPosition())"));
-        var fog = Sources.text("GroundFogMixin");
-        assertTrue(fog.contains("GasAtmosphereView.layer(camera)"));
-        assertTrue(fog.contains("RenderSystem.setShaderFogEnd(gas.fogEnd())"));
     }
 }

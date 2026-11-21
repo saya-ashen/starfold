@@ -1,0 +1,6 @@
+# Safe startup smoke for the isolated acceptance runner.
+strict
+waitworld
+check in-world if entity @s
+shot acceptance-join
+quit

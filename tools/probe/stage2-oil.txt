@@ -1,0 +1,110 @@
+# Controlled disposable fixture: fixture!=ordinary survival; requires regression-stage2-* native home, permission 2, real CDG.
+# Main agent supplies the world launch. Each check asserts after natural server ticks; no manual be.tick calls.
+# Wait uses client ticks; server assertions require real gameTime. Increase waits when deliberately running below 10 TPS.
+# Reuse this world's save in a NEW JVM with stage2-oil-rejoin.txt after this script exits.
+strict
+waitworld
+# Explicit fixture receipt scoreboard: each oil command resets it and must return success before proceeding.
+cmd scoreboard objectives add sfOilProbe dummy
+wait 160
+cmd gamemode creative
+cmd tp @s 21570 132 945
+wait 100
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest setup
+check oil-setup if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest survey
+check oil-survey if score @s sfOilProbe matches 1
+wait 300
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest survey-check
+check oil-survey-check if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest build
+check oil-build if score @s sfOilProbe matches 1
+wait 100
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest build-check
+check oil-build-check if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest pump
+check oil-pump if score @s sfOilProbe matches 1
+wait 600
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest verify
+check oil-verify if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest outlet
+check oil-outlet if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest full
+check oil-full if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest one
+check oil-one if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest blocked
+check oil-blocked if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest water
+check oil-water if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest be
+check oil-be if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest protected
+check oil-protected if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest paused
+check oil-paused if score @s sfOilProbe matches 1
+wait 80
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest check-after
+check oil-check-after if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest snapshot
+check oil-snapshot if score @s sfOilProbe matches 1
+wait 20
+cmd scoreboard players set @s sfOilProbe 0
+cmd execute store success score @s sfOilProbe run oiltest save
+check oil-save if score @s sfOilProbe matches 1
+wait 40
+shot stage2-oil-paused-checkpoint
+quit

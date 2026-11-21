@@ -1,7 +1,5 @@
 package dev.starfold.extras;
 
-import dev.starfold.worlds.fixtures.ExperienceFixtures;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonParser;
@@ -12,7 +10,6 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.sky.GroundDaylight;
 import dev.starfold.universe.PlanetTypeFixtures;
-import dev.starfold.extras.StarterShipOption;
 import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
@@ -32,18 +29,20 @@ class StarterShipTest {
         var json = PlanetTypeFixtures.preset("native_universe").getAsJsonObject();
         var ops = PlanetTypeFixtures.ops();
         assertTrue(
-                StarfoldExtras.starterShip(SystemChunkGenerator.CODEC
-                        .codec()
-                        .parse(ops, json)
-                        .getOrThrow()).isEmpty());
+                StarfoldExtras.starterShip(
+                                SystemChunkGenerator.CODEC.codec().parse(ops, json).getOrThrow())
+                        .isEmpty());
         json.add(
                 "starter_ship",
                 JsonParser.parseString("{\"structure\":\"starfold_extras:starter_ship\"}"));
         var generator = SystemChunkGenerator.CODEC.codec().parse(ops, json).getOrThrow();
+        assertTrue(generator.startsWithShip());
         var saved = SystemChunkGenerator.CODEC.codec().encodeStart(ops, generator).getOrThrow();
+        assertEquals(json.get("starter_ship"), saved.getAsJsonObject().get("starter_ship"));
         assertEquals(
                 StarfoldExtras.starterShip(generator),
-                StarfoldExtras.starterShip(SystemChunkGenerator.CODEC.codec().parse(ops, saved).getOrThrow()));
+                StarfoldExtras.starterShip(
+                        SystemChunkGenerator.CODEC.codec().parse(ops, saved).getOrThrow()));
         assertTrue(
                 StarterShipOption.CODEC
                         .parse(
@@ -56,20 +55,28 @@ class StarterShipTest {
     @Test
     void extrasPresetOptsIntoShipWhileWorldsAloneDoesNot() throws Exception {
         dev.starfold.worlds.fixtures.ExperienceFixtures.boot();
-        var installed = dev.starfold.api.PlanetContent.get();
+        var installed = dev.starfold.api.PlanetContent.starter();
         try {
-            var preset = java.nio.file.Path.of("extras/src/main/resources/data/starfold_worlds/worldgen/world_preset/experience.json");
-            var json = JsonParser.parseString(java.nio.file.Files.readString(preset)).getAsJsonObject()
-                    .getAsJsonObject("dimensions").getAsJsonObject("starfold:native_planet").get("generator");
+            var preset = java.nio.file.Path.of(System.getProperty("starfold.extrasPreset"));
+            var json =
+                    JsonParser.parseString(java.nio.file.Files.readString(preset))
+                            .getAsJsonObject()
+                            .getAsJsonObject("dimensions")
+                            .getAsJsonObject("starfold:native_planet")
+                            .get("generator");
             var ops = dev.starfold.worlds.fixtures.ExperienceFixtures.ops();
             var system = SystemChunkGenerator.CODEC.codec().parse(ops, json).getOrThrow();
-            assertEquals("starfold_extras:starter_ship", StarfoldExtras.starterShip(system).orElseThrow().structure().toString());
+            assertEquals(
+                    "starfold_extras:starter_ship",
+                    StarfoldExtras.starterShip(system).orElseThrow().structure().toString());
             assertTrue(system.startsWithShip());
-            dev.starfold.api.PlanetContent.install(new dev.starfold.api.PlanetContent() {});
-            assertFalse(dev.starfold.api.PlanetContent.get().missingStarterDependencies());
-            assertFalse(dev.starfold.worlds.fixtures.ExperienceFixtures.generator("experience").startsWithShip());
+            dev.starfold.api.PlanetContent.installStarter(null);
+            assertFalse(dev.starfold.api.PlanetContent.starter().missingStarterDependencies());
+            assertFalse(
+                    dev.starfold.worlds.fixtures.ExperienceFixtures.generator("experience")
+                            .startsWithShip());
         } finally {
-            dev.starfold.api.PlanetContent.install(installed);
+            dev.starfold.api.PlanetContent.installStarter(installed);
         }
     }
 
@@ -193,7 +200,8 @@ class StarterShipTest {
         for (boolean sentry : new boolean[] {false, true})
             for (boolean tacz : new boolean[] {false, true})
                 assertEquals(sentry && tacz, StarterShip.weaponEnabled(sentry, tacz));
-        var root = java.nio.file.Path.of("extras/src/main/resources/data/starfold_extras/structure");
+        var root =
+                java.nio.file.Path.of("extras/src/main/resources/data/starfold_extras/structure");
         var hull =
                 net.minecraft.nbt.NbtIo.readCompressed(
                         root.resolve("starter_ship.nbt"),

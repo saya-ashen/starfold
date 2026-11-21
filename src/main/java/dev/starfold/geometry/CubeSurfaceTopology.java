@@ -14,8 +14,10 @@ public final class CubeSurfaceTopology {
         NORTH(new Point(0, 0, -1), new Point(1, 0, 0), new Point(0, 1, 0)),
         SOUTH(new Point(0, 0, 1), new Point(1, 0, 0), new Point(0, -1, 0)),
         BOTTOM(new Point(0, -1, 0), new Point(1, 0, 0), new Point(0, 0, -1));
+
         /** Enum.values() clones; shared read-only table for chart and mesh hot paths. */
         public static final Face[] VALUES = values();
+
         public final Point normal, u, v;
 
         Face(Point normal, Point u, Point v) {

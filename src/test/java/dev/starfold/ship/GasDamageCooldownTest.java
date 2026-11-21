@@ -124,8 +124,11 @@ class GasDamageCooldownTest {
         assertTrue(cooldown.ready(hull(2), 140, 20));
         // Transient only: the saved stamps keep the two-writes-per-tick bound.
         var stamps = cooldown.snapshot(140).stamps();
-        assertEquals(java.util.Set.of(hull(1), hull(2)),
-                stamps.stream().map(GasDamageCooldown.Stamp::hull).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(
+                java.util.Set.of(hull(1), hull(2)),
+                stamps.stream()
+                        .map(GasDamageCooldown.Stamp::hull)
+                        .collect(java.util.stream.Collectors.toSet()));
         assertDoesNotThrow(() -> new GasDamageCooldown(cooldown.snapshot(140)));
     }
 

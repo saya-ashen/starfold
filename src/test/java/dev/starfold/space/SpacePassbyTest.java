@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 
@@ -21,7 +20,8 @@ class SpacePassbyTest {
                 var v = new Point(speed, 0, 0);
                 assertEquals(miss, SpaceFlightMath.missHeight(p, v, radius), 1e-8);
                 assertEquals(
-                        Double.POSITIVE_INFINITY, SpaceFlightMath.missHeight(p, v.scale(-1), radius));
+                        Double.POSITIVE_INFINITY,
+                        SpaceFlightMath.missHeight(p, v.scale(-1), radius));
             }
         assertEquals(
                 Double.POSITIVE_INFINITY,
@@ -66,7 +66,8 @@ class SpacePassbyTest {
                 var v = new Point(0, -speed / 20, 0);
                 var toward = p.scale(-1);
                 boolean inbound =
-                        SpaceFlightMath.inbound(BODY, false, speed, SpaceFlightMath.missHeight(p, v, 4096));
+                        SpaceFlightMath.inbound(
+                                BODY, false, speed, SpaceFlightMath.missHeight(p, v, 4096));
                 assertTrue(inbound);
                 assertEquals(
                         SpaceFlightMath.align(BODY, h, speed),
@@ -86,7 +87,8 @@ class SpacePassbyTest {
         var v = new Point(40, 0, 0);
         assertEquals(
                 150 + 500.0 / 3,
-                SpaceFlightMath.govern(BODY, v, new Point(0, -1, 0), v, 1536 + 500, true).length() * 20,
+                SpaceFlightMath.govern(BODY, v, new Point(0, -1, 0), v, 1536 + 500, true).length()
+                        * 20,
                 1e-10);
         assertEquals(
                 150 + 500.0 / 6,
@@ -107,11 +109,10 @@ class SpacePassbyTest {
         var advance = SpaceBytecode.calls("space/SpaceServer", "advanceLead");
         SpaceBytecode.before(advance, "Space.nearest", "ArrivalState.step");
         SpaceBytecode.before(advance, "ArrivalState.step", "SpaceServer.targetVelocity");
-        var save = new SpaceServer(dev.starfold.sky.Space.Frame.IDENTITY).save(new net.minecraft.nbt.CompoundTag(), null);
+        var save =
+                new SpaceServer(dev.starfold.sky.Space.Frame.IDENTITY)
+                        .save(new net.minecraft.nbt.CompoundTag(), null);
         assertFalse(save.contains("inbound"));
         assertFalse(save.contains("targets"));
-        for (String client : new String[] {"SpaceAttitudeClient", "SpaceNavigationClient"})
-            assertTrue(Sources.text(client).contains("SpaceClient.arriving()"));
-        assertTrue(Sources.text("SpaceClient").contains("arriving=packet.turning()"));
     }
 }

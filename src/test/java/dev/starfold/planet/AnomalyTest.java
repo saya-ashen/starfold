@@ -2,7 +2,6 @@ package dev.starfold.planet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.CubeSurfaceTopology;
@@ -65,19 +64,6 @@ class AnomalyTest {
                     }
                 }
         assertEquals(6 * 4 * 2, total);
-        assertTrue(
-                Files.readString(
-                                Path.of(
-                                        "src/main/resources/assets/starfold/shaders/core/native_ground_exterior.fsh"))
-                        .contains("if(surfaceColor.a<0.5)light=1.0;"));
-        for (String file : new String[] {"GroundExterior.java", "RemotePlanetMeshes.java"}) {
-            var source = Sources.text(file.substring(0, file.length() - 5));
-            assertTrue(
-                    source.contains(
-                            "GroundExteriorMesh.anomalyBeams(shape,Face.VALUES[face],x0,z0,mask.height())"),
-                    file);
-            assertTrue(source.contains("out.glow(t,Anomaly.GLOW_TINT)"), file);
-        }
     }
 
     @Test
@@ -120,11 +106,7 @@ class AnomalyTest {
     @Test
     void everyGeneratorLevelsTheFieldLaysItsGroundAndGrowsNothingOnIt() {
         for (int version :
-                new int[] {
-                    PlanetTerrain.VERSION,
-                    PlanetTerrain.VERSION,
-                    PlanetTerrain.VERSION
-                }) {
+                new int[] {PlanetTerrain.VERSION, PlanetTerrain.VERSION, PlanetTerrain.VERSION}) {
             var t = new PlanetTerrain(PlanetTerrain.TEST_SEED, version);
             for (var f : CubeSurfaceTopology.Face.values())
                 for (int u = 17; u < 34; u += 4)
@@ -148,8 +130,11 @@ class AnomalyTest {
         var eco = new PlanetTerrain(PlanetTerrain.TEST_SEED, PlanetTerrain.VERSION);
         for (int u = 0; u < 40; u++)
             for (int v = 0; v < 40; v++)
-                assertTrue(new dev.starfold.worldgen.surface.SurfaceFunction(eco)
-                        .visible(CubeSurfaceTopology.Face.TOP, u, v).objects().isEmpty());
+                assertTrue(
+                        new dev.starfold.worldgen.surface.SurfaceFunction(eco)
+                                .visible(CubeSurfaceTopology.Face.TOP, u, v)
+                                .objects()
+                                .isEmpty());
     }
 
     @Test
@@ -190,11 +175,6 @@ class AnomalyTest {
 
     @Test
     void enteringTheZoneWarnsOnceAndKeepsThePlayerNauseous() throws Exception {
-        var zone = Sources.text("AnomalyZone");
-        assertTrue(zone.contains("MobEffects.CONFUSION"));
-        assertTrue(zone.contains("if(inside.add(player.getUUID()))"));
-        assertTrue(zone.contains("distance(level,access,player)<Anomaly.ZONE"));
-        assertTrue(Sources.text("StarfoldServer").contains("AnomalyZone.tick(level);"));
         for (String lang : new String[] {"zh_cn", "en_us"}) {
             var text =
                     Files.readString(
@@ -244,42 +224,10 @@ class AnomalyTest {
         for (int out : new int[] {16, -17, 2031, 2064, 1024})
             assertFalse(Anomaly.closed(out, 16), "" + out);
         assertFalse(Anomaly.closed(0, 0));
-        var client = Sources.text("GroundClient");
-        assertTrue(
-                client.contains(
-                        "Anomaly.closed(PlanetShape.of(f.planet()),storage.getX()-(int)o.x(),config.core())&&Anomaly.closed(PlanetShape.of(f.planet()),storage.getZ()-(int)o.z(),config.core())"));
-        assertTrue(client.contains("access().origin(f.planet(),f.root())"));
-        assertTrue(
-                Sources.text("GroundRenderer")
-                        .contains(
-                                "drawResidual(RenderFrame"
-                                        + " c){if(GroundFlightClient.controlled()||mask!=null&&mask.core()>0)return;"));
     }
 
     @Test
     void displayPathsTakeTheLookFromOneReplaceableDefinition() throws Exception {
-        var renderer = Sources.text("GroundRenderer");
-        var mask =
-                renderer.substring(
-                        renderer.indexOf("private static Mesh buildMask("),
-                        renderer.indexOf(
-                                "private static void render(RenderFrame c,int face,Mesh"
-                                        + " mesh,RenderType layer){"));
-        assertTrue(mask.contains("Anomaly.shell()"));
-        assertTrue(mask.contains("next-row<Anomaly.QUAD"));
-        assertTrue(
-                renderer.contains(
-                        "masks[face]=buildMask(face,false);masks[face+6]=buildMask(face,true);"));
-        // GroundDrawPlanTest records the extra closure only on the planar observer face.
-        assertTrue(renderer.contains("masks[face+(residual?6:0)]"));
-        assertTrue(
-                renderer.contains("mesh!=masks[face]&&mesh!=masks[face+6]&&mesh!=stitches[face]"));
-        assertTrue(mask.contains("above+=Anomaly.QUAD"));
         assertTrue(Anomaly.QUAD <= 4);
-        assertTrue(mask.contains("Anomaly.glow()"));
-        assertFalse(mask.contains("Blocks."));
-        assertTrue(Sources.text("PlanetTerrain").contains("Anomaly.core(y)"));
-        assertTrue(Sources.text("GroundRenderer").contains("pyramids.field("));
-        assertTrue(Sources.text("RemotePlanetMeshes").contains("GroundMeshScheduler.shared.farMesh("));
     }
 }

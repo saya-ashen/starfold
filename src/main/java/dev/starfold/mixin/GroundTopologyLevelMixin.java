@@ -3,12 +3,16 @@ package dev.starfold.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.ground.GroundSeams;
+import dev.starfold.chart.PlanetShape;
+import dev.starfold.geometry.ChartOrientation;
 import dev.starfold.planet.Anomaly;
+import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.DevelopmentHooks;
+import dev.starfold.planet.PlanetStorage;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -30,26 +34,27 @@ public abstract class GroundTopologyLevelMixin {
             return GroundSeams.clientMasked(level, pos)
                     ? net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState()
                     : original.call(pos);
-        var access = PlanetAccess.of(level);
-        if (!access.inChart(pos)) return original.call(pos);
-        var address = access.address(pos);
-        if (Anomaly.mask(
-                access.shape(address.owner()),
-                GroundFlightServer.mask(level),
-                access.cell(address.owner())))
-            return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
-        if (level.isClientSide
-                && !level.getChunkSource()
-                        .hasChunk(address.owner().getX() >> 4, address.owner().getZ() >> 4)) {
-            var cached = GroundSeams.clientState(level, address.owner());
-            if (cached != null) return address.read(cached);
-            if (!pos.equals(address.owner()))
-                return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
+        int planet = PlanetStorage.find(pos.getX(), pos.getZ());
+        if (planet < 0) return original.call(pos);
+        var shape = PlanetShape.of(planet);
+        var cell = GroundTopology.cell(PlanetStorage.local(planet, pos));
+        if (!shape.inChart(cell.u(), cell.v())) return original.call(pos);
+
+        BlockPos owner = pos;
+        int turns = 0;
+        if (!shape.topology().owned(cell)) {
+            var route = shape.topology().canonical(cell);
+            cell = route.cell();
+            owner = PlanetStorage.block(planet, cell);
+            turns = route.turns();
         }
+        if (Anomaly.mask(shape, GroundFlightServer.mask(level), cell))
+            return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
         if (DevelopmentHooks.arrival.enabled())
             DevelopmentHooks.arrival.missingRead(
-                    (net.minecraft.server.level.ServerLevel) level, pos, address.owner());
-        return address.read(original.call(address.owner()));
+                    (net.minecraft.server.level.ServerLevel) level, pos, owner);
+        var state = original.call(owner);
+        return turns == 0 ? state : ChartOrientation.state(state, -turns);
     }
 
     @WrapMethod(method = "getFluidState")

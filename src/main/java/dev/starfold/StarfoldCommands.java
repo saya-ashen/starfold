@@ -2,17 +2,23 @@ package dev.starfold;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
 import dev.starfold.waypoint.WaypointServer;
+
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
 /** Server command tree; permissions and argument ranges live beside their actions. */
 final class StarfoldCommands {
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(coreCommands().then(navigationCommands()).then(faceCommands()).then(spinCommands()));
+        dispatcher.register(
+                coreCommands()
+                        .then(navigationCommands())
+                        .then(faceCommands())
+                        .then(spinCommands()));
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<
@@ -175,5 +181,6 @@ final class StarfoldCommands {
                                                         c.getSource().getPlayerOrException(),
                                                         false)));
     }
+
     private StarfoldCommands() {}
 }

@@ -1,0 +1,8 @@
+{
+  "replace": true,
+  "values": [
+    "#c:ores",
+    "#minecraft:base_stone_overworld",
+    "#minecraft:logs"
+  ]
+}

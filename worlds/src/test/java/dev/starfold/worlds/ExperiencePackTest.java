@@ -1,9 +1,5 @@
 package dev.starfold.worlds;
 
-import dev.starfold.worlds.fixtures.ExperienceFixtures;
-
-import dev.starfold.planet.*;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.*;
@@ -13,6 +9,7 @@ import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.ground.GroundPackets;
 import dev.starfold.ground.GroundServer;
+import dev.starfold.planet.*;
 import dev.starfold.render.PlanetRemotePackets;
 import dev.starfold.render.PlanetRemoteView;
 import dev.starfold.space.CelestialNavigation;
@@ -22,17 +19,13 @@ import dev.starfold.universe.PlanetType;
 import dev.starfold.universe.PlanetTypeFixtures;
 import dev.starfold.universe.SystemChunkGenerator;
 import dev.starfold.universe.SystemDefinition;
-import dev.starfold.universe.UniverseLayout;
 import dev.starfold.worldgen.PlanetGeneration;
 import dev.starfold.worldgen.PlanetHeightCache;
 import dev.starfold.worldgen.PlanetTint;
+import dev.starfold.worlds.fixtures.ExperienceFixtures;
 
 import net.minecraft.core.*;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.*;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
-import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 import org.junit.jupiter.api.*;
 
@@ -63,7 +56,12 @@ public class ExperiencePackTest extends ExperienceFixtures {
     @Test
     void experiencePresetNamesArePackTranslations() throws Exception {
         for (String language : List.of("zh_cn", "en_us")) {
-            var lang = json(Path.of("worlds/src/main/resources/assets/starfold_worlds/lang/" + language + ".json"));
+            var lang =
+                    json(
+                            Path.of(
+                                    "worlds/src/main/resources/assets/starfold_worlds/lang/"
+                                            + language
+                                            + ".json"));
             for (String preset : List.of("experience", "experience_named_preview")) {
                 assertTrue(Files.exists(DATA.resolve("worldgen/world_preset/" + preset + ".json")));
                 assertTrue(lang.has("generator.starfold_worlds." + preset));
@@ -91,24 +89,35 @@ public class ExperiencePackTest extends ExperienceFixtures {
             for (int i = 0; i < stars.size(); i++) {
                 var star = stars.get(i);
                 double distance = star.position().sub(home.origin()).length();
-                double seconds = (distance - home.extent()) / dev.starfold.space.SpaceSpeed.DEEP_MAX;
+                double seconds =
+                        (distance - home.extent()) / dev.starfold.space.SpaceSpeed.DEEP_MAX;
                 assertTrue(seconds >= 60 && seconds <= 180, "boundary-to-centre floor " + seconds);
-                assertTrue(dev.starfold.universe.Universe.clearOfHome(star.position(),
-                        home.orbit(0).radius() + 2 * layout.ring() + 8192, home));
+                assertTrue(
+                        dev.starfold.universe.Universe.clearOfHome(
+                                star.position(),
+                                home.orbit(0).radius() + 2 * layout.ring() + 8192,
+                                home));
                 for (int j = 0; j < i; j++)
-                    assertTrue(star.position().sub(stars.get(j).position()).length() >= layout.gap());
+                    assertTrue(
+                            star.position().sub(stars.get(j).position()).length() >= layout.gap());
             }
             var all = universe.model(home);
             assertEquals(home.count() + universe.planets().size(), all.count());
             assertEquals(home.bodies().size() + 8 + universe.planets().size(), all.bodies().size());
-            var buffer = new net.minecraft.network.RegistryFriendlyByteBuf(
-                    io.netty.buffer.Unpooled.buffer(), RegistryAccess.EMPTY);
+            var buffer =
+                    new net.minecraft.network.RegistryFriendlyByteBuf(
+                            io.netty.buffer.Unpooled.buffer(), RegistryAccess.EMPTY);
             try {
                 GroundPackets.Sky.CODEC.encode(buffer, new GroundPackets.Sky(0, all));
                 assertTrue(buffer.readableBytes() < 64 * 1024);
                 if (seed == 42)
-                    System.out.printf("INTERSTELLAR systems=%d beyondPlanets=%d totalPlanets=%d skyBytes=%d homeExtent=%.0f%n",
-                            stars.size(), universe.planets().size(), all.count(), buffer.readableBytes(), home.extent());
+                    System.out.printf(
+                            "INTERSTELLAR systems=%d beyondPlanets=%d totalPlanets=%d skyBytes=%d homeExtent=%.0f%n",
+                            stars.size(),
+                            universe.planets().size(),
+                            all.count(),
+                            buffer.readableBytes(),
+                            home.extent());
             } finally {
                 buffer.release();
             }
@@ -139,7 +148,8 @@ public class ExperiencePackTest extends ExperienceFixtures {
         double[] radii = {
             180000, 330000, SystemDefinition.HOME_ORBIT, 580000, 700000, 2200000, 3000000, 3800000
         };
-        for (int i = 0; i < radii.length; i++) assertEquals(radii[i], sun.planets().get(i).orbit().radius());
+        for (int i = 0; i < radii.length; i++)
+            assertEquals(radii[i], sun.planets().get(i).orbit().radius());
         var home = sun.planets().get(2);
         assertEquals(384000, home.orbit().period(sun.gm()), 1e-6);
         assertEquals(42666.666666666664, home.spin().orElseThrow().period(), 1e-9);
@@ -160,8 +170,18 @@ public class ExperiencePackTest extends ExperienceFixtures {
         assertEquals(12, system.count());
         var model = made.sky().model();
         String[] slots = {
-            "home", "rocky", "lush", "archipelago", "desert", "mushroom", "warden", "end",
-            "asteroid", "basalt", "ice", "crystal"
+            "home",
+            "rocky",
+            "lush",
+            "archipelago",
+            "desert",
+            "mushroom",
+            "warden",
+            "end",
+            "asteroid",
+            "basalt",
+            "ice",
+            "crystal"
         };
         var table =
                 new StringBuilder(
@@ -174,18 +194,26 @@ public class ExperiencePackTest extends ExperienceFixtures {
             var rotation = model.spin(slot);
             var stellarOrbit = orbit;
             while (!model.bodies().get(stellarOrbit.parent()).light())
-                stellarOrbit = (dev.starfold.chart.GroundEphemeris.Orbit)
-                        model.bodies().get(stellarOrbit.parent()).motion();
-            double solarDay = 1 / Math.abs((rotation.enabled() ? 1 / rotation.period() : 0)
-                    - 1 / stellarOrbit.period());
+                stellarOrbit =
+                        (dev.starfold.chart.GroundEphemeris.Orbit)
+                                model.bodies().get(stellarOrbit.parent()).motion();
+            double solarDay =
+                    1
+                            / Math.abs(
+                                    (rotation.enabled() ? 1 / rotation.period() : 0)
+                                            - 1 / stellarOrbit.period());
             if (slot == 0) assertEquals(48000, solarDay, 1e-6);
-            double sunAngle = 2 * Math.toDegrees(Math.asin(12000 / model.at(slot, 0).center().length()));
+            double sunAngle =
+                    2 * Math.toDegrees(Math.asin(12000 / model.at(slot, 0).center().length()));
             var parent = model.bodies().get(orbit.parent());
             double moonAngle =
                     parent.light()
                             ? Double.NaN
-                            : 2 * Math.toDegrees(
-                                    Math.asin(planet.terrain().shape().radius() / orbit.radius()));
+                            : 2
+                                    * Math.toDegrees(
+                                            Math.asin(
+                                                    planet.terrain().shape().radius()
+                                                            / orbit.radius()));
             table.append(
                     String.format(
                             java.util.Locale.ROOT,
@@ -201,8 +229,12 @@ public class ExperiencePackTest extends ExperienceFixtures {
                                     : String.format(java.util.Locale.ROOT, "%.3f°", moonAngle)));
         }
         System.out.println("V2_LAYOUT_TABLE\n" + table);
-        System.out.printf(java.util.Locale.ROOT, "AMBER_FROM_BASALT %.6f degrees%n",
-                2 * Math.toDegrees(Math.asin(gas.radius() / gas.moons().getFirst().orbit().radius())));
+        System.out.printf(
+                java.util.Locale.ROOT,
+                "AMBER_FROM_BASALT %.6f degrees%n",
+                2
+                        * Math.toDegrees(
+                                Math.asin(gas.radius() / gas.moons().getFirst().orbit().radius())));
     }
 
     @Test
@@ -298,27 +330,45 @@ public class ExperiencePackTest extends ExperienceFixtures {
         assertEquals(1400000, gas.orbit().radius());
         assertEquals(80 * 4096 * 4096, gas.gm());
         assertEquals(3, gas.moons().size());
-        assertEquals(List.of(30000.0, 50000.0, 80000.0), gas.moons().stream().map(p -> p.orbit().radius()).toList());
         assertEquals(
-                new dev.starfold.chart.GasGiant(1, 20261013, "planet.starfold_worlds.amber", 9987389, 15389090, 512, 1024),
+                List.of(30000.0, 50000.0, 80000.0),
+                gas.moons().stream().map(p -> p.orbit().radius()).toList());
+        assertEquals(
+                new dev.starfold.chart.GasGiant(
+                        1, 20261013, "planet.starfold_worlds.amber", 9987389, 15389090, 512, 1024),
                 gas.gas());
         assertEquals(12, definition.materialize(42).sky().model().count());
         var celestial = definition.materialize(42).sky().model();
-        var gasTarget = CelestialNavigation.targets(celestial).stream().filter(t -> t.body(celestial).appearance() == dev.starfold.chart.GroundEphemeris.Appearance.GAS).findFirst().orElseThrow();
+        var gasTarget =
+                CelestialNavigation.targets(celestial).stream()
+                        .filter(
+                                t ->
+                                        t.body(celestial).appearance()
+                                                == dev.starfold.chart.GroundEphemeris.Appearance
+                                                        .GAS)
+                        .findFirst()
+                        .orElseThrow();
         assertTrue(gasTarget.surfaceSlot(celestial).isEmpty());
         assertThrows(IllegalArgumentException.class, () -> gasTarget.requireSurfaceSlot(celestial));
     }
 
     @Test
     void allTypesUseOneVersionAndTheirFixedLandformRecipes() throws Exception {
-        var system=generator("experience");system.validate();system.materialize(42);
-        for(int i=0;i<system.count();i++) {
-            var planet=system.planet(i);var recipe=planet.generation().recipe();
-            assertEquals(dev.starfold.worldgen.PlanetTerrain.VERSION,planet.version());
-            assertEquals(recipe,planet.terrain().terrainPlan().recipe());
-            var forms=recipe.landforms().stream().map(f->f.type()).toList();
-            switch(planet.typeId().orElseThrow().getPath()) {
-                case "rocky" -> {assertTrue(forms.contains("starfold:crater"));assertTrue(recipe.value("relief","mountains")>0);assertNull(planet.terrain().sea());}
+        var system = generator("experience");
+        system.validate();
+        system.materialize(42);
+        for (int i = 0; i < system.count(); i++) {
+            var planet = system.planet(i);
+            var recipe = planet.generation().recipe();
+            assertEquals(dev.starfold.worldgen.PlanetTerrain.VERSION, planet.version());
+            assertEquals(recipe, planet.terrain().terrainPlan().recipe());
+            var forms = recipe.landforms().stream().map(f -> f.type()).toList();
+            switch (planet.typeId().orElseThrow().getPath()) {
+                case "rocky" -> {
+                    assertTrue(forms.contains("starfold:crater"));
+                    assertTrue(recipe.value("relief", "mountains") > 0);
+                    assertNull(planet.terrain().sea());
+                }
                 case "basalt" -> assertTrue(forms.contains("starfold:volcano"));
                 case "desert" -> assertTrue(forms.contains("starfold:canyon"));
                 case "ice" -> assertTrue(forms.contains("starfold:glacial_rift"));
@@ -393,13 +443,17 @@ public class ExperiencePackTest extends ExperienceFixtures {
                                         .getOrThrow())
                         .getOrThrow();
         String[] names = {
-            "hearth", "anvil", "viridia", "pelagia", "saffron", "haven", "hush", "ivory",
-            "fleck", "cinder", "rime", "prism"
+            "hearth", "anvil", "viridia", "pelagia", "saffron", "haven", "hush", "ivory", "fleck",
+            "cinder", "rime", "prism"
         };
         String[] zh = {"炉心", "砧星", "苍翠", "群澜", "赭沙", "菌港", "寂痕", "象牙", "砾星", "烬岩", "霜原", "晶棱"};
         for (var language : List.of("zh_cn", "en_us")) {
             var lang =
-                    json(Path.of("worlds/src/main/resources/assets/starfold_worlds/lang/" + language + ".json"));
+                    json(
+                            Path.of(
+                                    "worlds/src/main/resources/assets/starfold_worlds/lang/"
+                                            + language
+                                            + ".json"));
             for (int i = 0; i < 12; i++) {
                 var identity = system.planet(i).identity();
                 String key = "planet.starfold_worlds." + names[i];
@@ -465,20 +519,28 @@ public class ExperiencePackTest extends ExperienceFixtures {
     }
 
     private static PlanetPackets.Profile transfer(PlanetPackets.Profile profile) {
-        var prepared=dev.starfold.universe.PlanetPlanSync.prepare(profile,RegistryAccess.EMPTY);
-        var raw=io.netty.buffer.Unpooled.buffer();
+        var prepared = dev.starfold.universe.PlanetPlanSync.prepare(profile, RegistryAccess.EMPTY);
+        var raw = io.netty.buffer.Unpooled.buffer();
         try {
-            var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(raw,RegistryAccess.EMPTY);
-            PlanetPackets.Profile.CODEC.encode(buffer,prepared.profile());
-            var metadata=PlanetPackets.Profile.CODEC.decode(buffer);assertFalse(buffer.isReadable());
-            var received=new java.util.ArrayList<PlanetPackets.Profile>();var assembler=new dev.starfold.universe.PlanetPlanSync.Assembler();
-            assembler.await(metadata,"worlds-test",received::add);
-            for(var part:prepared.parts()) {
-                buffer.clear();dev.starfold.universe.PlanetPlanSync.Part.CODEC.encode(buffer,part);
-                assembler.accept(dev.starfold.universe.PlanetPlanSync.Part.CODEC.decode(buffer));assertFalse(buffer.isReadable());
+            var buffer =
+                    new net.minecraft.network.RegistryFriendlyByteBuf(raw, RegistryAccess.EMPTY);
+            PlanetPackets.Profile.CODEC.encode(buffer, prepared.profile());
+            var metadata = PlanetPackets.Profile.CODEC.decode(buffer);
+            assertFalse(buffer.isReadable());
+            var received = new java.util.ArrayList<PlanetPackets.Profile>();
+            var assembler = new dev.starfold.universe.PlanetPlanSync.Assembler();
+            assembler.await(metadata, "worlds-test", received::add);
+            for (var part : prepared.parts()) {
+                buffer.clear();
+                dev.starfold.universe.PlanetPlanSync.Part.CODEC.encode(buffer, part);
+                assembler.accept(dev.starfold.universe.PlanetPlanSync.Part.CODEC.decode(buffer));
+                assertFalse(buffer.isReadable());
             }
-            assertEquals(1,received.size());return received.getFirst();
-        } finally {raw.release();}
+            assertEquals(1, received.size());
+            return received.getFirst();
+        } finally {
+            raw.release();
+        }
     }
 
     @Test
@@ -495,7 +557,7 @@ public class ExperiencePackTest extends ExperienceFixtures {
         try {
             for (int id : new int[] {2, 5}) {
                 var g = system.planet(id);
-                var profile=transfer(PlanetPackets.Profile.of(91,g));
+                var profile = transfer(PlanetPackets.Profile.of(91, g));
                 assertEquals(
                         id == 2 ? "minecraft:jungle" : "starfold_worlds:mushroom_haven",
                         profile.biome().toString());
@@ -503,8 +565,12 @@ public class ExperiencePackTest extends ExperienceFixtures {
                 remote.summary(
                         new PlanetRemotePackets.Summary(id, profile, 0, new long[0], new long[0]));
                 assertEquals(profile.biome(), remote.snapshot().biome());
-                assertEquals(profile.plan().orElseThrow().identity(),remote.snapshot().terrain().plan().identity());
-                assertEquals(g.terrain().terrainPlan().recipe(),remote.snapshot().terrain().terrainPlan().recipe());
+                assertEquals(
+                        profile.plan().orElseThrow().identity(),
+                        remote.snapshot().terrain().plan().identity());
+                assertEquals(
+                        g.terrain().terrainPlan().recipe(),
+                        remote.snapshot().terrain().terrainPlan().recipe());
                 for (var face : CubeSurfaceTopology.Face.values()) {
                     var pos = PlanetTint.position(id, face.ordinal(), 128, 130, 256);
                     assertEquals(

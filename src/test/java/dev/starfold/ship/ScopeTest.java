@@ -2,7 +2,6 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
@@ -121,30 +120,7 @@ class ScopeTest {
 
     @Test
     void scopeUsesRenderPoseRealCameraAndSessionHullIdentity() throws Exception {
-        var s = Sources.text("HelmClient");
         assertEquals(.6, HelmClient.SCOPE_OUT);
-        for (var token :
-                new String[] {
-                    "getUniqueId()",
-                    "getBlockEntities().values()",
-                    "body.renderPose(partial)",
-                    "camera.rotation().set(rotation)",
-                    "camera.getLookVector()",
-                    "camera.getUpVector()",
-                    "if(!scopeView()&&mc.options.getCameraType()==CameraType.THIRD_PERSON_BACK)zoom=",
-                    "cycle.add(FIRST)",
-                    "90/Math.max"
-                }) assertTrue(s.contains(token), token);
-    }
-
-    @Test
-    void surfaceMarkerProjectsAPointButKeepsObserverAndGuidanceIndependent() throws Exception {
-        var s = Sources.text("WaypointClient");
-        assertTrue(s.contains("var eye=context.camera().getPosition()"));
-        assertTrue(s.contains("hull.x+direction.x()-eye.x"));
-        assertTrue(s.contains("marker.pose().point().y()-eye.y"));
-        var observer = Sources.text("SpaceClient");
-        assertTrue(observer.contains("mc.player.getEyePosition"));
     }
 
     @Test

@@ -31,10 +31,15 @@ public final class HostRules {
     public static final float DIVE_DAMAGE = 10;
     public static final int DEATH_CRASH_TICKS = 100, GROUND_DEATH_TICKS = 60;
 
-    public enum GroundAttack { ROOTS, VENT, SLURRY }
+    public enum GroundAttack {
+        ROOTS,
+        VENT,
+        SLURRY
+    }
 
     public static GroundAttack groundAttack(double distanceSquared, boolean slurry) {
-        return distanceSquared <= VENT_RADIUS * VENT_RADIUS ? GroundAttack.VENT
+        return distanceSquared <= VENT_RADIUS * VENT_RADIUS
+                ? GroundAttack.VENT
                 : slurry ? GroundAttack.SLURRY : GroundAttack.ROOTS;
     }
 
@@ -43,7 +48,9 @@ public final class HostRules {
         double drag = .99f, ticks = LOB_FLIGHT_TICKS;
         double sum = (1 - Math.pow(drag, ticks)) / (1 - drag);
         // Throwable projectiles move, then apply drag and gravity each tick.
-        return new Vec3(delta.x / sum, (delta.y + SLURRY_GRAVITY * (ticks - sum) / (1 - drag)) / sum,
+        return new Vec3(
+                delta.x / sum,
+                (delta.y + SLURRY_GRAVITY * (ticks - sum) / (1 - drag)) / sum,
                 delta.z / sum);
     }
 
@@ -55,10 +62,18 @@ public final class HostRules {
         return groundPhase && livingSacs > 0 ? amount * .1f : amount;
     }
 
-    public static boolean shouldSpawn(boolean spawned, boolean defeated, double distanceSquared,
-                                      double verticalDistance, double craterRadius) {
-        return !spawned && !defeated && Double.isFinite(distanceSquared) && distanceSquared >= 0
-                && Double.isFinite(verticalDistance) && Math.abs(verticalDistance) <= 96
+    public static boolean shouldSpawn(
+            boolean spawned,
+            boolean defeated,
+            double distanceSquared,
+            double verticalDistance,
+            double craterRadius) {
+        return !spawned
+                && !defeated
+                && Double.isFinite(distanceSquared)
+                && distanceSquared >= 0
+                && Double.isFinite(verticalDistance)
+                && Math.abs(verticalDistance) <= 96
                 && distanceSquared <= (craterRadius + 48) * (craterRadius + 48);
     }
 
@@ -66,10 +81,14 @@ public final class HostRules {
         double angle = ticks * .014;
         // Leave room for the enlarged body within the arena's unchanged flight boundary.
         double radius = Math.min(45 * SCALE, FLIGHT_RADIUS * .6);
-        return centre.add(Math.cos(angle) * radius, (28 + Math.sin(angle * 2) * 6) * SCALE, Math.sin(angle) * radius);
+        return centre.add(
+                Math.cos(angle) * radius,
+                (28 + Math.sin(angle * 2) * 6) * SCALE,
+                Math.sin(angle) * radius);
     }
 
-    public static Vec3 flightVelocity(Vec3 position, Vec3 velocity, Vec3 destination, double speed) {
+    public static Vec3 flightVelocity(
+            Vec3 position, Vec3 velocity, Vec3 destination, double speed) {
         var delta = destination.subtract(position);
         var desired = delta.normalize().scale(Math.min(speed, delta.length() * .08));
         return velocity.scale(.8).add(desired.scale(.2));

@@ -46,10 +46,15 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
                                                     .fieldOf("terrain_seed")
                                                     .forGetter(PlanetChunkGenerator::seed),
                                             Codec.INT
-                                                    .validate(v -> PlanetTerrain.supported(v)
-                                                            ? DataResult.success(v)
-                                                            : DataResult.error(() -> "Unsupported terrain version: " + v
-                                                                    + "; expected 11"))
+                                                    .validate(
+                                                            v ->
+                                                                    PlanetTerrain.supported(v)
+                                                                            ? DataResult.success(v)
+                                                                            : DataResult.error(
+                                                                                    () ->
+                                                                                            "Unsupported terrain version: "
+                                                                                                    + v
+                                                                                                    + "; expected 11"))
                                                     .fieldOf("terrain_version")
                                                     .forGetter(PlanetChunkGenerator::version),
                                             PlanetBiomes.CODEC
@@ -77,14 +82,15 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
                                                     biomes,
                                                     generation,
                                                     type,
-                                                    name) -> new PlanetChunkGenerator(
-                                                        settings,
-                                                        seed,
-                                                        version,
-                                                        biomes,
-                                                        java.util.Optional.of(generation),
-                                                        type,
-                                                        name)));
+                                                    name) ->
+                                                    new PlanetChunkGenerator(
+                                                            settings,
+                                                            seed,
+                                                            version,
+                                                            biomes,
+                                                            java.util.Optional.of(generation),
+                                                            type,
+                                                            name)));
     private final java.util.Optional<ResourceLocation> typeId;
     private final java.util.Optional<String> displayName;
 
@@ -109,9 +115,20 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
     }
 
     private dev.starfold.worldgen.plan.PlanetPlanStore planStore;
-    public void initializePlan(dev.starfold.worldgen.plan.PlanetPlanStore store) { planStore=store;terrain.initializePlan(store::plan); }
-    public dev.starfold.worldgen.plan.PlanetPlanStore planStore() { return planStore; }
-    public boolean planReady() { return planStore==null || planStore.ready(); }
+
+    public void initializePlan(dev.starfold.worldgen.plan.PlanetPlanStore store) {
+        planStore = store;
+        terrain.initializePlan(store::plan);
+    }
+
+    public dev.starfold.worldgen.plan.PlanetPlanStore planStore() {
+        return planStore;
+    }
+
+    public boolean planReady() {
+        return planStore == null || planStore.ready();
+    }
+
     private final PlanetTerrain terrain;
     private final PlanetBiomes planetBiomes;
     private final java.util.Optional<PlanetGeneration> savedGeneration;
@@ -157,9 +174,13 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
         this.displayName = java.util.Objects.requireNonNull(displayName);
         displayName.ifPresent(SystemDefinition::validName);
         savedGeneration = generation;
-        terrain = new PlanetTerrain(seed,version,generation.orElseGet(()->PlanetGeneration.defaults(version)));
-        planetBiomes=biomes.map(palette->palette.on(terrain)).orElse(null);
-        terrain.initializeSurface(getBiomeSource(),this);
+        terrain =
+                new PlanetTerrain(
+                        seed,
+                        version,
+                        generation.orElseGet(() -> PlanetGeneration.defaults(version)));
+        planetBiomes = biomes.map(palette -> palette.on(terrain)).orElse(null);
+        terrain.initializeSurface(getBiomeSource(), this);
     }
 
     @Override
@@ -170,8 +191,7 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
     @Override
     public CompletableFuture<ChunkAccess> createBiomes(
             RandomState random, Blender blender, StructureManager structures, ChunkAccess chunk) {
-        if (planetBiomes == null)
-            return super.createBiomes(random, blender, structures, chunk);
+        if (planetBiomes == null) return super.createBiomes(random, blender, structures, chunk);
         chunk.fillBiomesFromNoise(getBiomeSource(), null);
         return CompletableFuture.completedFuture(chunk);
     }
@@ -185,7 +205,10 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
     }
 
     public dev.starfold.planet.PlanetIdentity identity() {
-        return new dev.starfold.planet.PlanetIdentity(typeId(), generation().recipe().liquid().defaultBlockState().isAir()?"rocky":"temperate", displayName());
+        return new dev.starfold.planet.PlanetIdentity(
+                typeId(),
+                generation().recipe().liquid().defaultBlockState().isAir() ? "rocky" : "temperate",
+                displayName());
     }
 
     public PlanetTerrain terrain() {
@@ -257,10 +280,12 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
                     terrain.closureTop() + 1,
                     height.getMinBuildHeight(),
                     height.getMaxBuildHeight());
-        var states = new dev.starfold.worldgen.surface.SurfaceFunction(terrain).blocks(at.face(), at.u(), at.v());
+        var states =
+                new dev.starfold.worldgen.surface.SurfaceFunction(terrain)
+                        .blocks(at.face(), at.u(), at.v());
         for (int y = Math.min(height.getMaxBuildHeight(), PlanetTerrain.MAX_Y) - 1;
-                y >= Math.max(height.getMinBuildHeight(), terrain.floor()); y--)
-            if (type.isOpaque().test(states[y - terrain.floor()])) return y + 1;
+                y >= Math.max(height.getMinBuildHeight(), terrain.floor());
+                y--) if (type.isOpaque().test(states[y - terrain.floor()])) return y + 1;
         return height.getMinBuildHeight();
     }
 
@@ -270,13 +295,17 @@ public final class PlanetChunkGenerator extends FlatLevelSource {
         var states = new net.minecraft.world.level.block.state.BlockState[height.getHeight()];
         var cell =
                 ground == Integer.MIN_VALUE ? null : GroundTopology.cell(new BlockPos(x, 128, z));
-        var generated = cell == null ? null
-                : new dev.starfold.worldgen.surface.SurfaceFunction(terrain).blocks(cell.face(), cell.u(), cell.v());
+        var generated =
+                cell == null
+                        ? null
+                        : new dev.starfold.worldgen.surface.SurfaceFunction(terrain)
+                                .blocks(cell.face(), cell.u(), cell.v());
         for (int i = 0; i < states.length; i++) {
             int y = height.getMinBuildHeight() + i;
-            states[i] = generated != null && y >= terrain.floor() && y < PlanetTerrain.MAX_Y
-                    ? generated[y - terrain.floor()]
-                    : net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            states[i] =
+                    generated != null && y >= terrain.floor() && y < PlanetTerrain.MAX_Y
+                            ? generated[y - terrain.floor()]
+                            : net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
         }
         return new NoiseColumn(height.getMinBuildHeight(), states);
     }

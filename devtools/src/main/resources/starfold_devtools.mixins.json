@@ -2,6 +2,6 @@
   "required": true,
   "package": "dev.starfold.devtools.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["FrameMixin", "LevelMixin", "WorldMixin"],
+  "client": ["ServerTickTimingMixin", "ServerChunkWaitMixin", "FrameMixin", "LevelMixin", "WorldMixin", "EntityShadowMixin", "ShaderApplyMixin", "ChunkMapMixin", "TicketTraceMixin", "GenerationLevelAccess", "GenerationLayerMixin", "ChunkFullConversionMixin", "SectionCompilerMixin", "ClientChunkTimingMixin", "SectionVisibilityMixin"],
   "injectors": { "defaultRequire": 1 }
 }

@@ -1,7 +1,11 @@
 plugins { id 'net.neoforged.moddev' version '2.0.148'; id 'java-test-fixtures' }
-version = providers.gradleProperty('candidateVersion').getOrElse('0.3.0-alpha.1')
+version = providers.gradleProperty('candidateVersion').getOrElse('0.4.0-alpha.1')
 group = 'dev.starfold'
 base { archivesName = 'starfold' }
+def survivalPack = providers.gradleProperty('survivalPack').isPresent()
+def devGameDirectory = file(providers.gradleProperty('devGameDirectory')
+        .getOrElse(survivalPack ? 'build/survival-stage1/instance' : 'run'))
+def devUsername = providers.gradleProperty('devProbeUsername').getOrElse('Dev')
 repositories {
     mavenCentral()
     maven { url = 'https://api.modrinth.com/maven' }
@@ -10,11 +14,11 @@ neoForge {
     version = '21.1.247' // Already cached; Minecraft 1.21.1.
     mods { starfold { sourceSet sourceSets.main } }
     runs {
-        client { client(); gameDirectory = file('run')
-            if (providers.gradleProperty('devProbeSave').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlaySingleplayer', providers.gradleProperty('devProbeSave').get(), '--width', '1280', '--height', '720')
-            else if (providers.gradleProperty('devProbe').isPresent()) programArguments.addAll('--username', 'Dev', '--quickPlayMultiplayer', 'localhost:' + providers.gradleProperty('devProbePort').getOrElse('25565'), '--width', '1280', '--height', '720')
+        client { client(); gameDirectory = devGameDirectory
+            if (providers.gradleProperty('devProbeSave').isPresent()) programArguments.addAll('--username', devUsername, '--quickPlaySingleplayer', providers.gradleProperty('devProbeSave').get(), '--width', '1280', '--height', '720')
+            else if (providers.gradleProperty('devProbe').isPresent()) programArguments.addAll('--username', devUsername, '--quickPlayMultiplayer', providers.gradleProperty('devProbeHost').getOrElse(survivalPack ? '127.0.0.1' : 'localhost') + ':' + providers.gradleProperty('devProbePort').getOrElse('25565'), '--width', '1280', '--height', '720')
         }
-        server { server(); gameDirectory = file('run'); programArgument '--nogui' }
+        server { server(); gameDirectory = devGameDirectory; programArgument '--nogui' }
     }
     unitTest { enable(); testedMod = mods.starfold }
 }
@@ -69,11 +73,18 @@ test {
     workingDir = project.projectDir
     systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
 }
+// Raw archive bytes matter to resource/bytecode audits, beyond Test's normalized classpath.
+ext.testRuntimeArchives = files(providers.provider {
+    (sourceSets.main.runtimeClasspath.files + sableEmbeddedJars()).findAll { it.isFile() && it.name.endsWith('.jar') }
+})
 tasks.withType(Test).configureEach {
-    doFirst {
-        workingDir = project.projectDir
-        systemProperty 'starfold.testArchives', (sourceSets.main.runtimeClasspath.files + sableEmbeddedJars()).findAll { it.isFile() && it.name.endsWith('.jar') }.join(File.pathSeparator)
-    }
+    workingDir = project.projectDir
+    inputs.files(testRuntimeArchives).withPropertyName('testRuntimeArchives').withPathSensitivity(PathSensitivity.NONE)
+}
+tasks.named('test', Test) {
+    jvmArgumentProviders.add({
+        ['-Dstarfold.testArchives=' + testRuntimeArchives.files.join(File.pathSeparator)]
+    } as CommandLineArgumentProvider)
 }
 // Keep FML's unit-test game/config directory in build while source audits run at the checkout.
 tasks.named('prepareNeoForgeTestFiles') {
@@ -132,23 +143,24 @@ tasks.register('packagedContractTest', Test) {
     }
     def modJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
     def upstream = tasks.named('createMinecraftArtifacts').flatMap { it.gameJarArtifact }
-    inputs.file(modJar)
-    inputs.file(upstream)
-    doFirst {
-        def fullTest = tasks.named('test', Test).get()
-        classpath = fullTest.classpath
-        systemProperties.putAll(fullTest.systemProperties)
-        jvmArgs = fullTest.jvmArgs
-        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
-        workingDir = fullTest.workingDir
-        def veil = sableEmbeddedJars().findAll { it.name.startsWith('veil-neoforge-') }
-        if (veil.size() != 1) throw new GradleException('Expected one bundled NeoForge Veil artifact')
-        systemProperty 'starfold.auditJar', modJar.get().asFile.absolutePath
-        systemProperty 'starfold.auditProbes', project(':probes').tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath
-        systemProperty 'starfold.auditPack', project(':worlds').tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath
-        systemProperty 'starfold.auditUpstream', upstream.get().asFile.absolutePath
-        systemProperty 'starfold.auditVeil', veil.first().absolutePath
-        systemProperty 'starfold.auditSable', configurations.sableBundle.singleFile.absolutePath
+    def auditArchives = [
+        'starfold.auditJar': modJar,
+        'starfold.auditProbes': providers.provider { project(':probes').tasks.named('jar', Jar).get().archiveFile.get() },
+        'starfold.auditPack': providers.provider { project(':worlds').tasks.named('jar', Jar).get().archiveFile.get() },
+        'starfold.auditUpstream': upstream,
+        'starfold.auditVeil': providers.provider {
+            def veil = sableEmbeddedJars().findAll { it.name.startsWith('veil-neoforge-') }
+            if (veil.size() != 1) throw new GradleException('Expected one bundled NeoForge Veil artifact')
+            veil.first()
+        },
+        'starfold.auditSable': providers.provider { configurations.sableBundle.singleFile }
+    ]
+    auditArchives.each { property, archive ->
+        def archiveFiles = files(archive)
+        inputs.files(archiveFiles).withPropertyName(property).withPathSensitivity(PathSensitivity.NONE)
+        jvmArgumentProviders.add({
+            ['-D' + property + '=' + archiveFiles.singleFile.absolutePath]
+        } as CommandLineArgumentProvider)
     }
     doLast {
         def archive = modJar.get().asFile
@@ -160,6 +172,8 @@ tasks.register('packagedContractTest', Test) {
 }
 apply from: 'gradle/packaging-boundary.gradle'
 apply from: 'gradle/offline-tools.gradle'
+apply from: 'gradle/test-inputs.gradle'
+apply from: 'gradle/java-format.gradle'
 tasks.register('splitPackagingContract') {
     group = 'verification'
     dependsOn tasks.named('jar'), ':probes:jar', ':worlds:jar', ':extras:jar'
@@ -217,6 +231,8 @@ tasks.named('check') { dependsOn tasks.named('sableRuntimeContract'), tasks.name
 // Root owns development composition and verification aggregation.
 gradle.projectsEvaluated {
     tasks.named('test', Test) {
+        // ModDev sets its test directory in afterEvaluate; override only after that callback.
+        workingDir = project.projectDir
         def launcherArgs = jvmArgumentProviders.toList()
         jvmArgumentProviders.clear()
         jvmArgumentProviders.add({
@@ -228,11 +244,22 @@ gradle.projectsEvaluated {
             }
         } as CommandLineArgumentProvider)
     }
+    // Copy the fully configured launcher before Test snapshots its inputs.
+    tasks.named('packagedContractTest', Test) {
+        def fullTest = tasks.named('test', Test).get()
+        classpath = files(providers.provider { fullTest.classpath })
+        systemProperties.putAll(fullTest.systemProperties)
+        jvmArgs = fullTest.jvmArgs
+        jvmArgumentProviders.addAll(fullTest.jvmArgumentProviders)
+        workingDir = fullTest.workingDir
+    }
     subprojects.each { module ->
         tasks.named('build') { dependsOn module.tasks.named('build') }
         tasks.named('check') { dependsOn module.tasks.named('check') }
     }
-    def loaded = ['atlas', 'probes', 'worlds', 'extras', 'materials', 'biotech']
+    def loaded = ['atlas', 'probes', 'worlds', 'materials', 'biotech', 'mining']
+    if (providers.gradleProperty('devFarDiagnostics').isPresent()) loaded.add('devtools')
+    if (!survivalPack) loaded.add('extras')
     loaded.each { name ->
         def module = project(":${name}")
         neoForge.mods.create(module.base.archivesName.get()) { sourceSet module.sourceSets.main }
@@ -240,7 +267,7 @@ gradle.projectsEvaluated {
     }
     neoForge.runs.named('client') { loadedMods = neoForge.mods.toList() }
     neoForge.runs.named('server') {
-        loadedMods = ['starfold', 'starfold_probes', 'starfold_worlds', 'starfold_extras', 'starfold_materials', 'starfold_biotech'].collect { neoForge.mods.getByName(it) }
+        loadedMods = (['starfold', 'starfold_probes', 'starfold_worlds', 'starfold_materials', 'starfold_biotech', 'starfold_mining'] + (survivalPack ? [] : ['starfold_extras'])).collect { neoForge.mods.getByName(it) }
     }
 }
 

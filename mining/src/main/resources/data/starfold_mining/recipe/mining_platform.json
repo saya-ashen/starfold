@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IPI",
+    "CFC",
+    "IRI"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "P": {
+      "item": "minecraft:iron_pickaxe"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "F": {
+      "item": "minecraft:furnace"
+    },
+    "R": {
+      "item": "minecraft:lever"
+    }
+  },
+  "result": {
+    "id": "starfold_mining:mining_platform",
+    "count": 1
+  }
+}

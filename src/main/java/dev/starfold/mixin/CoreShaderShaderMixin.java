@@ -21,6 +21,9 @@ public abstract class CoreShaderShaderMixin {
         var shader = (ShaderInstance) (Object) this;
         dev.starfold.render.GroundClient.apply(shader);
         dev.starfold.api.PlanetSurfaceRender.apply(shader);
+        dev.starfold.render.GroundFarDrawDiagnostics.applied(shader);
+        ShaderUniforms.set(shader, "CPWorldJitter", dev.starfold.render.GroundTemporalFilter.jitterX(),
+                dev.starfold.render.GroundTemporalFilter.jitterY());
     }
 
     @Inject(method = "updateLocations", at = @At("HEAD"))

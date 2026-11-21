@@ -24,8 +24,11 @@ public abstract class ExperienceCreateScreenMixin {
         var current = ui.getWorldType().preset();
         // Only a fresh vanilla default; re-created worlds keep their own preset.
         if (current == null || !current.is(WorldPresets.NORMAL)) return;
-        var wanted = ResourceLocation.parse(
-                PlanetContent.get().missingStarterDependencies() ? "starfold:native_universe" : "starfold_worlds:experience");
+        var wanted =
+                ResourceLocation.parse(
+                        PlanetContent.starter().missingStarterDependencies()
+                                ? "starfold:native_universe"
+                                : "starfold_worlds:experience");
         ui.getNormalPresetList().stream()
                 .filter(entry -> entry.preset() != null && entry.preset().is(wanted))
                 .findFirst()
@@ -35,7 +38,7 @@ public abstract class ExperienceCreateScreenMixin {
     @Inject(method = "onCreate", at = @At("HEAD"), cancellable = true)
     private void starfold$requireExperienceMods(CallbackInfo ci) {
         var screen = (CreateWorldScreen) (Object) this;
-        if (!PlanetContent.get().missingStarterDependencies()) return;
+        if (!PlanetContent.starter().missingStarterDependencies()) return;
         boolean starter =
                 screen
                         .getUiState()

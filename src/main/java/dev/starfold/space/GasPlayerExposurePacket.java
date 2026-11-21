@@ -35,19 +35,29 @@ public record GasPlayerExposurePacket(
     }
 
     public GasPlayerExposurePacket {
-        if (session == 0 || dimension == null || sequence < 0
-                || age < 0 || age >= FRESH_TICKS || snapshot == null
+        if (session == 0
+                || dimension == null
+                || sequence < 0
+                || age < 0
+                || age >= FRESH_TICKS
+                || snapshot == null
                 || snapshot.isEmpty() && age != 0)
             throw new IllegalArgumentException("Personal gas packet");
     }
 
     /** Use the current passive-view session, actual player dimension and post-transition values. */
     public static GasPlayerExposurePacket sampled(
-            long session, ResourceLocation dimension, long sequence,
-            GasPlayerExposure.Sample sample, GasPlayerExposureValues values,
+            long session,
+            ResourceLocation dimension,
+            long sequence,
+            GasPlayerExposure.Sample sample,
+            GasPlayerExposureValues values,
             Participation participation) {
         return new GasPlayerExposurePacket(
-                session, dimension, sequence, 0,
+                session,
+                dimension,
+                sequence,
+                0,
                 Optional.of(new Snapshot(sample, values, participation)));
     }
 
@@ -71,11 +81,14 @@ public record GasPlayerExposurePacket(
                         var s = p.snapshot.orElseThrow();
                         b.writeEnum(s.sample.condition());
                         b.writeBoolean(s.sample.reading().isPresent());
-                        s.sample.reading().ifPresent(r -> {
-                            b.writeVarInt(r.bodyIndex());
-                            b.writeDouble(r.depth());
-                            b.writeDouble(r.pressure());
-                        });
+                        s.sample
+                                .reading()
+                                .ifPresent(
+                                        r -> {
+                                            b.writeVarInt(r.bodyIndex());
+                                            b.writeDouble(r.depth());
+                                            b.writeDouble(r.pressure());
+                                        });
                         b.writeVarInt(s.values.graceTicks());
                         b.writeVarInt(s.values.safeTicks());
                         b.writeVarInt(s.values.attemptTicks());
@@ -89,15 +102,24 @@ public record GasPlayerExposurePacket(
                         Optional<Snapshot> snapshot = Optional.empty();
                         if (b.readBoolean()) {
                             var condition = b.readEnum(GasPlayerExposure.Condition.class);
-                            Optional<GasPressure.Reading> reading = b.readBoolean()
-                                    ? Optional.of(new GasPressure.Reading(
-                                            b.readVarInt(), b.readDouble(), b.readDouble()))
-                                    : Optional.empty();
-                            var values = new GasPlayerExposureValues(
-                                    b.readVarInt(), b.readVarInt(), b.readVarInt());
-                            snapshot = Optional.of(new Snapshot(
-                                    new GasPlayerExposure.Sample(condition, reading), values,
-                                    b.readEnum(Participation.class)));
+                            Optional<GasPressure.Reading> reading =
+                                    b.readBoolean()
+                                            ? Optional.of(
+                                                    new GasPressure.Reading(
+                                                            b.readVarInt(),
+                                                            b.readDouble(),
+                                                            b.readDouble()))
+                                            : Optional.empty();
+                            var values =
+                                    new GasPlayerExposureValues(
+                                            b.readVarInt(), b.readVarInt(), b.readVarInt());
+                            snapshot =
+                                    Optional.of(
+                                            new Snapshot(
+                                                    new GasPlayerExposure.Sample(
+                                                            condition, reading),
+                                                    values,
+                                                    b.readEnum(Participation.class)));
                         }
                         return new GasPlayerExposurePacket(
                                 session, dimension, sequence, age, snapshot);

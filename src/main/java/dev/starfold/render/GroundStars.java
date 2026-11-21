@@ -4,8 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
 import dev.starfold.chart.GroundSolar;
-import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.chart.PlanetOrbit;
+import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.space.RenderFrame;
 import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceClientHost;
@@ -35,7 +35,8 @@ public final class GroundStars {
                                         DefaultVertexFormat.POSITION_COLOR),
                                 s -> {
                                     shader = s;
-                                    shader.getUniform("DepthFar").set(ReversedDepth.ACTIVE ? 0f : 1f);
+                                    shader.getUniform("DepthFar")
+                                            .set(ReversedDepth.ACTIVE ? 0f : 1f);
                                     clear();
                                 });
                     } catch (java.io.IOException error) {
@@ -109,19 +110,24 @@ public final class GroundStars {
     private static boolean buildReal(RenderFrame context, boolean region) {
         var model = region ? SpaceClientHost.get().ephemeris() : GroundClient.model();
         if (model == null) return false;
-        var eye = region
-                ? SpaceClient.universeEye(context.camera().getPosition())
-                : GroundClient.universeEye();
-        var b = Tesselator.getInstance()
-                .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        var eye =
+                region
+                        ? SpaceClient.universeEye(context.camera().getPosition())
+                        : GroundClient.universeEye();
+        var b =
+                Tesselator.getInstance()
+                        .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         for (var star : model.everyStar(region ? SpaceClient.time() : GroundClient.time())) {
             double distance = star.position().sub(eye).length();
-            // Nearby suns already have resolved emissive meshes; points are only their distant image.
+            // Nearby suns already have resolved emissive meshes; points are only their distant
+            // image.
             if (distance <= star.radius() * 100) continue;
             var d = direction(star.position(), eye);
             var n = new Vector3d(d.x(), d.y(), d.z());
-            var u = new Vector3d(Math.abs(n.y) < .9
-                    ? new Vector3d(0, 1, 0) : new Vector3d(1, 0, 0)).cross(n).normalize();
+            var u =
+                    new Vector3d(Math.abs(n.y) < .9 ? new Vector3d(0, 1, 0) : new Vector3d(1, 0, 0))
+                            .cross(n)
+                            .normalize();
             var v = new Vector3d(n).cross(u).normalize();
             double light = brightness(distance);
             double size = .16 + .20 * light;
@@ -180,7 +186,9 @@ public final class GroundStars {
             if (region)
                 GL11.glDepthRange(
                         ReversedDepth.ACTIVE ? 0 : 1,
-                        ReversedDepth.ACTIVE ? 0 : 1); // Infinite background must not cover distant finite planets.
+                        ReversedDepth.ACTIVE
+                                ? 0
+                                : 1); // Infinite background must not cover distant finite planets.
             RenderSystem.enableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();

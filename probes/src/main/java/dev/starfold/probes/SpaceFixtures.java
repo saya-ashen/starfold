@@ -3,10 +3,10 @@ package dev.starfold.probes;
 import dev.starfold.chart.*;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.CubeSurfaceTopology;
+import dev.starfold.probe.ArrivalProbe;
 import dev.starfold.ship.*;
 import dev.starfold.sky.*;
 import dev.starfold.space.*;
-import dev.starfold.probe.ArrivalProbe;
 
 public final class SpaceFixtures {
     public static void initialize() {
@@ -83,7 +83,8 @@ public final class SpaceFixtures {
                         .scale(shape.radius() + 7500);
         var at = body.logicalPose().position();
         var old = SpaceServer.frame(level);
-        SpaceServer.frame(level,
+        SpaceServer.frame(
+                level,
                 new Space.Frame(
                         old.rotation(),
                         old.shift(),
@@ -91,7 +92,8 @@ public final class SpaceFixtures {
                         offset.sub(
                                 old.universeVector(new Point(at.x, at.y, at.z).sub(old.shift()))),
                         new Point(0, 0, 0),
-                        clock.tick()), true);
+                        clock.tick()),
+                true);
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                 .info(
                         "PROBE ARRIVAL_SETUP planet {} face {} height 7500 game {}",
@@ -108,14 +110,16 @@ public final class SpaceFixtures {
         var level = player.serverLevel();
         var f = SpaceServer.frame(level).rebased(GroundClock.get(level).clock.tick());
         var nose = HelmServer.forward(SableFrames.aboard(player));
-        SpaceServer.frame(level,
+        SpaceServer.frame(
+                level,
                 new Space.Frame(
                         f.rotation(),
                         f.shift(),
                         f.planet(),
                         f.offset(),
                         f.universeVector(nose).scale(speed / 20),
-                        f.epoch()), false);
+                        f.epoch()),
+                false);
     }
 
     /** End chart ownership without changing position or velocity, then announce passive coordinates. */

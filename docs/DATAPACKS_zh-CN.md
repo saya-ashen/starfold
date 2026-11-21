@@ -75,7 +75,7 @@ hive 另有 spacing（32–256）与 wall_slope（.1–4）；其几何邻居保
 
 扩展 API 为 `TerrainRegistries.LANDFORMS/VOLUMES/MATERIALS/BIOMES.register(id, codec, implementation)` 与 `registerStage(id, stage)`。内置实现用同一接口；地貌实现提供剖面与放置，规则提供匹配/材质与规划回调。求值按固定操作执行。体积实现提供规范盒[-1,1]内的形状、参数Codec和放置回调。求值使用确定的球面切向基与完整包围盒，支持接缝上的非圆形状。
 
-粗表面采样（16/32/64格）固定读四个网格/要素摘要。每个PlanetTerrain首次构造SurfaceFunction时建立并共享摘要，重绑terrain/plan时失效；按每16格单元固定四点求积，再建立mip，并把体积与结构包围范围栅格化，保证离开中心的屋顶和岩体仍计入覆盖。一次性建立成本及内存与每次O(1)采样、规划压缩大小分别计量；粗覆盖是近似，细LOD和区块保留精确多段列。核心季节API通过近景和外景渲染上下文提供已同步的TerrainPlan。可选季节外观模块的第三方来源审查尚未完成，因此本次公开源码未包含该模块。
+粗表面采样（16/32/64格）固定读四个网格/要素摘要。每个PlanetTerrain首次构造SurfaceFunction时建立并共享摘要，重绑terrain/plan时失效；按每16格单元固定四点求积，再建立mip，并把体积与结构包围范围栅格化，保证离开中心的屋顶和岩体仍计入覆盖。一次性建立成本及内存与每次O(1)采样、规划压缩大小分别计量；粗覆盖是近似，细LOD和区块保留精确多段列。季节着色通过近景/外景渲染上下文取得已同步TerrainPlan，monsoon上传包含温度、最终地表海拔的RG32F节点贴图及canonical halo；GLSL和Java季节使用相同双三次插值、配方海拔递减率与季节强迫。最多驻留四份贴图，离开连接释放。
 
 节点间距16，几何面边与角共享节点；height双三次插值、地貌、细节、河道后由现有结构适配合成。水系使用priority-flood湖泊与汇流图，植被仅来自BiomeScatter并乘湿度。完整母星配方示例：
 

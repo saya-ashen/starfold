@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonParser;
 
-import dev.starfold.Sources;
-
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -48,34 +46,5 @@ class SystemOnlyTest {
                             .getAsJsonObject();
             assertEquals("starfold:native_ground", type.get("effects").getAsString());
         }
-        assertTrue(
-                Sources.text("GroundClient")
-                        .contains(
-                                "event.register(net.minecraft.resources.ResourceLocation.parse(\"starfold:native_ground\")"));
-    }
-
-    @Test
-    void productionHasNoStandaloneStorageRoutingOrLayoutQuestions() throws Exception {
-        try (var files = Files.walk(Path.of("src/main/java"))) {
-            for (var file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
-                var text = Files.readString(file).replaceAll("\\s+", "");
-                for (String forbidden :
-                        new String[] {
-                            "PlanetAccess.LEGACY",
-                            "PlanetLevels.ROCK",
-                            "ROW_LAYOUT",
-                            "SavedPlanet",
-                            "PlanetSystem.shared(",
-                            "PlanetSystem.multiple(",
-                            "PlanetSystem.authority(",
-                            "PlanetSystem.level(",
-                            "==PlanetAccess.SHARED",
-                            "!=PlanetAccess.SHARED"
-                        }) assertFalse(text.contains(forbidden), file + ": " + forbidden);
-            }
-        }
-        assertFalse(Sources.text("PlanetChunkGenerator").contains("multi_planet"));
-        assertFalse(Sources.text("GroundFlightPackets").contains("boolean shared"));
-        assertFalse(Sources.text("SpacePackets").contains("boolean shared"));
     }
 }

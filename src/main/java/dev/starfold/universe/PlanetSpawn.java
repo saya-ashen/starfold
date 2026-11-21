@@ -7,6 +7,7 @@ import dev.starfold.planet.PlanetStorage;
 import dev.starfold.worldgen.PlanetTerrain;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Only fresh/debug terrain entries choose dry land. Saved navigation retains its exact location. */
@@ -54,9 +55,35 @@ public final class PlanetSpawn {
             for (int x = -r; x <= r; x += 16)
                 for (int z = -r; z <= r; z += 16)
                     if (Math.max(Math.abs(x), Math.abs(z)) == r
-                            && terrain.groundY(face, centre + x, centre + z) >= 129)
+                            && drySurface(terrain, face, centre + x, centre + z))
                         return new int[] {centre + x, centre + z};
-        return new int[] {centre, centre};
+        throw new IllegalStateException("No safe dry native terrain entry on face " + face);
+    }
+
+    private static boolean drySurface(
+            PlanetTerrain terrain, CubeSurfaceTopology.Face face, int u, int v) {
+        int ground = terrain.groundY(face, u, v);
+        if (ground < 129 || terrain.submerged(face, u, v, ground)) return false;
+        // Use the full production column: shallow bands return AIR outside their stored range.
+        var column = terrain.column(face, u, v);
+        if (ground < column.bottom() || ground + 1 >= column.end()) return false;
+        // Ordinary snow is a safe cap; require two real air cells above it.
+        int clearance = ground + (column.state(ground + 1).is(Blocks.SNOW) ? 2 : 1);
+        if (clearance + 1 >= column.end()) return false;
+        var surface = column.state(ground);
+        return surface.isSolid()
+                && surface.getFluidState().isEmpty()
+                && !surface.is(Blocks.MAGMA_BLOCK)
+                && !surface.is(Blocks.CACTUS)
+                && !surface.is(Blocks.POWDER_SNOW)
+                && !surface.is(Blocks.POINTED_DRIPSTONE)
+                && !surface.is(Blocks.LAVA)
+                && !surface.is(Blocks.FIRE)
+                && !surface.is(Blocks.SOUL_FIRE)
+                && !surface.is(Blocks.CAMPFIRE)
+                && !surface.is(Blocks.SOUL_CAMPFIRE)
+                && column.state(clearance).isAir()
+                && column.state(clearance + 1).isAir();
     }
 
     private PlanetSpawn() {}

@@ -3,6 +3,7 @@ package dev.starfold.waypoint;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
+import dev.starfold.api.PlanetContent;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.ground.GroundServer;
@@ -12,7 +13,6 @@ import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
 import dev.starfold.ship.HullLanding;
 import dev.starfold.ship.SableFrames;
-import dev.starfold.api.PlanetContent;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 import dev.starfold.space.SpaceServer;
@@ -31,7 +31,8 @@ public final class WaypointServer {
         StarfoldNetwork.playS2C(Target.TYPE, Target.CODEC);
         StarfoldNetwork.playS2C(WaypointPackets.Book.TYPE, WaypointPackets.Book.CODEC);
         StarfoldNetwork.playC2S(WaypointPackets.Edit.TYPE, WaypointPackets.Edit.CODEC);
-        StarfoldNetwork.serverReceiver(WaypointPackets.Edit.TYPE,
+        StarfoldNetwork.serverReceiver(
+                WaypointPackets.Edit.TYPE,
                 (packet, context) -> edit((ServerPlayer) context.player(), packet));
         if (net.neoforged.fml.ModList.get().isLoaded("sable"))
             net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
@@ -41,7 +42,27 @@ public final class WaypointServer {
                     });
     }
 
-    private static final java.util.Map<ServerPlayer, Object> helms = new java.util.WeakHashMap<>();
+    static final class HelmLaunch {
+        Object body;
+        boolean recorded;
+
+        void aboard(Object candidate) {
+            if (body == candidate) return;
+            body = candidate;
+            recorded = false;
+        }
+
+        boolean record(Object candidate, double clearance, double speed, Runnable create) {
+            aboard(candidate);
+            if (recorded || !WaypointNavigation.grounded(clearance, speed)) return false;
+            create.run();
+            recorded = true;
+            return true;
+        }
+    }
+
+    private static final java.util.Map<ServerPlayer, HelmLaunch> helms =
+            new java.util.WeakHashMap<>();
 
     public static void forget(ServerPlayer player) {
         helms.remove(player);
@@ -57,7 +78,9 @@ public final class WaypointServer {
             helms.remove(player);
             return;
         }
-        if (helms.put(player, body) == body || Space.in(player)) return;
+        var helm = helms.computeIfAbsent(player, p -> new HelmLaunch());
+        helm.aboard(body);
+        if (helm.recorded || Space.in(player)) return;
         var level = player.serverLevel();
         var at = body.logicalPose().position();
         var access = PlanetAccess.of(level);
@@ -71,22 +94,32 @@ public final class WaypointServer {
                                 .velocity()
                                 .length()
                         * 20;
-        if (!WaypointNavigation.grounded(clearance, speed)) return;
         try {
-            int planet = access.storagePlanet(at.x, at.z);
-            var pad = PlanetContent.get().launchCentre(level, body);
-            var marker =
-                    new Waypoint(
-                            Waypoint.LAUNCH,
-                            planet,
-                            access.body(
-                                    pad != null
-                                            ? pad
-                                            : new BentStripGeometry.Point(at.x, at.y, at.z)));
-            WaypointSave.get(level).launch(player.getUUID(), marker);
+            if (!helm.record(
+                    body,
+                    clearance,
+                    speed,
+                    () -> {
+                        int planet = access.storagePlanet(at.x, at.z);
+                        var pad = PlanetContent.starter().launchCentre(level, body);
+                        var marker =
+                                new Waypoint(
+                                        Waypoint.LAUNCH,
+                                        planet,
+                                        access.body(
+                                                pad != null
+                                                        ? pad
+                                                        : new BentStripGeometry.Point(
+                                                                at.x, at.y, at.z)));
+                        WaypointSave.get(level).launch(player.getUUID(), marker);
+                        org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                                .info(
+                                        "PROBE LAUNCH {} clearance {} speed {}",
+                                        marker,
+                                        clearance,
+                                        speed);
+                    })) return;
             send(player);
-            org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                    .info("PROBE LAUNCH {} clearance {} speed {}", marker, clearance, speed);
         } catch (IllegalArgumentException | IllegalStateException error) {
             message(player, "message.starfold.mark.launch_failed", failure(error));
         }
@@ -117,7 +150,8 @@ public final class WaypointServer {
         var save = WaypointSave.get(player.serverLevel());
         var all = new java.util.ArrayList<>(save.list(player.getUUID()).values());
         all.addAll(save.launches(player.getUUID()).values());
-        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new WaypointPackets.Book(java.util.List.copyOf(all)));
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                player, new WaypointPackets.Book(java.util.List.copyOf(all)));
     }
 
     private static void edit(ServerPlayer player, WaypointPackets.Edit packet) {
@@ -127,24 +161,30 @@ public final class WaypointServer {
             var model = PlanetSystem.model(player.serverLevel());
             var id = player.getUUID();
             switch (packet.action()) {
-                case LIST -> { book(player); return; }
+                case LIST -> {
+                    book(player);
+                    return;
+                }
                 case ADD -> {
                     int slot = model.catalogBody(packet.body()).slot();
-                    if (slot < 0)
-                        throw new Waypoint.Failure("message.starfold.mark.invalid");
+                    if (slot < 0) throw new Waypoint.Failure("message.starfold.mark.invalid");
                     int size = dev.starfold.chart.PlanetShape.of(slot).size();
                     if (!packet.validCoordinates(size))
                         throw new Waypoint.Failure("message.starfold.mark.invalid");
-                    var pose = new dev.starfold.chart.PlanetShape.Pose(
-                            dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[packet.face()],
-                            new BentStripGeometry.Point(packet.u(), 0, packet.v()));
+                    var pose =
+                            new dev.starfold.chart.PlanetShape.Pose(
+                                    dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[
+                                            packet.face()],
+                                    new BentStripGeometry.Point(packet.u(), 0, packet.v()));
                     save.add(id, new Waypoint(packet.name(), slot, pose));
                 }
                 case REMOVE -> save.remove(id, packet.name());
                 case TARGET -> {
                     var marker = save.list(id).get(packet.name());
-                    if (marker == null) throw new Waypoint.Failure("message.starfold.mark.missing", packet.name());
-                    if (!Space.in(player) && GroundFlightServer.target(player, marker.planet()) == 0) return;
+                    if (marker == null)
+                        throw new Waypoint.Failure("message.starfold.mark.missing", packet.name());
+                    if (!Space.in(player)
+                            && GroundFlightServer.target(player, marker.planet()) == 0) return;
                     MapNavigationServer.markerSelected(player);
                     save.select(id, packet.name());
                 }
@@ -250,6 +290,7 @@ public final class WaypointServer {
             throw new Waypoint.Failure("message.starfold.mark.ground_required");
         }
         var state = GroundFlightServer.capture(player, GroundClock.get(player.serverLevel()));
+        if (state == null) throw new Waypoint.Failure("message.starfold.mark.ground_required");
         save.add(player.getUUID(), new Waypoint(name, state.planet(), state.local()));
         message(player, "message.starfold.mark.saved", name, planetName(state.planet()));
     }
@@ -297,9 +338,15 @@ public final class WaypointServer {
     }
 
     public static Component failure(RuntimeException error) {
+        if (!(error instanceof Waypoint.Failure))
+            org.slf4j.LoggerFactory.getLogger("starfold").warn("Navigation data error", error);
+        return failureMessage(error);
+    }
+
+    /** Describe an error already logged by the caller, without logging again for each recipient. */
+    public static Component failureMessage(RuntimeException error) {
         if (error instanceof Waypoint.Failure failure)
             return Component.translatable(failure.key, failure.arguments);
-        org.slf4j.LoggerFactory.getLogger("starfold").warn("Navigation data error", error);
         return Component.translatable("message.starfold.data_error");
     }
 

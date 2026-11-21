@@ -1,18 +1,18 @@
 package dev.starfold.worldgen.plan;
 
 import static dev.starfold.worldgen.plan.terrain.TerrainPlan.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.*;
 import com.mojang.serialization.JsonOps;
-import dev.starfold.geometry.BentStripGeometry.Point;
+
 import dev.starfold.geometry.CubeSurfaceTopology.*;
 import dev.starfold.universe.*;
 import dev.starfold.worldgen.*;
 import dev.starfold.worldgen.plan.terrain.*;
 import dev.starfold.worldgen.surface.SurfaceFunction;
-import java.nio.file.*;
-import java.util.*;
+
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.*;
@@ -20,7 +20,11 @@ import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.chunk.*;
 import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
+
 import org.junit.jupiter.api.*;
+
+import java.nio.file.*;
+import java.util.*;
 
 /** S1 contract, geometric aliases, operations and actual isolated Minecraft chunk writes. */
 class TerrainPlanTest {
@@ -28,37 +32,60 @@ class TerrainPlanTest {
     static void boot() throws Exception {
         PlanetPlanFixtures.boot();
     }
+
     @AfterAll
     static void close() throws Exception {
         PlanetPlanFixtures.close();
     }
+
     static TerrainRecipe recipe(String name) throws Exception {
         return TerrainRecipe.CODEC
-            .parse(JsonOps.INSTANCE,
-                JsonParser
-                    .parseString(Files.readString(java.nio.file.Path.of(
-                        "worlds/src/main/resources/data/starfold_worlds/starfold/planet_type/" + name
-                        + ".json")))
-                    .getAsJsonObject()
-                    .get("terrain"))
-            .getOrThrow();
+                .parse(
+                        JsonOps.INSTANCE,
+                        JsonParser.parseString(
+                                        Files.readString(
+                                                java.nio.file.Path.of(
+                                                        "worlds/src/main/resources/data/starfold_worlds/starfold/planet_type/"
+                                                                + name
+                                                                + ".json")))
+                                .getAsJsonObject()
+                                .get("terrain"))
+                .getOrThrow();
     }
+
     static PlanetChunkGenerator planet(String name) throws Exception {
         var recipe = recipe(name);
         var registry = PlanetPlanFixtures.context.registries().registryOrThrow(Registries.BIOME);
         var palette =
-            recipe.biomeIds()
-                .stream()
-                .sorted(Comparator.comparing(ResourceLocation::toString))
-                .map(
-                    id -> (Holder<Biome>) registry.getHolderOrThrow(ResourceKey.create(Registries.BIOME, id)))
-                .toList();
-        var policy = new PlanetGeneration(name, PlanetGeneration.SURFACE_VERSION, recipe, 512, 191,
-            "core_shell", false, false, false, PlanetEnvironment.defaults(true, 512));
+                recipe.biomeIds().stream()
+                        .sorted(Comparator.comparing(ResourceLocation::toString))
+                        .map(
+                                id ->
+                                        (Holder<Biome>)
+                                                registry.getHolderOrThrow(
+                                                        ResourceKey.create(Registries.BIOME, id)))
+                        .toList();
+        var policy =
+                new PlanetGeneration(
+                        name,
+                        PlanetGeneration.SURFACE_VERSION,
+                        recipe,
+                        512,
+                        191,
+                        "core_shell",
+                        false,
+                        false,
+                        false,
+                        PlanetEnvironment.defaults(true, 512));
         return new PlanetChunkGenerator(
-            new FlatLevelGeneratorSettings(Optional.of(HolderSet.direct()), palette.getFirst(), List.of()),
-            42, PlanetTerrain.VERSION, Optional.of(new PlanetBiomes(42, palette)), Optional.of(policy));
+                new FlatLevelGeneratorSettings(
+                        Optional.of(HolderSet.direct()), palette.getFirst(), List.of()),
+                42,
+                PlanetTerrain.VERSION,
+                Optional.of(new PlanetBiomes(42, palette)),
+                Optional.of(policy));
     }
+
     @Test
     void fixedBytesAndStrictNetworkAndArchiveDescription() throws Exception {
         var planet = planet("home");
@@ -80,7 +107,8 @@ class TerrainPlanTest {
         var current = restored.generation().withRecipe(new TerrainRecipe(changed));
         var detached = new PlanetTerrain(42, PlanetTerrain.VERSION, current);
         detached.initializeTerrain(decoded.terrain());
-        assertEquals(planet.terrain().groundY(Face.TOP, 210, 250), detached.groundY(Face.TOP, 210, 250));
+        assertEquals(
+                planet.terrain().groundY(Face.TOP, 210, 250), detached.groundY(Face.TOP, 210, 250));
         var invalid = recipe("home").json();
         invalid.addProperty("algorithm", "ecology");
         assertTrue(TerrainRecipe.CODEC.parse(JsonOps.INSTANCE, invalid).isError());
@@ -88,57 +116,87 @@ class TerrainPlanTest {
         invalid.addProperty("version", 1);
         assertTrue(TerrainRecipe.CODEC.parse(JsonOps.INSTANCE, invalid).isError());
         invalid = recipe("home").json();
-        invalid.getAsJsonObject("planner").getAsJsonArray("stages").set(0, new JsonPrimitive("test:missing"));
+        invalid.getAsJsonObject("planner")
+                .getAsJsonArray("stages")
+                .set(0, new JsonPrimitive("test:missing"));
         assertTrue(TerrainRecipe.CODEC.parse(JsonOps.INSTANCE, invalid).isError());
         invalid = recipe("rocky").json();
-        invalid.getAsJsonArray("landforms").get(0).getAsJsonObject().addProperty("type", "test:missing");
+        invalid.getAsJsonArray("landforms")
+                .get(0)
+                .getAsJsonObject()
+                .addProperty("type", "test:missing");
         assertTrue(TerrainRecipe.CODEC.parse(JsonOps.INSTANCE, invalid).isError());
     }
+
     @Test
     void archiveRejectsEmbeddedIdentityTamperingBeforeBinding() throws Exception {
         var owner = planet("home");
         var file = java.nio.file.Path.of("build/terrain-plan/tampered.dat");
-        for (var alien : List.of(planet("rocky").terrain().plan(),
-                 new PlanetTerrain(43, PlanetTerrain.VERSION, owner.generation()).plan())) {
+        for (var alien :
+                List.of(
+                        planet("rocky").terrain().plan(),
+                        new PlanetTerrain(43, PlanetTerrain.VERSION, owner.generation()).plan())) {
             PlanetPlanStore.write(
-                file, owner, new TraditionalPlanetPlanner.Archive(alien, Map.of(), Map.of()));
+                    file, owner, new TraditionalPlanetPlanner.Archive(alien, Map.of(), Map.of()));
             var target = planet("home");
             var before = target.terrain().terrainPlan();
-            assertThrows(java.io.IOException.class,
-                () -> PlanetPlanStore.read(file, target, PlanetPlanFixtures.context));
+            assertThrows(
+                    java.io.IOException.class,
+                    () -> PlanetPlanStore.read(file, target, PlanetPlanFixtures.context));
             assertSame(before, target.terrain().terrainPlan());
         }
     }
+
     @Test
     void registeredCustomRulesStagesAndDeepMaterialsNeedNoBuiltinParameterNames() throws Exception {
-        TerrainRegistries.BIOMES.register("test:river_output", TerrainRegistries.parameters(p -> {
-            TerrainRecipe.keys(p, "output");
-            ResourceLocation.parse(p.get("output").getAsString());
-        }),
-            new TerrainRegistries.BiomeRule() {
-                public ResourceLocation biome(JsonObject p) {
-                    return ResourceLocation.parse(p.get("output").getAsString());
-                }
-                public boolean matches(TerrainRegistries.BiomeContext c, JsonObject p) {
-                    return c.river();
-                }
-            });
-        TerrainRegistries.MATERIALS.register("test:deep_gold",
-            TerrainRegistries.parameters(p -> TerrainRecipe.keys(p)),
-            (c, p)
-                -> c.depth() == 12 ? net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState()
-                                   : null);
-        TerrainRegistries.LANDFORMS.register("test:mound",
-            TerrainRegistries.parameters(p -> TerrainRecipe.keys(p)), new TerrainRegistries.LandformType() {
-                public double profile(double r, double angle, JsonObject parameters) {
-                    return 1 - r;
-                }
-                public void place(TerrainPlanner planner, TerrainRecipe.Config config) {
-                    planner.landforms.add(new Landform(
-                        config.type(), config.parameters(), Face.EAST.normal, 32, 10, Operation.RAISE));
-                }
-            });
-        TerrainRegistries.registerStage("test:marker", p -> { p.fields[ROUGHNESS][0] = 3; });
+        TerrainRegistries.BIOMES.register(
+                "test:river_output",
+                TerrainRegistries.parameters(
+                        p -> {
+                            TerrainRecipe.keys(p, "output");
+                            ResourceLocation.parse(p.get("output").getAsString());
+                        }),
+                new TerrainRegistries.BiomeRule() {
+                    public ResourceLocation biome(JsonObject p) {
+                        return ResourceLocation.parse(p.get("output").getAsString());
+                    }
+
+                    public boolean matches(TerrainRegistries.BiomeContext c, JsonObject p) {
+                        return c.river();
+                    }
+                });
+        TerrainRegistries.MATERIALS.register(
+                "test:deep_gold",
+                TerrainRegistries.parameters(p -> TerrainRecipe.keys(p)),
+                (c, p) ->
+                        c.depth() == 12
+                                ? net.minecraft.world.level.block.Blocks.GOLD_BLOCK
+                                        .defaultBlockState()
+                                : null);
+        TerrainRegistries.LANDFORMS.register(
+                "test:mound",
+                TerrainRegistries.parameters(p -> TerrainRecipe.keys(p)),
+                new TerrainRegistries.LandformType() {
+                    public double profile(double r, double angle, JsonObject parameters) {
+                        return 1 - r;
+                    }
+
+                    public void place(TerrainPlanner planner, TerrainRecipe.Config config) {
+                        planner.landforms.add(
+                                new Landform(
+                                        config.type(),
+                                        config.parameters(),
+                                        Face.EAST.normal,
+                                        32,
+                                        10,
+                                        Operation.RAISE));
+                    }
+                });
+        TerrainRegistries.registerStage(
+                "test:marker",
+                p -> {
+                    p.fields[ROUGHNESS][0] = 3;
+                });
         var json = recipe("home").json();
         var rule = new JsonObject();
         rule.addProperty("type", "test:river_output");
@@ -164,15 +222,19 @@ class TerrainPlanTest {
         assertFalse(plan.paths().isEmpty());
         int river = plan.paths().getFirst().nodes().getFirst();
         assertEquals("test:river_output", recipe.biomes().get(plan.biome(river)).type());
-        var roundTrip = PlanetPlan.decode(new PlanetPlan(512, plan, List.of(), List.of()).compressed());
+        var roundTrip =
+                PlanetPlan.decode(new PlanetPlan(512, plan, List.of(), List.of()).compressed());
         assertEquals("minecraft:river", roundTrip.terrain().recipe().biomes().getFirst().biomeId());
         var terrain =
-            new PlanetTerrain(42, PlanetTerrain.VERSION, planet("home").generation().withRecipe(recipe));
+                new PlanetTerrain(
+                        42, PlanetTerrain.VERSION, planet("home").generation().withRecipe(recipe));
         terrain.initializeTerrain(plan);
         int ground = terrain.groundY(Face.TOP, 256, 256);
-        assertEquals(net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState(),
-            terrain.column(Face.TOP, 256, 256).state(ground - 12));
-        for (var form : plan.landforms()) assertTrue(TerrainPlanner.clear(form.center(), form.radius(), 512));
+        assertEquals(
+                net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState(),
+                terrain.column(Face.TOP, 256, 256).state(ground - 12));
+        for (var form : plan.landforms())
+            assertTrue(TerrainPlanner.clear(form.center(), form.radius(), 512));
     }
 
     @Test
@@ -193,6 +255,7 @@ class TerrainPlanTest {
         assertNotEquals(cold.biome(n), warm.biome(n));
         assertEquals("minecraft:desert", recipe.biomes().get(warm.biome(n)).biomeId());
     }
+
     @Test
     void allTwelveEdgesEightCornersAndBicubicHaloShareActualGeometricNodes() throws Exception {
         var plan = planet("home").terrain().terrainPlan();
@@ -203,12 +266,11 @@ class TerrainPlanTest {
                 for (int v = 0; v <= n; v++)
                     if (u == 0 || v == 0 || u == n || v == n)
                         aliases.computeIfAbsent(plan.node(f, u, v), k -> new ArrayList<>())
-                            .add(new int[] {f.ordinal(), u, v});
+                                .add(new int[] {f.ordinal(), u, v});
         int corners = 0, edgeNodes = 0;
         var edgePairs = new HashSet<String>();
         for (var group : aliases.values()) {
-            if (group.size() == 3)
-                corners++;
+            if (group.size() == 3) corners++;
             else {
                 assertEquals(2, group.size());
                 edgeNodes++;
@@ -224,15 +286,18 @@ class TerrainPlanTest {
                 assertEquals(height, plan.height(Face.VALUES[b[0]], b[1] * 16, b[2] * 16), 1e-8);
                 assertEquals(biome, plan.biome(Face.VALUES[b[0]], b[1] * 16.0, b[2] * 16.0));
                 for (int field = 0; field < 6; field++)
-                    assertEquals(plan.field(field, id),
-                        plan.interpolate(field, Face.VALUES[b[0]], b[1] * 16, b[2] * 16), 1e-5);
+                    assertEquals(
+                            plan.field(field, id),
+                            plan.interpolate(field, Face.VALUES[b[0]], b[1] * 16, b[2] * 16),
+                            1e-5);
             }
         }
         assertEquals(8, corners);
         assertEquals(12, edgePairs.size());
         assertEquals(12 * (n - 1), edgeNodes);
         assertEquals(6 * n * n + 2, plan.nodeCount());
-        // Halo nodes cover every face, both sides, and two intervals required by bicubic interpolation.
+        // Halo nodes cover every face, both sides, and two intervals required by bicubic
+        // interpolation.
         for (var f : Face.VALUES)
             for (int u = -2; u <= n + 2; u++)
                 for (int v : new int[] {-2, -1, 0, n, n + 1, n + 2}) {
@@ -245,11 +310,15 @@ class TerrainPlanTest {
             for (int k = 16; k < 512; k += 16)
                 for (int[] p : new int[][] {{-1, k}, {512, k}, {k, -1}, {k, 512}}) {
                     var c = terrain.shape().topology().canonical(new Cell(f, p[0], 0, p[1])).cell();
-                    assertEquals(function.point(c.face(), c.u(), c.v()), function.point(f, p[0], p[1]));
-                    assertEquals(terrain.biome(c.face(), c.u(), c.v()), terrain.biome(f, p[0], p[1]));
-                    assertEquals(terrain.liquid(c.face(), c.u(), c.v()), terrain.liquid(f, p[0], p[1]));
+                    assertEquals(
+                            function.point(c.face(), c.u(), c.v()), function.point(f, p[0], p[1]));
+                    assertEquals(
+                            terrain.biome(c.face(), c.u(), c.v()), terrain.biome(f, p[0], p[1]));
+                    assertEquals(
+                            terrain.liquid(c.face(), c.u(), c.v()), terrain.liquid(f, p[0], p[1]));
                 }
     }
+
     @Test
     void fillCarveAndPlaceFollowDeclaredOrderAndSnowHasOneSurface() throws Exception {
         var planet = planet("ice");
@@ -267,34 +336,79 @@ class TerrainPlanTest {
         int a = original.node(Face.TOP, 15, 16), b = original.node(Face.TOP, 17, 16);
         var carve = new TerrainPlan.Path(List.of(a, b), 8, 10, 170, Operation.CARVE);
         var fill = new TerrainPlan.Path(List.of(a, b), 8, 10, 200, Operation.FILL);
-        var first = new TerrainPlan(
-            42, 512, original.recipe(), fields, biomes, water, List.of(), List.of(carve, fill));
-        var second = new TerrainPlan(
-            42, 512, original.recipe(), fields, biomes, water, List.of(), List.of(fill, carve));
+        var first =
+                new TerrainPlan(
+                        42,
+                        512,
+                        original.recipe(),
+                        fields,
+                        biomes,
+                        water,
+                        List.of(),
+                        List.of(carve, fill));
+        var second =
+                new TerrainPlan(
+                        42,
+                        512,
+                        original.recipe(),
+                        fields,
+                        biomes,
+                        water,
+                        List.of(),
+                        List.of(fill, carve));
         assertEquals(200, first.height(Face.TOP, 240, 256), 1e-8);
         assertEquals(160, second.height(Face.TOP, 240, 256), 1e-8);
         terrain.initializeTerrain(first);
         var f = new SurfaceFunction(terrain);
         int ground = terrain.groundY(Face.TOP, 256, 256);
         var blocks = f.blocks(Face.TOP, 256, 256);
-        assertEquals(net.minecraft.world.level.block.Blocks.SNOW.defaultBlockState(),
-            blocks[ground + 1 - terrain.floor()]);
+        assertEquals(
+                net.minecraft.world.level.block.Blocks.SNOW.defaultBlockState(),
+                blocks[ground + 1 - terrain.floor()]);
         assertEquals(ground + 1, f.point(Face.TOP, 256, 256).height());
-        assertEquals(f.visible(Face.TOP, 256, 256).block(),
-            f.point(Face.TOP, 256, 256).materials().getFirst().block());
+        assertEquals(
+                f.visible(Face.TOP, 256, 256).block(),
+                f.point(Face.TOP, 256, 256).materials().getFirst().block());
         var bounds = new PlanetPlan.Bounds(256, ground + 1, 256, 256, ground + 1, 256);
-        var piece = new PlanetPlan.Piece(0, new BlockPos(256, ground + 1, 256),
-            net.minecraft.world.level.block.Rotation.NONE, net.minecraft.world.level.block.Mirror.NONE,
-            bounds, bounds, net.minecraft.world.level.levelgen.structure.TerrainAdjustment.NONE);
-        var plan = new PlanetPlan(512, first,
-            List.of(new PlanetPlan.Site(
-                1, ResourceLocation.parse("test:place"), Face.TOP, 256, 256, bounds, List.of(piece))),
-            List.of(new PlanetPlan.Template(List.of(new PlanetPlan.Voxel(
-                0, 0, 0, net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState())))));
+        var piece =
+                new PlanetPlan.Piece(
+                        0,
+                        new BlockPos(256, ground + 1, 256),
+                        net.minecraft.world.level.block.Rotation.NONE,
+                        net.minecraft.world.level.block.Mirror.NONE,
+                        bounds,
+                        bounds,
+                        net.minecraft.world.level.levelgen.structure.TerrainAdjustment.NONE);
+        var plan =
+                new PlanetPlan(
+                        512,
+                        first,
+                        List.of(
+                                new PlanetPlan.Site(
+                                        1,
+                                        ResourceLocation.parse("test:place"),
+                                        Face.TOP,
+                                        256,
+                                        256,
+                                        bounds,
+                                        List.of(piece))),
+                        List.of(
+                                new PlanetPlan.Template(
+                                        List.of(
+                                                new PlanetPlan.Voxel(
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        net.minecraft.world.level.block.Blocks
+                                                                .GOLD_BLOCK
+                                                                .defaultBlockState())))));
         terrain.initializePlan(() -> plan);
-        assertEquals(net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState(),
-            new SurfaceFunction(terrain).blocks(Face.TOP, 256, 256)[ground + 1 - terrain.floor()]);
+        assertEquals(
+                net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState(),
+                new SurfaceFunction(terrain)
+                        .blocks(Face.TOP, 256, 256)[ground + 1 - terrain.floor()]);
     }
+
     @Test
     void coldWaterAtGroundDoesNotCreateAnAirCap() throws Exception {
         var terrain = planet("ice").terrain();
@@ -309,7 +423,8 @@ class TerrainPlanTest {
             water[i] = (byte) Water.OCEAN.ordinal();
         }
         terrain.initializeTerrain(
-            new TerrainPlan(42, 512, original.recipe(), fields, biomes, water, List.of(), List.of()));
+                new TerrainPlan(
+                        42, 512, original.recipe(), fields, biomes, water, List.of(), List.of()));
         var function = new SurfaceFunction(terrain);
         var visible = function.visible(Face.TOP, 256, 256);
         var point = function.point(Face.TOP, 256, 256);
@@ -321,57 +436,82 @@ class TerrainPlanTest {
         assertEquals(visible.block(), blocks[127 - terrain.floor()]);
         assertTrue(blocks[128 - terrain.floor()].isAir());
         assertFalse(
-            dev.starfold.worldgen.lod.VoxelColumn.visible(function, Face.TOP, 256, 256).runs().isEmpty());
+                dev.starfold.worldgen.lod.VoxelColumn.visible(function, Face.TOP, 256, 256)
+                        .runs()
+                        .isEmpty());
     }
 
     @Test
-    void revisedRecipesProduceDiverseBiomesPowerLawCratersAndDensityControlledDrainage() throws Exception {
+    void revisedRecipesProduceDiverseBiomesPowerLawCratersAndDensityControlledDrainage()
+            throws Exception {
         var home = new TerrainPlanner(42, 512, recipe("home")).generate();
         var observed = new HashSet<String>();
         for (var f : Face.VALUES)
             for (int u = 2; u < 512; u += 8)
-                for (int v = 2; v < 512; v += 8) observed.add(home.biome(f,u,v));
-        assertTrue(observed.containsAll(recipe("home").biomeIds().stream().map(Object::toString).toList()), observed.toString());
+                for (int v = 2; v < 512; v += 8) observed.add(home.biome(f, u, v));
+        assertTrue(
+                observed.containsAll(
+                        recipe("home").biomeIds().stream().map(Object::toString).toList()),
+                observed.toString());
         var sparse = recipe("home").json();
         sparse.getAsJsonObject("erosion").addProperty("river_threshold", 64);
-        assertTrue(home.paths().size() > new TerrainPlanner(42,512,new TerrainRecipe(sparse)).generate().paths().size() * 2);
-        var next = new HashMap<Integer,Integer>();
-        for (var path : home.paths()) next.put(path.nodes().getFirst(),path.nodes().getLast());
+        assertTrue(
+                home.paths().size()
+                        > new TerrainPlanner(42, 512, new TerrainRecipe(sparse))
+                                        .generate()
+                                        .paths()
+                                        .size()
+                                * 2);
+        var next = new HashMap<Integer, Integer>();
+        for (var path : home.paths()) next.put(path.nodes().getFirst(), path.nodes().getLast());
         for (int node : next.keySet()) {
             var seen = new HashSet<Integer>();
-            for (Integer n = node; n != null; n = next.get(n)) assertTrue(seen.add(n), "acyclic drainage");
+            for (Integer n = node; n != null; n = next.get(n))
+                assertTrue(seen.add(n), "acyclic drainage");
         }
-        for (String type : List.of("rocky","asteroid","crystal","end","warden")) {
-            var plan = new TerrainPlanner(42,512,recipe(type)).generate();
-            var craters = plan.landforms().stream().filter(f -> f.type().equals("starfold:crater")).toList();
+        for (String type : List.of("rocky", "asteroid", "crystal", "end", "warden")) {
+            var plan = new TerrainPlanner(42, 512, recipe(type)).generate();
+            var craters =
+                    plan.landforms().stream()
+                            .filter(f -> f.type().equals("starfold:crater"))
+                            .toList();
             assertTrue(craters.size() >= 30, type + " " + craters.size());
-            assertTrue(craters.stream().filter(f -> f.radius() < 32).count()
-                > craters.stream().filter(f -> f.radius() > 64).count(),type);
+            assertTrue(
+                    craters.stream().filter(f -> f.radius() < 32).count()
+                            > craters.stream().filter(f -> f.radius() > 64).count(),
+                    type);
         }
     }
+
     @Test
     void optimizedSurfaceAndRiverCacheMatchColdQueriesAndFullColumns() throws Exception {
-        for (String type : List.of("home","ice","desert","rocky","basalt")) {
+        for (String type : List.of("home", "ice", "desert", "rocky", "basalt")) {
             var terrain = planet(type).terrain();
             var fixed = terrain.terrainPlan();
             var function = new SurfaceFunction(terrain);
             for (var f : Face.VALUES)
                 for (int i = 0; i < 16; i++) {
                     int u = i * 31, v = (i * 73 + 17) % 512;
-                    var p = terrain.unit(f,u+.5,v+.5);
-                    // Displace the thread-local entry before comparing cold and height-populated queries.
-                    fixed.height(Face.TOP,256,256);
-                    double cold = fixed.riverLevel(f,u+.5,v+.5,p);
-                    fixed.height(f,u+.5,v+.5);
-                    assertEquals(cold,fixed.riverLevel(f,u+.5,v+.5,p),1e-10);
-                    var point = function.point(f,u,v);
-                    var blocks = function.blocks(f,u,v);
-                    assertEquals(blocks[(int) point.height()-terrain.floor()],point.materials().getFirst().block(),type);
+                    var p = terrain.unit(f, u + .5, v + .5);
+                    // Displace the thread-local entry before comparing cold and height-populated
+                    // queries.
+                    fixed.height(Face.TOP, 256, 256);
+                    double cold = fixed.riverLevel(f, u + .5, v + .5, p);
+                    fixed.height(f, u + .5, v + .5);
+                    assertEquals(cold, fixed.riverLevel(f, u + .5, v + .5, p), 1e-10);
+                    var point = function.point(f, u, v);
+                    var blocks = function.blocks(f, u, v);
+                    assertEquals(
+                            blocks[(int) point.height() - terrain.floor()],
+                            point.materials().getFirst().block(),
+                            type);
                 }
         }
     }
+
     @Test
-    void realChunksMatchRiversLakesCratersCanyonsVolcanoesAndSeamsInReverseOrder() throws Exception {
+    void realChunksMatchRiversLakesCratersCanyonsVolcanoesAndSeamsInReverseOrder()
+            throws Exception {
         boolean river = false, lake = false;
         for (String type : List.of("home", "rocky", "desert", "basalt", "ice")) {
             var planet = planet(type);
@@ -384,36 +524,54 @@ class TerrainPlanTest {
                 river = true;
                 var c = plan.chart(plan.position(plan.paths().getFirst().nodes().getFirst()));
                 locations.add(
-                    new Cell(c.face(), Math.clamp((int) c.u(), 0, 511), 0, Math.clamp((int) c.v(), 0, 511)));
+                        new Cell(
+                                c.face(),
+                                Math.clamp((int) c.u(), 0, 511),
+                                0,
+                                Math.clamp((int) c.v(), 0, 511)));
             }
             for (int n = 0; n < plan.nodeCount(); n++)
                 if (plan.water(n) == Water.LAKE) {
                     lake = true;
                     var c = plan.chart(plan.position(n));
-                    locations.add(new Cell(
-                        c.face(), Math.clamp((int) c.u(), 0, 511), 0, Math.clamp((int) c.v(), 0, 511)));
+                    locations.add(
+                            new Cell(
+                                    c.face(),
+                                    Math.clamp((int) c.u(), 0, 511),
+                                    0,
+                                    Math.clamp((int) c.v(), 0, 511)));
                     break;
                 }
             if (!plan.landforms().isEmpty()) {
                 var c = plan.chart(plan.landforms().getFirst().center());
                 locations.add(new Cell(c.face(), (int) c.u(), 0, (int) c.v()));
             }
-            var system = new SystemChunkGenerator(dev.starfold.planet.PlanetStorage.LAYOUT, List.of(planet));
+            var system =
+                    new SystemChunkGenerator(
+                            dev.starfold.planet.PlanetStorage.LAYOUT, List.of(planet));
             var function = new SurfaceFunction(terrain);
             Collections.reverse(locations);
             for (var c : locations) {
-                var chunk = new ProtoChunk(new ChunkPos(c.face().ordinal() * 256 + c.u() / 16, c.v() / 16),
-                    UpgradeData.EMPTY, LevelHeightAccessor.create(-64, 384),
-                    PlanetPlanFixtures.context.registries().registryOrThrow(Registries.BIOME), null);
+                var chunk =
+                        new ProtoChunk(
+                                new ChunkPos(c.face().ordinal() * 256 + c.u() / 16, c.v() / 16),
+                                UpgradeData.EMPTY,
+                                LevelHeightAccessor.create(-64, 384),
+                                PlanetPlanFixtures.context
+                                        .registries()
+                                        .registryOrThrow(Registries.BIOME),
+                                null);
                 SystemGeneration.fill(system, chunk).join();
                 for (int x = 0; x < 16; x++)
                     for (int z = 0; z < 16; z++) {
                         int u = c.u() / 16 * 16 + x, v = c.v() / 16 * 16 + z;
                         var blocks = function.blocks(c.face(), u, v);
                         for (int y = terrain.floor(); y < 320; y++)
-                            assertEquals(blocks[y - terrain.floor()],
-                                chunk.getBlockState(new BlockPos(c.face().ordinal() * 4096 + u, y, v)),
-                                type + " " + c + " y=" + y);
+                            assertEquals(
+                                    blocks[y - terrain.floor()],
+                                    chunk.getBlockState(
+                                            new BlockPos(c.face().ordinal() * 4096 + u, y, v)),
+                                    type + " " + c + " y=" + y);
                     }
             }
         }

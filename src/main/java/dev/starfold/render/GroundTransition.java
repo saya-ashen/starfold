@@ -35,7 +35,8 @@ public final class GroundTransition {
 
     /** The projection must contain the same terrain disk as the range clip, including relief. */
     public static float depthFar(double height, int view, double radius) {
-        return (float) (Math.hypot(clip(height, view + 24, view, radius), Math.max(0, height) + 192) + 32);
+        return (float)
+                (Math.hypot(clip(height, view + 24, view, radius), Math.max(0, height) + 192) + 32);
     }
 
     /** Distance to the horizon of a sphere of this radius, seen from this height above it. */
@@ -68,7 +69,10 @@ public final class GroundTransition {
                 q = cache.node(face, a + 16, b),
                 r = cache.node(face, a, b + 16),
                 s = cache.node(face, a + 16, b + 16);
-        return cache.surfaceHeight(face, (int) x, (int) z,
+        return cache.surfaceHeight(
+                face,
+                (int) x,
+                (int) z,
                 v >= u ? p * (1 - v) + r * (v - u) + s * u : p * (1 - u) + s * v + q * (u - v));
     }
 

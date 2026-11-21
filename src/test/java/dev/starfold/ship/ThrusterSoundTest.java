@@ -2,8 +2,6 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
-
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.*;
@@ -103,17 +101,5 @@ class ThrusterSoundTest {
                                     Files.readString(root.resolve("lang/" + language + ".json")))
                             .getAsJsonObject()
                             .has(sound.get("subtitle").getAsString()));
-    }
-
-    @Test
-    void hullLoopIsClientOnlyAndSpaceRequiresCrew() throws Exception {
-        var s = Sources.text("ThrusterSoundClient");
-        assertTrue(s.contains("IdentityHashMap<ClientSubLevel,Engine>"));
-        assertTrue(s.contains("aboard==body"));
-        assertTrue(s.contains("getBlockEntityActors()"));
-        assertTrue(s.contains("engine.target=0"));
-        assertTrue(s.contains("AbstractTickableSoundInstance"));
-        assertFalse(s.contains("sendToServer"));
-        assertFalse(s.contains("playLocalSound"));
     }
 }

@@ -17,6 +17,22 @@ class CoreShaderTest {
     }
 
     @Test
+    void veilReadsMekasuitHelperWithoutAForwardDeclaration() {
+        var id =
+                net.minecraft.resources.ResourceLocation.parse(
+                        "mekanism:shaders/core/rendertype_mekasuit.fsh");
+        String signature = "bool shouldTint(float red, float green, float blue)";
+        String main = "void main() { shouldTint(1.0, 1.0, 1.0); }";
+        String helper = signature + " { return red > green; }";
+        String source = signature + ";\n" + main + "\n" + helper + "\n";
+        String repaired = CoreShaderSource.veilFragment(id, true, source);
+        assertFalse(repaired.contains(signature + ";"));
+        assertTrue(repaired.indexOf(helper) < repaired.indexOf(main));
+        assertEquals(repaired, CoreShaderSource.veilFragment(id, true, repaired));
+        assertEquals(source, CoreShaderSource.veilFragment(id, false, source));
+    }
+
+    @Test
     void terrainFluidsEntitiesParticlesAndBlockEntityPathsAreWrapped() throws Exception {
         for (String name :
                 List.of(
@@ -40,18 +56,29 @@ class CoreShaderTest {
             assertTrue(v.startsWith("#version 150"));
             assertTrue(f.startsWith("#version 150"));
             assertTrue(v.contains("void cpCapOriginalMain()"));
-            assertTrue(v.contains("out float cpNativeFacing"));
-            if(!v.contains("uniform sampler2D Sampler2;"))
-                assertFalse(v.contains("texelFetch(Sampler2"),name);
+            assertTrue(v.contains("gl_Position.xy+=CPWorldJitter*gl_Position.w"));
+            assertFalse(v.contains("cpScan_vertexColor"), "Non-scanline modes must omit geometry capture");
+            assertTrue(v.contains("out float cpNativeFacing") || v.contains("out float cpScan_cpNativeFacing"));
+            if (!v.contains("uniform sampler2D Sampler2;"))
+                assertFalse(v.contains("texelFetch(Sampler2"), name);
             assertTrue(f.contains("in float cpNativeFacing"));
             assertTrue(f.contains("cpCapOriginalMain();"));
+            boolean multisampledTerrain = name.equals("rendertype_solid")
+                    || name.equals("rendertype_cutout") || name.equals("rendertype_cutout_mipped");
+            assertEquals(multisampledTerrain, f.contains("interpolateAtCentroid(texCoord0)"), name);
+            if (multisampledTerrain) {
+                assertTrue(f.contains("cpNativeSample(Sampler0,CP_BLOCK_UV)"), name);
+                assertTrue(f.contains("#else\n#define CP_BLOCK_UV texCoord0"), name);
+            }
         }
     }
 
     @Test
     void farTexturesKeepMipmappedAtlasDetailAtEveryAltitude() {
         assertTrue(GroundShaderSource.TEXTURE.contains("textureGrad(source,repeated,dx,dy)"));
-        assertTrue(GroundShaderSource.TEXTURE.contains("return vec4(rgb,cpNativeTextureAlpha<0.0?1.0:cpNativeTextureAlpha)"));
+        assertTrue(
+                GroundShaderSource.TEXTURE.contains(
+                        "return vec4(rgb,cpNativeTextureAlpha<0.0?1.0:cpNativeTextureAlpha)"));
         assertFalse(GroundShaderSource.TEXTURE.contains("mix(rgb,cpNativeRepeatAlbedo"));
     }
 

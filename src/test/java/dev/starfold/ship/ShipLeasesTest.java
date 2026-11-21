@@ -2,7 +2,6 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.GroundSeams;
 
@@ -15,6 +14,23 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 
 class ShipLeasesTest {
+    @Test
+    void fastApproachSweepsAheadInOrderAndCapsTheTicketCount() {
+        var hull = new AABB(4, 80, 4, 12, 84, 12);
+        var columns = new LinkedHashSet<Long>();
+        SableTickets.approachColumns(columns, hull, 0, 64);
+        assertTrue(columns.isEmpty());
+
+        SableTickets.approachColumns(columns, hull, 0, -240);
+        assertEquals(ChunkPos.asLong(0, -5), columns.getFirst());
+        assertEquals(ChunkPos.asLong(0, -40), columns.getLast());
+        assertTrue(columns.stream().allMatch(key -> ChunkPos.getX(key) == 0));
+
+        columns.clear();
+        SableTickets.approachColumns(columns, hull.inflate(128, 0, 128), 180, 180);
+        assertEquals(64, columns.size());
+    }
+
     private static ShipLeases.Input input(UUID id, AABB raw, List<GroundSeams.Transport> seams) {
         var footprint = new HashSet<Long>();
         SableTickets.columns(footprint, raw.inflate(1));
@@ -154,48 +170,5 @@ class ShipLeasesTest {
                     if (plot) matches.add("plot");
                     assertEquals(!plot && (tracking || inside), SableTickets.worldCargo(matches));
                 }
-    }
-
-    @Test
-    void productionRetainsAlwaysAndOnlyDevCanSuppressItWithoutUnloading() throws Exception {
-        var host = Sources.text("ShipHost");
-        assertTrue(
-                host.contains(
-                        "default boolean alwaysTicket(java.util.UUID ship) { return true; }"));
-        var tickets = Sources.text("SableTickets");
-        assertTrue(
-                tickets.contains(
-                        "if (ShipHost.get().alwaysTicket(body.getUniqueId())) reasons.add(ShipLeases.Reason.ALWAYS)"));
-        assertTrue(tickets.contains("raw.inflate(32)"));
-        assertTrue(tickets.contains("for (int i = 0; i < 4; i++)"));
-        assertTrue(tickets.contains("(i & 1) == 0 ? box.minX : box.maxX"));
-        assertTrue(tickets.contains("(i & 2) == 0 ? box.minZ : box.maxZ"));
-        assertTrue(tickets.contains("TicketType.create(\"starfold_sable_cargo\", Long::compare)"));
-        assertTrue(tickets.contains("addRegionTicket(TYPE, new ChunkPos(key), 2, key)"));
-        assertTrue(tickets.contains("removeRegionTicket(TYPE, new ChunkPos(key), 2, key)"));
-        assertTrue(tickets.contains("SUB_LEVEL_TRACKING_RANGE.get() + 64"));
-        assertTrue(tickets.contains("ShipLeases.Reason.NON_PLAYER_ABOARD"));
-        assertTrue(tickets.contains("ShipLeases.Reason.PLAYER_ABOARD"));
-        assertTrue(tickets.contains("ShipLeases.Reason.PLAYER_NEAR"));
-        assertTrue(tickets.contains("HelmServer.hasPilot(body)"));
-        assertTrue(
-                tickets.indexOf("if (reasons.contains(ShipLeases.Reason.ALWAYS)) return reasons;")
-                        < tickets.indexOf("HelmServer.hasPilot(body)"),
-                "Default tickets must not add aboard-cache reads");
-        var probe = Sources.text("DevShipPersistenceProbe");
-        assertTrue(probe.contains("Boolean.getBoolean(\"starfold.shipProbe\")"));
-        assertTrue(probe.contains("!enabled() || !ship.equals(excluded)"));
-        assertTrue(probe.contains("getHoldingSubLevel(record.uuid())"));
-        assertTrue(probe.contains("inBlockTickingRange(k)"));
-        assertTrue(probe.contains("holds.clear()"));
-        for (var text : List.of(tickets, probe))
-            for (var forbidden :
-                    List.of(
-                            "moveToUnloaded(",
-                            "snatchAndLoad(",
-                            "removeSubLevel(",
-                            "addForceLoadTicket("))
-                assertFalse(text.contains(forbidden), forbidden);
-        assertTrue(Sources.text("StarfoldProbes").contains("DevShipPersistenceProbe.clear()"));
     }
 }

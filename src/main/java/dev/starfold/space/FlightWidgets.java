@@ -53,11 +53,21 @@ public final class FlightWidgets {
     }
 
     /** Non-surface lock uses the same projection, edge arrow and radial ETA as planet locks. */
-    public static void remote(GuiGraphics g, String name, SpaceNavigation.Marker marker, double distance, double closing) {
+    public static void remote(
+            GuiGraphics g,
+            String name,
+            SpaceNavigation.Marker marker,
+            double distance,
+            double closing) {
         var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
         g.fill(l.mode().x(), l.mode().y() + 20, l.mode().right(), l.mode().y() + 34, DARK);
-        centreText(g, tr("remote", name), l.width() / 2, l.mode().y() + 23, AMBER, l.mode().width());
-        int x = Math.clamp((int) Math.round(marker.x() * l.width()), l.speed().right() + 12, l.closing().x() - 12);
+        centreText(
+                g, tr("remote", name), l.width() / 2, l.mode().y() + 23, AMBER, l.mode().width());
+        int x =
+                Math.clamp(
+                        (int) Math.round(marker.x() * l.width()),
+                        l.speed().right() + 12,
+                        l.closing().x() - 12);
         int y = Math.clamp((int) Math.round(marker.y() * l.height()), 54, l.height() - 76);
         box(g, x - 6, y - 6, 13, 13, AMBER);
         if (marker.edge()) SpaceNavigationClient.arrow(g, x, y, marker.angle(), AMBER);
@@ -74,20 +84,34 @@ public final class FlightWidgets {
     public static void fuel(GuiGraphics g, double amount, double deltaV) {
         if (amount < 0) return;
         var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
-        text(g, tr("fuel", number(amount)), 8, l.height() - 76,
-                amount == 0 ? RED : CYAN, Math.min(160, l.width() - 16));
+        text(
+                g,
+                tr("fuel", number(amount)),
+                8,
+                l.height() - 76,
+                amount == 0 ? RED : CYAN,
+                Math.min(160, l.width() - 16));
         if (deltaV >= 0)
-            text(g, tr("delta_v", number(deltaV)), 8, l.height() - 65,
-                    CYAN, Math.min(160, l.width() - 16));
+            text(
+                    g,
+                    tr("delta_v", number(deltaV)),
+                    8,
+                    l.height() - 65,
+                    CYAN,
+                    Math.min(160, l.width() - 16));
     }
 
     public static void stopping(GuiGraphics g, double speed, double deltaV) {
         var l = HudLayout.layout(g.guiWidth(), g.guiHeight());
-        text(g, tr("stop_delta_v", number(speed)), 8, l.height() - 54,
-                CYAN, Math.min(200, l.width() - 16));
+        text(
+                g,
+                tr("stop_delta_v", number(speed)),
+                8,
+                l.height() - 54,
+                CYAN,
+                Math.min(200, l.width() - 16));
         if (deltaV >= 0 && deltaV < speed)
-            text(g, tr("stop_delta_v_low"), 8, l.height() - 43,
-                    RED, Math.min(240, l.width() - 16));
+            text(g, tr("stop_delta_v_low"), 8, l.height() - 43, RED, Math.min(240, l.width() - 16));
     }
 
     private static boolean shows(FlightSnapshot s, HudLayout.Widget w) {
@@ -189,7 +213,8 @@ public final class FlightWidgets {
                                         ? s.target().gasBlockerName()
                                         : s.target().blocker() < 0
                                                 ? null
-                                                : PlanetSystem.label(s.target().blocker()).getString();
+                                                : PlanetSystem.label(s.target().blocker())
+                                                        .getString();
         if (shows(s, TARGET) && obstruction != null) {
             var row = HudLayout.occlusion(l);
             centreText(g, tr("blocked", obstruction), l.width() / 2, row.y(), AMBER, row.width());
@@ -590,11 +615,7 @@ public final class FlightWidgets {
         if (s.tier() < 3 || a == null) return;
         if (HullLanding.showSurface(s.tier(), s.mode(), s.clearance())) {
             var site = a.site();
-            int color =
-                    (site.kind() == HullLanding.Kind.LAND || site.kind() == HullLanding.Kind.PAD)
-                                    && site.deployable()
-                            ? CYAN
-                            : RED;
+            int color = site.deployable() ? CYAN : RED;
             centreText(
                     g,
                     tr("below_" + site.kind().name().toLowerCase(Locale.ROOT)),

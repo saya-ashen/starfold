@@ -14,7 +14,6 @@ import dev.starfold.render.RendererGuard;
 import dev.starfold.ship.AircraftDockRenderer;
 import dev.starfold.ship.AirstairRenderer;
 import dev.starfold.ship.ShipClientHost;
-import dev.starfold.space.SpacePackets;
 import dev.starfold.ship.ThrusterRenderer;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.SkyHost;
@@ -25,6 +24,7 @@ import dev.starfold.space.SpaceClient;
 import dev.starfold.space.SpaceClientHost;
 import dev.starfold.space.SpaceDust;
 import dev.starfold.space.SpaceDustParticle;
+import dev.starfold.space.SpacePackets;
 import dev.starfold.waypoint.WaypointClient;
 import dev.starfold.waypoint.WaypointClientHost;
 
@@ -35,6 +35,7 @@ import net.neoforged.fml.common.Mod;
 @Mod(value = "starfold", dist = Dist.CLIENT)
 public final class StarfoldClient {
     private final dev.starfold.render.ClientWorldSession worldSession;
+
     public StarfoldClient(net.neoforged.bus.api.IEventBus modBus) {
         installSkyHost();
         dev.starfold.planet.PlanetConditions.installClient(
@@ -206,7 +207,10 @@ public final class StarfoldClient {
                     }
 
                     @Override
-                    public void groundTarget(net.minecraft.client.gui.GuiGraphics graphics, String name, dev.starfold.geometry.BentStripGeometry.Point destination) {
+                    public void groundTarget(
+                            net.minecraft.client.gui.GuiGraphics graphics,
+                            String name,
+                            dev.starfold.geometry.BentStripGeometry.Point destination) {
                         WaypointClient.destination(graphics, name, destination);
                     }
 

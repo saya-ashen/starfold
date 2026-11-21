@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IFI",
+    "CBC",
+    "IRI"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "F": {
+      "item": "minecraft:iron_bars"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "B": {
+      "item": "minecraft:bucket"
+    },
+    "R": {
+      "item": "minecraft:furnace"
+    }
+  },
+  "result": {
+    "id": "starfold_mining:oil_extractor",
+    "count": 1
+  }
+}

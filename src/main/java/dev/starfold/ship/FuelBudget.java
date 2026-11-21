@@ -27,7 +27,8 @@ final class FuelBudget {
     }
 
     double impulseFor(double currentMass, double deltaV) {
-        return massPerImpulse == 0 ? currentMass * deltaV
+        return massPerImpulse == 0
+                ? currentMass * deltaV
                 : -currentMass * Math.expm1(-deltaV * massPerImpulse) / massPerImpulse;
     }
 
@@ -36,7 +37,8 @@ final class FuelBudget {
     }
 
     static double velocityChange(double currentMass, double impulse, double burnedMass) {
-        return burnedMass == 0 ? impulse / currentMass
+        return burnedMass == 0
+                ? impulse / currentMass
                 : impulse / burnedMass * -Math.log1p(-burnedMass / currentMass);
     }
 

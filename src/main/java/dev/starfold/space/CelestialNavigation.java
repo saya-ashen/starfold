@@ -122,9 +122,12 @@ public final class CelestialNavigation {
                                     policy.pressure(depth),
                                     Math.max(0, policy.maxDepth() - depth))));
         }
-        return new Reading(target.surfaceSlot(model).isPresent()
-                ? Space.height(model, target.requireSurfaceSlot(model), position, tick)
-                : toward.length() - body.radius(), closing, Optional.empty());
+        return new Reading(
+                target.surfaceSlot(model).isPresent()
+                        ? Space.height(model, target.requireSurfaceSlot(model), position, tick)
+                        : toward.length() - body.radius(),
+                closing,
+                Optional.empty());
     }
 
     /** A physical gas envelope can block either kind of selected target; returned identity stays typed. */

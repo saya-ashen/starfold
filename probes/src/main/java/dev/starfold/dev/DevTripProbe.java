@@ -1,6 +1,9 @@
 package dev.starfold.dev;
 
+import dev.starfold.chart.PlanetShape;
+import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.planet.GroundCoordinates;
+import dev.starfold.planet.PlanetStorage;
 import dev.starfold.render.GroundClient;
 import dev.starfold.ship.Airstair;
 import dev.starfold.ship.HelmClient;
@@ -17,13 +20,66 @@ final class DevTripProbe {
     private static boolean chart, lost;
     private static int resting;
 
+    /** Margin of the entire hull in the current surface chart, including rotation. */
+    static double faceInset() {
+        var body = HelmClient.body();
+        if (body == null || SpaceClient.active() || !GroundClient.ready()) return Double.NaN;
+        var frame = GroundClient.frame();
+        var origin = faceOrigin();
+        var box = HullLanding.bounds(body);
+        var a = GroundClient.storage(box.minX(), box.minY(), box.minZ()).sub(origin);
+        var b = GroundClient.storage(box.maxX(), box.maxY(), box.maxZ()).sub(origin);
+        int size = PlanetShape.of(frame.planet()).size();
+        return Math.min(Math.min(Math.min(a.x(), b.x()), Math.min(a.z(), b.z())),
+                size - Math.max(Math.max(a.x(), b.x()), Math.max(a.z(), b.z())));
+    }
+
+    static double centerHeading() {
+        var body = HelmClient.body();
+        if (body == null || SpaceClient.active() || !GroundClient.ready())
+            throw new IllegalStateException("facecenter requires a piloted surface hull");
+        var frame = GroundClient.frame();
+        double half = PlanetShape.of(frame.planet()).half();
+        var center = frame.toClient(faceOrigin().add(new Point(half, 0, half)));
+        var at = body.logicalPose().position();
+        return Math.toDegrees(Math.atan2(center.z() - at.z, at.x - center.x()));
+    }
+
+    static Point chartImage(double x, double z) {
+        var frame = GroundClient.frame();
+        var origin = PlanetStorage.origin(frame.planet());
+        int face = GroundCoordinates.face(x - origin.x());
+        var targetOrigin = origin.add(GroundCoordinates.origin(face));
+        var chart = new dev.starfold.chart.PlanetChart(
+                PlanetShape.of(frame.planet()), dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[frame.root()]);
+        var tile = chart.tile(dev.starfold.geometry.CubeSurfaceTopology.Face.VALUES[face]);
+        if (tile == null) throw new IllegalStateException("Target is outside the current and adjacent charts");
+        return frame.toClient(faceOrigin().add(tile.point(new Point(x - targetOrigin.x(), 0, z - targetOrigin.z()))));
+    }
+
+    static Point storageHull() {
+        var body = HelmClient.body();
+        if (body == null || SpaceClient.active() || !GroundClient.ready()) return null;
+        var at = body.logicalPose().position();
+        return GroundClient.storage(at.x(), at.y(), at.z());
+    }
+
+    private static Point faceOrigin() {
+        var frame = GroundClient.frame();
+        return PlanetStorage.origin(frame.planet()).add(GroundCoordinates.origin(frame.root()));
+    }
+
+    static int restingTicks() {
+        return resting;
+    }
+
     static void tick(Minecraft mc) {
         if (!chart || mc.player == null) return;
         var body = HelmClient.body();
         // body() follows authoritative pilot identity until release/disconnect. Command
         // state has a short thrust lease and may expire while the client catches up.
         // At altitude >= 200, UNKNOWN is the normal suppressed landing survey, not loss
-        // of authority. LANDAID UNKNOWN during the low landing leg remains a hard failure.
+        // of authority. A sustained unknown landing survey is separately visible in landing telemetry.
         if (!lost && body == null) {
             lost = true;
             org.slf4j.LoggerFactory.getLogger("starfold-probe")

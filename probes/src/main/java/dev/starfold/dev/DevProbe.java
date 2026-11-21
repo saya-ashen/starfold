@@ -1,9 +1,9 @@
 package dev.starfold.dev;
 
-import static dev.starfold.dev.ProbeSession.*;
-import static dev.starfold.dev.ProbeInput.*;
 import static dev.starfold.dev.ProbeCamera.*;
+import static dev.starfold.dev.ProbeInput.*;
 import static dev.starfold.dev.ProbeSamples.*;
+import static dev.starfold.dev.ProbeSession.*;
 
 import dev.starfold.probe.ProbeState;
 import dev.starfold.space.SpaceClient;
@@ -16,9 +16,13 @@ import java.util.*;
 /** Development-only scripted client driver. Inert unless -Dstarfold.probe=<script> is set.
  * Lines: wait N | until alt<|alt>|ground|free|controlled [VALUE] TIMEOUT | aim target|track|free | nav TEXT | waitworld | cmd TEXT | key NAME on|off | look YAW PITCH | fly on|off | abilities TEXT | census RADIUS | shot NAME | log TEXT | quit */
 public final class DevProbe {
+    private static boolean joinedWorld;
+    private static boolean handedOff;
+    private static int handoffSamples;
+
     /** Scripted sessions have no focused, mouse-grabbed window; flight input must still be read. */
     public static boolean active() {
-        return !cursor.lines.isEmpty();
+        return !handedOff && !cursor.lines.isEmpty();
     }
 
     public static void initialize() {
@@ -43,6 +47,13 @@ public final class DevProbe {
                     try {
                         DevProbe.tick(mc);
                     } catch (RuntimeException error) {
+                        if (DevFarTraceProbe.active()) {
+                            try {
+                                DevFarTraceProbe.stop(mc, "exception: " + error);
+                            } catch (RuntimeException exportError) {
+                                error.addSuppressed(exportError);
+                            }
+                        }
                         if (!cursor.strict) throw error;
                         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                                 .error("PROBE exception", error);
@@ -51,8 +62,53 @@ public final class DevProbe {
                 });
     }
 
+    static boolean handOff(Minecraft mc) {
+        if (!Boolean.getBoolean("starfold.probe.handoff") || mc.player == null) return false;
+        handedOff = true;
+        handoffSnapshot(mc);
+        org.slf4j.LoggerFactory.getLogger("starfold-probe").info("PROBE HANDOFF READY");
+        return true;
+    }
+
+    private static void handoffSnapshot(Minecraft mc) {
+        if (mc.player == null) return;
+        String label = "handoff-" + ++handoffSamples;
+        commandHelmstate(mc, label);
+        DevLandingProbe.logLoopStair(mc, label);
+        commandShot(mc, label);
+    }
+
+    private static void handleHandoff(Minecraft mc) {
+        var request = mc.gameDirectory.toPath().resolve("probe-handoff-client.txt");
+        if (!Files.isRegularFile(request)) return;
+        try {
+            String command = Files.readString(request).strip();
+            Files.delete(request);
+            switch (command) {
+                case "snapshot" -> handoffSnapshot(mc);
+                case "quit" -> mc.stop();
+                default ->
+                        org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                                .warn("PROBE HANDOFF unknown command {}", command);
+            }
+        } catch (java.io.IOException error) {
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .warn("PROBE HANDOFF request failed", error);
+        }
+    }
+
     // Step/await helpers return true when they consume the tick; later work must not run.
     private static void tick(Minecraft mc) {
+        if (handedOff) {
+            handleHandoff(mc);
+            return;
+        }
+        if (mc.level != null && mc.getConnection() != null) joinedWorld = true;
+        if (joinedWorld && mc.getConnection() == null && cursor.line < cursor.lines.size()) {
+            fail(mc, "disconnected before script completion");
+            return;
+        }
+        if (DevFarTraceProbe.tick(mc)) return;
         if (DevPlanetSoundProbe.enabled()) DevPlanetSoundProbe.tick(mc);
         updatePresentation(mc);
         if (DevFlightPerfProbe.tick(mc)) return;
@@ -61,7 +117,7 @@ public final class DevProbe {
         updateSampling(mc);
         if (awaitReceipt(mc)) return;
         if (awaitMotion(mc)) return;
-        if (walkStep(mc)) return;
+        if (DevBaritoneProbe.tick(mc) || walkStep(mc)) return;
         updateTracking(mc);
         if (shipAimStep(mc)) return;
         if (mouseAimStep(mc)) return;
@@ -70,8 +126,10 @@ public final class DevProbe {
         }
         if (homeStep(mc)) return;
         if (headingStep(mc)) return;
+        if (chartTravelStep(mc)) return;
         if (awaitCondition(mc)) return;
         runScript(mc);
+        if (cursor.line >= cursor.lines.size()) DevFarTraceProbe.stop(mc, "script-end");
     }
 
     private DevProbe() {}

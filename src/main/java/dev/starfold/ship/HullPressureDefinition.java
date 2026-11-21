@@ -10,8 +10,11 @@ record HullPressureDefinition(ResourceLocation blocks, boolean tag, double press
     static HullPressureDefinition parse(JsonObject json) {
         var blocks = json.get("blocks");
         var pressure = json.get("pressure");
-        if (blocks == null || !blocks.isJsonPrimitive() || !blocks.getAsJsonPrimitive().isString()
-                || pressure == null || !pressure.isJsonPrimitive()
+        if (blocks == null
+                || !blocks.isJsonPrimitive()
+                || !blocks.getAsJsonPrimitive().isString()
+                || pressure == null
+                || !pressure.isJsonPrimitive()
                 || !pressure.getAsJsonPrimitive().isNumber())
             throw new JsonParseException("Expected blocks string and positive numeric pressure");
         String name = blocks.getAsString();

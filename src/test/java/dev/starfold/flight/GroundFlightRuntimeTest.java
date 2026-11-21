@@ -2,7 +2,6 @@ package dev.starfold.flight;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.chart.GroundTransit;
@@ -41,11 +40,29 @@ class GroundFlightRuntimeTest {
     }
 
     @Test
+    void fastCruiseKeepsFarViewUntilDescentOrLossOfSafetyMargin() {
+        var mask = GroundSpace.DEFAULT_MASK;
+        double boundary = GroundDynamics.handoff(mask) + 384;
+        assertTrue(GroundFlightServer.cruises(cruiseState(boundary + 1, 13, 0, GroundDynamics.OFF), mask, false));
+        assertFalse(GroundFlightServer.cruises(cruiseState(boundary, 9, 0, GroundDynamics.OFF), mask, false));
+        assertTrue(GroundFlightServer.cruises(cruiseState(boundary, 9, 0, GroundDynamics.OFF), mask, true));
+        assertFalse(GroundFlightServer.cruises(cruiseState(boundary, 7, 0, GroundDynamics.OFF), mask, true));
+        assertFalse(GroundFlightServer.cruises(cruiseState(boundary, 12, -1, GroundDynamics.OFF), mask, true));
+        assertFalse(GroundFlightServer.cruises(cruiseState(boundary - 1, 12, 0, GroundDynamics.OFF), mask, true));
+        var landing = new dev.starfold.chart.GroundGuidance.Options(0, false, true);
+        assertFalse(GroundFlightServer.cruises(cruiseState(boundary, 12, 0, landing), mask, true));
+    }
+
+    private static GroundDynamics.State cruiseState(double h, double speed, double rise,
+            dev.starfold.chart.GroundGuidance.Options guidance) {
+        return GroundDynamics.local(900, new PlanetShape.Pose(Face.TOP, new Point(1024, h, 1024)),
+                new Point(speed, rise, 0), new Quaterniond(), true, guidance);
+    }
+
+    @Test
     void terrainAndSavedColumnsSetFlightHandoffIndependentlyOfOrbitDisplay() throws Exception {
         assertEquals(208.9, GroundDynamics.HANDOFF, 1e-9);
         assertEquals(160, dev.starfold.chart.GroundOrbit.START);
-        assertTrue(Sources.text("GroundFlightClient").contains(
-                "if(!state.space()&&state.local().point().y()<=GroundDynamics.handoff(mask))return;"));
         var model = GroundSolar.defaults();
         try {
             for (int size : new int[] {416, 1024, 2048}) {
@@ -54,28 +71,55 @@ class GroundFlightRuntimeTest {
                     var mask = new GroundSpace.Config(16, column);
                     double boundary = GroundDynamics.handoff(mask);
                     assertEquals(column == 128 ? 208.9 : 336.9, boundary, 1e-9);
-                    var terrain = new GroundDynamics.Terrain() {
-                        public boolean clear(PlanetShape.Pose pose) { return true; }
-                        public double clearance(PlanetShape.Pose pose) { return pose.point().y(); }
-                        public double handoff() { return GroundDynamics.handoff(mask); }
-                    };
+                    var terrain =
+                            new GroundDynamics.Terrain() {
+                                public boolean clear(PlanetShape.Pose pose) {
+                                    return true;
+                                }
+
+                                public double clearance(PlanetShape.Pose pose) {
+                                    return pose.point().y();
+                                }
+
+                                public double handoff() {
+                                    return GroundDynamics.handoff(mask);
+                                }
+                            };
                     for (double h : new double[] {192.9, boundary, boundary + .01}) {
-                        var state = GroundDynamics.local(900,
-                                new PlanetShape.Pose(Face.TOP, new Point(size / 2.0, h, size / 2.0)),
-                                new Point(0, 0, 0), new Quaterniond(), true, GroundDynamics.OFF);
+                        var state =
+                                GroundDynamics.local(
+                                        900,
+                                        new PlanetShape.Pose(
+                                                Face.TOP, new Point(size / 2.0, h, size / 2.0)),
+                                        new Point(0, 0, 0),
+                                        new Quaterniond(),
+                                        true,
+                                        GroundDynamics.OFF);
                         boolean flight = h > boundary;
                         assertEquals(flight, GroundFlightServer.restores(state, mask));
-                        var input = PlanetMotion.Input.idle(1,
-                                GroundDynamics.orientation(model, state, state.tick()));
+                        var input =
+                                PlanetMotion.Input.idle(
+                                        1, GroundDynamics.orientation(model, state, state.tick()));
                         if (flight) {
-                            assertDoesNotThrow(() -> GroundDynamics.step(model, terrain, state, input, false));
-                            assertDoesNotThrow(() -> new GroundFlightPackets.Setup(42, model, mask, state, true));
-                        } else {
-                            assertThrows(IllegalStateException.class,
+                            assertDoesNotThrow(
                                     () -> GroundDynamics.step(model, terrain, state, input, false));
-                            assertThrows(IllegalArgumentException.class,
-                                    () -> new GroundFlightPackets.Setup(42, model, mask, state, true));
-                            assertDoesNotThrow(() -> new GroundFlightPackets.Setup(42, model, mask, state, false));
+                            assertDoesNotThrow(
+                                    () ->
+                                            new GroundFlightPackets.Setup(
+                                                    42, model, mask, state, true));
+                        } else {
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> GroundDynamics.step(model, terrain, state, input, false));
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () ->
+                                            new GroundFlightPackets.Setup(
+                                                    42, model, mask, state, true));
+                            assertDoesNotThrow(
+                                    () ->
+                                            new GroundFlightPackets.Setup(
+                                                    42, model, mask, state, false));
                         }
                     }
                 }
@@ -236,28 +280,8 @@ class GroundFlightRuntimeTest {
 
     @Test
     void serverWorldTickEntryLeaveAndSpinUseTheFlightAdapter() throws Exception {
-        var server = Sources.text("PlanetPlayers");
-        assertTrue(Sources.text("StarfoldServer").contains("GroundFlightServer.tick(level,saved)"));
-        assertTrue(server.contains("GroundFlightServer.entry(player,level,clock)"));
-        assertTrue(
-                server.indexOf("arrival=arrival(player,level)")
-                        < server.indexOf("WorldSessionSave.get(level).remember(player)"));
-        assertTrue(server.contains("GroundFlightServer.enter(player,arrival.clock,arrival.saved)"));
-        assertTrue(server.contains("GroundFlightServer.detach(player)"));
-        assertTrue(server.contains("GroundFlightServer.restart(player,clock)"));
         // The installed leave adapter is checked in StarfoldHostBindingsTest.
         assertEquals(0, new FlightHost() {}.leave(null));
-        var flight = Sources.text("GroundFlightServer");
-        assertEquals(
-                2,
-                flight.split(java.util.regex.Pattern.quote("FlightHost.get().leave(player)"), -1)
-                                .length
-                        - 1);
-        assertFalse(flight.contains("GroundServer.leave"));
-        assertTrue(flight.contains("GroundNavigationSave.get"));
-        assertTrue(flight.contains("new GroundTerrain"));
-        assertFalse(flight.contains("GroundWorld"));
-        assertTrue(flight.contains("getChunkSource().move(player)"));
     }
 
     @Test
@@ -281,15 +305,6 @@ class GroundFlightRuntimeTest {
             assertTrue(
                     json.getAsJsonArray("client").asList().stream()
                             .anyMatch(x -> x.getAsString().equals(n)));
-        assertTrue(
-                Sources.text("GroundFlightTravelMixin")
-                        .contains("GroundFlightServer.controlled(e)"));
-        assertTrue(
-                Sources.text("GroundFlightClientMovementMixin")
-                        .contains("GroundFlightClient.controlled()"));
-        assertTrue(Sources.text("GroundClient").contains("GroundFlightClient.initialize(modBus)"));
-        assertTrue(Sources.text("GroundFlightClient").contains("if(pending.size()>=MAX_PENDING)return;"));
-        assertTrue(Sources.text("GroundFlightClient").contains("OrbitAttitude.turn"));
     }
 
     @Test

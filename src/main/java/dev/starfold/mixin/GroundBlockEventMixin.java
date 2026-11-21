@@ -17,5 +17,4 @@ public abstract class GroundBlockEventMixin {
         var access = PlanetAccess.of(level);
         return PlanetLevels.is(level) && access.inChart(pos) ? access.address(pos).owner() : pos;
     }
-
 }

@@ -133,15 +133,13 @@ final class DevFilm {
         }
         long due = (System.nanoTime() - start) * fps / 1_000_000_000L + 1;
         if (written >= due) return;
+        var frame = spare.poll();
+        if (frame == null) return;
         GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, target.frameBufferId);
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
         pixels.clear();
         GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
         GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, 0);
-        var frame = spare.poll();
-        if (frame == null)
-            return; // the encoder is behind: this moment is covered by repeating the next frame
-                    // that gets through
         pixels.get(0, frame);
         int times = (int) Math.min(due - written, 8);
         if (queue.offer(new Frame(frame, times))) written += times;
@@ -152,27 +150,37 @@ final class DevFilm {
         if (encoder == null) return;
         try {
             if (writer != null) {
-                queue.put(new Frame(new byte[0], 0));
-                writer.join(60_000);
+                queue.offer(new Frame(new byte[0], 0), 5, TimeUnit.SECONDS);
+                writer.join(5_000);
+                if (writer.isAlive()) {
+                    encoder.destroyForcibly();
+                    writer.interrupt();
+                    return;
+                }
             }
             if (out != null) out.close();
             else encoder.getOutputStream().close();
             if (!encoder.waitFor(60, TimeUnit.SECONDS)) encoder.destroyForcibly();
-        } catch (java.io.IOException | InterruptedException error) {
+        } catch (java.io.IOException error) {
             encoder.destroyForcibly();
+        } catch (InterruptedException error) {
+            encoder.destroyForcibly();
+            if (writer != null) writer.interrupt();
+            Thread.currentThread().interrupt();
+        } finally {
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info(
+                            "PROBE FILM stop {} frames {} seconds {}",
+                            name,
+                            written,
+                            String.format(java.util.Locale.ROOT, "%.1f", written / (double) fps));
+            encoder = null;
+            out = null;
+            pixels = null;
+            queue = null;
+            spare = null;
+            writer = null;
         }
-        org.slf4j.LoggerFactory.getLogger("starfold-probe")
-                .info(
-                        "PROBE FILM stop {} frames {} seconds {}",
-                        name,
-                        written,
-                        String.format(java.util.Locale.ROOT, "%.1f", written / (double) fps));
-        encoder = null;
-        out = null;
-        pixels = null;
-        queue = null;
-        spare = null;
-        writer = null;
     }
 
     private DevFilm() {}

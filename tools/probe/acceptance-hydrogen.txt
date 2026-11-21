@@ -1,0 +1,34 @@
+# Face-interior Mekanism fixture. Give machines water and power; check real cumulative fluid output.
+strict
+waitworld
+cmd gamemode creative
+fly on
+cmd execute in starfold:native_planet run tp @s 5353.5 152 896.5 0 0
+wait 100
+cmd fill 5348 150 895 5355 150 903 minecraft:stone
+cmd fill 5348 151 895 5355 154 903 minecraft:air
+cmd tp @s 5353.5 151 896.5 0 0
+wait 20
+# Leave a gap to measure the batch transferred by the fixture.
+cmd setblock 5350 151 900 mekanism:electrolytic_separator[facing=north]
+cmd setblock 5352 151 900 mekanism:rotary_condensentrator[facing=north]
+wait 40
+cmd scoreboard objectives add sfHydrogen dummy
+cmd execute store result score $supplied sfHydrogen run hydrogentest supply
+check hydrogen-supply-1 if score $supplied sfHydrogen matches 1
+wait 120
+cmd execute store result score $transfer sfHydrogen run hydrogentest transfer
+check hydrogen-transfer-1 if score $transfer sfHydrogen matches 1
+wait 180
+cmd execute store result score $produced sfHydrogen run hydrogentest read
+check hydrogen-produced-100 if score $produced sfHydrogen matches 100
+cmd execute store result score $supplied sfHydrogen run hydrogentest supply
+check hydrogen-supply-2 if score $supplied sfHydrogen matches 1
+wait 120
+cmd execute store result score $transfer sfHydrogen run hydrogentest transfer
+check hydrogen-transfer-2 if score $transfer sfHydrogen matches 1
+wait 180
+cmd execute store result score $produced sfHydrogen run hydrogentest read
+check hydrogen-produced-200 if score $produced sfHydrogen matches 200
+shot hydrogen-produced
+quit

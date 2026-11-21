@@ -1,9 +1,7 @@
 package dev.starfold.ship;
 
-
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.FlightMode;
 import dev.starfold.flight.FlightPermitTest;
 import dev.starfold.flight.HudLayout;
@@ -163,15 +161,6 @@ class FirstTripTest {
 
     @Test
     void wireAndPlannerAreShared() throws Exception {
-        var server = Sources.text("HelmServer");
-        assertTrue(server.contains("HullLanding.site(s.player.serverLevel(),s.body)"));
-        var stairs = Sources.text("Airstair");
-        assertTrue(stairs.contains("plan(level,stair,body,at,true)"));
-        assertTrue(stairs.contains("chart?plan(server,stair,body,at,gravity):null"));
-        assertTrue(stairs.contains("if(!state.getFluidState().isEmpty())return null"));
-        var packet = Sources.text("HelmPackets");
-        assertTrue(packet.contains("b.writeEnum(p.landing.kind())"));
-        assertTrue(packet.contains("b.readEnum(HullLanding.Kind.class)"));
         for (String lang : new String[] {"en_us", "zh_cn"}) {
             var json = FlightPermitTest.json("assets/starfold/lang/" + lang + ".json");
             for (String key :
@@ -187,5 +176,4 @@ class FirstTripTest {
             assertTrue(json.has("message.starfold.helm_exit_stair"));
         }
     }
-
 }

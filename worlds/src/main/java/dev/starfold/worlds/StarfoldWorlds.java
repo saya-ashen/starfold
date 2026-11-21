@@ -4,4 +4,9 @@ import net.neoforged.fml.common.Mod;
 
 /** Datapack-defined planets and experience worlds. */
 @Mod("starfold_worlds")
-public final class StarfoldWorlds {}
+public final class StarfoldWorlds {
+    public StarfoldWorlds() {
+        SurvivalGuide.initialize();
+        SurvivalSpawn.initialize();
+    }
+}

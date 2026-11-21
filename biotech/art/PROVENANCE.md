@@ -1,6 +1,7 @@
 # Biotech art sources
 
-All files in `source/` were generated on 2026-11-01 (blocks) and 2026-11-02 (Host atlas tiles, item icons) with a paid external image-generation service, then reduced by us. They are original generated images, not
+All files in `source/` were generated on 2026-11-01 (blocks) and 2026-11-02 (Host atlas tiles, item icons) with the image-generation module of Saya's Chrona
+assistant (paid external image service), then reduced by us. They are original generated images, not
 copies of third-party textures. `tools/organic-textures.py` turns them into the shipped 16x textures and
 the 128 px textures in `hd-pack/`.
 
@@ -25,3 +26,14 @@ the 128 px textures in `hd-pack/`.
 | `blood_still-px.png`, `blood_flow-px.png` | pixel-art generations on a 16 / 32 grid, stored at 512 px; animated by rolling the tile | 16x16 dark blood surface with broad ripple bands; 32x32 thick blood running down in vertical streaks |
 | `blood_still-hd.png`, `blood_flow-hd.png` | finer generations for the HD pack (128 / 256 px) | seamless dark blood surface with fine ripples; flowing blood streaks |
 | `icon-blood_bucket.png` | pixel-art item drawing on flat grey, cut out like the other icons | iron bucket filled with dark glossy blood |
+
+## Concept sheets
+
+`concept/` holds Host concept sheets generated on 2026-11-02 with the same service (1536x1024, high quality) as modelling references; they are not shipped. Shared prompt: lore of a star-drifting parasite that fell into a crater and digested the planet into a flesh nest; scorched re-entry carapace, pink propulsion organs, roots into the ground, egg-filled abdomen; front/side/back views plus a phase-two lift-off panel.
+
+| File | Variant |
+|---|---|
+| `host-meteor.png` | looks like a fallen meteorite with the creature inside (chosen) |
+| `host-visceral.png` | exposed muscle, membranes, dripping fluids |
+| `host-queen.png` | termite-queen body with a long abdomen |
+| `host-base.png` | base prompt |

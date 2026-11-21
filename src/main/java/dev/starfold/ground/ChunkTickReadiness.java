@@ -1,10 +1,10 @@
 package dev.starfold.ground;
 
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetStorage;
-import dev.starfold.DevelopmentHooks;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -67,7 +67,8 @@ public final class ChunkTickReadiness {
                                                                         ChunkPos.getX(owner),
                                                                         ChunkPos.getZ(owner))
                                                         != null));
-        if (DevelopmentHooks.arrival.enabled()) DevelopmentHooks.arrival.seamHeld(level, chunk, ready);
+        if (DevelopmentHooks.arrival.enabled())
+            DevelopmentHooks.arrival.seamHeld(level, chunk, ready);
         return ready;
     }
 
@@ -118,18 +119,27 @@ public final class ChunkTickReadiness {
         for (var pos : touched) level.getChunkSource().blockChanged(pos);
     }
 
-    /** Pure rule: entries no longer loaded are dropped; ready ones leave before any of them runs. */
+    /**
+     * Limit a seam publication burst to two chunks per tick and 64 readiness checks. Rotate waiting
+     * entries behind unexamined entries so a cold seam cannot starve a ready chunk further back.
+     * Ready entries leave before any callbacks run, including callbacks that hold chunks again.
+     */
     static <T> void release(
             Map<Long, T> held, BiPredicate<Long, T> loaded, LongPredicate ready, Consumer<T> run) {
         var due = new ArrayList<T>();
-        for (var it = held.entrySet().iterator(); it.hasNext(); ) {
+        var waiting = new LinkedHashMap<Long, T>();
+        int checked = 0;
+        for (var it = held.entrySet().iterator();
+                it.hasNext() && checked < 64 && due.size() < 2;
+                checked++) {
             var entry = it.next();
-            if (!loaded.test(entry.getKey(), entry.getValue())) it.remove();
-            else if (ready.test(entry.getKey())) {
-                due.add(entry.getValue());
-                it.remove();
+            if (loaded.test(entry.getKey(), entry.getValue())) {
+                if (ready.test(entry.getKey())) due.add(entry.getValue());
+                else waiting.put(entry.getKey(), entry.getValue());
             }
+            it.remove();
         }
+        held.putAll(waiting);
         due.forEach(run);
     }
 

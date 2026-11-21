@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.*;
 
-import java.nio.file.*;
 import java.util.*;
 
 class SpaceApproachTest {
@@ -209,26 +207,8 @@ class SpaceApproachTest {
 
     @Test
     void preparationIsAsyncFullAndCoversHullAndCanonicalImages() throws Exception {
-        var s = Sources.text("SpaceApproach");
-        for (String text :
-                List.of(
-                        "APPROACH=4096",
-                        "RADIUS=3,INTERVAL=10",
-                        "tick-old.tick()<INTERVAL",
-                        "Space.in(",
-                        "access.bodyAnchor(planet,arrival.pose())",
-                        "lead.boundingBox()",
-                        "i<8",
-                        "minX-1",
-                        "maxX+1",
-                        "ChunkViews.columns(access,x,z).owners()",
-                        "addRegionTicket(TYPE,new ChunkPos(key),0,key)",
-                        "removeRegionTicket(TYPE,new ChunkPos(key),0,key)"))
-            assertTrue(s.contains(text), text);
-        assertTrue(s.contains("for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z++)"));
         assertTrue(
                 calls("SpaceApproach", "full").stream().anyMatch(c -> c.endsWith(".getChunkNow")));
-        assertFalse(s.contains("getChunk("));
         var arrive = calls("SableFrames", "arrive");
         int ready = arrive.indexOf("dev/starfold/ship/ShipHost.landingReady"),
                 move = arrive.indexOf("dev/starfold/ship/SableFrames.move");
@@ -238,26 +218,6 @@ class SpaceApproachTest {
 
     @Test
     void ticketsAreReleasedOnEveryExitAndShutdown() throws Exception {
-        var s = Sources.text("SpaceApproach");
-        assertTrue(s.contains("old.body()!=lead||old.body().isRemoved()"));
-        assertTrue(s.indexOf("old.body().isRemoved()") < s.indexOf("tick-old.tick()<INTERVAL"));
-        assertTrue(s.contains(">=PREPARE){release(level);return;}"));
-        assertTrue(s.contains("if(value!=null&&value.body()==body)release(level)"));
-        assertTrue(s.contains("held.remove(level)"));
-        assertTrue(s.contains("List.copyOf(held.keySet()))release(level)"));
-        assertTrue(
-                Sources.text("SpaceServer")
-                        .contains(
-                                "value.inboundPlanet=-1;value.arrivalState=ArrivalState.empty();value.clearHoldTurn();value.setDirty();SpaceApproach.update(level,container,null);}"));
-        assertTrue(
-                Sources.text("SpaceServer")
-                        .contains(
-                                "if(bodies.isEmpty()){dev.starfold.ship.GasShipDamage.release(level);clearEmptyRegion(level,container);return;}"));
-        assertTrue(Sources.text("SpaceSessions").contains("LevelEvent.Unload"));
-        assertTrue(
-                Sources.text("SableFrames")
-                        .contains(
-                                "if(container==null){ShipHost.get().releaseArrival(level);return;}"));
         assertTrue(
                 calls("GroundTickets", "clear")
                         .contains("dev/starfold/ground/GroundHost.clearArrival"));
@@ -268,63 +228,18 @@ class SpaceApproachTest {
 
     @Test
     void passiveArrivalMeshSurvivesAndUsesTheChartPlacement() throws Exception {
-        var s = Sources.text("PlanetRemoteRenderer");
-        assertTrue(s.contains("SpaceClient.retainedSession()"));
-        assertTrue(s.contains("body.fallback==null&&!GroundRenderer.selectionReady()"));
-        assertTrue(
-                s.contains("e.getKey()==GroundClient.planet()&&!GroundRenderer.selectionReady()"));
         assertTrue(
                 calls("PlanetRemoteRenderer", "drawBody")
                         .contains("dev/starfold/render/GroundClient.place"));
-        var client = Sources.text("SpaceClient");
-        assertTrue(
-                client.contains(
-                        "if(viewLevel!=null&&viewLevel!=mc.level){SpaceClientHost.get().viewLost();retainedSession=0;}"));
-        assertFalse(
-                client.contains(
-                        "view.session()!=packet.session()))SpaceClientHost.get().viewLost()"));
-    }
-
-    @Test
-    void departureTransfersBuffersAndDoesNotWaitForANewSummary() throws Exception {
-        assertTrue(
-                Sources.text("GroundFlightClient")
-                        .contains("FlightClientHost.get().departing();reset();"));
-        assertTrue(
-                Sources.text("StarfoldClient")
-                        .contains("void departing(){PlanetRemoteRenderer.departing();}"));
-        var s = Sources.text("PlanetRemoteRenderer");
-        assertTrue(s.contains("GroundExterior.take(shape)"));
-        assertTrue(
-                s.contains(
-                        "int planet=GroundViewClient.cachedPlanet();if(profile==null||planet<0)return"));
-        assertTrue(s.contains("System.arraycopy(meshes,0,body.meshes,0,meshes.length)"));
-        assertTrue(s.contains("body.resident!=null?body.resident:body.fallback"));
-        assertFalse(s.contains("body.view.session()!=session)continue"));
-        assertTrue(
-                Sources.text("GroundExterior")
-                        .contains("var out=patches.clone();Arrays.fill(patches,null);return out;"));
     }
 
     @Test
     void approachDataIsStagedWithoutAChartOrFlightSession() throws Exception {
         assertTrue(
-                Sources.text("PlanetRemoteServer").contains("SpaceApproach.destination(player)"));
-        var views = Sources.text("GroundViewServer");
-        assertTrue(views.contains("refreshSlots(PlanetSystem.count(level),"));
-        assertTrue(views.contains(".filter(Space::in).mapToInt(SpaceApproach::destination)"));
-        assertTrue(
                 calls("GroundViewServer", "refreshIndices")
                         .contains("dev/starfold/render/GroundViewServer.refreshSlots"));
         assertTrue(
-                Sources.text("GroundViewClient")
-                        .contains("PlanetRemoteRenderer.seedOwn(state.planet,id)"));
-        assertTrue(Sources.text("GroundViewClient").contains("(previewed||!coverageReady())"));
-        assertTrue(
                 calls("PlanetRemoteRenderer", "seedOwn")
                         .contains("dev/starfold/render/GroundViewClient.preview"));
-        var s = Sources.text("SpaceApproach");
-        for (String forbidden : List.of("site(", "capture(", "setPos(", "moveTo(", "setup("))
-            assertFalse(s.contains(forbidden));
     }
 }

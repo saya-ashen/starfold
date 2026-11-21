@@ -66,8 +66,13 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
     }
 
     private record Supply(
-            IFluidHandler handler, FluidStack fluid, FuelDefinition definition, boolean interstellar) {
-        double impulse() { return definition.impulse(); }
+            IFluidHandler handler,
+            FluidStack fluid,
+            FuelDefinition definition,
+            boolean interstellar) {
+        double impulse() {
+            return definition.impulse();
+        }
     }
 
     static void initialize() {
@@ -84,9 +89,10 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
     protected List<FuelDefinition> prepare(ResourceManager manager, ProfilerFiller profiler) {
         var loaded = new ArrayList<FuelDefinition>();
         // Reject malformed files instead of silently turning a fuel-requiring ship into a free one.
-        for (var entry : manager.listResources(
-                        "starfold/thruster_fuel", id -> id.getPath().endsWith(".json"))
-                .entrySet())
+        for (var entry :
+                manager.listResources(
+                                "starfold/thruster_fuel", id -> id.getPath().endsWith(".json"))
+                        .entrySet())
             try (var reader = entry.getValue().openAsReader()) {
                 loaded.add(FuelDefinition.parse(JsonParser.parseReader(reader).getAsJsonObject()));
             } catch (IOException | RuntimeException e) {
@@ -111,7 +117,8 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
         FuelDefinition best = null;
         for (var d : definitions)
             if ((!restricted || d.interstellar())
-                    && (d.tag() ? fluid.is(TagKey.create(Registries.FLUID, d.fluid()))
+                    && (d.tag()
+                            ? fluid.is(TagKey.create(Registries.FLUID, d.fluid()))
                             : BuiltInRegistries.FLUID.getKey(fluid.getFluid()).equals(d.fluid()))
                     && (best == null || d.impulse() > best.impulse())) best = d;
         return best;
@@ -140,15 +147,17 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
         var at = body.logicalPose().position();
         var position = new Point(at.x(), at.y(), at.z());
         if (Space.holds(at.x(), at.z()))
-            position = ShipHost.get().surroundingsFrame(level)
-                    .universe(position, clock.model, clock.tick());
+            position =
+                    ShipHost.get()
+                            .surroundingsFrame(level)
+                            .universe(position, clock.model, clock.tick());
         else {
             var access = PlanetAccess.of(level);
             int planet = access.storagePlanet(at.x(), at.z());
-            // A hull anchor is not entity feet: do not add GroundTopology.body's 0.9 offset.
-            var pose = new PlanetShape.Pose(Face.VALUES[access.face(at.x())], access.chart(position));
-            position = clock.model.at(planet, clock.tick()).world(
-                    GroundTopology.planet(PlanetShape.of(planet), pose));
+            var shape = PlanetShape.of(planet);
+            // Canonicalise the seam halo while keeping the hull anchor's original height.
+            var pose = shape.canonical(Face.VALUES[access.face(at.x())], access.chart(position)).pose();
+            position = clock.model.at(planet, clock.tick()).world(GroundTopology.planet(shape, pose));
         }
         return outside(system.homeModel(), position);
     }
@@ -165,8 +174,8 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
     }
 
     static boolean missingDrive(ServerSubLevel body) {
-        boolean required = BuiltInRegistries.BLOCK.getTag(DRIVES)
-                .map(tag -> tag.size() > 0).orElse(false);
+        boolean required =
+                BuiltInRegistries.BLOCK.getTag(DRIVES).map(tag -> tag.size() > 0).orElse(false);
         if (!required || !outside(body)) return false;
         var state = bodies.computeIfAbsent(body, b -> new Tanks());
         long tick = body.getLevel().getGameTime();
@@ -188,11 +197,13 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
                     for (int y = 0; y < 16; y++)
                         for (int z = 0; z < 16; z++) {
                             if (!section.getBlockState(x, y, z).is(DRIVES)) continue;
-                            var pos = new BlockPos(
-                                    chunk.getPos().getMinBlockX() + x,
-                                    chunk.getMinBuildHeight() + i * 16 + y,
-                                    chunk.getPos().getMinBlockZ() + z);
-                            if (Sable.HELPER.getContaining(body.getLevel(), pos) == body) return true;
+                            var pos =
+                                    new BlockPos(
+                                            chunk.getPos().getMinBlockX() + x,
+                                            chunk.getMinBuildHeight() + i * 16 + y,
+                                            chunk.getPos().getMinBlockZ() + z);
+                            if (Sable.HELPER.getContaining(body.getLevel(), pos) == body)
+                                return true;
                         }
             }
         }
@@ -202,8 +213,9 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
     private static Tanks tanks(ServerSubLevel body) {
         var state = bodies.computeIfAbsent(body, b -> new Tanks());
         long tick = body.getLevel().getGameTime();
-        boolean restricted = definitions.stream().anyMatch(FuelDefinition::interstellar)
-                && FuelDefinition.restricted(definitions, outside(body));
+        boolean restricted =
+                definitions.stream().anyMatch(FuelDefinition::interstellar)
+                        && FuelDefinition.restricted(definitions, outside(body));
         if (state.tick == tick && state.restricted == restricted) return state;
         state.tick = tick;
         state.restricted = restricted;
@@ -219,27 +231,40 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
                 for (int i = 0; i < handler.getTanks(); i++) {
                     var fluid = handler.getFluidInTank(i);
                     if (fluid.isEmpty()) continue;
-                    var same = fluids.stream()
-                            .filter(f -> FluidStack.isSameFluidSameComponents(f, fluid)).findFirst();
+                    var same =
+                            fluids.stream()
+                                    .filter(f -> FluidStack.isSameFluidSameComponents(f, fluid))
+                                    .findFirst();
                     if (same.isPresent()) same.get().grow(fluid.getAmount());
                     else fluids.add(fluid.copy());
                 }
                 for (var fluid : fluids) {
                     var definition = definition(fluid, state.restricted);
                     if (definition != null) {
-                        // Only extractable fuel counts; sided input-only tanks cannot power a nozzle.
-                        var available = handler.drain(fluid.copy(), IFluidHandler.FluidAction.SIMULATE);
+                        // Only extractable fuel counts; sided input-only tanks cannot power a
+                        // nozzle.
+                        var available =
+                                handler.drain(fluid.copy(), IFluidHandler.FluidAction.SIMULATE);
                         if (!available.isEmpty())
-                            state.supplies.add(new Supply(handler, available.copy(), definition,
-                                    definition(fluid, true) != null));
+                            state.supplies.add(
+                                    new Supply(
+                                            handler,
+                                            available.copy(),
+                                            definition,
+                                            definition(fluid, true) != null));
                     }
                 }
             }
         }
         state.supplies.sort(Comparator.comparingDouble(Supply::impulse).reversed());
-        state.currentMass = body.getMassTracker().getMass() - state.mass.total()
-                + sampleMass(body, state, tick).values().stream().mapToDouble(Double::doubleValue).sum()
-                + state.ordinary.mass() + state.interstellar.mass();
+        state.currentMass =
+                body.getMassTracker().getMass()
+                        - state.mass.total()
+                        + sampleMass(body, state, tick).values().stream()
+                                .mapToDouble(Double::doubleValue)
+                                .sum()
+                        + state.ordinary.mass()
+                        + state.interstellar.mass();
         return state;
     }
 
@@ -250,7 +275,8 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
             for (var holder : body.getPlot().getLoadedChunks())
                 for (var entity : holder.getChunk().getBlockEntities().values())
                     if (!entity.isRemoved()
-                            && Sable.HELPER.getContaining(body.getLevel(), entity.getBlockPos()) == body
+                            && Sable.HELPER.getContaining(body.getLevel(), entity.getBlockPos())
+                                    == body
                             && !handlers(body, entity.getBlockPos()).isEmpty())
                         positions.add(entity.getBlockPos().immutable());
             positions.sort(BlockPos::compareTo);
@@ -272,9 +298,16 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
         long tick = body.getLevel().getGameTime();
         if (!state.mass.due(tick)) return;
         var sampled = sampleMass(body, state, tick);
-        state.mass.update(tick, sampled, (pos, mass) -> tracker.addBlockMass(
-                body.getLevel(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),
-                pos, mass, null));
+        state.mass.update(
+                tick,
+                sampled,
+                (pos, mass) ->
+                        tracker.addBlockMass(
+                                body.getLevel(),
+                                net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),
+                                pos,
+                                mass,
+                                null));
     }
 
     private static Map<BlockPos, Double> sampleMass(ServerSubLevel body, Tanks state, long tick) {
@@ -304,8 +337,10 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
         if (missingDrive(body)) return 0;
         var state = tanks(body);
         double result = prepaidDeltaV(state);
-        double mass = state.currentMass - state.interstellar.mass()
-                - (state.restricted ? 0 : state.ordinary.mass());
+        double mass =
+                state.currentMass
+                        - state.interstellar.mass()
+                        - (state.restricted ? 0 : state.ordinary.mass());
         for (var supply : state.supplies) {
             double burned = supply.definition().fuelMass(supply.fluid().getAmount());
             result += supply.definition().deltaV(mass, supply.fluid().getAmount());
@@ -323,8 +358,9 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
             if (Sable.HELPER.getContaining(body.getLevel(), pos) != body) continue;
             for (var handler : handlers(body, pos)) {
                 if (!seen.add(handler)) continue;
-                remaining -= handler.fill(
-                        fluid.copyWithAmount(remaining), IFluidHandler.FluidAction.EXECUTE);
+                remaining -=
+                        handler.fill(
+                                fluid.copyWithAmount(remaining), IFluidHandler.FluidAction.EXECUTE);
                 if (remaining == 0) break;
             }
             if (remaining == 0) break;
@@ -344,7 +380,8 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
 
     /** Live propellant mass, including fractions bought but not yet ejected. */
     public static double mass(ServerSubLevel body) {
-        return FuelDefinition.required(definitions) ? tanks(body).currentMass
+        return FuelDefinition.required(definitions)
+                ? tanks(body).currentMass
                 : body.getMassTracker().getMass();
     }
 
@@ -367,16 +404,20 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
     }
 
     /** Buy whole mB, but burn prepaid mass only with its impulse, not at purchase time. */
-    private static double burn(ServerSubLevel body, double requested, boolean velocity, boolean space) {
+    private static double burn(
+            ServerSubLevel body, double requested, boolean velocity, boolean space) {
         if (missingDrive(body)) return 0;
         if (!FuelDefinition.required(definitions))
             return space && !velocity ? requested / body.getMassTracker().getMass() : requested;
         if (requested == 0) return 0;
         var state = tanks(body);
         double needed = requested, gained = 0;
-        for (var budget : state.restricted ? List.of(state.interstellar)
-                : List.of(state.interstellar, state.ordinary)) {
-            double impulse = budget.take(velocity ? budget.impulseFor(state.currentMass, needed) : needed);
+        for (var budget :
+                state.restricted
+                        ? List.of(state.interstellar)
+                        : List.of(state.interstellar, state.ordinary)) {
+            double impulse =
+                    budget.take(velocity ? budget.impulseFor(state.currentMass, needed) : needed);
             double dv = budget.deltaV(state.currentMass, impulse);
             state.currentMass -= impulse * budget.massPerImpulse();
             gained += dv;
@@ -387,11 +428,18 @@ public final class ThrusterFuel extends SimplePreparableReloadListener<List<Fuel
             var budget = supply.interstellar() ? state.interstellar : state.ordinary;
             budget.buy(0, supply.impulse(), supply.definition().mass());
             double wanted = velocity ? budget.impulseFor(state.currentMass, needed) : needed;
-            int amount = (int) Math.min(supply.fluid().getAmount(),
-                    Math.ceil(FuelDefinition.consumption(wanted, 1, supply.impulse())));
+            int amount =
+                    (int)
+                            Math.min(
+                                    supply.fluid().getAmount(),
+                                    Math.ceil(
+                                            FuelDefinition.consumption(
+                                                    wanted, 1, supply.impulse())));
             var drained =
-                    supply.handler().drain(
-                            supply.fluid().copyWithAmount(amount), IFluidHandler.FluidAction.EXECUTE);
+                    supply.handler()
+                            .drain(
+                                    supply.fluid().copyWithAmount(amount),
+                                    IFluidHandler.FluidAction.EXECUTE);
             int used = drained.getAmount();
             supply.fluid().shrink(used);
             budget.buy(used, supply.impulse(), supply.definition().mass());

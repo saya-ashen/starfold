@@ -1,6 +1,7 @@
 package dev.starfold.chart;
 
 import static dev.starfold.chart.GasPlayerExposureState.Participation.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
@@ -8,8 +9,10 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 class GasPlayerExposureStateTest {
-    private static final GasPlayerExposure.Sample DANGER = new GasPlayerExposure.Sample(
-            GasPlayerExposure.Condition.DANGER, Optional.of(new GasPressure.Reading(1, 512, 1)));
+    private static final GasPlayerExposure.Sample DANGER =
+            new GasPlayerExposure.Sample(
+                    GasPlayerExposure.Condition.DANGER,
+                    Optional.of(new GasPressure.Reading(1, 512, 1)));
     private static final GasPlayerExposure.Sample SAFE = GasPlayerExposure.confirmedSafe();
     private static final GasPlayerExposure.Sample UNKNOWN = GasPlayerExposure.unknown();
 
@@ -26,7 +29,8 @@ class GasPlayerExposureStateTest {
         var state = initial();
         for (int tick = 0; tick < 161; tick++) {
             var next = state.tick(tick, DANGER, ACTIVE);
-            assertEquals(tick >= 100 && (tick - 100) % 20 == 0, next.damageAttempt(), "tick=" + tick);
+            assertEquals(
+                    tick >= 100 && (tick - 100) % 20 == 0, next.damageAttempt(), "tick=" + tick);
             assertEquals(Math.max(0, 99 - tick), next.state().values().graceTicks());
             assertEquals(0, next.state().values().safeTicks());
             state = next.state();
@@ -44,7 +48,8 @@ class GasPlayerExposureStateTest {
             var duplicate = attempted.state().tick(tick, DANGER, ACTIVE);
             assertFalse(duplicate.damageAttempt());
             assertSame(attempted.state(), duplicate.state());
-            assertEquals(0, attempted.state().tick(tick, SAFE, ACTIVE).state().values().safeTicks());
+            assertEquals(
+                    0, attempted.state().tick(tick, SAFE, ACTIVE).state().values().safeTicks());
         }
         var state = attempted.state();
         for (long tick = 1001; tick < 1020; tick++) {
@@ -124,13 +129,15 @@ class GasPlayerExposureStateTest {
     void offlineClockJumpsAndSessionRebasesNeverCatchUpAndReloadPreservesCountdown() {
         var state = initial().tick(1000, DANGER, ACTIVE).state();
         assertEquals(99, state.values().graceTicks());
-        var restored = GasPlayerExposureState.restored(
-                GasPlayerExposureValues.fromFields(state.values().toFields()));
+        var restored =
+                GasPlayerExposureState.restored(
+                        GasPlayerExposureValues.fromFields(state.values().toFields()));
         assertEquals(98, restored.tick(1, DANGER, ACTIVE).state().values().graceTicks());
         assertEquals(98, state.tick(Long.MAX_VALUE, DANGER, ACTIVE).state().values().graceTicks());
         var waiting = exhausted().tick(1000, DANGER, ACTIVE).state();
         assertFalse(waiting.tick(Long.MAX_VALUE, DANGER, ACTIVE).damageAttempt());
-        assertEquals(19, waiting.tick(Long.MAX_VALUE, DANGER, ACTIVE).state().values().attemptTicks());
+        assertEquals(
+                19, waiting.tick(Long.MAX_VALUE, DANGER, ACTIVE).state().values().attemptTicks());
         var safe = GasPlayerExposureState.restored(new GasPlayerExposureValues(0, 30, 0));
         assertEquals(31, safe.tick(Long.MAX_VALUE, SAFE, ACTIVE).state().values().safeTicks());
     }
@@ -142,14 +149,18 @@ class GasPlayerExposureStateTest {
         assertEquals(new GasPlayerExposureValues(0, 0, 0), state.values());
         for (int tick = 200; tick < 300; tick++) state = state.tick(tick, SAFE, ACTIVE).state();
         assertEquals(new GasPlayerExposureValues(100, 100, 0), state.values());
-        assertEquals(new GasPlayerExposureValues(100, 100, 0), state.tick(300, SAFE, ACTIVE).state().values());
+        assertEquals(
+                new GasPlayerExposureValues(100, 100, 0),
+                state.tick(300, SAFE, ACTIVE).state().values());
     }
 
     @Test
     void overlappingGasStillReturnsOnlyOneAttemptAndModeChangesCannotRearmIt() {
-        var layers = java.util.List.of(
-                new GasPressure.Layer(1, GroundEphemeris.ZERO, 4096, GasGiantTest.policy()),
-                new GasPressure.Layer(2, GroundEphemeris.ZERO, 4096, GasGiantTest.policy()));
+        var layers =
+                java.util.List.of(
+                        new GasPressure.Layer(1, GroundEphemeris.ZERO, 4096, GasGiantTest.policy()),
+                        new GasPressure.Layer(
+                                2, GroundEphemeris.ZERO, 4096, GasGiantTest.policy()));
         var sample = GasPlayerExposure.sample(layers, GroundEphemeris.ZERO);
         var next = exhausted().tick(0, sample, ACTIVE);
         assertTrue(next.damageAttempt());
@@ -162,7 +173,8 @@ class GasPlayerExposureStateTest {
     @Test
     void programmerErrorsRejectNegativeTickAndInvalidTransientState() {
         assertThrows(IllegalArgumentException.class, () -> initial().tick(-1, SAFE, ACTIVE));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> new GasPlayerExposureState(GasPlayerExposureValues.initial(), -2));
     }
 }

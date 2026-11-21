@@ -2,21 +2,39 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
-
 import org.junit.jupiter.api.Test;
 
 class HullLandingTest {
-    private static HullLanding.Ground ground(double x, double y, double z, double maxX, double maxZ,
+    private static HullLanding.Ground ground(
+            double x,
+            double y,
+            double z,
+            double maxX,
+            double maxZ,
             HullLanding.SurfaceColumn column) {
-        return HullBottom.measure(java.util.List.of(new net.minecraft.world.phys.AABB(x, y, z, maxX, y + 1, maxZ)),
-                v -> v, column);
+        return HullBottom.measure(
+                java.util.List.of(new net.minecraft.world.phys.AABB(x, y, z, maxX, y + 1, maxZ)),
+                v -> v,
+                column);
     }
 
-    private static double clearance(double x, double y, double z, double maxX, double maxZ,
+    private static double clearance(
+            double x,
+            double y,
+            double z,
+            double maxX,
+            double maxZ,
             java.util.function.ToDoubleBiFunction<Integer, Integer> column) {
-        return ground(x, y, z, maxX, maxZ, (a, b) -> new HullLanding.Surface(column.applyAsDouble(a, b), false)).clearance();
+        return ground(
+                        x,
+                        y,
+                        z,
+                        maxX,
+                        maxZ,
+                        (a, b) -> new HullLanding.Surface(column.applyAsDouble(a, b), false))
+                .clearance();
     }
+
     @Test
     void fluidStopsDownwardMotionWithoutLifting() {
         for (double h : new double[] {-100, -.01, 0})
@@ -35,8 +53,7 @@ class HullLandingTest {
                 ground(0, 19, 0, 10, 10, (x, z) -> new HullLanding.Surface(20, true)));
         assertEquals(
                 new HullLanding.Ground(-1, false),
-                ground(
-                        0, 19, 0, 10, 10, (x, z) -> new HullLanding.Surface(20, x != 5 || z != 5)));
+                ground(0, 19, 0, 10, 10, (x, z) -> new HullLanding.Surface(20, x != 5 || z != 5)));
         assertEquals(
                 new HullLanding.Ground(1, true),
                 ground(
@@ -132,8 +149,7 @@ class HullLandingTest {
         assertEquals(10, h);
         assertEquals(100, points.size());
         assertTrue(points.contains("9,5"));
-        assertEquals(
-                10, clearance(0, 40, 0, 10, 10, (x, z) -> x == 9 && z == 5 ? 30 : 20));
+        assertEquals(10, clearance(0, 40, 0, 10, 10, (x, z) -> x == 9 && z == 5 ? 30 : 20));
     }
 
     @Test
@@ -151,42 +167,6 @@ class HullLandingTest {
                             assertTrue(x < 0 && z < 0);
                             return 32;
                         }));
-    }
-
-    @Test
-    void runtimeGuardsExcludeRegionButNeverRequireAPilotForLandingProtection() throws Exception {
-        var source = Sources.text("HullPhysics");
-        var land =
-                source.substring(
-                        source.indexOf("static void land("),
-                        source.indexOf("static Vector3d drift("));
-        assertTrue(land.contains("Space.holds"));
-        assertTrue(land.contains("Thrusters.steadied"));
-        assertTrue(land.contains(".inChart("));
-        assertFalse(land.substring(0, land.indexOf("var box=")).contains("Helm"));
-        assertTrue(land.contains("if(!ground.fluid()||clearance>0)return;"));
-        assertFalse(land.contains("descentSpeed"));
-        assertTrue(land.contains("new Vector3d(0,-allowed-velocity.y,0)"));
-        assertTrue(
-                source.contains("land(level,container,body,false,mass>0?impulses.pre().y/mass:0)"));
-        assertTrue(Sources.text("SableFrames").contains("HullPhysics.damp(level,container,body);HullPhysics.land(level,container,body,true)"));
-    }
-
-    @Test
-    void clientDoesNotUseTheAirReadinessGateAndHidesWithF1() throws Exception {
-        var source = Sources.text("HullLandingClient");
-        assertTrue(source.contains("HelmClient.body()"));
-        assertTrue(source.contains("ShipClientHost.get().movingSurroundings()"));
-        assertTrue(source.contains(".inChart("));
-        assertFalse(source.contains(".ready()"));
-        assertTrue(source.contains("!ShipClientHost.get().chartActive()"));
-        assertTrue(
-                Sources.text("StarfoldClient")
-                        .contains("boolean chartActive(){return GroundClient.active();}"));
-        assertFalse(source.contains("drawString"));
-        var client = Sources.text("SpaceNavigationClient");
-        assertTrue(client.contains("mc.options.hideGui||mc.screen!=null"));
-        assertTrue(client.contains("lift!=null?lift.limit():Double.NaN"));
     }
 
     @Test

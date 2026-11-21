@@ -12,11 +12,15 @@ import java.nio.file.Path;
 class ClientPlumbingTest {
     @Test
     void productionClientsNoLongerNameRenderOrDevelopment() throws Exception {
-        for (String name :
-                new String[] {"HullLandingClient", "SableCarryClient", "WaypointClient"}) {
-            var source = Sources.text(name);
-            assertFalse(source.contains("dev.starfold.render"), name);
-            assertFalse(source.contains("dev.starfold.dev"), name);
+        for (String path :
+                new String[] {
+                    "ship/HullLandingClient.java",
+                    "ship/SableCarryClient.java",
+                    "waypoint/WaypointClient.java"
+                }) {
+            var source = Sources.text("src/main/java/dev/starfold/" + path);
+            assertFalse(source.contains("dev.starfold.render"), path);
+            assertFalse(source.contains("dev.starfold.dev"), path);
         }
         for (String pkg : new String[] {"network", "render"}) {
             try (var files = Files.walk(Path.of("src/main/java/dev/starfold/" + pkg))) {
@@ -44,5 +48,4 @@ class ClientPlumbingTest {
             }
         }
     }
-
 }

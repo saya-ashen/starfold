@@ -17,16 +17,32 @@ class PlanetDepthTest {
     }
 
     static PlanetGeneration rocky(int size, int depth) {
-        var json=dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky").json();
-        json.add("strata",com.google.gson.JsonParser.parseString("[{\"block\":\"minecraft:stone\"},{\"block\":\"minecraft:deepslate\",\"from\":0.65}]") );
-        json.add("ores",com.google.gson.JsonParser.parseString("[{\"block\":\"minecraft:diamond_ore\",\"deep\":\"minecraft:deepslate_diamond_ore\",\"from\":0.8,\"rarity\":0.8}]") );
-        return new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,new dev.starfold.worldgen.plan.terrain.TerrainRecipe(json),size,depth,"bedrock",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,size));
+        var json = dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky").json();
+        json.add(
+                "strata",
+                com.google.gson.JsonParser.parseString(
+                        "[{\"block\":\"minecraft:stone\"},{\"block\":\"minecraft:deepslate\",\"from\":0.65}]"));
+        json.add(
+                "ores",
+                com.google.gson.JsonParser.parseString(
+                        "[{\"block\":\"minecraft:diamond_ore\",\"deep\":\"minecraft:deepslate_diamond_ore\",\"from\":0.8,\"rarity\":0.8}]"));
+        return new PlanetGeneration(
+                "rocky",
+                PlanetGeneration.SURFACE_VERSION,
+                new dev.starfold.worldgen.plan.terrain.TerrainRecipe(json),
+                size,
+                depth,
+                "bedrock",
+                true,
+                false,
+                false,
+                dev.starfold.worldgen.PlanetEnvironment.defaults(false, size));
     }
 
     @Test
     void aPlanetSavedWithoutADepthIsTheStandardDepth() {
         assertEquals(191, PlanetGeneration.STANDARD_DEPTH);
-        var old = rocky(1024,191);
+        var old = rocky(1024, 191);
         assertEquals(191, old.depth());
         assertEquals(PlanetTerrain.MIN_Y, old.floor());
         assertEquals(old, rocky(1024, 191));
@@ -35,8 +51,8 @@ class PlanetDepthTest {
                         .encodeStart(com.mojang.serialization.JsonOps.INSTANCE, old)
                         .getOrThrow()
                         .getAsJsonObject();
-        assertEquals(191,json.get("depth").getAsInt());
-        var terrain = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,old);
+        assertEquals(191, json.get("depth").getAsInt());
+        var terrain = new PlanetTerrain(20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, old);
         for (int y = -70; y < 140; y += 7) assertEquals(y, terrain.layer(y));
     }
 
@@ -61,8 +77,12 @@ class PlanetDepthTest {
 
     @Test
     void aDeeperPlanetHasTheSameSurfaceAndGroundDownToItsOwnFloor() {
-        var shallow = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,rocky(1024, 191));
-        var deep = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,rocky(1024, 326));
+        var shallow =
+                new PlanetTerrain(
+                        20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, rocky(1024, 191));
+        var deep =
+                new PlanetTerrain(
+                        20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, rocky(1024, 326));
         assertEquals(-199, deep.floor());
         int solid = 0, caves = 0;
         for (var f : Face.values())
@@ -91,9 +111,26 @@ class PlanetDepthTest {
     void aPlanetSavedWithoutAShellKeepsItsBedrockFloorAndAChosenShellIsTheCoreNobodyDigsThrough() {
         var old = rocky(1024, 326);
         assertEquals(PlanetGeneration.BEDROCK, old.shell());
-        assertEquals("bedrock",PlanetGeneration.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,old).getOrThrow().getAsJsonObject().get("shell").getAsString());
+        assertEquals(
+                "bedrock",
+                PlanetGeneration.CODEC
+                        .encodeStart(com.mojang.serialization.JsonOps.INSTANCE, old)
+                        .getOrThrow()
+                        .getAsJsonObject()
+                        .get("shell")
+                        .getAsString());
         var chosen =
-                new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,rocky(1024,326).recipe(),1024,326,PlanetGeneration.CORE_SHELL,true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1024));
+                new PlanetGeneration(
+                        "rocky",
+                        PlanetGeneration.SURFACE_VERSION,
+                        rocky(1024, 326).recipe(),
+                        1024,
+                        326,
+                        PlanetGeneration.CORE_SHELL,
+                        true,
+                        false,
+                        false,
+                        dev.starfold.worldgen.PlanetEnvironment.defaults(false, 1024));
         assertEquals(
                 chosen,
                 PlanetGeneration.CODEC
@@ -107,9 +144,19 @@ class PlanetDepthTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1024,326,"stone",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1024)));
-        var a = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,old);
-        var b = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,chosen);
+                        new PlanetGeneration(
+                                "rocky",
+                                PlanetGeneration.SURFACE_VERSION,
+                                dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                                1024,
+                                326,
+                                "stone",
+                                true,
+                                false,
+                                false,
+                                dev.starfold.worldgen.PlanetEnvironment.defaults(false, 1024)));
+        var a = new PlanetTerrain(20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, old);
+        var b = new PlanetTerrain(20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, chosen);
         for (var f : Face.values())
             for (int u = 70; u < 960; u += 223)
                 for (int v = 70; v < 960; v += 211) {
@@ -151,7 +198,9 @@ class PlanetDepthTest {
 
     @Test
     void oreLayersStretchOverTheDepth() {
-        var deep = new PlanetTerrain(20261002,dev.starfold.worldgen.PlanetTerrain.VERSION,rocky(1024, 326));
+        var deep =
+                new PlanetTerrain(
+                        20261002, dev.starfold.worldgen.PlanetTerrain.VERSION, rocky(1024, 326));
         assertEquals(127, deep.layer(127));
         assertEquals(200, deep.layer(200));
         assertEquals(-64, deep.layer(-199));
@@ -164,8 +213,19 @@ class PlanetDepthTest {
                     var c = deep.column(f, u, v);
                     for (int y = -198; y < c.ground() - 8; y++) {
                         var block = c.state(y).getBlock();
-                        int shift=(int)Math.round(deep.terrainPlan().interpolate(dev.starfold.worldgen.plan.terrain.TerrainPlan.STRATA_SHIFT,f,u+.5,v+.5));
-                        boolean below = deep.layer(y-shift) <= dev.starfold.worldgen.PlanetMinerals.layer(.65);
+                        int shift =
+                                (int)
+                                        Math.round(
+                                                deep.terrainPlan()
+                                                        .interpolate(
+                                                                dev.starfold.worldgen.plan.terrain
+                                                                        .TerrainPlan.STRATA_SHIFT,
+                                                                f,
+                                                                u + .5,
+                                                                v + .5));
+                        boolean below =
+                                deep.layer(y - shift)
+                                        <= dev.starfold.worldgen.PlanetMinerals.layer(.65);
                         if (block == Blocks.DEEPSLATE) {
                             deepslate++;
                             assertTrue(below, "deepslate at " + y);
@@ -176,7 +236,9 @@ class PlanetDepthTest {
                             if (!below) stone++;
                         }
                         if (block == Blocks.DEEPSLATE_DIAMOND_ORE) {
-                            assertTrue(deep.layer(y-shift) <= dev.starfold.worldgen.PlanetMinerals.layer(.8));
+                            assertTrue(
+                                    deep.layer(y - shift)
+                                            <= dev.starfold.worldgen.PlanetMinerals.layer(.8));
                             if (y < -64) high++;
                         }
                     }
@@ -234,8 +296,17 @@ class PlanetDepthTest {
         assertEquals(PlanetTerrain.MAX_Y, min + height);
         assertEquals(height, type.get("logical_height").getAsInt());
         // S1 saves explicit depth and shell and rejects earlier generation formats.
-        var basic=com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(java.nio.file.Path.of("probes/src/main/resources/data/starfold/worldgen/world_preset/native_system.json"))).getAsJsonObject();
-        for(var entry:basic.getAsJsonObject("dimensions").getAsJsonObject("starfold:native_planet").getAsJsonObject("generator").getAsJsonArray("planets")) {
+        var basic =
+                com.google.gson.JsonParser.parseString(
+                                java.nio.file.Files.readString(
+                                        java.nio.file.Path.of(
+                                                "probes/src/main/resources/data/starfold/worldgen/world_preset/native_system.json")))
+                        .getAsJsonObject();
+        for (var entry :
+                basic.getAsJsonObject("dimensions")
+                        .getAsJsonObject("starfold:native_planet")
+                        .getAsJsonObject("generator")
+                        .getAsJsonArray("planets")) {
             assertTrue(entry.getAsJsonObject().getAsJsonObject("planet_generation").has("depth"));
             assertTrue(entry.getAsJsonObject().getAsJsonObject("planet_generation").has("shell"));
         }

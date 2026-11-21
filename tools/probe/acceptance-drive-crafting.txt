@@ -1,0 +1,21 @@
+# Prepared face-interior setup. KubeJS fixture supplies inputs, the machines perform the work.
+strict
+waitworld
+cmd gamemode creative
+fly on
+cmd execute in starfold:native_planet run tp @s 5354.5 150 896.5 0 0
+wait 100
+cmd fill 5348 148 894 5361 148 903 minecraft:stone
+cmd fill 5348 149 894 5361 157 903 minecraft:air
+cmd kpfixtures setupcraft
+wait 100
+cmd kpfixtures startcraft
+cmd kpfixtures setupspout
+wait 500
+cmd scoreboard objectives add sfMachineProbe dummy
+cmd execute store result score $drive sfMachineProbe run kpfixtures readcraft
+check drive-produced if score $drive sfMachineProbe matches 1
+cmd execute store result score $spout sfMachineProbe run kpfixtures readspout
+check deuterium-bucket-produced if score $spout sfMachineProbe matches 1
+shot drive-and-deuterium
+quit

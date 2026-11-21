@@ -12,6 +12,8 @@ __pycache__/
 *.pyc
 dist/
 research/
+# Local content-addressed runtime recordings; keep source and reports in Git.
+/artifacts/
 .gradle/
 build/
 run/
@@ -19,3 +21,13 @@ crash-reports/
 logs/
 *.log
 .claude/
+
+# Local agent/editor state, native libraries, and compiler output.
+/.pi/
+/.serena/
+/.eclipse/
+/.lwjgl/
+bin/
+
+# Raw runtime diagnostics; tracked reports live in docs/.
+/output/

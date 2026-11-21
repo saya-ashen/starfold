@@ -1,0 +1,6 @@
+// Allow the isolated runner to issue save-all and stop over the Gradle console.
+gradle.projectsEvaluated {
+    rootProject.tasks.named('runServer', JavaExec).configure {
+        standardInput = System.in
+    }
+}

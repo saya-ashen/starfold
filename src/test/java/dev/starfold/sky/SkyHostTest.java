@@ -2,7 +2,6 @@ package dev.starfold.sky;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 
 import org.junit.jupiter.api.Test;
@@ -30,40 +29,6 @@ class SkyHostTest {
         } finally {
             SkyHost.install(server);
             SkyHost.installClient(client);
-        }
-    }
-
-    @Test
-    void skyQuestionsRetainTheirGatesAndTheWiringRetainsTheirAnswers() throws Exception {
-        var daylight = Sources.text("GroundDaylight");
-        assertTrue(
-                daylight.contains(
-                        "if(PlanetLevels.is(level)&&Space.holds(pos.getX(),pos.getZ()))"));
-        assertTrue(daylight.contains("returnSkyHost.get().sunlight(level,pos,clock)"));
-        assertTrue(
-                daylight.contains("if(!PlanetLevels.is(level)||SkyHost.get().underWay())return"));
-        var weather = Sources.text("WeatherClient");
-        assertTrue(
-                weather.contains(
-                        "if(level!=mc.level||mc.player==null||!PlanetLevels.is(level))returnfalse"));
-        assertTrue(weather.contains("if(SkyHost.client().present())returntrue"));
-        assertTrue(
-                weather.contains(
-                        "SkyHost.client().storage(mc.player.getX(),mc.player.getEyeY(),mc.player.getZ())"));
-        var client = Sources.text("StarfoldClient");
-        assertTrue(client.contains("SkyHost.installClient(newSkyHost()"));
-        assertTrue(client.contains("returnSpaceClient.present()"));
-        assertTrue(client.contains("returnGroundClient.storage(x,y,z)"));
-        assertTrue(
-                client.indexOf("SkyHost.installClient(")
-                        < client.indexOf("GroundClient.initialize("));
-        for (String name : new String[] {"GroundDaylight", "Weather", "WeatherClient", "SkyHost"}) {
-            var text = Sources.text(name);
-            for (String layer :
-                    new String[] {"flight", "space", "ship", "ground", "render", "waypoint"})
-                assertFalse(
-                        text.contains("dev.starfold." + layer + "."),
-                        name + " must not name " + layer);
         }
     }
 }

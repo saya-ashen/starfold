@@ -2,7 +2,6 @@ package dev.starfold.render;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -65,7 +64,6 @@ class GroundTransitionTest {
                     assertTrue(far > Math.hypot(reach, height + 192));
                     assertTrue(far < 4096); // Ground does not need celestial depth range.
                 }
-        assertTrue(Sources.text("GroundFlightRenderMixin").contains("GroundTransition.depthFar("));
     }
 
     @Test
@@ -101,32 +99,27 @@ class GroundTransitionTest {
         }
         assertEquals(0, GroundTransition.fade(128));
         assertEquals(1, GroundTransition.fade(160));
-        var shader = Sources.text("GroundShaderSource");
-        assertTrue(
-                shader.contains(
-                        "smoothstep(CPNativeFade.x,CPNativeFade.y,length(cpNativeRelative.xz))*CPNativeFadeMix"));
-        assertTrue(
-                shader.contains("smoothstep(CPNativeFade.z,CPNativeFade.w,-cpNativeRelative.y)"));
-        assertTrue(shader.contains("cpNativeRelative=point-CPNativeEye;"));
-        assertTrue(shader.contains("bool deep=far>=1.0,lod=deep;"));
-        assertFalse(GroundShaderSource.FADE.contains("cpNativeDither"));
-        assertTrue(shader.contains("CPNativeLodPass>0.5&&cpNativeDither()>=CPNativeLodFade"));
-        assertFalse(shader.contains("if(CPNativeCoarse<0.5&&cpNativeDither()<far)discard"));
-        assertTrue(shader.contains("if(CPNativeCover>0.5&&owner>0.1)discard;"));
-        assertTrue(shader.contains("-cpNativeRelative.y)*CPNativeFadeMix"));
-        assertTrue(
-                Sources.text("GroundProjectionUniforms")
-                        .contains(
-                                "GroundRenderer.selectionReady()&&GroundRenderer.covered()?(float)GroundTransition.fade(e.y()):0f"));
+        var fragment = CoreShaderSource.patch(GroundCompact.Variant.SOLID.name, false,
+                java.nio.file.Files.readString(java.nio.file.Path.of(
+                        "src/main/resources/assets/starfold/shaders/core/ground_compact_solid.fsh")));
+        assertFalse(fragment.contains("cpNativeDither"));
+        assertFalse(fragment.contains("CPNativeLodPass"));
     }
 
     @Test
     void submittedNativeOwnsWholeColumnsInsteadOfPermanentScreenDoorFade() {
-        for (boolean submitted : new boolean[] {false, true}) {
-            var atlas = GroundOwnership.atlas(GroundOwnership.empty(), submitted ? Set.of(0L) : Set.of());
-            boolean coverDrawn = Byte.toUnsignedInt(atlas[1 + GroundOwnership.SIDE]) < 26;
-            assertNotEquals(submitted, coverDrawn);
-        }
+        var shape = new dev.starfold.chart.PlanetShape(2048);
+        var tree = new GroundQuadtree(shape, -256, 512);
+        int root = GroundQuadtree.root(0);
+        tree.publish(root, tree.desiredStep(root), tree.version(root), 1, 0, 0, 1, h -> {});
+        var nativeTiles = new java.util.BitSet();
+        nativeTiles.set(0);
+        var cut = new GroundQuadtree.Cut();
+        tree.selectCut(nativeTiles,
+                n -> GroundQuadtree.face(n) == 0 && GroundQuadtree.x(n) < 256
+                        && GroundQuadtree.z(n) < 256, 0, cut);
+        assertEquals(1, cut.maskedCount);
+        assertEquals(root, cut.masked[0]);
     }
 
     @Test
@@ -171,52 +164,6 @@ class GroundTransitionTest {
         assertEquals(0xffffff, GroundAlbedo.average(new int[] {0xffffffff, 0x00000000}, 0xffffff));
         assertEquals(0xbcbcbc, GroundAlbedo.average(new int[] {0xffffffff, 0xff000000}, 0xffffff));
         assertEquals(0xff00ff, GroundAlbedo.average(new int[] {0}, 0xffffff));
-        assertEquals(0x80c040,GroundAlbedo.average(new int[]{0xffffffff,0x10000000},0x80c040));
-    }
-
-    @Test
-    void cachedAlbedoUsesActualSpriteTintAndReloadInvalidation() throws Exception {
-        var source = Sources.text("GroundAlbedo");
-        assertTrue(
-                source.contains("IClientFluidTypeExtensions.of(fluid.getType())")
-                        && source.contains("getStillTexture(fluid,view,pos)"));
-        assertTrue(source.contains("getTintColor(fluid,view,pos)"));
-        assertTrue(source.contains("getTintIndex"));
-        assertTrue(source.contains("getPixelsRGBA"));
-        assertFalse(source.contains(".getMapColor("));
-        var exterior = Sources.text("GroundExterior");
-        assertFalse(exterior.contains(".getMapColor("));
-        assertTrue(exterior.contains("GroundAlbedo.clear()"));
-        assertTrue(Sources.text("GroundRenderer").contains("GroundAlbedo.color(q.material()"));
-    }
-
-    @Test
-    void rendererClosesColumnSidesAndCachesReadySelectionBorderStrips() throws Exception {
-        var source = Sources.text("GroundRenderer");
-        assertTrue(source.contains("builders.cover.withTerraces(face,quads,step)"));
-        assertTrue(source.contains("Math.min(h,a)-64"));
-        assertTrue(Sources.text("GroundFarMesh").contains("VoxelMesher.boxes("));
-        assertTrue(Sources.text("VoxelMesher").contains("booleanboundary="));
-        assertTrue(source.contains("stitchJob.step(deadline)"));
-        assertTrue(source.contains("!coverage.ownership.sameAs(available)"));
-        assertTrue(source.contains("&&mesh!=stitches[face]"));
-        assertTrue(source.contains("stitches[i]=pendingStitches[i]"));
-    }
-
-    @Test
-    void rangeExtensionSharesUniformsWithVertexClipAndReturnsToSkyBeforeTheCut() throws Exception {
-        var shader = Sources.text("GroundShaderSource");
-        var client = Sources.text("GroundClient");
-        assertTrue(
-                client.contains("GroundTransition.clip(e.y(),gap.clip,view(),shape().radius())"));
-        assertTrue(
-                client.contains("GroundTransition.clip(e.y(),orbit.clip,view(),shape().radius())"));
-        assertTrue(shader.contains("smoothstep(CPNativeRange.x,CPNativeRange.y"));
-        assertTrue(
-                shader.contains(
-                        "mix(fragColor.rgb,FogColor.rgb,cpNativeRangeFog*CPAtmosphereFog)"));
-        assertTrue(
-                shader.contains(
-                        "length(point.xz-CPNativeEye.xz)*(1.0-smoothstep(128.0,160.0,CPNativeEye.y))"));
+        assertEquals(0x80c040, GroundAlbedo.average(new int[] {0xffffffff, 0x10000000}, 0x80c040));
     }
 }

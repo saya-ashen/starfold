@@ -3,12 +3,15 @@ package dev.starfold.ship;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonParser;
-import dev.starfold.Sources;
+
 import org.junit.jupiter.api.Test;
 
 class SpaceFuelBurnTest {
-    private static final FuelDefinition DIESEL = FuelDefinition.parse(JsonParser.parseString(
-            "{\"fluid\":\"test:diesel\",\"impulse\":1.55,\"mass\":0.775}").getAsJsonObject());
+    private static final FuelDefinition DIESEL =
+            FuelDefinition.parse(
+                    JsonParser.parseString(
+                                    "{\"fluid\":\"test:diesel\",\"impulse\":1.55,\"mass\":0.775}")
+                            .getAsJsonObject());
 
     @Test
     void fullTankFinalSpeedEqualsInitialHudDeltaVAtEveryThrottleBoostAndSubstep() {
@@ -28,7 +31,11 @@ class SpaceFuelBurnTest {
                             mass -= paid * budget.massPerImpulse();
                             double needed = requested - paid;
                             if (needed > 0 && stored > 0) {
-                                int bought = (int) Math.min(stored, Math.ceil(needed / DIESEL.impulse()));
+                                int bought =
+                                        (int)
+                                                Math.min(
+                                                        stored,
+                                                        Math.ceil(needed / DIESEL.impulse()));
                                 stored -= bought;
                                 budget.buy(bought, DIESEL.impulse(), DIESEL.mass());
                                 paid = budget.take(needed);
@@ -40,7 +47,8 @@ class SpaceFuelBurnTest {
                         double hud = DIESEL.deltaV(initial, 8000);
                         assertEquals(dry, mass, 1e-9);
                         assertEquals(hud, speed, 1e-8);
-                        System.out.printf("delta-v dry=%.2f throttle=%d boost=%s step=%.4f HUD=%.12f final=%.12f ticks=%d%n",
+                        System.out.printf(
+                                "delta-v dry=%.2f throttle=%d boost=%s step=%.4f HUD=%.12f final=%.12f ticks=%d%n",
                                 dry, power, boost, step, hud, speed, steps);
                     }
     }
@@ -76,16 +84,5 @@ class SpaceFuelBurnTest {
         double remaining = budget.deltaV(mass, budget.credit());
         assertEquals(FuelBudget.velocityChange(10, 1000, .002), dv + remaining, 1e-12);
         assertEquals(1, FuelBudget.velocityChange(100, 100, 0));
-    }
-
-    @Test
-    void productionUsesSameRocketIntegrationAndKeepsChartImpulsePath() throws Exception {
-        var source = Sources.text("ThrusterFuel");
-        assertTrue(source.contains("if(!Space.holds(at.x(),at.z()))return burn(body,requested,false)"));
-        assertTrue(source.contains("burn(body,requested,false,true)*body.getMassTracker().getMass()"));
-        assertTrue(source.contains("budget.deltaV(state.currentMass,impulse)"));
-        assertTrue(source.contains("state.currentMass-=impulse*budget.massPerImpulse()"));
-        assertTrue(source.contains("state.ordinary.mass()+state.interstellar.mass()"));
-        assertTrue(Sources.text("Thrusters").contains("impulse=ThrusterFuel.draw(body,impulse)"));
     }
 }

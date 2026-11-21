@@ -20,7 +20,8 @@ import java.nio.ByteBuffer;
 final class GroundSkyMesh implements AutoCloseable {
     static final int NX = AtmosphereSettings.SKY_LONGITUDES, NY = AtmosphereSettings.SKY_LATITUDES;
     static final int VERTICES = (NX + 1) * (NY + 1);
-    private static final double[] EAST = new double[VERTICES], UP = new double[VERTICES],
+    private static final double[] EAST = new double[VERTICES],
+            UP = new double[VERTICES],
             NORTH = new double[VERTICES];
     static final int[] INDICES = new int[NX * NY * 6];
 
@@ -63,8 +64,8 @@ final class GroundSkyMesh implements AutoCloseable {
         out.put((byte) 255);
     }
 
-    private final ByteBuffer vertices = MemoryUtil.memAlloc(
-            VERTICES * DefaultVertexFormat.POSITION_COLOR.getVertexSize());
+    private final ByteBuffer vertices =
+            MemoryUtil.memAlloc(VERTICES * DefaultVertexFormat.POSITION_COLOR.getVertexSize());
     private final int vao = GlStateManager._glGenVertexArrays();
     private final int vbo = GlStateManager._glGenBuffers();
     private final int ebo = GlStateManager._glGenBuffers();
@@ -106,8 +107,11 @@ final class GroundSkyMesh implements AutoCloseable {
         BufferUploader.invalidate();
         GlStateManager._glBindVertexArray(vao);
         try {
-            shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, matrix,
-                    RenderSystem.getProjectionMatrix(), Minecraft.getInstance().getWindow());
+            shader.setDefaultUniforms(
+                    VertexFormat.Mode.TRIANGLES,
+                    matrix,
+                    RenderSystem.getProjectionMatrix(),
+                    Minecraft.getInstance().getWindow());
             shader.apply();
             RenderSystem.drawElements(GL11.GL_TRIANGLES, INDICES.length, GL11.GL_UNSIGNED_SHORT);
             shader.clear();

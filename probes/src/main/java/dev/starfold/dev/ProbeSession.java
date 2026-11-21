@@ -1,7 +1,7 @@
 package dev.starfold.dev;
 
-import static dev.starfold.dev.ProbeInput.*;
 import static dev.starfold.dev.ProbeCamera.*;
+import static dev.starfold.dev.ProbeInput.*;
 import static dev.starfold.dev.ProbeSamples.*;
 
 import dev.starfold.chart.GroundSolar;
@@ -42,7 +42,6 @@ final class ProbeSession {
     static String motionGuard;
 
     static int guardLeft, stable;
-
     static String receipt, checkLabel;
 
     static final ProbeScript cursor = new ProbeScript();
@@ -171,6 +170,7 @@ final class ProbeSession {
                             done ? "met" : "TIMEOUT",
                             GroundFlightClient.probeReading());
             until = null;
+            if (!done) DevTripProbe.snapshot(mc, "s-until-timeout");
             if (cursor.strict && !done) {
                 fail(mc, "until timeout");
                 return true;
@@ -179,8 +179,7 @@ final class ProbeSession {
         return false;
     }
 
-    static boolean conditionMet(
-            Minecraft mc, double alt, SpaceNavigation.Reading approach) {
+    static boolean conditionMet(Minecraft mc, double alt, SpaceNavigation.Reading approach) {
         return switch (until) {
             case "landingarrow" ->
                     HullLandingClient.site().aid().status() == HullLanding.AidStatus.FOUND;
@@ -209,6 +208,7 @@ final class ProbeSession {
                                                                                             > 0
                                                                                     && stair.visual
                                                                                             >= 1));
+            case "loopstair" -> DevLandingProbe.loopStairDeployed(mc);
             case "notice" -> SpaceClient.phase() == ArrivalState.Phase.NOTICE;
             case "notice1" -> SpaceClient.notice() == 1;
             case "blend" ->
@@ -220,7 +220,19 @@ final class ProbeSession {
             case "horizontal>" -> HullLandingClient.horizontal() > untilValue;
             case "clearance>" -> HullLandingClient.clearance() > untilValue;
             case "clearance<" -> HullLandingClient.clearance() < untilValue;
+            case "faceinset>" -> DevTripProbe.faceInset() > untilValue;
+            case "rested" -> DevTripProbe.restingTicks() >= untilValue;
+            case "drysite", "dryrested" ->
+                    (until.equals("drysite") || DevTripProbe.restingTicks() >= untilValue)
+                            && switch (HullLandingClient.site().kind()) {
+                                case LAND, PAD, SLOPE -> true;
+                                default -> false;
+                            };
             case "x<" -> mc.player.getX() < untilValue;
+            case "hullx>" -> {
+                var at = DevTripProbe.storageHull();
+                yield at != null && at.x() > untilValue;
+            }
             case "travelled>" ->
                     walkStart != null
                             && Math.hypot(
@@ -311,7 +323,9 @@ final class ProbeSession {
             case "wait" -> commandWait(arg);
             case "port" -> commandPort(arg);
             case "waitworld" -> commandWaitworld(mc);
+            case "respawn" -> commandRespawn(mc);
             case "p3sound" -> DevPlanetSoundProbe.command(mc, arg);
+            case "fartrace" -> DevFarTraceProbe.command(mc, arg);
             case "atlas" -> DevAtlasProbe.command(mc, arg);
             case "boardpilot" -> commandBoardpilot(mc, arg);
             case "shipcam" -> commandShipcam(mc, arg);
@@ -329,10 +343,13 @@ final class ProbeSession {
             case "walk20" -> commandWalk20(mc, arg);
             case "solarplan" -> commandSolarplan(mc, arg);
             case "solarjump" -> commandSolarjump(mc, arg);
+            case "baritone" -> DevBaritoneProbe.start(mc, arg);
             case "guide" -> commandGuide(mc, arg);
+            case "guideat" -> commandGuide(mc, guideChartCoordinates(arg));
             case "input" -> commandInput(mc, arg);
             case "solar" -> commandSolar(mc, arg);
             case "cmd" -> commandCmd(mc, arg);
+            case "clientcmd" -> commandClientCmd(mc, arg);
             case "pack" -> commandPack(mc, arg);
             case "key" -> commandKey(arg);
             case "createworld" -> commandCreateworld(mc, arg);
@@ -356,6 +373,8 @@ final class ProbeSession {
             case "travelstart" -> commandTravelstart(mc);
             case "home" -> commandHome(arg);
             case "chartheading" -> commandChartheading(arg);
+            case "charttravel" -> commandChartTravel(arg);
+            case "facecenter" -> commandChartheading(DevTripProbe.centerHeading() + " " + arg + " approximate");
             case "loopstate" -> commandLoopstate(mc, arg);
             case "surfacehere" -> commandSurfacehere(mc);
             case "requirechart" -> commandRequirechart();
@@ -401,7 +420,11 @@ final class ProbeSession {
             case "fx" -> commandFx(mc, arg);
             case "particles" -> commandParticles(mc, arg);
             case "log" -> commandLog(mc, arg);
-            case "flightbench" -> { DevFlightPerfProbe.begin(mc, arg); cursor.line++; yield false; }
+            case "flightbench" -> {
+                DevFlightPerfProbe.begin(mc, arg);
+                cursor.line++;
+                yield false;
+            }
             case "frames" -> commandFrames(arg);
             case "far" -> commandFar(arg);
             case "darkscan" -> commandDarkscan(mc, arg);
@@ -469,7 +492,8 @@ final class ProbeSession {
                 || mc.level == null
                 || mc.screen != null
                         && !(mc.screen instanceof net.minecraft.client.gui.screens.ChatScreen)) {
-            if (mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen)
+            if (mc.player != null
+                    && mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen)
                 mc.player.respawn();
             // Opening a custom-preset world asks for confirmation; a scripted session
             // accepts it.
@@ -488,6 +512,14 @@ final class ProbeSession {
             return false;
         }
         return true;
+    }
+
+    static boolean commandRespawn(Minecraft mc) {
+        if (mc.player == null || !mc.player.isDeadOrDying()) return true;
+        if (!(mc.screen instanceof net.minecraft.client.gui.screens.DeathScreen)) return false;
+        mc.player.respawn();
+        cursor.line++;
+        return false;
     }
 
     static boolean commandStrict() {
@@ -568,6 +600,19 @@ final class ProbeSession {
         return false;
     }
 
+    private static String guideChartCoordinates(String arg) {
+        var fields = arg.split("\\s+");
+        double x = Double.parseDouble(fields[1]);
+        boolean horizontal = fields[0].equals("walk") || fields[0].equals("align");
+        double z = Double.parseDouble(fields[horizontal ? 2 : 3]);
+        boolean block = fields[0].equals("mine");
+        var target = DevTripProbe.chartImage(x + (block ? .5 : 0), z + (block ? .5 : 0));
+        fields[1] = block ? Integer.toString((int) Math.floor(target.x())) : Double.toString(target.x());
+        fields[horizontal ? 2 : 3] = block ? Integer.toString((int) Math.floor(target.z()))
+                : Double.toString(target.z());
+        return String.join(" ", fields);
+    }
+
     static boolean commandGuide(Minecraft mc, String arg) {
         yaw = null;
         pitch = null;
@@ -625,6 +670,21 @@ final class ProbeSession {
         return false;
     }
 
+    /** Exercises the registered client dispatcher; an unknown command never reaches the server. */
+    static boolean commandClientCmd(Minecraft mc, String arg) {
+        var dispatcher = net.neoforged.neoforge.client.ClientCommandHandler.getDispatcher();
+        if (dispatcher == null) throw new IllegalStateException("client commands not ready");
+        try {
+            int result =
+                    dispatcher.execute(
+                            arg, net.neoforged.neoforge.client.ClientCommandHandler.getSource());
+            if (result <= 0) throw new IllegalStateException("client command failed: " + arg);
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException error) {
+            throw new IllegalStateException("client command: " + arg, error);
+        }
+        return true;
+    }
+
     static boolean commandCmd(Minecraft mc, String arg) {
         mc.player.connection.sendCommand(arg);
         if (cursor.strict) {
@@ -643,38 +703,85 @@ final class ProbeSession {
 
     // Holds the main-hand item in use (a spyglass zooms) until "scope off".
     static boolean commandScope(Minecraft mc, String arg) {
-        if (arg.equals("on")) mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+        if (arg.equals("on"))
+            mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
         else mc.gameMode.releaseUsingItem(mc.player);
         return true;
     }
 
     /** Opens a fresh world screen, selects a preset by id, or creates it with commands allowed ("go"). */
     static boolean commandCreateworld(Minecraft mc, String arg) {
-        if (mc.screen instanceof net.minecraft.client.gui.screens.worldselection.CreateWorldScreen screen) {
+        if (mc.screen
+                instanceof
+                net.minecraft.client.gui.screens.worldselection.CreateWorldScreen screen) {
             if (arg.contains(":")) {
-                var presets = screen.getUiState().getSettings().worldgenRegistries()
-                        .compositeAccess().registryOrThrow(net.minecraft.core.registries.Registries.WORLD_PRESET);
-                screen.getUiState().setWorldType(
-                        new net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.WorldTypeEntry(
-                                presets.getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
-                                        net.minecraft.core.registries.Registries.WORLD_PRESET,
-                                        net.minecraft.resources.ResourceLocation.parse(arg)))));
+                var presets =
+                        screen.getUiState()
+                                .getSettings()
+                                .worldgenRegistries()
+                                .compositeAccess()
+                                .registryOrThrow(
+                                        net.minecraft.core.registries.Registries.WORLD_PRESET);
+                screen.getUiState()
+                        .setWorldType(
+                                new net.minecraft.client.gui.screens.worldselection
+                                        .WorldCreationUiState.WorldTypeEntry(
+                                        presets.getHolderOrThrow(
+                                                net.minecraft.resources.ResourceKey.create(
+                                                        net.minecraft.core.registries.Registries
+                                                                .WORLD_PRESET,
+                                                        net.minecraft.resources.ResourceLocation
+                                                                .parse(arg)))));
             }
-            org.slf4j.LoggerFactory.getLogger("starfold-probe").info("PROBE CREATEWORLD preset {}",
-                    screen.getUiState().getWorldType().preset().unwrapKey().orElseThrow().location());
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info(
+                            "PROBE CREATEWORLD preset {}",
+                            screen.getUiState()
+                                    .getWorldType()
+                                    .preset()
+                                    .unwrapKey()
+                                    .orElseThrow()
+                                    .location());
             if (arg.startsWith("seed ")) screen.getUiState().setSeed(arg.substring(5));
             if (arg.startsWith("preset "))
-                screen.getUiState().setWorldType(screen.getUiState().getNormalPresetList().stream()
-                        .filter(entry -> entry.preset() != null && entry.preset().is(net.minecraft.resources.ResourceLocation.parse(arg.substring(7))))
-                        .findFirst().orElseThrow());
+                screen.getUiState()
+                        .setWorldType(
+                                screen.getUiState().getNormalPresetList().stream()
+                                        .filter(
+                                                entry ->
+                                                        entry.preset() != null
+                                                                && entry.preset()
+                                                                        .is(
+                                                                                net.minecraft
+                                                                                        .resources
+                                                                                        .ResourceLocation
+                                                                                        .parse(
+                                                                                                arg
+                                                                                                        .substring(
+                                                                                                                7))))
+                                        .findFirst()
+                                        .orElseThrow());
             if (arg.equals("go")) screen.getUiState().setAllowCommands(true);
             if (arg.equals("go"))
                 screen.children().stream()
-                        .filter(child -> child instanceof net.minecraft.client.gui.components.Button button
-                                && button.getMessage().equals(net.minecraft.network.chat.Component.translatable("selectWorld.create")))
+                        .filter(
+                                child ->
+                                        child
+                                                        instanceof
+                                                        net.minecraft.client.gui.components.Button
+                                                                button
+                                                && button.getMessage()
+                                                        .equals(
+                                                                net.minecraft.network.chat.Component
+                                                                        .translatable(
+                                                                                "selectWorld.create")))
                         .findFirst()
-                        .ifPresent(child -> ((net.minecraft.client.gui.components.Button) child).onPress());
-        } else net.minecraft.client.gui.screens.worldselection.CreateWorldScreen.openFresh(mc, null);
+                        .ifPresent(
+                                child ->
+                                        ((net.minecraft.client.gui.components.Button) child)
+                                                .onPress());
+        } else
+            net.minecraft.client.gui.screens.worldselection.CreateWorldScreen.openFresh(mc, null);
         return true;
     }
 
@@ -858,6 +965,7 @@ final class ProbeSession {
     }
 
     static boolean commandExit(Minecraft mc) {
+        DevFarTraceProbe.stop(mc, "exit");
         if (DevPlanetSoundProbe.enabled()) DevPlanetSoundProbe.stop(mc);
         release(mc);
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
@@ -868,6 +976,7 @@ final class ProbeSession {
     }
 
     static boolean commandQuit(Minecraft mc) {
+        DevFarTraceProbe.stop(mc, "quit");
         if (DevPlanetSoundProbe.enabled()) DevPlanetSoundProbe.stop(mc);
         // Client ticks continue when the server is stuck. Require a final server round
         // trip in verify.py.
@@ -889,7 +998,18 @@ final class ProbeSession {
         throw new IllegalArgumentException("Probe line " + cursor.lines.get(cursor.line));
     }
 
+    static String loopHull = System.getProperty("starfold.probe.loopHull", "");
+
     static String expand(String arg) {
+        if (arg.contains("{loop")) {
+            var hull = loopHull.split(",");
+            if (hull.length != 4) throw new IllegalStateException("Loop hull has not been identified");
+            int x = Integer.parseInt(hull[1]), y = Integer.parseInt(hull[2]), z = Integer.parseInt(hull[3]);
+            arg = arg.replace("{loopShip}", hull[0])
+                    .replace("{loopCargo}", (x + 7) + " " + (y + 1) + " " + (z + 4))
+                    .replace("{loopDiesel}", (x + 8) + " " + (y + 1) + " " + (z + 3))
+                    .replace("{loopGasoline}", (x + 8) + " " + (y + 1) + " " + (z + 5));
+        }
         var m =
                 java.util.regex.Pattern.compile(
                                 "\\{(baseb|boardb|boarda)(?::(-?\\d+),(-?\\d+),(-?\\d+))?\\}")
@@ -919,15 +1039,23 @@ final class ProbeSession {
     }
 
     static void fail(Minecraft mc, String reason) {
+        try {
+            DevFarTraceProbe.stop(mc, "failed: " + reason);
+        } catch (RuntimeException error) {
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .error("PROBE FARTRACE export failed", error);
+        }
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                 .error("PROBE FAIL CLOSED {} scriptLine {}", reason, cursor.line + 1);
         release(mc);
+        DevFilm.stop();
         receipt = null;
         motionGuard = null;
         until = null;
         steerLeft = 0;
         sampleEvery = 0;
-        mc.stop();
+        DevBaritoneProbe.stop();
         cursor.line = cursor.lines.size();
+        if (!DevProbe.handOff(mc)) mc.stop();
     }
 }

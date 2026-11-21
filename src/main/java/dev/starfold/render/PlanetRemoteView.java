@@ -74,12 +74,15 @@ public final class PlanetRemoteView {
 
     public boolean surface(PlanetRemotePackets.Surface packet) {
         var s = packet.surface();
-        if (profile == null || !s.compatible()
-                || packet.planet() != planet || s.session() != profile.session()
-                || s.image()!=null && (!changed.get((int)s.key()) || unknown.get((int)s.key()))) return false;
+        if (profile == null
+                || !s.compatible()
+                || packet.planet() != planet
+                || s.session() != profile.session()
+                || s.image() != null && (!changed.get((int) s.key()) || unknown.get((int) s.key())))
+            return false;
         if (surfaceRevisions.getOrDefault(s.key(), -1L) >= s.revision()) return false;
-        surfaceRevisions.put(s.key(),s.revision());
-        if(s.image()==null) surfaces.remove(s.key());
+        surfaceRevisions.put(s.key(), s.revision());
+        if (s.image() == null) surfaces.remove(s.key());
         else surfaces.put(s.key(), s.image());
         generation++;
         return true;
@@ -87,11 +90,8 @@ public final class PlanetRemoteView {
 
     /** The observer's own planet, from what the client holds of it: no summary tells of it while they are there. */
     public boolean own(
-            PlanetPackets.Profile told,
-            int id,
-            BitSet marked,
-            Map<Long, GroundSurface> held) {
-        if(!told.surfaceCompatible()) return false;
+            PlanetPackets.Profile told, int id, BitSet marked, Map<Long, GroundSurface> held) {
+        if (!told.surfaceCompatible()) return false;
         var known = new HashMap<Long, GroundSurface>();
         for (var e : held.entrySet())
             if (marked.get(e.getKey().intValue())) known.put(e.getKey(), e.getValue());
@@ -113,9 +113,13 @@ public final class PlanetRemoteView {
         return true;
     }
 
-    public PlanetPackets.Profile profile() { return profile; }
+    public PlanetPackets.Profile profile() {
+        return profile;
+    }
 
-    public PlanetTerrain terrain() { return terrain; }
+    public PlanetTerrain terrain() {
+        return terrain;
+    }
 
     public Snapshot snapshot() {
         return profile == null
@@ -124,7 +128,9 @@ public final class PlanetRemoteView {
                         planet,
                         terrain,
                         (BitSet) changed.clone(),
-                        surfaces.isEmpty() ? Map.of() : Collections.unmodifiableMap(new HashMap<>(surfaces)),
+                        surfaces.isEmpty()
+                                ? Map.of()
+                                : Collections.unmodifiableMap(new HashMap<>(surfaces)),
                         generation,
                         profile.biome());
     }

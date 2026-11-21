@@ -1,0 +1,22 @@
+# Naturally triggered encounter. Use controlled damage to exercise phase, loot and cooldown state.
+strict
+waitworld
+wait 120
+cmd gamemode creative
+cmd packprobe visit 12 4
+wait 300
+cmd acceptancehive
+wait 300
+check natural-host if entity @e[type=starfold_biotech:host,distance=..150]
+check natural-sac if entity @e[type=starfold_biotech:host_sac,distance=..150]
+shot flesh-host-ground
+cmd execute as @e[type=starfold_biotech:host_sac,distance=..150] run damage @s 100 minecraft:player_attack by @p
+wait 140
+check sacs-cleared unless entity @e[type=starfold_biotech:host_sac,distance=..150]
+check host-airborne if entity @e[type=starfold_biotech:host,distance=..150,nbt={HostPhase:3}]
+shot flesh-host-airborne
+cmd execute as @e[type=starfold_biotech:host,distance=..150,limit=1] run damage @s 1000 minecraft:player_attack by @p
+wait 240
+check host-defeated unless entity @e[type=starfold_biotech:host,distance=..150]
+check host-ganglion-drop if entity @e[type=minecraft:item,distance=..150,nbt={Item:{id:"starfold_biotech:host_ganglion"}}]
+quit

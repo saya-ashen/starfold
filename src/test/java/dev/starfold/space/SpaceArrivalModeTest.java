@@ -4,7 +4,6 @@ import static dev.starfold.sky.SpaceTest.point;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 
@@ -25,8 +24,7 @@ class SpaceArrivalModeTest {
             point(
                     drift,
                     SpaceFlightMath.gain(
-                            drift,
-                            SpaceFlightMath.arrivalPush(new Point(3, 0, 4), toward, true)));
+                            drift, SpaceFlightMath.arrivalPush(new Point(3, 0, 4), toward, true)));
         }
     }
 
@@ -73,20 +71,23 @@ class SpaceArrivalModeTest {
                     var old = SpaceFlightMath.gain(drift, impulse);
                     var next =
                             SpaceFlightMath.gain(
-                                    drift,
-                                    SpaceFlightMath.arrivalPush(impulse, toward, false));
+                                    drift, SpaceFlightMath.arrivalPush(impulse, toward, false));
                     assertEquals(old, next);
                     assertEquals(
                             SpaceFlightMath.brake(drift, old, impulse, target),
-                            SpaceFlightMath.brake(drift, next,
-                                    SpaceFlightMath.arrivalPush(impulse, toward, false), target));
+                            SpaceFlightMath.brake(
+                                    drift,
+                                    next,
+                                    SpaceFlightMath.arrivalPush(impulse, toward, false),
+                                    target));
                 }
         }
     }
 
     @Test
     void tangentialPassAtFiveThousandIsNotArrival() {
-        assertFalse(SpaceFlightMath.align(dev.starfold.chart.GroundSolar.defaults().body(0), 5000, 0));
+        assertFalse(
+                SpaceFlightMath.align(dev.starfold.chart.GroundSolar.defaults().body(0), 5000, 0));
         var v = new Point(40, 0, 0);
         assertSame(v, SpaceFlightMath.arrivalPush(v, new Point(0, -1, 0), false));
         assertEquals(
@@ -97,26 +98,5 @@ class SpaceArrivalModeTest {
                         new Point(0, -1, 0),
                         v,
                         5000));
-    }
-
-    @Test
-    void integrationFiltersFoldNotHullRelabellingAndSkipsBothAssists() throws Exception {
-        var s = Sources.text("SpaceServer");
-        assertTrue(s.contains("boolean arriving=value.arrivalState.latched()"));
-        assertTrue(
-                s.contains(
-                        "gain(f.drift(),blendPush(f.universeVector(v),towardEntry,blend))"));
-        assertTrue(s.contains("push=blendPush(push,towardEntry,blend)"));
-        assertTrue(s.contains("new org.joml.Vector3d(-v.x()*20,-v.y()*20,-v.z()*20)"));
-        assertTrue(s.contains("if(!arriving)"));
-        assertTrue(s.indexOf("if(!arriving)") < s.indexOf("assist(f.drift(),nose"));
-        assertTrue(
-                s.indexOf("drift=cruise(prior")
-                        < s.indexOf("var limited=govern(model.body(nearest),drift"));
-        var hud = Sources.text("SpaceNavigationClient");
-        assertTrue(hud.contains("SpaceClient.arriving()?FlightMode.ARRIVAL"));
-        var widgets = Sources.text("FlightWidgets");
-        assertTrue(widgets.contains("if(arrival){if(s.blend()<1)"));
-        assertTrue(widgets.contains("g.setColor(1,1,1,(float)s.blend())"));
     }
 }

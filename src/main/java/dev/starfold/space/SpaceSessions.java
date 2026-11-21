@@ -7,6 +7,7 @@ import dev.starfold.chart.CelestialTarget;
 import dev.starfold.chart.GroundSpace;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
+
 import net.minecraft.server.level.ServerLevel;
 
 /** Transient player intents and view ownership, reset at server lifecycle boundaries. */
@@ -29,41 +30,47 @@ final class SpaceSessions {
     record Target(
             ServerLevel level,
             dev.ryanhcode.sable.sublevel.ServerSubLevel body,
-            CelestialTarget celestial, java.util.UUID ship) {}
+            CelestialTarget celestial,
+            java.util.UUID ship) {}
 
     static final java.util.Map<net.minecraft.server.level.ServerPlayer, Target> targets =
             new java.util.WeakHashMap<>();
-    static final java.util.Map<net.minecraft.server.level.ServerPlayer, ServerLevel>
-            observers = new java.util.WeakHashMap<>();
+    static final java.util.Map<net.minecraft.server.level.ServerPlayer, ServerLevel> observers =
+            new java.util.WeakHashMap<>();
 
     record View(
-            ServerLevel level, SpacePackets.View packet,
+            ServerLevel level,
+            SpacePackets.View packet,
             SpaceViewOwner<net.minecraft.server.level.ServerPlayer> owner) {}
 
     static final java.util.Map<net.minecraft.server.level.ServerPlayer, View> views =
             new java.util.WeakHashMap<>();
-    static final java.util.Map<net.minecraft.world.entity.LivingEntity, ServerLevel>
-            weightless = new java.util.WeakHashMap<>();
 
     static void initialize() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent
                                 event) ->
-                        SpaceServer.sync((net.minecraft.server.level.ServerPlayer) event.getEntity()));
+                        SpaceServer.sync(
+                                (net.minecraft.server.level.ServerPlayer) event.getEntity()));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.Clone event) -> {
                     var old = views.get(event.getOriginal());
-                    if (old != null && old.owner().owns(
-                            (net.minecraft.server.level.ServerPlayer) event.getOriginal()))
+                    if (old != null
+                            && old.owner()
+                                    .owns(
+                                            (net.minecraft.server.level.ServerPlayer)
+                                                    event.getOriginal()))
                         old.owner().reference().clear();
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) ->
-                        SpaceServer.sync((net.minecraft.server.level.ServerPlayer) event.getEntity()));
+                        SpaceServer.sync(
+                                (net.minecraft.server.level.ServerPlayer) event.getEntity()));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent
                                 event) ->
-                        SpaceServer.sync((net.minecraft.server.level.ServerPlayer) event.getEntity()));
+                        SpaceServer.sync(
+                                (net.minecraft.server.level.ServerPlayer) event.getEntity()));
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent
                                 event) -> {
@@ -93,7 +100,7 @@ final class SpaceSessions {
         views.clear();
         wishes.clear();
         targets.clear();
-        weightless.clear();
+        SpaceGravity.clear();
         dev.starfold.ship.GasShipDamage.clear();
         GasPressureServer.clear();
     }
@@ -103,7 +110,7 @@ final class SpaceSessions {
         views.values().removeIf(value -> value.level() == level);
         wishes.keySet().removeIf(player -> player.serverLevel() == level);
         targets.values().removeIf(value -> value.level() == level);
-        weightless.values().removeIf(value -> value == level);
+        SpaceGravity.release(level);
         SpaceApproach.release(level);
         dev.starfold.ship.GasShipDamage.release(level);
     }
@@ -140,10 +147,14 @@ final class SpaceSessions {
         return v.packet().session();
     }
 
-    static View view(net.minecraft.server.level.ServerPlayer player, ServerLevel level,
+    static View view(
+            net.minecraft.server.level.ServerPlayer player,
+            ServerLevel level,
             GroundSpace.Config mask) {
         var old = views.get(player);
-        if (old != null && old.level() == level && old.packet().mask().equals(mask)
+        if (old != null
+                && old.level() == level
+                && old.packet().mask().equals(mask)
                 && old.owner().owns(player)) return old;
         long id;
         do {
@@ -156,8 +167,7 @@ final class SpaceSessions {
         return view;
     }
 
-    static void wish(
-            net.minecraft.server.level.ServerPlayer player, SpacePackets.Attitude packet) {
+    static void wish(net.minecraft.server.level.ServerPlayer player, SpacePackets.Attitude packet) {
         if (!packet.finite() || !Space.in(player)) {
             wishes.remove(player);
             return;
@@ -192,5 +202,4 @@ final class SpaceSessions {
                         mp,
                         player.level().getGameTime()));
     }
-
 }

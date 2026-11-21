@@ -197,7 +197,8 @@ public final class Thrusters {
                 "helm", () -> helmType = BlockEntityType.Builder.of(Helm::new, helm).build(null));
         BLOCKS.register("gas_scoop", () -> scoop = new ScoopBlock(properties));
         ITEMS.register("gas_scoop", () -> new BlockItem(scoop, new Item.Properties()));
-        ENTITIES.register("gas_scoop",
+        ENTITIES.register(
+                "gas_scoop",
                 () -> scoopType = BlockEntityType.Builder.of(GasScoop::new, scoop).build(null));
         GasScoop.initialize();
         ThrusterFuel.initialize();
@@ -286,7 +287,8 @@ public final class Thrusters {
                 net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
                         Level level, BlockState state, BlockEntityType<T> type) {
             return !level.isClientSide && type == scoopType
-                    ? (world, pos, block, entity) -> GasScoop.tick(world, pos, block, (GasScoop) entity)
+                    ? (world, pos, block, entity) ->
+                            GasScoop.tick(world, pos, block, (GasScoop) entity)
                     : null;
         }
     }
@@ -644,11 +646,20 @@ public final class Thrusters {
     }
 
     static boolean groundRest(
-            boolean solidChart, double clearance, double velocityY, int bits, boolean externalRoll) {
+            boolean solidChart,
+            double clearance,
+            double velocityY,
+            int bits,
+            boolean externalRoll) {
         return solidChart
                 && !externalRoll
-                && (bits & (HelmCommand.UP | HelmCommand.FORWARD | HelmCommand.BACK
-                        | HelmCommand.LEFT | HelmCommand.RIGHT)) == 0
+                && (bits
+                                & (HelmCommand.UP
+                                        | HelmCommand.FORWARD
+                                        | HelmCommand.BACK
+                                        | HelmCommand.LEFT
+                                        | HelmCommand.RIGHT))
+                        == 0
                 && LiftControl.landed(clearance, velocityY);
     }
 

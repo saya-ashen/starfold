@@ -7,29 +7,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 
-import dev.starfold.Sources;
-import dev.starfold.chart.GroundSolar;
-import dev.starfold.chart.PlanetShape;
-import dev.starfold.geometry.CubeSurfaceTopology.Face;
-import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.PlanetCore;
-import dev.starfold.planet.PlanetStorage;
-import dev.starfold.planet.PlanetSystem;
-import dev.starfold.sky.GroundDaylight;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
-import dev.starfold.worldgen.PlanetGeneration;
-import dev.starfold.worldgen.PlanetMinerals;
-import dev.starfold.worldgen.PlanetTerrain;
-
-import net.minecraft.world.level.biome.Biomes;
-import net.minecraft.world.level.block.Blocks;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 
 /** Planet types come from data; a planet made from one is saved with the values it was given. */
 public class PlanetTypeFixtures {
@@ -143,18 +126,19 @@ public class PlanetTypeFixtures {
     public static Path presetPath(String name) {
         return switch (name) {
             case "native_system", "native_trio", "native_stars", "native_exploration" ->
-                Path.of("probes/src/main/resources/data/starfold/worldgen/world_preset/" + name + ".json");
+                    Path.of(
+                            "probes/src/main/resources/data/starfold/worldgen/world_preset/"
+                                    + name
+                                    + ".json");
             default -> DATA.resolve("worldgen/world_preset/" + name + ".json");
         };
     }
 
     public static JsonElement preset(String name) throws Exception {
-        return JsonParser.parseString(
-                        Files.readString(presetPath(name)))
+        return JsonParser.parseString(Files.readString(presetPath(name)))
                 .getAsJsonObject()
                 .getAsJsonObject("dimensions")
                 .getAsJsonObject("starfold:native_planet")
                 .getAsJsonObject("generator");
     }
-
 }

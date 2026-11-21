@@ -7,15 +7,13 @@ import java.util.*;
 /** Work/LOD policy only. Never changes canonical world state, picking or collision. */
 public final class GroundViewPolicy {
     public static final int PATCH_COUNT = 384;
-    public static final long FRAME_BUDGET_NS = 2_000_000,
-            NEAR_BUDGET_NS = 6_000_000,
-            DETAIL_BYTES = 96L * 1024 * 1024,
-            STAGING_BYTES = 16L * 1024 * 1024,
-            LIGHT_REFRESH_TICKS = 100;
+    public static final int LIGHT_REFRESH_TICKS = 100;
+    public static final long FRAME_BUDGET_NS = 2_000_000;
+    public static final long DETAIL_BYTES = GroundGpuBudget.SELECTED.detailBytes;
 
-    /** Initial six-face coverage gets the existing near-work budget; refinements keep their background share. */
-    static long coverBudget(boolean parentsReady) {
-        return parentsReady ? FRAME_BUDGET_NS / 2 : NEAR_BUDGET_NS;
+    /** Recover another sibling batch as soon as previous visible work has drained. */
+    static int recoveryGroups(boolean demandEmpty, int pendingUploads, int jobs, int capacity) {
+        return demandEmpty && pendingUploads == 0 && jobs == 0 ? Math.max(0, capacity / 4) : 0;
     }
 
     public static int patch(long key) {
@@ -36,7 +34,10 @@ public final class GroundViewPolicy {
         return patch / 8 % 8 * 256;
     }
 
-    /** Does this patch lie on a planet of this shape? A smaller planet fills only the first patches of each face. */
+    /**
+     * Does this patch lie on a planet of this shape? A smaller planet fills only the first patches
+     * of each face.
+     */
     public static boolean exists(PlanetShape shape, int patch) {
         return x(patch) < shape.size() && z(patch) < shape.size();
     }
@@ -113,138 +114,4 @@ public final class GroundViewPolicy {
     }
 
     /** Two bounded dirty queues keep arriving edits out of an immutable cover build. */
-    public static final class CohortPatches {
-        private final java.util.function.Supplier<PlanetShape> shape;
-        private DirtyPatches active;
-        private DirtyPatches deferred;
-        private boolean latched;
-
-        public CohortPatches(java.util.function.Supplier<PlanetShape> shape) {
-            this.shape = shape;
-            active = new DirtyPatches(shape);
-            deferred = empty();
-        }
-
-        private DirtyPatches empty() {
-            var result = new DirtyPatches(shape);
-            result.clear();
-            return result;
-        }
-
-        public void all() {
-            active.all();
-            deferred.clear();
-            latched = false;
-        }
-
-        public void latch() {
-            if (active.count() == 0) throw new IllegalStateException("Empty cover cohort");
-            latched = true;
-        }
-
-        public void promote() {
-            if (!latched) throw new IllegalStateException("No cover cohort");
-            active = deferred;
-            deferred = empty();
-            latched = false;
-        }
-
-        public void tile(long key) {
-            (latched ? deferred : active).tile(key);
-        }
-
-        /** Far-mesh readiness only; no tile capture or native/detail invalidation. */
-        public void patch(int patch) {
-            (latched ? deferred : active).patch(patch);
-        }
-
-        public void coverage(BitSet before, BitSet after) {
-            (latched ? deferred : active).coverage(before, after);
-        }
-
-        public int poll() {
-            return active.poll();
-        }
-
-        public int count() {
-            return active.count();
-        }
-    }
-
-    public static final class DirtyPatches {
-        private final BitSet dirty = new BitSet(PATCH_COUNT);
-        private final LinkedHashSet<Integer> urgent = new LinkedHashSet<>();
-        private int cursor;
-        private final java.util.function.Supplier<PlanetShape> shape;
-
-        public DirtyPatches() {
-            this(() -> PlanetShape.STANDARD);
-        }
-
-        /** Patches of whichever planet is being observed; only those that exist on it are ever dirty. */
-        public DirtyPatches(java.util.function.Supplier<PlanetShape> shape) {
-            this.shape = shape;
-            all();
-        }
-
-        public void all() {
-            var now = shape.get();
-            dirty.clear();
-            for (int p = 0; p < PATCH_COUNT; p++) if (exists(now, p)) dirty.set(p);
-            urgent.clear();
-        }
-
-        public void clear() {
-            dirty.clear();
-            urgent.clear();
-            cursor = 0;
-        }
-
-        public void tile(long key) {
-            if (key >= 0 && key < 98304) patch(GroundViewPolicy.patch(key));
-        }
-
-        public void patch(int patch) {
-            if (!exists(shape.get(), patch)) return;
-            dirty.set(patch);
-            urgent.add(patch);
-        }
-
-        public int poll() {
-            var now = shape.get();
-            urgent.removeIf(p -> !exists(now, p));
-            for (int p = dirty.nextSetBit(0); p >= 0; p = dirty.nextSetBit(p + 1))
-                if (!exists(now, p)) dirty.clear(p);
-            if (!urgent.isEmpty()) {
-                int p = urgent.iterator().next();
-                urgent.remove(p);
-                dirty.clear(p);
-                cursor = (p + 1) % PATCH_COUNT;
-                return p;
-            }
-            int i = dirty.nextSetBit(cursor);
-            if (i < 0) i = dirty.nextSetBit(0);
-            if (i >= 0) {
-                dirty.clear(i);
-                cursor = (i + 1) % PATCH_COUNT;
-            }
-            return i;
-        }
-
-        public void coverage(BitSet before, BitSet after) {
-            var delta = (BitSet) before.clone();
-            delta.xor(after);
-            delta.stream().forEach(k -> tile(k));
-        }
-
-        public int count() {
-            return dirty.cardinality();
-        }
-
-        public boolean contains(int patch) {
-            return dirty.get(patch);
-        }
-    }
-
-    private GroundViewPolicy() {}
 }

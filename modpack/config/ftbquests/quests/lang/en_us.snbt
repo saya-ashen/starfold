@@ -7,7 +7,7 @@
   ],
   "quest.1000000000000200.title": "Local timber",
   "quest.1000000000000200.quest_desc": [
-    "Timber sample required. Folded faces belong to one continuous planet. Other planets are visible in the sky."
+    "Manual confirmation: gather at least four logs of any local wood species, then mark complete. Folded faces belong to one continuous planet."
   ],
   "quest.1000000000000300.title": "Field bench",
   "quest.1000000000000300.quest_desc": [
@@ -32,7 +32,7 @@
   ],
   "quest.1000000000010200.title": "Solid fuel",
   "quest.1000000000010200.quest_desc": [
-    "Solid fuel stock required. Reserve coal for smelting and field lighting."
+    "Manual confirmation: reserve eight coal or charcoal for smelting and lighting, then mark complete. Smelt logs into charcoal if coal is scarce."
   ],
   "quest.1000000000010300.title": "Iron supply",
   "quest.1000000000010300.quest_desc": [
@@ -40,25 +40,33 @@
   ],
   "quest.1000000000010400.title": "Reliable excavation",
   "quest.1000000000010400.quest_desc": [
-    "Iron tool required. Collect redstone and gold for later control components."
+    "Iron tool required. Use shallow iron and copper to build a mining platform before seeking deep redstone and gold."
   ],
   "quest.1000000000010500.title": "Copper conductors",
   "quest.1000000000010500.quest_desc": [
     "Copper stock required. Fluid handling and electrical connections will use this supply."
   ],
+  "quest.1000000000010900.title": "Establish a mining site",
+  "quest.1000000000010900.quest_desc": [
+    "Craft with four iron ingots, two copper ingots, an iron pickaxe, a furnace and a lever. Place on the home surface, add furnace fuel or FE, then Scan before starting. The 5x5 shaft is excavated layer by layer down to 512 blocks; keep the shaft fenced and remove output regularly. Completed surveys appear in Atlas as historical snapshots. This item task does not certify extraction."
+  ],
   "quest.1000000000010600.title": "Food reserve",
   "quest.1000000000010600.quest_desc": [
-    "Food reserve required. Establish a renewable crop plot before long flights."
+    "Manual confirmation: store at least eight portions of suitable food and establish a renewable crop or livestock supply, then mark complete. Bread is one option."
   ],
   "quest.1000000000010700.title": "Surface shelter",
   "quest.1000000000010700.quest_desc": [
-    "Shelter equipment required. Place the bed in a protected ground base."
+    "Manual confirmation: build a lit shelter with storage, place a bed of any colour and set a safe respawn point. Mark home in Atlas, leave and use its waypoint to return before marking complete."
   ],
   "quest.1000000000010800.title": "Field protection",
   "quest.1000000000010800.quest_desc": [
     "Shield required. No oxygen or suit progression is imposed by this pack."
   ],
   "chapter.1000000000020000.title": "2 · Mechanical power",
+  "quest.1000000000020D00.title": "Deep supply and output handling",
+  "quest.1000000000020D00.quest_desc": [
+    "Manual extraction record: obtain actual gold and redstone with the mining platform, not just a survey. Follow normalized layer depth rather than vanilla Y levels. Record siting, scanning, excavation time, fuel or FE, hand mining and clearing waste. Connect usable storage to the 18-slot output; check full storage and fluid stops without lost items. Stay loaded and online; offline mining is not supplied."
+  ],
   "quest.1000000000020100.title": "Andesite alloy",
   "quest.1000000000020100.quest_desc": [
     "Alloy supply required. Shallow andesite patches remain enabled on the home planet."
@@ -89,11 +97,11 @@
   ],
   "quest.1000000000020800.title": "Heat-source stock",
   "quest.1000000000020800.quest_desc": [
-    "No Nether is available. Craft a Blaze Burner from three iron sheets, a coal block and a copper ingot. Rose Quartz uses glass surrounded by eight redstone dust; polish it for electron tubes."
+    "No Nether is available. Craft a Blaze Burner from three iron sheets, a coal block and a copper ingot. The coal block needs coal, not charcoal. The supplied blaze still needs ordinary fuel after placement to heat brass."
   ],
   "quest.1000000000020900.title": "Captured heat",
   "quest.1000000000020900.quest_desc": [
-    "Burner required. A burner is also consumed by the provisional thruster recipe."
+    "Place and fuel the burner beneath the basin for heated mixing; coal or charcoal can maintain heat. A burner is also consumed by the provisional thruster recipe, so budget another one for production."
   ],
   "quest.1000000000020A00.title": "Brass production",
   "quest.1000000000020A00.quest_desc": [
@@ -101,32 +109,85 @@
   ],
   "quest.1000000000020B00.title": "Control electronics",
   "quest.1000000000020B00.quest_desc": [
-    "Electron tubes required. The initial helm and gyro use Create electronics, not osmium circuits."
+    "Use glass surrounded by eight redstone dust for Rose Quartz, polish it and make electron tubes. The initial helm, gyro and navigation scope use Create parts without off-world osmium."
   ],
   "quest.1000000000020C00.title": "Precision assembly",
   "quest.1000000000020C00.quest_desc": [
-    "Precision mechanism required. Establish repeatable production before building propulsion."
+    "Keep sequenced assembly: start with a golden sheet and repeat the small cogwheel, large cogwheel and iron nugget sequence five times. Budget five of each added part per full attempt, plus failed attempts and byproducts; a mechanism is not guaranteed. Establish repeatable production."
   ],
-  "chapter.1000000000030000.title": "3 · Low-altitude flight",
-  "quest.1000000000030100.title": "Aircraft structure",
+  "quest.1000000000020F00.title": "Mechanical crafting facility",
+  "quest.1000000000020F00.quest_desc": [
+    "Learn a powered mechanical crafting grid for later large recipes. Current first-ship helm, gyro and thruster recipes use ordinary shaped crafting; this optional workshop technique is not their recipe requirement. One crafter item does not certify a full grid; budget its transmission separately."
+  ],
+  "quest.1000000000020E00.title": "Run the workshop again",
+  "quest.1000000000020E00.quest_desc": [
+    "Manual processing record: run powered pressing and heated mixing, then make brass, electron tubes and successful precision mechanisms in separate production batches. Actually craft a helm or gyro using its current shaped recipe. Verify speed, stress, burner fuel, assembly losses and output storage. Owning machines alone does not complete this record."
+  ],
+  "quest.1000000000021000.title": "First-ship materials and repair stock",
+  "quest.1000000000021000.quest_desc": [
+    "Manual materials record: use current JEI recipes to list workshop machines, transmission, heat fuel, mechanical crafters, compact oil extractor, distillation and pipes as facility costs. Separately list batch inputs, failed assembly attempts, hull, assembler, glue, helm, gyro, thrusters, navigation scope, tanks, boarding access and repair spares; manufacture the agreed first-ship component stock. Do not invent a fixed ship size or fuel budget; ship assembly and trial flight follow in the next stage."
+  ],
+  "chapter.1000000000030000.title": "3 · Optional planetary transport",
+  "quest.1000000000030100.title": "Plan a small rotor transport",
   "quest.1000000000030100.quest_desc": [
-    "Aircraft hull required. This is a low-altitude exploration route, separate from the orbital ship."
+    "Optional manual planning record. This former Immersive Aircraft hull task keeps its progress ID and now teaches Create Aeronautics. Plan a pilot seat, symmetric lift, cargo space and a walkable boarding route. Build the craft yourself; reference size and payload remain unverified. Ground exploration and industry remain available without aircraft."
   ],
-  "quest.1000000000030200.title": "Aircraft engine",
+  "quest.1000000000030200.title": "Prove the rotational supply",
   "quest.1000000000030200.quest_desc": [
-    "Engine required. Inspect the aircraft fuel requirements in JEI."
+    "Optional manual record, migrated from the Immersive Aircraft engine task. Build a survival rotational source and transmission, then record speed, stress, consumption and endurance. Diesel or gasoline does not directly spin a propeller. Use the native controls first; altitude hold, braking assistance and automatic hover are not promised."
   ],
-  "quest.1000000000030300.title": "Aircraft propeller",
+  "quest.1000000000030800.title": "Surface survey kit",
+  "quest.1000000000030800.quest_desc": [
+    "Survey propulsion component acquired. Observe face boundaries and keep clear of unstable fold points. No automatic fold-point detector is supplied."
+  ],
+  "quest.1000000000030300.title": "Arrange lift and controls",
   "quest.1000000000030300.quest_desc": [
-    "Propeller required. Clear an open launch and landing area."
+    "Optional manual record, migrated from the Immersive Aircraft propeller task. Test Aeronautics propeller rotation and thrust direction, lift symmetry and native throttle. A gyro propeller bearing tries to keep its propeller upright; it does not guarantee a balanced or hovering craft. Use JEI and the bundled guide for parts."
   ],
-  "quest.1000000000030400.title": "Reconnaissance aircraft",
+  "quest.1000000000030400.title": "Empty-craft flight trial",
   "quest.1000000000030400.quest_desc": [
-    "Aircraft ready for a surface survey. Cross a face boundary at safe altitude; this item task does not verify the flight."
+    "Optional manual flight record, migrated from the Immersive Aircraft biplane task. With survival power, demonstrate lift-off, slow movement, turning, slowing down and landing, then leave and board again. Record the actual inputs and power use. This checkmark has no automatic flight detector; a low-altitude trial does not certify an orbital ship."
   ],
-  "quest.1000000000030500.title": "Buoyant structure",
+  "quest.1000000000030900.title": "Optional cargo round trip",
+  "quest.1000000000030900.quest_desc": [
+    "Optional manual transport record: carry a recorded batch of ore, supplies or equipment between base and a mine or oil field with survival power. Compare empty, symmetric loaded and uneven loads; verify unloading, intact cargo, leaving and boarding again. Test face crossing and save/rejoin on the ground and in flight separately; record power, controls, atmosphere and any unsupported cases. No automatic cargo or flight detector is supplied."
+  ],
+  "quest.1000000000030500.title": "Optional buoyant design",
   "quest.1000000000030500.quest_desc": [
-    "Envelope stock required. Aeronautics provides an alternative low-altitude craft route."
+    "Optional free-build branch. Envelopes remain available for buoyant craft, but the small rotor transport does not require a balloon or a runway. This item task does not certify flight."
+  ],
+  "chapter.1000000000040000.title": "4 · Fuel and orbit",
+  "quest.1000000000040100.title": "Oil prospecting",
+  "quest.1000000000040100.quest_desc": [
+    "Oil scanner required. Oil-field availability in the custom planet generator remains a play-test requirement."
+  ],
+  "quest.1000000000040200.title": "Extraction drive",
+  "quest.1000000000040200.quest_desc": [
+    "Optional CDG engineering branch. The bearing alone is not an extractor: use the CDG guide and JEI for the complete pumpjack, drilling and power requirements. This route does not gate the compact Starfold extractor, fuel production or the first ship."
+  ],
+  "quest.1000000000040D00.title": "Compact oil extractor",
+  "quest.1000000000040D00.quest_desc": [
+    "Craft the Starfold Mining oil extractor using the current JEI recipe. Compare discovered natural CDG oil fields and deploy on the correct planet and chunk. Use the device survey and controlled well operation, fuel or FE and a fluid outlet; no aircraft or CDG pumpjack bearing is required. The item task does not certify extraction. Record actual well costs and time rather than assuming a long hand-built pipe shaft."
+  ],
+  "quest.1000000000040E00.title": "Pump, pipes and crude storage",
+  "quest.1000000000040E00.quest_desc": [
+    "Provide fluid pipes, a powered mechanical pump and separate crude/output tanks. Check pump direction and connections in JEI and the guide. Keep crude, diesel and gasoline lines separate. Test external tank transfer before relying on a distillation tower; one pump item does not certify a working line."
+  ],
+  "quest.1000000000040F00.title": "Natural crude into an external tank",
+  "quest.1000000000040F00.quest_desc": [
+    "Manual extraction record: survey a natural CDG field, complete the well operation and transfer real crude from the compact extractor into an external tank. Log field coordinates, energy and time; CDG deposits are chunk reserves, not crude ore blocks. Compare reserve and tank quantities before/after extraction, a full output tank and save/rejoin; check no loss, duplication or depletion while blocked. Atlas discoveries are historical snapshots, not a live reserve gauge. Keep the owner online and chunks loaded."
+  ],
+  "quest.1000000000040300.title": "Fuel processing",
+  "quest.1000000000040300.quest_desc": [
+    "Fluid tanks and a Distillation Controller required. Convert placed Create tanks into a distillation tower; the distillation-tank block has no separate inventory item. Supply heat for tier-one diesel or gasoline."
+  ],
+  "quest.1000000000040400.title": "First diesel or gasoline batch",
+  "quest.1000000000040400.quest_desc": [
+    "Manual production record: distil naturally extracted crude into diesel OR gasoline and verify the actual output tank. Either fuel alone completes this task; do not submit both. No reliable automatic OR detector is configured here. Record amount, time, heat and energy costs. The old eight-bucket ascent estimate is unverified; size the flight reserve during ship trials."
+  ],
+  "quest.1000000000041000.title": "Repeat the fuel supply",
+  "quest.1000000000041000.quest_desc": [
+    "Manual production record: after the first batch, extract and distil a second batch of diesel OR gasoline from natural crude. Either fuel alone suffices. Measure both batches separately: crude input, finished output, time, energy, heat fuel and maintenance. Prove the factory can refill storage without commands or injected oil; record production capacity rather than a fixed ascent bucket count."
   ],
   "quest.1000000000030600.title": "Physics assembly",
   "quest.1000000000030600.quest_desc": [
@@ -136,38 +197,17 @@
   "quest.1000000000030700.quest_desc": [
     "Glue required. Join the intended ship blocks and avoid attaching the launch pad."
   ],
-  "quest.1000000000030800.title": "Surface survey kit",
-  "quest.1000000000030800.quest_desc": [
-    "Survey propulsion component acquired. Observe face boundaries and keep clear of unstable fold points. No automatic fold-point detector is supplied."
-  ],
-  "chapter.1000000000040000.title": "4 · Fuel and orbit",
-  "quest.1000000000040100.title": "Oil prospecting",
-  "quest.1000000000040100.quest_desc": [
-    "Oil scanner required. Oil-field availability in the custom planet generator remains a play-test requirement."
-  ],
-  "quest.1000000000040200.title": "Extraction drive",
-  "quest.1000000000040200.quest_desc": [
-    "Pumpjack bearing required. Follow the mod guide to build the full extraction structure."
-  ],
-  "quest.1000000000040300.title": "Fuel processing",
-  "quest.1000000000040300.quest_desc": [
-    "Fluid tanks and a Distillation Controller required. Convert placed Create tanks into a distillation tower; the distillation-tank block has no separate inventory item. Supply heat for tier-one diesel or gasoline."
-  ],
-  "quest.1000000000040400.title": "First fuel batch",
-  "quest.1000000000040400.quest_desc": [
-    "Diesel sample required for this tutorial route. Gasoline is also accepted by thrusters. Initial ascent budget target: about eight buckets, subject to tuning."
-  ],
   "quest.1000000000040500.title": "Onboard storage",
   "quest.1000000000040500.quest_desc": [
     "Fluid tank stock required. Tanks must belong to the same assembled ship as the thrusters. Leave return fuel in reserve."
   ],
   "quest.1000000000040600.title": "Thrust hardware",
   "quest.1000000000040600.quest_desc": [
-    "Thruster acquired. No fuel means no thrust after the merged fuel system is installed. Thrust and ship mass determine ascent performance."
+    "One thruster item is only a component check. Install paired nozzles for lift, descent, forward/reverse and lateral control; nozzle exhaust points opposite the push. This pack requires diesel or gasoline in compatible tanks on the same hull. Fuel adds mass; compare available lift with fuelled weight and keep braking margin."
   ],
   "quest.1000000000040700.title": "Attitude control",
   "quest.1000000000040700.quest_desc": [
-    "Gyro acquired. Mount it on the assembled ship; the gyro does not consume propulsion fuel."
+    "Mount and power the gyros: the reference layout uses two, each with its own lever switched on. Gyros do not consume propulsion fuel, but altitude hold fires real lift nozzles and burns fuel while airborne. They do not replace balanced thrust or sufficient lift."
   ],
   "quest.1000000000040800.title": "Command station",
   "quest.1000000000040800.quest_desc": [
@@ -181,17 +221,38 @@
   "quest.1000000000050800.quest_desc": [
     "Navigation scope acquired through Create only, without osmium. Check target locking and relative approach speed before the first departure."
   ],
+  "quest.1000000000040C00.title": "Boarding route",
+  "quest.1000000000040C00.quest_desc": [
+    "Airstair acquired. Rehearse landing and boarding at home. The existing home-return advancement records later off-world player landing history, not this rehearsal or same-ship transport."
+  ],
+  "quest.1000000000041100.title": "Assemble and inspect before departure",
+  "quest.1000000000041100.quest_desc": [
+    "Manual ground inspection: glue and assemble the intended hull without the launch pad. Install helm, powered gyros, thrusters, navigation scope and compatible fuel tanks on that hull; switch on the gyro levers and switch off manual thruster redstone. Test supply, reverse thrust and clearances. Fit outward-facing airstairs below doors; settle, wait for deployment and walk aboard before right-clicking the helm. Remain settled after taking control until the launch marker is recorded. Use the navigation scope to check target lock and relative approach speed before the first departure. Log dry/fuelled mass and return reserve; actual flight trials set the fuel budget. This checkmark does not detect installation.",
+    "Optional B6-F reference: 185 placed blocks; supplied 4000 mB diesel local-flight fixture passed, without survival or payload qualification. Coordinates: deck Y=0, west (-X) forward. Read each five-character row X=-2 to +2, rows Z=-2 to +2.",
+    "Y=-6,-5,-4,-2,-1: CCCCC / CCCCC / CCCCC / CCCCC / CCCCC",
+    "Y=-3: TnCnT / wCCCe / BCCCB / wCCCe / TsCsT",
+    "Y=0: PPAPP / PPvPP / P^P^P / PPvPP / PPAPP",
+    "Y=1: ..d.. / ..... / G.H.G / ..... / ..d..",
+    "Y=2: ..d.. / ..... / l.N.l / ..... / ..d..",
+    "C cobble; P oak planks; T fluid tank; B cargo barrel facing outward; n/s/w/e/up(^)/down(v) are NOZZLE EXHAUST directions. A outward airstair, d open door half, G gyro, l powered lever, H helm facing west, N navigation scope facing west. Dots are air. Keep both outer boarding approaches clear.",
+    "Placed items: 136 cobble, 19 planks, 12 thrusters, 2 gyros, 2 levers, 1 helm, 1 navigation scope, 2 airstairs, 2 door items, 4 tanks, 2 barrels. Glue, assembler, tools, fuel and spares are separate. Recover the captured assembler after assembly. Standard door crafting leaves one extra door.",
+    "Keep ground service platforms outside the glue selection. Fuel must be extractable from tanks on this hull. Four full tanks can be too heavy: measure dry/wet mass and lift margin; hovering burns fuel. Equal initial fills do not guarantee balanced draining. Old B6 handling measurements do not certify this changed ship."
+  ],
   "quest.1000000000040A00.title": "Lift-off record",
   "quest.1000000000040A00.quest_desc": [
     "Lift-off advancement required. Perform a controlled ascent before committing to orbit."
   ],
+  "quest.1000000000041200.title": "Land, reboard and repair at home",
+  "quest.1000000000041200.quest_desc": [
+    "Manual local-flight record: after lift-off, demonstrate short low-altitude movement, turning and braking near the launch site, then land and settle before leaving the helm. Walk down the deployed airstair, board again and resume control. While parked, rehearse a repair by replacing a non-critical hull block, restore its bond and inspect the ship again. Log fuel before/after, load, controls and any damage; keep a landing reserve. The lift-off advancement alone does not certify these actions, and this checkmark does not detect them. B6-F is a reference layout proposal, not a measured fuelled flight guarantee. Space entry and off-world mining follow separately."
+  ],
+  "quest.1000000000050C00.title": "Plan the first mining round trip",
+  "quest.1000000000050C00.quest_desc": [
+    "Manual departure record, not automatic telemetry. Compare Fleck (home moon) and Anvil (rocky) in Atlas; choose current distance, approach speed and actual ore survey, not a fixed planet number. Both are in the home system and need no interstellar drive. Record the ship UUID, home marker, target, cargo baseline, tank readings and a separate landing reserve. Budget outbound and return ascent, transfer and braking sequentially; 123 mB from a local trial is not a trip budget. Pack an iron pickaxe, Ultimine, food, lights and repair tools. Mark home before departure and rehearse finding the parked ship. The checkmark does not detect readiness."
+  ],
   "quest.1000000000040B00.title": "Space-region record",
   "quest.1000000000040B00.quest_desc": [
     "Space-entry advancement required. Status on completion: currently in the space region. Keep the helm occupied and monitor fuel."
-  ],
-  "quest.1000000000040C00.title": "Boarding route",
-  "quest.1000000000040C00.quest_desc": [
-    "Airstair acquired. Rehearse landing and boarding at home. The existing home-return advancement only certifies a later off-world round trip, not this rehearsal."
   ],
   "chapter.1000000000050000.title": "5 · First off-world metals",
   "quest.1000000000050100.title": "Off-world landing",
@@ -200,23 +261,31 @@
   ],
   "quest.1000000000050200.title": "Osmium cargo",
   "quest.1000000000050200.quest_desc": [
-    "Osmium sample required. Reserve part of the cargo for circuits and the return logistics line."
+    "Eight raw osmium is the starter cargo threshold, not proof of extraction or transport. Keep it raw until the home unloading record; larger industrial upgrades need additional ore."
+  ],
+  "quest.1000000000050D00.title": "Load and check the return leg",
+  "quest.1000000000050D00.quest_desc": [
+    "Manual loading record, not automatic cargo tracking. Mine at least eight raw osmium on the selected world with an iron pickaxe and Ultimine, preserving a safe exit. Load it into the recorded ship, log exact raw-ore count, ship UUID and each tank, then recheck return lift and fuel with the current mass. Item possession does not prove mining location or ship transport. Record a landing marker before leaving the ship; stop spending propulsion fuel while safely parked. If return fuel is insufficient, remain parked and arrange a fuel delivery or rescue ship; local oil is not guaranteed."
+  ],
+  "quest.1000000000050400.title": "Home landing record",
+  "quest.1000000000050400.quest_desc": [
+    "Player home-landing history required after off-world landing and re-entry to space. This advancement does not verify the same ship or returned cargo; complete the separate unloading record."
+  ],
+  "quest.1000000000050E00.title": "Unload the same-ship shipment",
+  "quest.1000000000050E00.quest_desc": [
+    "Manual delivery record, not automatic same-ship certification. After the home landing record, compare the departure, loading and arrival ship UUID, unload at least eight raw osmium into home storage and reconcile counts and tank readings. Keep the ore raw until unloading is recorded, then smelt it. The home advancement follows player history and does not prove ship identity or cargo provenance. An offline voyage-log checker only checks consistency of declared observations; retain screenshots or server receipts. Do not claim an unrecorded leg or replacement ship as the same-ship trip."
   ],
   "quest.1000000000050300.title": "Refined osmium",
   "quest.1000000000050300.quest_desc": [
     "Osmium ingots required. Mekanism begins after this off-world supply is available."
   ],
-  "quest.1000000000050400.title": "Home landing record",
-  "quest.1000000000050400.quest_desc": [
-    "Off-world round-trip advancement required. Land back on the home planet after the other-planet and return-to-space records."
-  ],
   "quest.1000000000050500.title": "Mechanical to electrical",
   "quest.1000000000050500.quest_desc": [
-    "Alternator required. Connect Create rotation to the electrical production line."
+    "Optional Create-powered route: connect rotation to the electrical line. A heat generator can bootstrap the infuser directly; this branch does not gate circuit processing."
   ],
   "quest.1000000000050600.title": "Circuit processing",
   "quest.1000000000050600.quest_desc": [
-    "Metallurgic Infuser required. Supply power and the specified infusion material."
+    "Metallurgic Infuser required. Bootstrap with a heat generator or use the optional Create alternator route. Heat generator, infuser and two basic circuits consume four osmium ingots in total, excluding operating fuel. Supply power and the specified infusion material."
   ],
   "quest.1000000000050700.title": "Basic control circuits",
   "quest.1000000000050700.quest_desc": [
@@ -232,9 +301,33 @@
   ],
   "quest.1000000000050B00.title": "Second-tier sample",
   "quest.1000000000050B00.quest_desc": [
-    "Liquid hydrogen sample required. Target ascent economy is about three buckets for the reference ship; this is a first guess, not a measured result."
+    "Liquid hydrogen sample required. Current impulse per mB is twice diesel at the same configured fuel mass. A bucket does not certify a production line or ascent budget; record the separate production check."
+  ],
+  "quest.1000000000050F00.title": "Repeat the liquid-hydrogen supply",
+  "quest.1000000000050F00.quest_desc": [
+    "Manual production record, not automatic telemetry: supply water and sustained power to the Electrolytic Separator, send chemical hydrogen to a Rotary Condensentrator in condensing mode, then transfer fluid hydrogen to a compatible ship tank. Configure the unused oxygen output so it cannot block production. Record two separately collected batches, input/output quantities, power, ports, mode and tank readings. Verify extraction support; a bucket alone does not prove this chain. Budget ascent and return from actual mass and gravity; no fixed bucket promise."
   ],
   "chapter.1000000000060000.title": "6 · System expansion",
+  "quest.1000000000060B00.title": "Fabricate aluminum hull plating",
+  "quest.1000000000060B00.quest_desc": [
+    "Lightweight panel stock required. Find bauxite ore on desert planets and smelt it. Eight aluminum ingots yield four panels. Mass 0.5 per full block; default pressure limit 0.5. Values are provisional."
+  ],
+  "quest.1000000000060400.title": "Advanced circuitry",
+  "quest.1000000000060400.quest_desc": [
+    "Advanced circuits required. Prepare the electronics for precision optics."
+  ],
+  "quest.1000000000060500.title": "Precision optics",
+  "quest.1000000000060500.quest_desc": [
+    "Precision scope acquired. This recipe upgrades optics. Leaving the home system requires an interstellar drive and deuterium; the drive recipe requires a Host Ganglion; there is no separate pilot boss-permission flag."
+  ],
+  "quest.1000000000060C00.title": "Compare the transport upgrade",
+  "quest.1000000000060C00.quest_desc": [
+    "Manual engineering record, not flight certification: compare the same hull before and after replacing cobblestone ballast with aluminum hull plating. Record actual dry mass, cargo, fuel type and volume, effective gravity and lift nozzles; compare wet mass, lift margin and ideal delta-v. Keep access and nozzle directions intact. Hydrogen has twice diesel impulse per mB, not half fuel mass. Cargo mass must be observed or explicitly modelled. Lower mass does not establish handling, endurance or pressure safety; full-block plating still has default pressure limit 0.5."
+  ],
+  "quest.1000000000060D00.title": "Repeat a supplied resource route",
+  "quest.1000000000060D00.quest_desc": [
+    "Manual route record, not automatic transport proof: choose one needed resource world; record two completed deliveries with ship UUID, raw cargo counts, tank readings and departure/arrival observations. Mark the outpost, store food, light, tools, spare hull and compatible fuel, and arrange rescue fuel before leaving home. Reconcile production, shipment and base unloading. Stay parked if reserves are insufficient. Optional resource tasks do not prove travel; no requirement to visit every planet or build a reactor. Structures and random loot are not core gates."
+  ],
   "quest.1000000000060100.title": "Frozen-world tin",
   "quest.1000000000060100.quest_desc": [
     "Tin cargo required. Frozen planet ore tables provide tin and lead."
@@ -246,14 +339,6 @@
   "quest.1000000000060300.title": "Crystal-world fluorite",
   "quest.1000000000060300.quest_desc": [
     "Fluorite sample required. Crystal worlds also provide quartz, amethyst and a smaller deep-diamond supply (bottom 35%; first-guess abundance)."
-  ],
-  "quest.1000000000060400.title": "Advanced circuitry",
-  "quest.1000000000060400.quest_desc": [
-    "Advanced circuits required. Prepare the electronics for precision optics."
-  ],
-  "quest.1000000000060500.title": "Precision optics",
-  "quest.1000000000060500.quest_desc": [
-    "Precision scope acquired. This recipe upgrades optics. Leaving the home system requires an interstellar drive and deuterium; boss permission is not enforced."
   ],
   "quest.1000000000060600.title": "Dry-world uranium",
   "quest.1000000000060600.quest_desc": [
@@ -274,10 +359,6 @@
   "quest.1000000000060A00.title": "Outpost maintenance",
   "quest.1000000000060A00.quest_desc": [
     "Steel Paxel acquired. Stock tools and repair materials at established outposts."
-  ],
-  "quest.1000000000060B00.title": "Fabricate aluminum hull plating",
-  "quest.1000000000060B00.quest_desc": [
-    "Lightweight panel stock required. Find bauxite ore on desert planets and smelt it. Eight aluminum ingots yield four panels. Mass 0.5 per full block; default pressure limit 0.5. Values are provisional."
   ],
   "chapter.1000000000070000.title": "7 · Anomalies and combat",
   "quest.1000000000070100.title": "Combat protection",
@@ -306,7 +387,7 @@
   ],
   "quest.1000000000070A00.title": "Defeat the Host",
   "quest.1000000000070A00.quest_desc": [
-    "Combat record required: defeat the Host in the hive crater. The encounter yields four Host Ganglia, the biological component required by the mechanical interstellar drive."
+    "Combat record required: defeat the Host in the hive crater. Each hive planet has its own encounter, and a defeated Host returns after seven in-game days. Its loot table yields four Host Ganglia, the biological component required by the mechanical interstellar drive; recover and store them safely."
   ],
   "quest.1000000000070B00.title": "Recover a Host Ganglion",
   "quest.1000000000070B00.quest_desc": [
@@ -339,18 +420,42 @@
   ],
   "quest.1000000000080600.title": "Skim deuterium at Amber",
   "quest.1000000000080600.quest_desc": [
-    "Approach Amber and dip the intake into its pressure field, then take a deuterium bucket sample from the filled tank. Heavy-water separation is disabled; rotary conversion only recycles existing deuterium. Reference rate is 10 mB/tick at pressure 0.5 (first guess); ordinary blocks fail at 0.5, osmium pressure hull at 0.85 (provisional). The bucket detector does not certify location."
+    "Approach Amber and dip the intake into its pressure field, then pipe harvested fluid from storage into a Create Spout and fill an empty bucket on a depot or belt (1000 mB). Ordinary Create tanks do not fill buckets by survival right-click. Heavy-water separation is disabled; rotary conversion only recycles existing deuterium. Reference rate is 10 mB/tick at pressure 0.5 (first guess); ordinary blocks fail at 0.5, osmium pressure hull at 0.85 (provisional). The bucket detector does not certify location."
   ],
   "quest.1000000000080700.title": "Fill the onboard tank",
   "quest.1000000000080700.quest_desc": [
     "Manual flight-log confirmation, not automatic telemetry: return the sample and fill a Create tank to 8000 mB of deuterium. Check the actual tank gauge before marking complete. Keep separate return fuel; whole-hull pressure can exceed intake pressure."
   ],
+  "quest.1000000000080B00.title": "Withdraw and repeat the gas collection",
+  "quest.1000000000080B00.quest_desc": [
+    "Manual gas-flight record, not automatic telemetry: log intake pressure, the highest hull exposure, tank amounts, damage and propulsion reserve before entry and after safe withdrawal. Collect a second separately measured batch and withdraw again. Pressure hull does not shield the scoop, controls or tanks; retreat before the weakest component limit. A full 8000 mB tank is storage evidence only, not an expedition budget. Reserve a separate deuterium bucket for crafting and retain flight fuel."
+  ],
   "quest.1000000000080A00.title": "Build the interstellar drive",
   "quest.1000000000080A00.quest_desc": [
     "Use mechanical crafting to combine four osmium pressure hull blocks, four elite circuits, a bucket of skimmed deuterium and one Host Ganglion (provisional). Install the drive on the same hull as the thrusters and fuel tank. Leaving the home system requires an interstellar drive and deuterium for thrust; the Host encounter gates drive fabrication. The item detector does not certify installation."
   ],
+  "quest.1000000000080C00.title": "Inspect the installed interstellar drive",
+  "quest.1000000000080C00.quest_desc": [
+    "Manual installation record, not automatic detection: install the crafted drive on the same assembled hull as thrusters and extractable deuterium tanks. Record hull UUID, drive connection, dry/wet mass, fuel and reverse thrust. The item task only proves possession. Carry ordinary fuel separately for home-system operations if desired; it adds mass and cannot propel beyond home. Coasting needs neither fuel nor drive, but braking does."
+  ],
+  "quest.1000000000080D00.title": "Plan a destination and return reserve",
+  "quest.1000000000080D00.quest_desc": [
+    "Manual expedition plan, not route certification: select another star and an actual landing candidate in Atlas; record system/planet identifiers, current range and approach speed, home marker, hull UUID, cargo and each fuel tank. Budget outbound acceleration, target-relative braking, landing, return ascent and return braking sequentially with unspent reserve. Mark outside-home legs explicitly in the offline planner; it checks declared fuel/drive eligibility only. Pack food, light, tools, repair parts and delivered rescue fuel; no fixed bucket or travel-time promise."
+  ],
   "quest.1000000000080800.title": "Leave the home system",
   "quest.1000000000080800.quest_desc": [
-    "Manual flight-log confirmation: install an interstellar drive on the same hull, leave the home system with deuterium available and verify thrust beyond its boundary, then mark complete. Every experience planet orbits the home sun. Outside home, thrust requires both an interstellar drive and deuterium; coasting is not blocked. Impulse starts at 25 times diesel, not a measured one-bucket ascent. Host ganglion is required to fabricate the drive."
+    "Manual flight-log confirmation: install an interstellar drive on the same hull, leave the home system with deuterium available and verify thrust beyond its boundary, then mark complete. The named starter planets orbit the home sun; other systems exist in the experience universe. Select an actual destination in Atlas before departure. Outside home, thrust requires both an interstellar drive and deuterium; coasting is not blocked. Impulse starts at 25 times diesel, not a measured one-bucket ascent. Host ganglion is required to fabricate the drive."
+  ],
+  "quest.1000000000080E00.title": "Land in another system",
+  "quest.1000000000080E00.quest_desc": [
+    "Manual arrival record, not automatic destination or same-ship detection: confirm the selected world belongs to another system, slow against its relative motion and land safely. Compare departure and arrival hull UUID, cargo, fuel and damage. Do not count boundary crossing alone as arrival. Retain map observations and screenshots or server receipts; player landing advancements do not prove system identity or cargo provenance."
+  ],
+  "quest.1000000000080F00.title": "Supply and reopen an expedition outpost",
+  "quest.1000000000080F00.quest_desc": [
+    "Manual outpost record, not automatic construction detection: mark the landing site, establish a lit shelter and storage with food, tools, repair stock and compatible delivered fuel. Choose one useful local resource or construction objective and record a real shipment. Save, leave and rejoin; verify the same ship, cargo, tank amounts, markers and usable outpost. Stay parked when return fuel is insufficient. Other systems are not guaranteed unique ores or local deuterium production; do not assume a self-fuelling base."
+  ],
+  "quest.1000000000081000.title": "Return and reopen the expedition route",
+  "quest.1000000000081000.quest_desc": [
+    "Manual expedition closure, not automatic transport certification: return to the marked home base in the recorded ship, reconcile cargo unloading, tank readings and repairs, and replenish the outpost shipment for another departure. Record replacement hulls or rescue/refuelling explicitly rather than claiming an uninterrupted same-ship voyage. Keep evidence for both directions. This closes the first expedition goal while further exploration remains open; no reactor, random structure loot or visit to every world is required."
   ]
 }

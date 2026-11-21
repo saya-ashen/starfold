@@ -106,10 +106,18 @@ class GasCatalogTest {
     @Test
     void gasMoonIsStoredAsASurfaceOrbitingItsGasParentAndUsesTheParentGm() throws Exception {
         var d = withGas(MoonSystemTest.fixture());
-        var giant = d.getAsJsonArray("suns").get(0).getAsJsonObject()
-                .getAsJsonArray("gas_giants").get(0).getAsJsonObject();
+        var giant =
+                d.getAsJsonArray("suns")
+                        .get(0)
+                        .getAsJsonObject()
+                        .getAsJsonArray("gas_giants")
+                        .get(0)
+                        .getAsJsonObject();
         giant.getAsJsonObject("orbit").addProperty("radius", 120000);
-        giant.add("moons", JsonParser.parseString("""
+        giant.add(
+                "moons",
+                JsonParser.parseString(
+                        """
                 [{"type":"starfold:desert","size":512,"name":"Amber Moon",
                   "orbit":{"radius":10000,"phase":0}}]
                 """));
@@ -120,7 +128,8 @@ class GasCatalogTest {
         int moon = made.planets().size() - 1;
         int moonBody = model.index(moon);
         int gasBody = moonBody - 1;
-        assertEquals(gasBody, ((GroundEphemeris.Orbit) model.bodies().get(moonBody).motion()).parent());
+        assertEquals(
+                gasBody, ((GroundEphemeris.Orbit) model.bodies().get(moonBody).motion()).parent());
         assertEquals(gas.gm(), 80 * gas.radius() * gas.radius());
         assertEquals(gas.moons().getFirst().orbit().period(gas.gm()), model.orbit(moon).period());
         assertEquals(GroundEphemeris.Appearance.GAS, model.bodies().get(gasBody).appearance());
@@ -132,7 +141,8 @@ class GasCatalogTest {
             var towardSun = model.star(parentCenter).position().sub(parentCenter);
             var eclipsePoint =
                     parentCenter.sub(
-                            towardSun.scale(2 * model.bodies().get(gasBody).radius() / towardSun.length()));
+                            towardSun.scale(
+                                    2 * model.bodies().get(gasBody).radius() / towardSun.length()));
             assertEquals(0, GroundDaylight.parentShade(model, moon, eclipsePoint, 0));
         } finally {
             PlanetShape.reset();
@@ -182,7 +192,8 @@ class GasCatalogTest {
         var outside = withGas(MoonSystemTest.fixture());
         var giant = outside.getAsJsonArray("suns").get(0).getAsJsonObject();
         giant.add("position", JsonParser.parseString("[1000000000,0,0]"));
-        assertThrows(IllegalArgumentException.class, () -> AuthoredSystemTest.read(outside).validate());
+        assertThrows(
+                IllegalArgumentException.class, () -> AuthoredSystemTest.read(outside).validate());
         var duplicate = withGas(MoonSystemTest.fixture());
         duplicate
                 .getAsJsonArray("suns")
@@ -348,7 +359,9 @@ class GasCatalogTest {
         for (var entry : original.getAsJsonArray("suns"))
             entry.getAsJsonObject().remove("gas_giants");
         original.getAsJsonObject("home").addProperty("sun", 1);
-        original.getAsJsonArray("suns").get(1).getAsJsonObject()
+        original.getAsJsonArray("suns")
+                .get(1)
+                .getAsJsonObject()
                 .add("position", JsonParser.parseString("[200000,0,0]"));
         var shift =
                 original.getAsJsonArray("suns")

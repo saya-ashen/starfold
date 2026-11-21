@@ -7,7 +7,7 @@ package dev.starfold.render;
  */
 final class GroundFarTexture {
     static boolean patch(int tag) {
-        return tag >= 232 && tag <= 243 || tag == 249 || tag == 250;
+        return tag >= 224 && tag <= 243 || tag == 249 || tag == 250;
     }
 
     static int upper(float coordinate) {
@@ -26,7 +26,9 @@ final class GroundFarTexture {
         return alpha < .1 ? albedo : texturedTinted;
     }
 
-    static int sky(int waterDepth) { return Math.clamp(15-Math.max(0,waterDepth),0,15); }
+    static int sky(int waterDepth) {
+        return Math.clamp(15 - Math.max(0, waterDepth), 0, 15);
+    }
 
     private GroundFarTexture() {}
 }

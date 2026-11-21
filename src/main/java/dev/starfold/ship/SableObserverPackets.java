@@ -11,9 +11,12 @@ import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ground.PacketMap;
 import dev.starfold.ground.PayloadMap;
 import dev.starfold.planet.PlanetAccess;
+
 import net.minecraft.server.level.ServerPlayer;
+
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+
 import java.util.ArrayList;
 
 /** Observer projection of Sable tracking and snapshot packets. */
@@ -79,7 +82,8 @@ final class SableObserverPackets {
 
     static Pose3dc pose(ServerPlayer p, ObserverFrame f, Pose3dc pose) {
         var at = pose.position();
-        return SableFrames.pose(PacketMap.plane(p, f, at.x(), at.y(), at.z()), turns(p, f, pose), pose);
+        return SableFrames.pose(
+                PacketMap.plane(p, f, at.x(), at.y(), at.z()), turns(p, f, pose), pose);
     }
 
     private SableObserverPackets() {}

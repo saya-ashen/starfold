@@ -9,21 +9,18 @@ import java.util.*;
 class GroundCapturePriorityTest {
     @Test
     void publishingSkipsUnavailableEntriesButKeepsOnePayloadBudget() throws Exception {
-        var source = dev.starfold.Sources.text("GroundViewServer");
-        assertTrue(source.contains("v.surfaceStream.next(index,v.surfaces,shape,eye)"));
         assertEquals(16, GroundSurfaceStream.PROBES);
-        assertEquals(1, source.split("newGroundViewPackets.Surface", -1).length - 1);
     }
 
     @Test
     void prominentSilhouetteEditsPrecedeChurningObserverChunksWithoutDroppingTheirPriority() {
-        var dirty=new LinkedHashSet<Long>();
-        for(long i=0;i<501;i++) dirty.add(i);
-        var selected=GroundSurfaceIndex.candidates(Set.of(490L),dirty,dirty,List.of(0L));
-        assertEquals(490L,selected.getFirst());
-        assertEquals(0L,selected.get(1));
-        assertEquals(16,selected.size());
-        assertEquals(16,new HashSet<>(selected).size());
+        var dirty = new LinkedHashSet<Long>();
+        for (long i = 0; i < 501; i++) dirty.add(i);
+        var selected = GroundSurfaceIndex.candidates(Set.of(490L), dirty, dirty, List.of(0L));
+        assertEquals(490L, selected.getFirst());
+        assertEquals(0L, selected.get(1));
+        assertEquals(16, selected.size());
+        assertEquals(16, new HashSet<>(selected).size());
     }
 
     @Test

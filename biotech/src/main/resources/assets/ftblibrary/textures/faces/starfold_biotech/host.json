@@ -1,0 +1,13 @@
+{
+  "texture": "starfold_biotech:textures/entity/host.png",
+  "slice": {
+    "x": 128,
+    "y": 0,
+    "width": 32,
+    "height": 32
+  },
+  "default_image_size": {
+    "width": 256,
+    "height": 256
+  }
+}

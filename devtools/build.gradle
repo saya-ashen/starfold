@@ -11,6 +11,8 @@ dependencies {
     implementation(project(':')) { transitive = false }
     // Same ASM used by NeoForge; offline packaged bytecode contract only.
     testImplementation 'org.ow2.asm:asm-tree:9.10.1'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+    testRuntimeOnly 'it.unimi.dsi:fastutil:8.5.12'
 }
 test {
     dependsOn tasks.named('jar'), rootProject.tasks.named('jar')

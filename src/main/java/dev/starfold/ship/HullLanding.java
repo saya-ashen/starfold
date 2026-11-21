@@ -155,10 +155,11 @@ public final class HullLanding {
     }
 
     public static boolean safeExit(double clearance, boolean deployed, Kind kind) {
-        return deployed
-                && Double.isFinite(clearance)
-                && clearance <= 1
-                && (kind == Kind.LAND || kind == Kind.PAD || kind == Kind.SLOPE);
+        return deployed && Double.isFinite(clearance) && clearance <= 1 && dry(kind);
+    }
+
+    private static boolean dry(Kind kind) {
+        return kind == Kind.LAND || kind == Kind.PAD || kind == Kind.SLOPE;
     }
 
     static boolean landedWithStair(
@@ -225,10 +226,11 @@ public final class HullLanding {
         if (!eligible(level, body)) return Site.UNKNOWN;
         var site = candidate(level, body, 0, 0);
         return new Site(
-                site.kind() == Kind.LAND && dev.starfold.api.PlanetContent.get().overPad(level, body)
+                site.kind() == Kind.LAND
+                                && dev.starfold.api.PlanetContent.starter().overPad(level, body)
                         ? Kind.PAD
                         : site.kind(),
-                site.deployable());
+                site.deployable() || dry(site.kind()) && Airstair.deployed(body));
     }
 
     /** Search and Below use the identical loaded-column survey and actual stair planner. No pose mutation. */
@@ -247,7 +249,7 @@ public final class HullLanding {
                         (x, z) -> column(level, x, z));
         return new Site(
                 survey.kind(),
-                survey.kind() == Kind.LAND
+                dry(survey.kind())
                         && Airstair.canDeployAt(
                                 level, body, Math.max(0, box.minY() - survey.highest()), dx, dz));
     }
@@ -287,7 +289,8 @@ public final class HullLanding {
     }
 
     static Surface column(Level level, int x, int z) {
-        return column(level, x, z, false); // Stair survey/planning keeps its existing heightmap contract.
+        return column(
+                level, x, z, false); // Stair survey/planning keeps its existing heightmap contract.
     }
 
     private static Surface column(Level level, int x, int z, boolean collisionTop) {
@@ -317,11 +320,13 @@ public final class HullLanding {
         double height = top + 1.;
         if (collisionTop && !fluid) {
             var shape = state.getCollisionShape(level, pos);
-            // A motion-blocking top without a collision box keeps the heightmap top: a loaded column is
+            // A motion-blocking top without a collision box keeps the heightmap top: a loaded
+            // column is
             // never unknown, or the descent envelope would be lost over it.
             if (!shape.isEmpty()) height = top + shape.max(net.minecraft.core.Direction.Axis.Y);
         }
-        return new Surface(height, fluid, state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA));
+        return new Surface(
+                height, fluid, state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA));
     }
 
     private HullLanding() {}

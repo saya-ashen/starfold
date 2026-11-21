@@ -7,6 +7,20 @@ import dev.starfold.ship.SableBoarding;
 public final class DevBoardingProbe {
     public static void initialize() {
         DevHelmProbe.initialize();
+        // Mining is optional too; leave its integration classes unloaded when absent.
+        if (net.neoforged.fml.ModList.get().isLoaded("starfold_mining")) {
+            DevMiningProbe.initialize();
+            DevOilProbe.initialize();
+        }
+        DevSettlementProbe.initialize();
+        DevOceanProbe.initialize();
+        DevSableReadProbe.initialize();
+        // Core-only test/dev launches omit Create; defer loading its integration probes.
+        if (net.neoforged.fml.ModList.get().isLoaded("create")) {
+            DevTransportProbe.initialize();
+            if (net.neoforged.fml.ModList.get().isLoaded("createdieselgenerators"))
+                DevIndustryProbe.initialize();
+        }
         if (!Boolean.getBoolean("starfold.rejoinRemoveHull")) return;
         var removed = new java.util.HashSet<java.util.UUID>();
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(

@@ -87,7 +87,9 @@ final class GroundSurfaceStream {
                     if (!visited.get((int) neighbour)) offer(neighbour);
             }
             long version = index.surfaceRevision(key);
-            if (version >= 0 && !index.dirty(key) && sent.getOrDefault(key, -1L) != version
+            if (version >= 0
+                    && !index.dirty(key)
+                    && sent.getOrDefault(key, -1L) != version
                     && (index.hasSurface(key) || sent.containsKey(key))) return key;
         }
         return -1;

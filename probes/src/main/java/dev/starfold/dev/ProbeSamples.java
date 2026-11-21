@@ -1,8 +1,8 @@
 package dev.starfold.dev;
 
-import static dev.starfold.dev.ProbeSession.*;
-import static dev.starfold.dev.ProbeInput.*;
 import static dev.starfold.dev.ProbeCamera.*;
+import static dev.starfold.dev.ProbeInput.*;
+import static dev.starfold.dev.ProbeSession.*;
 
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry;
@@ -36,7 +36,6 @@ final class ProbeSamples {
     static long[] frames = new long[0];
 
     static int cargoEvery, cargoCountdown;
-
     static int cornerEvery, cornerCountdown;
 
     static boolean tracing;
@@ -220,12 +219,16 @@ final class ProbeSamples {
     static boolean commandFrames(String arg) {
         var a = arg.split("\\s+");
         frameLabel = a[0];
+        org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                .info("PROBE FRAMES GL {} renderer={}", frameLabel,
+                        org.lwjgl.opengl.GL11.glGetString(org.lwjgl.opengl.GL11.GL_RENDERER));
         frames = new long[Integer.parseInt(a[1])];
         frameCount = 0;
         frameLast = 0;
         GroundRenderer.probeTiming = true;
         GroundRenderer.probeCpuNanos = GroundRenderer.probeGpuNanos = 0;
-        GroundRenderer.probeMultiNanos = GroundRenderer.probeSkyNanos = GroundRenderer.probePrepNanos = 0;
+        GroundRenderer.probeMultiNanos =
+                GroundRenderer.probeSkyNanos = GroundRenderer.probePrepNanos = 0;
         GroundRenderer.probeDraws = GroundRenderer.probeTiles = GroundRenderer.probeSubDraws = 0;
         GroundRenderer.probeGroups = GroundRenderer.probeCompactGroups = 0;
         return true;
@@ -280,17 +283,34 @@ final class ProbeSamples {
 
     /** "darkscan R": loaded client chunks within R chunks whose surface has little sky light. */
     static boolean commandDarkscan(Minecraft mc, String arg) {
-        int r = Integer.parseInt(arg.trim()), cx = mc.player.blockPosition().getX() >> 4,
-                cz = mc.player.blockPosition().getZ() >> 4, loaded = 0;
+        int r = Integer.parseInt(arg.trim()),
+                cx = mc.player.blockPosition().getX() >> 4,
+                cz = mc.player.blockPosition().getZ() >> 4,
+                loaded = 0;
         var dark = new StringBuilder();
         for (int x = cx - r; x <= cx + r; x++)
             for (int z = cz - r; z <= cz + r; z++) {
                 if (!mc.level.getChunkSource().hasChunk(x, z)) continue;
                 loaded++;
                 int bx = x * 16 + 8, bz = z * 16 + 8;
-                int y = mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, bx, bz);
-                int sky = mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, new net.minecraft.core.BlockPos(bx, y, bz));
-                if (sky < 8) dark.append(' ').append(x - cx).append(',').append(z - cz).append(':').append(sky).append('@').append(y);
+                int y =
+                        mc.level.getHeight(
+                                net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,
+                                bx,
+                                bz);
+                int sky =
+                        mc.level.getBrightness(
+                                net.minecraft.world.level.LightLayer.SKY,
+                                new net.minecraft.core.BlockPos(bx, y, bz));
+                if (sky < 8)
+                    dark.append(' ')
+                            .append(x - cx)
+                            .append(',')
+                            .append(z - cz)
+                            .append(':')
+                            .append(sky)
+                            .append('@')
+                            .append(y);
             }
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                 .info("PROBE DARKSCAN loaded {} dark{}", loaded, dark);
@@ -315,7 +335,9 @@ final class ProbeSamples {
                                 : "-",
                         GroundClient.ready() ? GroundRenderer.performance() : "native inactive",
                         space(q.position()) + SpaceNavigationClient.probeReading());
-        if(GroundClient.ready()) org.slf4j.LoggerFactory.getLogger("starfold-probe").info("PROBE {} | {}",arg,GroundRenderer.memory());
+        if (GroundClient.ready())
+            org.slf4j.LoggerFactory.getLogger("starfold-probe")
+                    .info("PROBE {} | {}", arg, GroundRenderer.memory());
         return true;
     }
 

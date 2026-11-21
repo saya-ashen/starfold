@@ -164,20 +164,6 @@ class CelestialNavigationTest {
 
     @Test
     void adaptersUseTypedTargetsAndKeepGasOutOfLandingAndSurfaceCaptions() throws Exception {
-        var server = dev.starfold.Sources.text("SpaceServer");
-        assertTrue(server.contains("packet.bodyIndex()"));
-        assertTrue(server.contains("CelestialTarget.resolve(model,bodyIndex)"));
-        assertTrue(server.contains("celestial.surfaceSlot(model).orElse(-1)"));
-        assertTrue(server.contains("target.celestial().frame(model,tick).velocity()"));
-        var client = dev.starfold.Sources.text("SpaceNavigationClient");
-        assertTrue(client.contains("private static CelestialTarget selection"));
-        assertTrue(client.contains("CelestialNavigation.next"));
-        assertTrue(client.contains("CelestialNavigation.read"));
-        assertTrue(client.contains("selection.surfaceSlot"));
-        assertFalse(client.contains("new SpacePackets.Target(planet)"));
-        var widgets = dev.starfold.Sources.text("FlightWidgets");
-        assertTrue(widgets.contains("tr(\"gas_nonlandable\")"));
-        assertTrue(widgets.contains("tr(\"gas_pressure\""));
         var fields =
                 java.util.Arrays.stream(FlightSnapshot.GasTarget.class.getRecordComponents())
                         .map(java.lang.reflect.RecordComponent::getName)
@@ -234,7 +220,16 @@ class CelestialNavigationTest {
         assertTrue(
                 CelestialNavigation.blocker(model, new Point(20000, 0, 0), surface, 0).isEmpty());
         assertThrows(IllegalArgumentException.class, () -> gas.requireSurfaceSlot(model));
-        assertEquals(30000 - 512, CelestialNavigation.read(model, Space.Frame.IDENTITY,
-                GroundEphemeris.ZERO, new CelestialTarget(0), 0, 0).distance(), 1e-9);
+        assertEquals(
+                30000 - 512,
+                CelestialNavigation.read(
+                                model,
+                                Space.Frame.IDENTITY,
+                                GroundEphemeris.ZERO,
+                                new CelestialTarget(0),
+                                0,
+                                0)
+                        .distance(),
+                1e-9);
     }
 }

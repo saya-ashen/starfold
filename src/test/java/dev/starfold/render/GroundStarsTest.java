@@ -16,7 +16,8 @@ class GroundStarsTest {
         assertEquals(1 / Math.sqrt(2), moved.x(), 1e-12);
         assertEquals(-1 / Math.sqrt(2), moved.y(), 1e-12);
         var offset = new Point(4_000_000, -20, 8_000_000);
-        assertEquals(moved, GroundStars.direction(star.add(offset), new Point(0, 10, 0).add(offset)));
+        assertEquals(
+                moved, GroundStars.direction(star.add(offset), new Point(0, 10, 0).add(offset)));
         assertEquals(new Point(-1, 0, 0), GroundStars.direction(star, new Point(20, 0, 0)));
     }
 

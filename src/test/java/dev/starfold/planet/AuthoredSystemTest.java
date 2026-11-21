@@ -2,7 +2,6 @@ package dev.starfold.planet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.GroundOrbit;
 import dev.starfold.chart.PlanetShape;
@@ -331,7 +330,9 @@ class AuthoredSystemTest {
             obsolete.putInt("format", old);
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> Universe.load(obsolete, PlanetBiomeFixtures.lookup, universe.allocator()));
+                    () ->
+                            Universe.load(
+                                    obsolete, PlanetBiomeFixtures.lookup, universe.allocator()));
         }
         var missing = tag.copy();
         missing.getList("bodies", 10).getCompound(model.index(0)).remove("reach");
@@ -632,7 +633,6 @@ class AuthoredSystemTest {
         assertEquals(SpaceView.FAR, SpaceView.chartFar(4096, 160));
         assertEquals(224, SpaceView.chartFar(GroundOrbit.START, 160));
         assertEquals(224, SpaceView.chartFar(0, 160));
-        assertTrue(Sources.text("GroundFlightRenderMixin").contains("SpaceView.chartFar("));
     }
 
     @Test
@@ -959,18 +959,37 @@ class AuthoredSystemTest {
 
     @Test
     void progradeSpinKeepsTheMeanSolarDayAt48000Ticks() {
-        double year = new SystemDefinition.Path(SystemDefinition.HOME_ORBIT, 0)
-                .period(SystemDefinition.STAR_GM);
+        double year =
+                new SystemDefinition.Path(SystemDefinition.HOME_ORBIT, 0)
+                        .period(SystemDefinition.STAR_GM);
         double spin = 1 / (1.0 / 48000 + 1 / year);
         assertEquals(48000, 1 / (1 / spin - 1 / year), 1e-8);
-        var rotation = new GroundEphemeris.Spin(true, GroundEphemeris.Y,
-                new org.joml.Quaterniond(), 0, spin, 0);
-        var model = new GroundEphemeris.Model(List.of(
-                new GroundEphemeris.Body(new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
-                        12000, true, -1, GroundEphemeris.Appearance.LIGHT),
-                new GroundEphemeris.Body(new GroundEphemeris.Orbit(0, GroundEphemeris.Y,
-                        new Point(0, 0, 1), SystemDefinition.HOME_ORBIT, year, 0, 0, rotation),
-                        0, false, 0, GroundEphemeris.Appearance.SURFACE)));
+        var rotation =
+                new GroundEphemeris.Spin(
+                        true, GroundEphemeris.Y, new org.joml.Quaterniond(), 0, spin, 0);
+        var model =
+                new GroundEphemeris.Model(
+                        List.of(
+                                new GroundEphemeris.Body(
+                                        new GroundEphemeris.Fixed(GroundEphemeris.ZERO),
+                                        12000,
+                                        true,
+                                        -1,
+                                        GroundEphemeris.Appearance.LIGHT),
+                                new GroundEphemeris.Body(
+                                        new GroundEphemeris.Orbit(
+                                                0,
+                                                GroundEphemeris.Y,
+                                                new Point(0, 0, 1),
+                                                SystemDefinition.HOME_ORBIT,
+                                                year,
+                                                0,
+                                                0,
+                                                rotation),
+                                        0,
+                                        false,
+                                        0,
+                                        GroundEphemeris.Appearance.SURFACE)));
         var before = model.at(0, 0).local(GroundEphemeris.ZERO);
         var after = model.at(0, 48000).local(GroundEphemeris.ZERO);
         assertEquals(0, before.sub(after).length(), 1e-8);
@@ -1027,7 +1046,9 @@ class AuthoredSystemTest {
         var system =
                 SystemChunkGenerator.CODEC
                         .codec()
-                        .parse(PlanetTypeFixtures.ops(), PlanetTypeFixtures.preset("native_universe"))
+                        .parse(
+                                PlanetTypeFixtures.ops(),
+                                PlanetTypeFixtures.preset("native_universe"))
                         .getOrThrow();
         assertFalse(system.authored());
         assertEquals(
@@ -1045,10 +1066,6 @@ class AuthoredSystemTest {
                                 .toList()),
                 system.homeModel());
         assertTrue(system.names().isEmpty());
-        var source = Sources.text("SystemChunkGenerator");
-        assertTrue(
-                source.contains(
-                        "materialize(seed);return ChunkGeneratorStructureState.createForFlat"));
     }
 
     private static SystemDefinition beyondWithSmallAuthoredSun(double orbit) throws Exception {

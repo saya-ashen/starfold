@@ -1,5 +1,6 @@
 package dev.starfold.flight;
 
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.chart.GroundCamera;
 import dev.starfold.chart.GroundCosmos;
 import dev.starfold.chart.GroundEphemeris;
@@ -21,7 +22,6 @@ import dev.starfold.planet.GroundTopology;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 import dev.starfold.planet.PlanetSystem;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.Space;
 
 import net.minecraft.client.*;
@@ -242,8 +242,8 @@ public final class GroundFlightClient {
                         if (nextControlled)
                             for (var input : pending.values()) {
                                 if (!corrected.space()
-                                        && corrected.local().point().y() <= GroundDynamics.handoff(mask))
-                                    break;
+                                        && corrected.local().point().y()
+                                                <= GroundDynamics.handoff(mask)) break;
                                 var predicted =
                                         GroundDynamics.step(
                                                 model,
@@ -357,7 +357,8 @@ public final class GroundFlightClient {
                     previous = state;
                     try {
                         var predicted =
-                                GroundDynamics.step(model, terrain(), state, motion, packet.toggle());
+                                GroundDynamics.step(
+                                        model, terrain(), state, motion, packet.toggle());
                         if (predicted.planet() != state.planet()) {
                             waiting = true;
                             net.neoforged.neoforge.network.PacketDistributor.sendToServer(packet);

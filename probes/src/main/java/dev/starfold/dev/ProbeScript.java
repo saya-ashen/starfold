@@ -11,7 +11,10 @@ final class ProbeScript {
     int line, wait;
     boolean strict;
 
-    void tick(BiPredicate<String, String> command, UnaryOperator<String> expand, Consumer<String> fail) {
+    void tick(
+            BiPredicate<String, String> command,
+            UnaryOperator<String> expand,
+            Consumer<String> fail) {
         while (line < lines.size()) {
             if (wait > 0) {
                 wait--;

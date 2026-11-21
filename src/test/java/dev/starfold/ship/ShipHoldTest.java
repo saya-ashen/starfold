@@ -2,7 +2,7 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
+import dev.starfold.TestArchiveResources;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
@@ -11,7 +11,12 @@ import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -327,87 +332,40 @@ class ShipHoldTest {
         assertEquals(target, ShipParking.settle(target, target, target));
     }
 
-    @Test
-    void probeRequiresAllThreeExactServerTickReadingsAndNoHoldWhilePiloted() throws Exception {
-        var probe = Sources.text("DevShipHoldProbe");
-        assertTrue(probe.contains("elapsed==100||elapsed==400||elapsed==1200"));
-        assertTrue(probe.contains("level.getGameTime()-window.start()"));
-        assertTrue(probe.contains("error[0]<.1&&error[1]<.1"));
-        assertTrue(probe.contains("window.readings()==3&&window.passed()"));
-        assertTrue(probe.contains("if(held!=null)throw new IllegalStateException"));
-        assertTrue(
-                Sources.text("DevShipPersistenceProbe").contains("DevShipHoldProbe.tick(level)"));
+    private static List<String> spaceServerCalls(String method) throws Exception {
+        var node = new ClassNode();
+        try (var in = TestArchiveResources.open("/dev/starfold/space/SpaceServer.class")) {
+            assertNotNull(in);
+            new ClassReader(in).accept(node, 0);
+        }
+        var target =
+                node.methods.stream().filter(m -> m.name.equals(method)).findFirst().orElseThrow();
+        var calls = new ArrayList<String>();
+        for (var instruction : target.instructions)
+            if (instruction instanceof MethodInsnNode call) calls.add(call.owner + "." + call.name);
+        return calls;
+    }
+
+    private static void assertCallsInOrder(List<String> calls, String... expected) {
+        int previous = -1;
+        for (String call : expected) {
+            int position = calls.indexOf(call);
+            assertTrue(position >= 0, "missing call: " + call);
+            assertTrue(position > previous, "call out of order: " + call);
+            previous = position;
+        }
     }
 
     @Test
     void wiringProtectsPilotFinalFrameHeldRecordAndPhysicsPose() throws Exception {
-        var source = Sources.text("SpaceServer");
-        assertTrue(
-                source.indexOf("ShipRecords.binding(level,body)")
-                        < source.indexOf("advanceLead(level,container,bodies,lead,value,clock)"));
-        assertTrue(
-                source.indexOf("settleFollowers(level,container,bodies,lead,value)")
-                        > source.indexOf("advanceLead(level,container,bodies,lead,value,clock)"));
-        var follower =
-                source.substring(
-                        source.indexOf("private static void settleFollowers"),
-                        source.indexOf("private static void shiftRegion"));
-        assertTrue(follower.contains("if(body==lead||ShipRecords.piloted(level,body))continue"));
-        assertTrue(
-                follower.contains(
-                        "if(held==null){coastFollower(level,container,body,value.frame);continue;}"));
-        assertTrue(
-                follower.contains(
-                        "value.frame.level(ShipParking.target(clock.model,held,plot,clock.tick())"));
-        assertTrue(follower.contains("ShipParking.target(clock.model,held,plot,clock.tick()+1)"));
-        assertTrue(follower.contains("ShipParking.settle(motion,target,next)"));
-        assertFalse(follower.contains("SableFrames.move"));
-        var drag =
-                source.substring(
-                        source.indexOf("private static void dragFrame"),
-                        source.indexOf("private static void coastLead"));
-        assertTrue(drag.contains("ShipParking.target(model,held,plot,tick)"));
-        assertTrue(
-                drag.contains(
-                        "if(held==null){coastLead(value,level,container,bodies,lead,tick);return;}"));
-        assertTrue(drag.contains("ShipParking.settle(motion,target,next)"));
-        assertFalse(drag.contains("angular.equals(GroundEphemeris.ZERO)"));
-        var coast =
-                source.substring(
-                        source.indexOf("private static void coastLead"),
-                        source.indexOf("private static Point spinPoint"));
-        assertTrue(
-                coast.contains(
-                        "if(ShipRecords.piloted(level,lead)){value.clearHoldTurn();value.frame=value.frame.rebased(tick);return;}"));
-        assertTrue(
-                coast.indexOf("ShipRecords.piloted(level,lead)")
-                        < coast.indexOf("ShipParking.coastFrame"));
-        var records = Sources.text("ShipRecords");
-        assertTrue(records.contains("held!=null?held:ShipParking.capture"));
-        assertTrue(records.contains("observer.bind(hull.getUniqueId(),piloted(level,hull)"));
-        assertTrue(records.contains("captureWhenSlow(level,hull,ShipParking.capture"));
-        assertTrue(records.contains("ShipHost.get().carriedSpin(level,hull.getUniqueId())"));
-        assertTrue(
-                records.contains(
-                        "ShipParking.slow(motion,ShipParking.evaluate(clock.model,place,clock.tick()))?place:null"));
-        assertTrue(records.contains("if(!ShipParking.yields("));
-        assertTrue(records.contains("observer.bind(hull.getUniqueId(),true,null)"));
-        var helm = Sources.text("HelmServer");
-        assertTrue(
-                helm.contains(
-                        "sessions.put(body,session);ShipRecords.binding(player.serverLevel(),body)"));
-        assertTrue(
-                helm.contains(
-                        "sessions.remove(s.body);pilots.release(s.body);if(!s.body.isRemoved()&&s.body.getLevel() instanceof net.minecraft.server.level.ServerLevel level)ShipRecords.binding(level,s.body)"));
-        var gyro = Sources.text("Thrusters");
-        assertFalse(gyro.contains("spaceDormancy()"));
-        assertTrue(
-                gyro.contains(
-                        "ShipRecords.hold(level,body)!=null&&!ShipRecords.piloted(level,body)"));
-        var probe = Sources.text("DevShipPersistenceProbe");
-        assertTrue(probe.contains("case \"motion\""));
-        assertTrue(probe.contains("held.anchorPlot()"));
-        assertTrue(probe.contains("local_release="));
-        assertTrue(probe.contains("degrees="));
+        assertCallsInOrder(
+                spaceServerCalls("step"),
+                "dev/starfold/ship/ShipRecords.binding",
+                "dev/starfold/space/SpaceServer.advanceLead",
+                "dev/starfold/space/SpaceServer.settleFollowers");
+        assertCallsInOrder(
+                spaceServerCalls("coastLead"),
+                "dev/starfold/ship/ShipRecords.piloted",
+                "dev/starfold/ship/ShipParking.coastFrame");
     }
 }

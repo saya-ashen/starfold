@@ -17,8 +17,10 @@ public abstract class ReversedDepthProjectionMixin {
     }
 
     @ModifyVariable(
-            method = "setProjectionMatrix(Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/VertexSorting;)V",
-            at = @At("HEAD"), argsOnly = true)
+            method =
+                    "setProjectionMatrix(Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/VertexSorting;)V",
+            at = @At("HEAD"),
+            argsOnly = true)
     private static Matrix4f starfold$projection(Matrix4f matrix) {
         return ReversedDepth.ACTIVE ? ReversedDepth.projection(matrix) : matrix;
     }

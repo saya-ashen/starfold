@@ -51,10 +51,12 @@ public final class GasPlayerExposureCache {
     public boolean receive(
             GasPlayerExposurePacket next, GroundEphemeris.Model model, long clientTick) {
         if (clientTick < 0) throw new IllegalArgumentException("Personal gas receipt clock");
-        if (next == null || focus == null
+        if (next == null
+                || focus == null
                 || next.session() != focus.session()
                 || !next.dimension().equals(focus.dimension())
-                || next.sequence() <= sequence || !compatible(next, model)) return false;
+                || next.sequence() <= sequence
+                || !compatible(next, model)) return false;
         sequence = next.sequence();
         received = clientTick;
         packet = next;
@@ -83,7 +85,8 @@ public final class GasPlayerExposureCache {
 
     /** Receipt TTL spends server age too; transit is unmeasured. Timers are NEVER extrapolated. */
     public GasPlayerExposurePacket current(long clientTick) {
-        if (packet == null || clientTick < received
+        if (packet == null
+                || clientTick < received
                 || clientTick - received >= GasPlayerExposurePacket.FRESH_TICKS - packet.age())
             return null;
         return packet;

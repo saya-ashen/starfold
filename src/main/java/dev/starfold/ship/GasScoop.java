@@ -39,21 +39,32 @@ final class GasScoop extends BlockEntity {
     }
 
     static void initialize() {
-        NeoForge.EVENT_BUS.addListener((AddReloadListenerEvent e) -> e.addListener(new Definitions()));
+        NeoForge.EVENT_BUS.addListener(
+                (AddReloadListenerEvent e) -> e.addListener(new Definitions()));
         NeoForge.EVENT_BUS.addListener((ServerStoppedEvent e) -> definition = null);
     }
 
-    private static final class Definitions extends SimplePreparableReloadListener<Optional<GasSkimDefinition>> {
+    private static final class Definitions
+            extends SimplePreparableReloadListener<Optional<GasSkimDefinition>> {
         @Override
-        protected Optional<GasSkimDefinition> prepare(ResourceManager manager, ProfilerFiller profiler) {
+        protected Optional<GasSkimDefinition> prepare(
+                ResourceManager manager, ProfilerFiller profiler) {
             GasSkimDefinition loaded = null;
-            for (var entry : manager.listResources("starfold/gas_skim", id -> id.getPath().endsWith(".json")).entrySet()) {
-                if (loaded != null) throw new JsonParseException("Only one global gas skim definition is supported");
+            for (var entry :
+                    manager.listResources("starfold/gas_skim", id -> id.getPath().endsWith(".json"))
+                            .entrySet()) {
+                if (loaded != null)
+                    throw new JsonParseException(
+                            "Only one global gas skim definition is supported");
                 try (var reader = entry.getValue().openAsReader()) {
-                    loaded = GasSkimDefinition.parse(JsonParser.parseReader(reader).getAsJsonObject());
+                    loaded =
+                            GasSkimDefinition.parse(
+                                    JsonParser.parseReader(reader).getAsJsonObject());
                     var fluid = BuiltInRegistries.FLUID.get(loaded.fluid());
-                    if (!BuiltInRegistries.FLUID.containsKey(loaded.fluid()) || fluid == Fluids.EMPTY)
-                        throw new JsonParseException("Unknown or empty skim fluid " + loaded.fluid());
+                    if (!BuiltInRegistries.FLUID.containsKey(loaded.fluid())
+                            || fluid == Fluids.EMPTY)
+                        throw new JsonParseException(
+                                "Unknown or empty skim fluid " + loaded.fluid());
                 } catch (IOException | RuntimeException e) {
                     throw new JsonParseException("Invalid gas skim " + entry.getKey(), e);
                 }
@@ -62,7 +73,10 @@ final class GasScoop extends BlockEntity {
         }
 
         @Override
-        protected void apply(Optional<GasSkimDefinition> loaded, ResourceManager manager, ProfilerFiller profiler) {
+        protected void apply(
+                Optional<GasSkimDefinition> loaded,
+                ResourceManager manager,
+                ProfilerFiller profiler) {
             definition = loaded.orElse(null);
         }
     }
@@ -83,20 +97,35 @@ final class GasScoop extends BlockEntity {
         }
         var level = (ServerLevel) world;
         var clock = GroundClock.get(level).clock;
-        var point = body.logicalPose().transformPosition(
-                new org.joml.Vector3d(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5),
-                new org.joml.Vector3d());
-        var universe = ShipHost.get().surroundingsFrame(level).universe(
-                new Point(point.x(), point.y(), point.z()), clock.model, clock.tick());
-        // The same pressure field as GasShipDamage, at the intake itself (no conservative hull padding).
-        double pressure = GasPressure.snapshot(clock.model, clock.tick()).worst(universe, 0)
-                .map(GasPressure.Reading::pressure).orElse(0.0);
+        var point =
+                body.logicalPose()
+                        .transformPosition(
+                                new org.joml.Vector3d(
+                                        pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5),
+                                new org.joml.Vector3d());
+        var universe =
+                ShipHost.get()
+                        .surroundingsFrame(level)
+                        .universe(
+                                new Point(point.x(), point.y(), point.z()),
+                                clock.model,
+                                clock.tick());
+        // The same pressure field as GasShipDamage, at the intake itself (no conservative hull
+        // padding).
+        double pressure =
+                GasPressure.snapshot(clock.model, clock.tick())
+                        .worst(universe, 0)
+                        .map(GasPressure.Reading::pressure)
+                        .orElse(0.0);
         double amount = scoop.fraction + definition.amount(pressure);
         int whole = (int) amount;
         scoop.fraction = amount - whole;
-        if (whole > 0 && ThrusterFuel.fill(body,
-                new FluidStack(BuiltInRegistries.FLUID.get(definition.fluid()), whole)) > 0)
-            ShipHost.get().gasCollected(body);
+        if (whole > 0
+                && ThrusterFuel.fill(
+                                body,
+                                new FluidStack(
+                                        BuiltInRegistries.FLUID.get(definition.fluid()), whole))
+                        > 0) ShipHost.get().gasCollected(body);
         // Full/incompatible tanks discard the uncollected whole mB, never bank a future burst.
     }
 }

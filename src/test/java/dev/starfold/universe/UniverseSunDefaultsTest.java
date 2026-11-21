@@ -13,8 +13,6 @@ import net.minecraft.nbt.CompoundTag;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.SplittableRandom;
 
@@ -70,7 +68,9 @@ class UniverseSunDefaultsTest {
                     body.planet().generation());
             double orbit = 17800 + (count == 2 ? 0 : i) * layout.ring();
             assertEquals(orbit, body.radius());
-            assertEquals(20 * 2 * Math.PI * Math.sqrt(orbit * orbit * orbit / SystemDefinition.STAR_GM), body.period());
+            assertEquals(
+                    20 * 2 * Math.PI * Math.sqrt(orbit * orbit * orbit / SystemDefinition.STAR_GM),
+                    body.period());
         }
     }
 
@@ -110,7 +110,9 @@ class UniverseSunDefaultsTest {
                 var tag = universe.save(new CompoundTag(), PlanetTypeFixtures.lookup());
                 var restored =
                         Universe.load(
-                                tag, PlanetTypeFixtures.lookup(), UniverseTest.reloadedIds(universe));
+                                tag,
+                                PlanetTypeFixtures.lookup(),
+                                UniverseTest.reloadedIds(universe));
                 assertEquals(universe.catalog(), restored.catalog());
             }
     }
@@ -124,7 +126,8 @@ class UniverseSunDefaultsTest {
                             "{\"suns\":[{\"position\":[0,0,17800],\"radius\":"
                                     + radius
                                     + ",\"planets\":[{\"type\":\"starfold:rocky\",\"size\":1024,\"orbit\":{\"radius\":17800}}]}]}");
-            var definition = SystemDefinition.CODEC.parse(PlanetTypeFixtures.ops(), json).getOrThrow();
+            var definition =
+                    SystemDefinition.CODEC.parse(PlanetTypeFixtures.ops(), json).getOrThrow();
             var model = definition.materialize(42).sky().model();
             assertEquals(radius, model.primary().radius());
             var state = new dev.starfold.sky.GroundEphemerisSave(model, 200);

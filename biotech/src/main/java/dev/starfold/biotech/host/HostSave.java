@@ -7,78 +7,184 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** Stored in the overworld: one natural encounter across all dimensions and Flesh instances. */
+/** One natural encounter per planet slot in the planet level. */
 public final class HostSave extends SavedData {
     public static final String FILE = "starfold_biotech_host";
-    private UUID host;
-    private boolean defeated;
-    private final Set<UUID> sacs = new HashSet<>();
+    static final long RESPAWN_DELAY_TICKS = 7L * 24_000;
+    private static final int LEGACY = -1;
+
+    private final Map<Integer, Encounter> encounters = new HashMap<>();
 
     public static HostSave get(ServerLevel level) {
         var storage = level.getServer().overworld().getDataStorage();
-        return storage.computeIfAbsent(new Factory<>(
-                () -> fresh(((dev.starfold.mixin.SavedDataFileAccess) storage).starfold$spaceDataFile(FILE).exists()),
-                HostSave::load, null), FILE);
+        return storage.computeIfAbsent(
+                new Factory<>(
+                        () -> fresh(((dev.starfold.mixin.SavedDataFileAccess) storage)
+                                .starfold$spaceDataFile(FILE).exists()),
+                        HostSave::load,
+                        null),
+                FILE);
     }
 
     static HostSave fresh(boolean exists) {
-        if (exists) throw new IllegalStateException("Existing Host save failed to load; refusing a second encounter");
+        if (exists) throw new IllegalStateException("Existing Host encounter save failed to load");
         return new HostSave();
     }
 
-    public boolean spawned() { return host != null; }
-    public boolean defeated() { return defeated; }
-    public boolean owns(UUID id) { return id.equals(host); }
-    public int livingSacs() { return sacs.size(); }
+    boolean canSpawn(int planet, long gameTime) {
+        var encounter = encounters.get(planet);
+        return encounter == null || encounter.defeated && gameTime >= encounter.respawnAt;
+    }
 
-    public void spawn(UUID id, Set<UUID> living) {
-        host = id;
-        sacs.clear();
-        sacs.addAll(living);
+    UUID activeHost(int planet) {
+        var encounter = encounters.get(planet);
+        return encounter == null || encounter.defeated ? null : encounter.host;
+    }
+
+    Long lastChunk(int planet) {
+        return encounters.get(planet).lastChunk;
+    }
+
+    boolean track(int planet, UUID host, long chunk) {
+        var legacy = encounters.get(LEGACY);
+        if (legacy != null && host.equals(legacy.host) && !legacy.defeated) {
+            encounters.remove(LEGACY);
+            if (!encounters.containsKey(planet)) encounters.put(planet, legacy);
+            setDirty();
+        }
+        if (!host.equals(activeHost(planet))) return false;
+        var encounter = encounters.get(planet);
+        if (encounter.lastChunk == null || encounter.lastChunk != chunk) {
+            encounter.lastChunk = chunk;
+            setDirty();
+        }
+        return true;
+    }
+
+    UUID legacyHost() {
+        return activeHost(LEGACY);
+    }
+
+    boolean active(UUID id) {
+        var encounter = find(id);
+        return encounter != null && !encounter.defeated;
+    }
+
+    int livingSacs(UUID id) {
+        var encounter = find(id);
+        return encounter == null ? 0 : encounter.sacs.size();
+    }
+
+    void spawn(int planet, UUID id, Set<UUID> living, long chunk) {
+        var encounter = new Encounter(id);
+        encounter.sacs.addAll(living);
+        encounter.lastChunk = chunk;
+        encounters.put(planet, encounter);
         setDirty();
     }
 
-    public void sacDied(UUID owner, UUID sac) {
-        if (owns(owner) && sacs.remove(sac)) setDirty();
+    void sacDied(UUID owner, UUID sac) {
+        var encounter = find(owner);
+        if (encounter != null && encounter.sacs.remove(sac)) setDirty();
     }
 
-    public void defeat(UUID id) {
-        if (!owns(id)) return;
-        defeated = true;
-        sacs.clear();
+    void defeat(UUID id, long gameTime) {
+        var encounter = find(id);
+        if (encounter == null || encounter.defeated) return;
+        encounter.defeated = true;
+        encounter.respawnAt = gameTime + RESPAWN_DELAY_TICKS;
+        encounter.sacs.clear();
         setDirty();
     }
 
     public static HostSave load(CompoundTag tag, HolderLookup.Provider lookup) {
-        if (!tag.contains("Defeated", 1) || !tag.contains("Sacs", 9)
-                || tag.contains("Host") && !tag.hasUUID("Host"))
-            throw new IllegalArgumentException("Invalid Host encounter save");
         var data = new HostSave();
-        data.host = tag.hasUUID("Host") ? tag.getUUID("Host") : null;
-        data.defeated = tag.getBoolean("Defeated");
-        var list = tag.getList("Sacs", 11);
-        if (list.size() != ((ListTag) tag.get("Sacs")).size() || list.size() > HostRules.SAC_COUNT)
-            throw new IllegalArgumentException("Invalid Host sac list");
-        for (var entry : list) {
-            UUID id = NbtUtils.loadUUID(entry);
-            if (!data.sacs.add(id)) throw new IllegalArgumentException("Duplicate Host sac");
+        if (!tag.contains("Encounters")) {
+            var legacy = readEncounter(tag);
+            if (legacy != null && !legacy.defeated) data.encounters.put(LEGACY, legacy);
+            return data;
         }
-        if (data.host == null && (data.defeated || !data.sacs.isEmpty()) || data.defeated && !data.sacs.isEmpty())
-            throw new IllegalArgumentException("Inconsistent Host encounter save");
+        for (var entry : checkedList(tag, "Encounters", 10)) {
+            var value = (CompoundTag) entry;
+            var encounter = readEncounter(value);
+            int planet = value.getInt("Planet");
+            if (!value.contains("Planet", 3) || planet < LEGACY || encounter == null
+                    || data.find(encounter.host) != null
+                    || data.encounters.putIfAbsent(planet, encounter) != null)
+                throw new IllegalArgumentException("Invalid or duplicate Host encounter");
+        }
         return data;
+    }
+
+    private static Encounter readEncounter(CompoundTag tag) {
+        if (!tag.contains("Defeated", 1) || tag.contains("Host") && !tag.hasUUID("Host")
+                || tag.contains("RespawnAt") && !tag.contains("RespawnAt", 4)
+                || tag.contains("LastChunk") && !tag.contains("LastChunk", 4))
+            throw new IllegalArgumentException("Invalid Host encounter save");
+        var sacs = checkedList(tag, "Sacs", 11);
+        boolean defeated = tag.getBoolean("Defeated");
+        if (sacs.size() > HostRules.SAC_COUNT || defeated && !sacs.isEmpty()
+                || !tag.hasUUID("Host") && (defeated || !sacs.isEmpty()))
+            throw new IllegalArgumentException("Inconsistent Host encounter save");
+        if (!tag.hasUUID("Host")) return null;
+        var encounter = new Encounter(tag.getUUID("Host"));
+        encounter.defeated = defeated;
+        encounter.respawnAt = tag.getLong("RespawnAt");
+        if (tag.contains("LastChunk")) encounter.lastChunk = tag.getLong("LastChunk");
+        for (var sac : sacs)
+            if (!encounter.sacs.add(NbtUtils.loadUUID(sac)))
+                throw new IllegalArgumentException("Duplicate Host sac");
+        return encounter;
+    }
+
+    private static ListTag checkedList(CompoundTag tag, String name, int type) {
+        var list = tag.getList(name, type);
+        if (!(tag.get(name) instanceof ListTag raw) || raw.size() != list.size())
+            throw new IllegalArgumentException("Invalid Host encounter list: " + name);
+        return list;
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider lookup) {
-        if (host != null) tag.putUUID("Host", host);
-        tag.putBoolean("Defeated", defeated);
         var list = new ListTag();
-        sacs.stream().sorted().forEach(id -> list.add(NbtUtils.createUUID(id)));
-        tag.put("Sacs", list);
+        encounters.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            var value = new CompoundTag();
+            value.putInt("Planet", entry.getKey());
+            var encounter = entry.getValue();
+            value.putUUID("Host", encounter.host);
+            value.putBoolean("Defeated", encounter.defeated);
+            value.putLong("RespawnAt", encounter.respawnAt);
+            if (encounter.lastChunk != null) value.putLong("LastChunk", encounter.lastChunk);
+            var sacs = new ListTag();
+            encounter.sacs.stream().sorted().forEach(id -> sacs.add(NbtUtils.createUUID(id)));
+            value.put("Sacs", sacs);
+            list.add(value);
+        });
+        tag.put("Encounters", list);
         return tag;
+    }
+
+    private Encounter find(UUID host) {
+        for (var encounter : encounters.values())
+            if (host.equals(encounter.host)) return encounter;
+        return null;
+    }
+
+    private static final class Encounter {
+        private final UUID host;
+        private boolean defeated;
+        private long respawnAt;
+        private Long lastChunk;
+        private final Set<UUID> sacs = new HashSet<>();
+
+        private Encounter(UUID host) {
+            this.host = host;
+        }
     }
 }

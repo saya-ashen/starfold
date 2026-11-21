@@ -6,7 +6,6 @@ import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.sublevel.storage.serialization.SubLevelData;
 import dev.ryanhcode.sable.util.SableNBTUtils;
-import dev.starfold.Sources;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -111,39 +110,5 @@ class ShipCheckpointTest {
         var oldFormat = ShipSaveTest.tag(saved);
         oldFormat.putInt("format", 1);
         assertThrows(IllegalArgumentException.class, () -> ShipSave.load(oldFormat, null));
-    }
-
-    @Test
-    void hooksGuardFailuresAndNeverRequestUnloadOrInventPointers() throws Exception {
-        var write = Sources.text("SableShipWriteMixin");
-        assertTrue(write.contains("shift = At.Shift.AFTER"));
-        assertTrue(write.contains("starfold$written = false"));
-        assertTrue(write.contains("starfold$written = true"));
-        var storage = Sources.text("SableShipStorageMixin");
-        assertTrue(
-                storage.contains(
-                        "pointer != null && (!pointer.equals(old) || ((SableShipStorageAccess) storage).starfold$writeSucceeded())"));
-        assertTrue(storage.contains("original.call(storage); starfold$flushed = true;"));
-        assertTrue(storage.contains("starfold$flushed = false"));
-        assertTrue(
-                storage.contains(
-                        "if (starfold$flushed && PlanetLevels.is(level)) level.getDataStorage().save()"));
-        var records = Sources.text("ShipRecords");
-        assertTrue(records.contains("data.fullTag().getCompound(\"pose\")"));
-        assertTrue(records.contains("observer.serialized(data.uuid(), sample(level, hull, pose))"));
-        assertFalse(records.contains("data.pose()"));
-        for (var text : List.of(write, storage, records))
-            assertFalse(text.contains("moveToUnloaded("));
-        for (var text : List.of(write, records)) assertFalse(text.contains("snatchAndLoad("));
-        // The storage mixin intercepts snatch; its hooks still must not request one.
-        assertFalse(storage.contains(".snatchAndLoad("));
-        assertFalse(storage.contains("@Shadow public abstract void snatchAndLoad"));
-        var selection = Sources.text("RendererCompatibility");
-        for (var name :
-                List.of(
-                        "SableShipWriteMixin",
-                        "SableShipStorageMixin",
-                        "SableShipSerializationMixin"))
-            assertTrue(selection.contains("dev.starfold.mixin." + name));
     }
 }

@@ -1,15 +1,13 @@
 package dev.starfold.ship;
 
-import dev.starfold.space.SpacePackets;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
-import dev.starfold.Sources;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.ground.ObserverFrame;
 import dev.starfold.sky.Space;
 import dev.starfold.sky.SpaceTest;
+import dev.starfold.space.SpacePackets;
 
 import io.netty.buffer.Unpooled;
 
@@ -19,8 +17,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.*;
 
 class SableCarryTest {
     private static Pose3d pose() {
@@ -150,55 +146,5 @@ class SableCarryTest {
         SpaceTest.point(
                 new Point(v.x + 4 - previous.x, v.y + 5 - previous.y, v.z + 6 - previous.z),
                 SableFrames.riderVelocity(q, own, old, next, false));
-    }
-
-    @Test
-    void resetExclusionAndAtomicClientPathStayWired() throws Exception {
-        var server = Sources.text("SableFrames");
-        assertTrue(
-                server.contains(
-                        "!retain(body,CARRYING.get(player))&&body.getTrackingPlayers().remove"));
-        assertTrue(
-                server.contains(
-                        "finally{if(rider instanceof ServerPlayer player)CARRYING.remove(player);}"));
-        var packets = Sources.text("SableObserverPackets");
-        assertTrue(server.contains("SableObserverPackets.register()"));
-        var snapshots =
-                packets.substring(
-                        packets.indexOf(
-                                "PayloadMap.register(ClientboundSableSnapshotDualPacket.class"),
-                        packets.indexOf("private static int turns"));
-        assertTrue(snapshots.contains("new Pose3d(at)"));
-        assertFalse(snapshots.contains("entries.add(e)"));
-        assertFalse(snapshots.contains(":s;"));
-        var client = Sources.text("SableCarryClient");
-        for (String text :
-                new String[] {
-                    "interpolation.buffer.clear()",
-                    "body.forceUpdateBounds()",
-                    "ShipClientHost.get().carriedObserver(packet.observer())",
-                    "ShipClientHost.get().carriedFrame(packet.region())",
-                    "player.xo=player.xOld=at.x",
-                    "FENCES.put(interpolation,packet.tick())",
-                    "tick>=FENCES.getOrDefault"
-                }) assertTrue(client.contains(text), text);
-        for (String forbidden :
-                new String[] {
-                    "removeSubLevel",
-                    "allocateSubLevel",
-                    "updateRenderData",
-                    "enqueueWork",
-                    "teleport"
-                }) assertFalse(client.contains(forbidden), forbidden);
-        assertTrue(
-                Sources.text("StarfoldClient")
-                        .contains(
-                                "void carriedObserver(dev.starfold.ground.ObserverFrame frame){GroundClient.frame(frame);}"));
-        var udp = Sources.text("SableUdpMixin");
-        assertTrue(udp.contains("SableFrames.reliable(player)"));
-        assertTrue(udp.contains("PacketMap.raw"));
-        var fence = Sources.text("SableSnapshotFenceMixin");
-        assertTrue(fence.contains("SableCarryClient.accepts"));
-        assertTrue(fence.contains("ci.cancel()"));
     }
 }

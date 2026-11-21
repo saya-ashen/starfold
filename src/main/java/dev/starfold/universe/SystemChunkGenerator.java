@@ -3,6 +3,7 @@ package dev.starfold.universe;
 import com.mojang.serialization.*;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import dev.starfold.api.ChunkWorkDiagnostics;
 import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.planet.GroundTopology;
@@ -84,8 +85,12 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                 @Override
                 public <T> java.util.stream.Stream<T> keys(DynamicOps<T> ops) {
                     return java.util.stream.Stream.concat(
-                                    dev.starfold.api.PlanetContent.get().generatorCodec(SAVED_CODEC).keys(ops),
-                                    dev.starfold.api.PlanetContent.get().generatorCodec(AUTHORED_CODEC).keys(ops))
+                                    dev.starfold.api.PlanetContent.starter()
+                                            .generatorCodec(SAVED_CODEC)
+                                            .keys(ops),
+                                    dev.starfold.api.PlanetContent.starter()
+                                            .generatorCodec(AUTHORED_CODEC)
+                                            .keys(ops))
                             .distinct();
                 }
 
@@ -99,17 +104,21 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                             if (input.get(key) != null)
                                 return DataResult.error(
                                         () -> "system cannot be combined with " + key);
-                        return dev.starfold.api.PlanetContent.get().generatorCodec(AUTHORED_CODEC).decode(ops, input);
+                        return dev.starfold.api.PlanetContent.starter()
+                                .generatorCodec(AUTHORED_CODEC)
+                                .decode(ops, input);
                     }
                     if (input.get("a") != null || input.get("b") != null)
                         return DataResult.error(() -> "A system needs a planets list");
-                    return dev.starfold.api.PlanetContent.get().generatorCodec(SAVED_CODEC).decode(ops, input);
+                    return dev.starfold.api.PlanetContent.starter()
+                            .generatorCodec(SAVED_CODEC)
+                            .decode(ops, input);
                 }
 
                 @Override
                 public <T> RecordBuilder<T> encode(
                         SystemChunkGenerator g, DynamicOps<T> ops, RecordBuilder<T> prefix) {
-                    return dev.starfold.api.PlanetContent.get()
+                    return dev.starfold.api.PlanetContent.starter()
                             .generatorCodec(g.pending == null ? SAVED_CODEC : AUTHORED_CODEC)
                             .encode(g, ops, prefix);
                 }
@@ -155,7 +164,7 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
 
     @Override
     public boolean startsWithShip() {
-        return dev.starfold.api.PlanetContent.get().startsWithShip(this);
+        return dev.starfold.api.PlanetContent.starter().startsWithShip(this);
     }
 
     @Override
@@ -278,7 +287,6 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                 java.util.List.of(new PlanetType.Entry(a), new PlanetType.Entry(b)),
                 new int[] {2},
                 null);
-
     }
 
     public SystemChunkGenerator(String layout, java.util.List<PlanetChunkGenerator> planets) {
@@ -392,31 +400,62 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
     /** /locate, explorer and treasure maps: the nearest planned site on the searcher's planet, by angle on the planet,
      *  since vanilla's spacing arithmetic does not know where the plan put structures. */
     @Override
-    public com.mojang.datafixers.util.Pair<BlockPos, net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure>>
-            findNearestMapStructure(net.minecraft.server.level.ServerLevel level,
-                    net.minecraft.core.HolderSet<net.minecraft.world.level.levelgen.structure.Structure> structures,
-                    BlockPos pos, int radius, boolean skipKnownStructures) {
+    public com.mojang.datafixers.util.Pair<
+                    BlockPos,
+                    net.minecraft.core.Holder<
+                            net.minecraft.world.level.levelgen.structure.Structure>>
+            findNearestMapStructure(
+                    net.minecraft.server.level.ServerLevel level,
+                    net.minecraft.core.HolderSet<
+                                    net.minecraft.world.level.levelgen.structure.Structure>
+                            structures,
+                    BlockPos pos,
+                    int radius,
+                    boolean skipKnownStructures) {
         int id = owner(pos.getX() >> 4, pos.getZ() >> 4);
         if (id < 0 || !planet(id).generation().structures()) return null;
         var terrain = planet(id).terrain();
         var shape = terrain.shape();
-        var here = GroundTopology.cell(new BlockPos(pos.getX() - originX(id), pos.getY(), pos.getZ() - originZ(id)));
+        var here =
+                GroundTopology.cell(
+                        new BlockPos(
+                                pos.getX() - originX(id), pos.getY(), pos.getZ() - originZ(id)));
         var from = shape.direction(here.face(), here.u() + .5, here.v() + .5);
-        var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
-        // shortcut: skipKnownStructures (explorer maps skipping explored sites) is ignored; add when maps repeat targets.
-        com.mojang.datafixers.util.Pair<BlockPos, net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure>> best = null;
+        var registry =
+                level.registryAccess()
+                        .registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+        // shortcut: skipKnownStructures (explorer maps skipping explored sites) is ignored; add
+        // when maps repeat targets.
+        com.mojang.datafixers.util.Pair<
+                        BlockPos,
+                        net.minecraft.core.Holder<
+                                net.minecraft.world.level.levelgen.structure.Structure>>
+                best = null;
         double nearest = Double.NEGATIVE_INFINITY;
         for (var site : terrain.plan().sites()) {
-            var holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(
-                    net.minecraft.core.registries.Registries.STRUCTURE, site.structure()));
+            var holder =
+                    registry.getHolder(
+                            net.minecraft.resources.ResourceKey.create(
+                                    net.minecraft.core.registries.Registries.STRUCTURE,
+                                    site.structure()));
             if (holder.isEmpty() || !structures.contains(holder.get())) continue;
-            var cell = shape.topology().canonical(new dev.starfold.geometry.CubeSurfaceTopology.Cell(site.face(), site.u(), 0, site.v())).cell();
+            var cell =
+                    shape.topology()
+                            .canonical(
+                                    new dev.starfold.geometry.CubeSurfaceTopology.Cell(
+                                            site.face(), site.u(), 0, site.v()))
+                            .cell();
             double closeness = from.dot(shape.direction(cell.face(), cell.u() + .5, cell.v() + .5));
             if (closeness <= nearest) continue;
             nearest = closeness;
             var local = GroundTopology.block(shape, cell);
-            best = com.mojang.datafixers.util.Pair.of(
-                    new BlockPos(local.getX() + originX(id), pos.getY(), local.getZ() + originZ(id)), holder.get());
+            best =
+                    com.mojang.datafixers.util.Pair.of(
+                            new BlockPos(
+                                    local.getX() + originX(id),
+                                    pos.getY(),
+                                    local.getZ() + originZ(id)),
+                            holder.get());
         }
         return best;
     }
@@ -511,7 +550,8 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         var pos = chunk.getPos();
         int id = owner(pos.x, pos.z);
         if (id < 0 || !planet(id).generation().structures()) return;
-        dev.starfold.worldgen.plan.PlannedStructurePiece.createStarts(this, id, registries, manager, chunk);
+        dev.starfold.worldgen.plan.PlannedStructurePiece.createStarts(
+                this, id, registries, manager, chunk);
     }
 
     /** Biome features are composed by SurfaceFunction; this stage places planned structure pieces. */
@@ -522,9 +562,17 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         int id = owner(start.x, start.z);
         if (id < 0) return;
         // Noise writes L5/L6 directly into sections. Notify before replay can replace any POI.
-        PlanetDecoration.generatedPois(chunk,(pos,state)->level.getLevel().onBlockStateChange(
-                pos,net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(),state));
-        if (planet(id).generation().structures()) PlanetDecoration.apply(this, level, chunk, structures);
+        PlanetDecoration.generatedPois(
+                chunk,
+                (pos, state) ->
+                        level.getLevel()
+                                .onBlockStateChange(
+                                        pos,
+                                        net.minecraft.world.level.block.Blocks.AIR
+                                                .defaultBlockState(),
+                                        state));
+        if (planet(id).generation().structures())
+            PlanetDecoration.apply(this, level, chunk, structures);
     }
 
     @Override
@@ -577,17 +625,23 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
         var start = chunk.getPos();
         int id = owner(start.x, start.z);
         if (id < 0) return CompletableFuture.completedFuture(chunk);
-        return CompletableFuture.supplyAsync(Util.wrapThreadWithTaskName("wgen_fill_noise", () -> {
-            for (var section : chunk.getSections()) section.acquire();
-            long began = System.nanoTime();
-            try {
-                return fill(chunk, start, id);
-            } finally {
-                GENERATED.increment();
-                NANOS.add(System.nanoTime() - began);
-                for (var section : chunk.getSections()) section.release();
-            }
-        }), Util.backgroundExecutor());
+        var trace = ChunkWorkDiagnostics.listener();
+        long queued = trace == null ? 0 : System.nanoTime();
+        return CompletableFuture.supplyAsync(
+                Util.wrapThreadWithTaskName(
+                        "wgen_fill_noise",
+                        () -> {
+                            for (var section : chunk.getSections()) section.acquire();
+                            long began = System.nanoTime();
+                            try {
+                                return fill(chunk, start, id, trace, queued, began);
+                            } finally {
+                                GENERATED.increment();
+                                NANOS.add(System.nanoTime() - began);
+                                for (var section : chunk.getSections()) section.release();
+                            }
+                        }),
+                Util.backgroundExecutor());
     }
 
     /** Chunks of planets made since the server began, and the time that took: read by /starfold perf. */
@@ -595,20 +649,27 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
             GENERATED = new java.util.concurrent.atomic.LongAdder(),
             NANOS = new java.util.concurrent.atomic.LongAdder();
 
-    private ChunkAccess fill(
-            ChunkAccess chunk, net.minecraft.world.level.ChunkPos start, int id) {
+    private ChunkAccess fill(ChunkAccess chunk, net.minecraft.world.level.ChunkPos start, int id,
+            ChunkWorkDiagnostics.Listener trace, long queued, long began) {
         var terrain = planet(id).terrain();
         var function = new dev.starfold.worldgen.surface.SurfaceFunction(terrain);
         var surface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
         var floor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
         var pos = new BlockPos.MutableBlockPos();
+        long columns = 0, writes = 0;
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++) {
+                long columnStart = trace == null ? 0 : System.nanoTime();
                 int wx = start.getMinBlockX() + x, wz = start.getMinBlockZ() + z;
                 var cell =
                         GroundTopology.cell(new BlockPos(wx - originX(id), 128, wz - originZ(id)));
                 var generated = function.blocks(cell.face(), cell.u(), cell.v());
                 var liquid = terrain.liquid(cell.face(), cell.u(), cell.v());
+                long writeStart = 0;
+                if (trace != null) {
+                    writeStart = System.nanoTime();
+                    columns += writeStart - columnStart;
+                }
                 int ceiling = PlanetTerrain.MAX_Y - 1;
                 // Written straight into the sections, from the top: the generation heightmaps are
                 // kept here, so the chunk's
@@ -625,10 +686,22 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
                     surface.update(x, y, z, state);
                     floor.update(x, y, z, state);
                     if (!state.getFluidState().isEmpty()
-                            && (liquid != null && y == liquid.level() - 1 || x == 0 || x == 15 || z == 0 || z == 15))
-                        chunk.markPosForPostprocessing(pos.set(wx, y, wz));
+                            && (liquid != null && y == liquid.level() - 1
+                                    || x == 0
+                                    || x == 15
+                                    || z == 0
+                                    || z == 15)) chunk.markPosForPostprocessing(pos.set(wx, y, wz));
                 }
+                if (trace != null) writes += System.nanoTime() - writeStart;
             }
+        if (trace != null) {
+            long elapsed = System.nanoTime() - began;
+            long key = start.toLong();
+            trace.record(ChunkWorkDiagnostics.Stage.FILL_QUEUED, key, queued, began - queued);
+            trace.record(ChunkWorkDiagnostics.Stage.FILL, key, began, elapsed);
+            trace.record(ChunkWorkDiagnostics.Stage.COLUMN_EVALUATION, key, began, columns);
+            trace.record(ChunkWorkDiagnostics.Stage.SECTION_WRITE, key, began, writes);
+        }
         return chunk;
     }
 
@@ -637,7 +710,13 @@ public final class SystemChunkGenerator extends FlatLevelSource implements Plane
             int x, int z, Heightmap.Types type, LevelHeightAccessor height, RandomState random) {
         int id = owner(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
         if (id < 0) return height.getMinBuildHeight();
-        return planet(id).getBaseHeight(x - originX(id), z - originZ(id), type, height, random);
+        var trace = ChunkWorkDiagnostics.listener();
+        long began = trace == null ? 0 : System.nanoTime();
+        int result = planet(id).getBaseHeight(x - originX(id), z - originZ(id), type, height, random);
+        if (trace != null)
+            trace.record(ChunkWorkDiagnostics.Stage.BASE_HEIGHT,
+                    net.minecraft.world.level.ChunkPos.asLong(x >> 4, z >> 4), began, System.nanoTime() - began);
+        return result;
     }
 
     @Override

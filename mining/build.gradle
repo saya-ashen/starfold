@@ -1,0 +1,46 @@
+plugins { id 'net.neoforged.moddev' }
+apply from: rootProject.file('gradle/module-common.gradle')
+apply from: rootProject.file('gradle/module-test.gradle')
+base { archivesName = 'starfold_mining' }
+repositories { mavenCentral() }
+neoForge {
+    version = rootProject.neoForge.version
+    mods { starfold_mining { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation(project(':')) { transitive = false }
+    compileOnly files(rootProject.configurations.compileClasspath)
+}
+sourceSets.test {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+test { workingDir = rootProject.projectDir }
+
+tasks.register('packagingContract') {
+    dependsOn tasks.named('jar')
+    doLast {
+        new java.util.zip.ZipFile(tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { zip ->
+            for (String entry : ['dev/starfold/mining/StarfoldMining.class',
+                    'assets/starfold_mining/lang/en_us.json', 'assets/starfold_mining/lang/zh_cn.json',
+                    'assets/starfold_mining/blockstates/mining_platform.json',
+                    'data/starfold_mining/recipe/mining_platform.json',
+                    'data/starfold_mining/loot_table/blocks/mining_platform.json',
+                    'dev/starfold/mining/OilExtractorBlockEntity.class',
+                    'dev/starfold/mining/CdgOilReservoir.class',
+                    'dev/starfold/mining/OilScreen.class',
+                    'assets/starfold_mining/blockstates/oil_extractor.json',
+                    'assets/starfold_mining/models/block/oil_extractor.json',
+                    'assets/starfold_mining/models/item/oil_extractor.json',
+                    'assets/starfold_mining/textures/block/oil_extractor_side.png',
+                    'assets/starfold_mining/textures/block/oil_extractor_top.png',
+                    'assets/starfold_mining/textures/block/oil_extractor_front.png',
+                    'data/starfold_mining/recipe/oil_extractor.json',
+                    'data/starfold_mining/loot_table/blocks/oil_extractor.json'])
+                if (zip.getEntry(entry) == null) throw new GradleException("Missing mining resource: ${entry}")
+            if (zip.entries().toList().any { it.name.startsWith('dev/starfold/ship/') || it.name.endsWith('.jar') })
+                throw new GradleException('Foreign implementation bundled in Mining')
+        }
+    }
+}
+tasks.named('check') { dependsOn tasks.named('packagingContract') }

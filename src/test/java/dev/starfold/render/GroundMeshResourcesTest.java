@@ -1,9 +1,11 @@
 package dev.starfold.render;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.Test;
+
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.junit.jupiter.api.Assertions.*;
 
 class GroundMeshResourcesTest {
     @Test
@@ -15,18 +17,28 @@ class GroundMeshResourcesTest {
         var reloadStarted = new CountDownLatch(1);
         var writes = new AtomicInteger();
         try (var executor = Executors.newFixedThreadPool(2)) {
-            var reader = executor.submit(() -> GroundMeshResources.read(old, () -> {
-                entered.countDown();
-                try { assertTrue(release.await(5, TimeUnit.SECONDS)); }
-                catch (InterruptedException e) { throw new AssertionError(e); }
-                assertEquals(old, GroundMeshResources.generation());
-                writes.incrementAndGet();
-            }));
+            var reader =
+                    executor.submit(
+                            () ->
+                                    GroundMeshResources.read(
+                                            old,
+                                            () -> {
+                                                entered.countDown();
+                                                try {
+                                                    assertTrue(release.await(5, TimeUnit.SECONDS));
+                                                } catch (InterruptedException e) {
+                                                    throw new AssertionError(e);
+                                                }
+                                                assertEquals(old, GroundMeshResources.generation());
+                                                writes.incrementAndGet();
+                                            }));
             assertTrue(entered.await(5, TimeUnit.SECONDS));
-            var reload = executor.submit(() -> {
-                reloadStarted.countDown();
-                GroundMeshResources.invalidate();
-            });
+            var reload =
+                    executor.submit(
+                            () -> {
+                                reloadStarted.countDown();
+                                GroundMeshResources.invalidate();
+                            });
             assertTrue(reloadStarted.await(5, TimeUnit.SECONDS));
             assertFalse(reload.isDone());
             release.countDown();

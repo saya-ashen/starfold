@@ -2,8 +2,8 @@ package dev.starfold.space;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import dev.starfold.flight.OrbitFlightControls;
 import dev.starfold.DevelopmentHooks;
+import dev.starfold.flight.OrbitFlightControls;
 import dev.starfold.ship.HelmClient;
 
 import net.minecraft.client.KeyMapping;
@@ -166,7 +166,9 @@ public final class SpaceAttitudeClient {
             recenter();
             return;
         }
-        boolean active = mc.screen == null && (mc.isWindowActive() || DevelopmentHooks.driving.getAsBoolean());
+        boolean active =
+                mc.screen == null
+                        && (mc.isWindowActive() || DevelopmentHooks.driving.getAsBoolean());
         float pitch = active ? (up.isDown() ? 1 : 0) - (down.isDown() ? 1 : 0) : 0,
                 roll = active ? (right.isDown() ? 1 : 0) - (left.isDown() ? 1 : 0) : 0;
         prepare();

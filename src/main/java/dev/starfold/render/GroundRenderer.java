@@ -1,32 +1,24 @@
 package dev.starfold.render;
 
-import dev.starfold.storage.ChunkKeys;
-
+import static dev.starfold.api.RenderWorkDiagnostics.Metric.*;
 import static dev.starfold.render.GroundMeshVertices.*;
-import static dev.starfold.render.GroundTerrainMeshes.*;
-
-import static dev.starfold.render.GroundMeshScheduler.completed;
-import static dev.starfold.render.GroundMeshScheduler.lodFov;
+import static dev.starfold.render.GroundQuadtreeDiagnostics.containsTile;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 
-import dev.starfold.chart.GroundOrbit;
+import dev.starfold.api.FarViewDiagnostics;
+import dev.starfold.api.FarViewDiagnostics.*;
+import dev.starfold.api.RenderWorkDiagnostics;
 import dev.starfold.chart.GroundSpace;
-import dev.starfold.chart.PlanetChart;
-import dev.starfold.chart.PlanetGap;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.flight.GroundFlightClient;
 import dev.starfold.flight.GroundFlightServer;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.CubeSurfaceTopology;
 import dev.starfold.planet.Anomaly;
-import dev.starfold.planet.GroundTopology;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.space.RenderFrame;
-import dev.starfold.universe.PlanetPackets;
-import dev.starfold.worldgen.PlanetTerrain;
-import dev.starfold.worldgen.PlanetTint;
+import dev.starfold.storage.ChunkKeys;
 import dev.starfold.worldgen.lod.*;
 
 import net.minecraft.client.Minecraft;
@@ -34,157 +26,2034 @@ import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.*;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.*;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.phys.AABB;
 
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.*;
 
 import java.util.*;
 
-/** Derived native models plus conservative surface coverage. No material/name placement ledger. */
+/** Single quadtree pipeline. Workers own CPU payloads; this class owns render-thread state. */
 public final class GroundRenderer {
-    private static void changedLod(long key, LodTile tile) {
-        int groupKey = GroundLodGroup.key(key);
-        var group = lodGroups.computeIfAbsent(groupKey, k -> new GroundLodGroup<>());
-        group.update(key, tile);
-        lodDrawCache.invalidate(group);
-        if (group.members.isEmpty()) {
-            lodGroups.remove(groupKey);
-            lodCompactions.remove(group);
-        } else lodCompactions.add(group);
-    }
-    private static final LinkedHashSet<Long> lodMaintenance = new LinkedHashSet<>();
-    private static final ArrayDeque<Long> lodFades = new ArrayDeque<>();
-    private static final PriorityQueue<GroundLodSelection.Tile> lodRequests =
-            new PriorityQueue<>(GroundLodSelection.REBUILD_ORDER);
-    private static final Set<Long> lodQueued = new HashSet<>();
-    private static final BitSet lodComplete = new BitSet();
-    private static GroundLodSelection lodSelection = new GroundLodSelection();
-    private static GroundLodSelection.Refresh lodRefresh = new GroundLodSelection.Refresh();
-    private static PlanetShape.Pose selectionPose;
-    private static BentStripGeometry.Point selectionCamera;
-    private static long selectionVersion, selectionNow;
-    private static int farRemaining, maintenanceRemaining;
-    private static boolean selectionChanged, lodStarted;
-    // CPU meshing runs off the render thread; only GL upload stays here.
-    private static final int LOD_THREADS =
-            Math.clamp(Runtime.getRuntime().availableProcessors() / 3, 1, 6);
-    private static final GroundMeshScheduler lodWorkers = GroundMeshScheduler.shared;
-    private static final List<LodJob> lodJobs = new ArrayList<>();
-    private static long lodBytes;
-    private static boolean lodAtlasDirty;
-    private static double lodPressure = Double.POSITIVE_INFINITY;
+    private static final int[] gpuQueries = new int[4];
+    private static final boolean[] gpuPending = new boolean[4];
+    private static int gpuCursor;
 
-    private static long lodBytes(Mesh mesh) {
-        if (mesh == null) return 0;
-        return mesh.bytes
-                + (mesh.surface == null
-                        ? 0
-                        : mesh.surface.memoryBytes()
-                                + (mesh.surface.voxels() == null
-                                        ? 0
-                                        : mesh.surface.voxels().memoryBytes()));
+    /** Never block the render thread waiting for a probe query. */
+    private static int beginGpuProbe() {
+        if (!probeTiming) return -1;
+        int index = gpuCursor++ & 3;
+        if (gpuQueries[index] == 0) gpuQueries[index] = GL15.glGenQueries();
+        if (gpuPending[index]) {
+            if (GL15.glGetQueryObjecti(gpuQueries[index], GL15.GL_QUERY_RESULT_AVAILABLE) == 0)
+                return -1;
+            probeGpuNanos += GL33.glGetQueryObjectui64(gpuQueries[index], GL15.GL_QUERY_RESULT);
+        }
+        GL15.glBeginQuery(GL33.GL_TIME_ELAPSED, gpuQueries[index]);
+        gpuPending[index] = true;
+        return index;
     }
 
-    private static void closeLodMesh(Mesh mesh) {
-        if (mesh == null) return;
-        lodBytes -= lodBytes(mesh) - mesh.bytes;
-        mesh.close();
-    }
-
-    private static void clearLod() {
-        for (var job : lodJobs) job.close();
-        lodJobs.clear();
-        clearLodBuffers();
-        lodMaintenance.clear();
-        lodFades.clear();
-        lodRequests.clear();
-        lodQueued.clear();
-        lodComplete.clear();
-        lodBytes = 0;
-        lodSelection = new GroundLodSelection();
-        lodRefresh = new GroundLodSelection.Refresh();
-        farRemaining = maintenanceRemaining = 0;
-        lodStarted = false;
-        lodAtlasDirty = true;
-        lodPressure = Double.POSITIVE_INFINITY;
-    }
-
-
-    // Only pure current geometry is cached: packed buffers never accumulate older generations.
-    // shortcut: faded vertices remain in the buffer; compact only if vertex bandwidth is measured
-    // as a bottleneck.
-    private static final Map<Integer, List<VoxelMesher.Quad>> patchQuads = new HashMap<>(),
-            stagedQuads = new HashMap<>();
-    private static final boolean[] patchPaired = new boolean[GroundViewPolicy.PATCH_COUNT],
-            stagedPaired = new boolean[GroundViewPolicy.PATCH_COUNT];
-
-    private static final long[] patchCommitted = new long[GroundViewPolicy.PATCH_COUNT];
-    private static final int[] patchLevels = new int[GroundViewPolicy.PATCH_COUNT],
-            builtLevels = new int[GroundViewPolicy.PATCH_COUNT],
-            drawnLevels = new int[GroundViewPolicy.PATCH_COUNT];
-
-    private static final GroundCoverSnapshot[] coverInputs =
-            new GroundCoverSnapshot[GroundViewPolicy.PATCH_COUNT];
-    private static ParentJob parentJob;
-    private static Mesh[] pendingStitches;
-    private static StitchJob pendingJob;
-    private static GroundOwnership.Snapshot residentOwnership = GroundOwnership.empty();
-    private static GroundOwnership.Snapshot availableOwnership = GroundOwnership.empty();
-    private static long coverEpoch, stagedEpoch;
-    private static int nativeFace = -1;
-    private static boolean selectionActive;
-    private static long selectionWork;
-    /** Development probe switch: the far view neither builds nor draws, vanilla terrain only. */
-    public static boolean probeOff;
-    /** Development probe totals over a sampling window: CPU and GPU time of the far draw, draws, tiles visited. */
-    public static boolean probeTiming;
+    static final int LOD_THREADS = Math.clamp(Runtime.getRuntime().availableProcessors() / 3, 1, 6);
+    static final int MAX_PENDING_UPLOADS = Math.max(16, 4 * LOD_THREADS);
+    public static boolean probeOff, probeTiming;
     public static long probeCpuNanos, probeGpuNanos, probeMultiNanos, probeSkyNanos, probePrepNanos;
     public static int probeDraws, probeTiles, probeSubDraws, probeGroups, probeCompactGroups;
-    private static final int[] probeQueries = new int[8];
-    private static int probeQuery;
-    private static final GroundViewPolicy.CohortPatches dirty =
-            new GroundViewPolicy.CohortPatches(GroundClient::shape);
-    private static GroundCoverSnapshot coverCohort;
-    private static BitSet priorCoverage = new BitSet();
-    private static Set<Long> window = Set.of();
-    // Several far patches in flight: one at a time costs a few frames each, about a minute per cohort.
-    private static final List<CoverJob> coverJobs = new ArrayList<>();
-    private static StitchJob stitchJob;
-    private static boolean stitchDirty = true;
-    private static long frameWork, lastCells;
-    private static int uploads;
-    private static final GroundCoverage coverage = new GroundCoverage();
+    private static double lodFov = 70;
     private static net.minecraft.client.multiplayer.ClientLevel level;
-    private static GroundSpace.Config mask;
-    private static boolean ready;
     private static int planet = -1;
+    private static PlanetShape shape;
+    private static GroundSpace.Config mask;
+    private static boolean selectionActive;
+    private static long frameWork, demandObservedFrame = -1;
+    private static int demandAfterAdmission;
+    private static int uploads;
+    private static Set<Long> window = Set.of();
+    private static final GroundNativeCoverage.FinalWindow finalNativeCoverage =
+            new GroundNativeCoverage.FinalWindow();
+    private static final int[] realCorners = new int[6];
+    private static final MaskMesh[] masks = new MaskMesh[12];
+    private static final boolean[] maskAttempted = new boolean[12];
+    private static final GroundMeshSession meshes = new GroundMeshSession(LOD_THREADS);
+    private static GroundQuadtree tree;
+    private static final GroundMeshCache meshCache = new GroundMeshCache(256L << 20);
+    private static final GroundPackedCache packedCache = new GroundPackedCache(256L << 20);
+    private static GroundQuadtreeCuller.Geometry cullGeometry = new GroundQuadtreeCuller.Geometry();
+    private static GroundQuadtree.Cut cut;
+    private record SubmittedNode(int handle, Bundle bundle, boolean masked, int minY, int maxY) {}
 
-    public static boolean covered() {
-        return level == Minecraft.getInstance().level
-                && planet == GroundClient.planet()
-                && GroundClient.shape().equals(shape)
-                && ready
-                && GroundExterior.ready();
+    private static final class Selection {
+        GroundQuadtree.Cut cut;
+        long treeRevision = -1, viewEpoch = -1, maskRevision = -1;
+        final BitSet nativeTiles = new BitSet(98304);
+        final SubmittedNode[] submitted = new SubmittedNode[GroundQuadtree.NODE_COUNT];
+        final BitSet selected = new BitSet(GroundQuadtree.NODE_COUNT);
+        final BitSet removed = new BitSet(GroundQuadtree.NODE_COUNT);
+        final GroundFaceArenas.Slot[] maskSlots = new GroundFaceArenas.Slot[masks.length];
+        final boolean translucent;
+
+        Selection(boolean translucent) {
+            this.translucent = translucent;
+        }
+
+        void updateDraws(boolean viewChanged) {
+            removed.clear();
+            removed.or(selected);
+            for (int i = 0; i < cut.pureCount; i++) updateDraw(cut.pure[i], false, viewChanged);
+            for (int i = 0; i < cut.maskedCount; i++) updateDraw(cut.masked[i], true, viewChanged);
+            for (int node = removed.nextSetBit(0); node >= 0; node = removed.nextSetBit(node + 1)) {
+                removeDraw(submitted[node]);
+                submitted[node] = null;
+                selected.clear(node);
+            }
+        }
+
+        private void updateDraw(int node, boolean masked, boolean viewChanged) {
+            int handle = tree.meshHandle(node);
+            int minY = tree.targetMinY(node), maxY = tree.targetMaxY(node);
+            var previous = submitted[node];
+            boolean sameSlots = previous != null && previous.handle == handle && previous.masked == masked;
+            if (sameSlots && !viewChanged && previous.minY == minY && previous.maxY == maxY) {
+                removed.clear(node);
+                return;
+            }
+            var bundle = previous != null && previous.handle == handle ? previous.bundle : meshes.bundles.get(handle);
+            if (bundle == null) return;
+            if (!sameSlots && previous != null) removeDraw(previous);
+            if (!bundle.slots.isEmpty()) {
+                double distance = distance(node);
+                int order = GroundQuadtree.drawOrder(node);
+                for (var slot : bundle.slots) {
+                    if ((slot.layer == GroundFaceArenas.LAYERS - 1) != translucent) continue;
+                    if (meshes.arenas.putDraw(slot, distance, masked, order))
+                        RenderWorkDiagnostics.add(FAR_CHART_RANGES_BUILT, 1);
+                }
+            }
+            if (!sameSlots || previous.minY != minY || previous.maxY != maxY)
+                submitted[node] = new SubmittedNode(handle, bundle, masked, minY, maxY);
+            selected.set(node);
+            removed.clear(node);
+        }
+
+        private void removeDraw(SubmittedNode previous) {
+            for (var slot : previous.bundle.slots)
+                if ((slot.layer == GroundFaceArenas.LAYERS - 1) == translucent)
+                    meshes.arenas.removeDraw(slot, previous.masked);
+        }
+
+        void updateMasks() {
+            for (int i = 0; i < masks.length; i++) {
+                var mask = masks[i];
+                var next = mask == null || mask.compact == null ? null : mask.compact.slot();
+                if (next == maskSlots[i]) continue;
+                if (maskSlots[i] != null) meshes.arenas.removeDraw(maskSlots[i], false);
+                if (next != null) meshes.arenas.putDraw(next, 0, false, GroundQuadtree.NODE_COUNT + i);
+                maskSlots[i] = next;
+            }
+        }
+    }
+    private static final Selection[] selections = {new Selection(false), new Selection(true)};
+    private static long maskRevision;
+    private static volatile GroundQuadtreeCuller[] cullers;
+    private static GroundQuadtreeCuller[] anchorCullers;
+    private static boolean cullWindow, surfaceCullWindow, movementCullWindow;
+    private static final int MIN_TERRAIN_Y = GroundSurface.LOWEST - 128 - 4;
+    private static final int MAX_TERRAIN_Y = GroundChunkSnapshot.MIN_Y + GroundChunkSnapshot.HEIGHT - 128;
+    private static final GroundQuadtreeCuller.Evaluation[] nodeViews =
+            new GroundQuadtreeCuller.Evaluation[GroundQuadtree.NODE_COUNT];
+    private static final GroundQuadtreeCuller.Bounds[] nodeBounds =
+            new GroundQuadtreeCuller.Bounds[GroundQuadtree.NODE_COUNT];
+    private static final long[] nodeViewEpoch = new long[GroundQuadtree.NODE_COUNT];
+    private static final int[] nodeViewMinY = new int[GroundQuadtree.NODE_COUNT];
+    private static final int[] nodeViewMaxY = new int[GroundQuadtree.NODE_COUNT];
+    private static long cullEpoch, exactViewEpoch;
+    private static long targetsEpoch = -1;
+    private static int targetsHeight;
+    private static double targetsFov;
+    private static final BitSet targetsNear = new BitSet(98304);
+    private static boolean noDemand, sawDemand;
+    private static long recoveryView;
+    private static long recoveryCheckedView = Long.MIN_VALUE, recoveryCheckedRevision = Long.MIN_VALUE;
+    private static float recoveryYaw, recoveryPitch;
+    private static net.minecraft.world.phys.Vec3 recoveryPosition;
+
+    static final class NodeMesh implements AutoCloseable {
+        final GroundQuadtreeMesher.Built built;
+        final GroundLodPacking.Geometry geometry;
+        final GroundPackedCache.Key packedKey;
+        final GroundPackedCache.Entry cachedPacked;
+        final GroundLodPacking.Result restored;
+        final java.util.concurrent.atomic.AtomicLong packingOwner;
+        final Map<Long, dev.starfold.worldgen.surface.SurfaceFunction.Run> plantSamples;
+        final GroundMeshContext.Sky sky;
+        final long buildNanos, watchEpoch, overlayVersion;
+        final GroundLodLifecycleDiagnostics.ReadyBytes owner;
+        final boolean root;
+        private boolean closed;
+
+        NodeMesh(
+                GroundQuadtreeMesher.Built built,
+                GroundLodPacking.Geometry geometry,
+                GroundPackedCache.Key packedKey,
+                GroundPackedCache.Entry cachedPacked,
+                java.util.concurrent.atomic.AtomicLong packingOwner,
+                Map<Long, dev.starfold.worldgen.surface.SurfaceFunction.Run> plantSamples,
+                GroundMeshContext.Sky sky,
+                long buildNanos,
+                long watchEpoch,
+                long overlayVersion,
+                GroundLodLifecycleDiagnostics.ReadyBytes owner,
+                boolean root) {
+            this.built = built;
+            this.geometry = geometry;
+            this.packedKey = packedKey;
+            this.cachedPacked = cachedPacked;
+            this.restored = cachedPacked == null ? null : packedCache.restore(cachedPacked, packingOwner);
+            this.packingOwner = packingOwner;
+            if (geometry != null) packingOwner.addAndGet(geometry.bytes());
+            this.plantSamples = plantSamples;
+            this.sky = sky;
+            this.buildNanos = buildNanos;
+            this.watchEpoch = watchEpoch;
+            this.overlayVersion = overlayVersion;
+            this.owner = owner;
+            this.root = root;
+            owner.add(root, built.bytes());
+        }
+
+        public synchronized void close() {
+            if (closed) return;
+            closed = true;
+            owner.add(root, -built.bytes());
+            if (geometry != null) packingOwner.addAndGet(-geometry.bytes());
+            if (restored != null) restored.close();
+        }
+    }
+
+    record Bundle(
+            GroundQuadtreeScheduler.Ticket ticket,
+            long overlayVersion,
+            List<GroundFaceArenas.Slot> slots)
+            implements AutoCloseable {
+        public void close() {
+            slots.forEach(GroundFaceArenas.Slot::close);
+        }
+
+        long bytes() {
+            return slots.stream().mapToLong(GroundFaceArenas.Slot::bytes).sum();
+        }
+    }
+
+    private static void cancelObsoleteBuilds() {
+        meshes.buildPermits.forEach((ticket, permit) -> {
+            if (!current(ticket)) permit.set(false);
+        });
+    }
+    private static BitSet failedNodes;
+    private static long jobFailures, lastFailureLog;
+    private static int failureLogs;
+    private static boolean translucentPass, selectingCut;
+
+    private static final class FailureLog {
+        static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GroundRenderer.class);
+    }
+
+    private static final BitSet nativeTiles = new BitSet(98304), nearTiles = new BitSet(98304);
+    private static final BitSet dirtyTiles = new BitSet(98304);
+
+    private static final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap sliceLights =
+            new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+    private static final Map<BlockState, ModelFace[]> modelFaces = new IdentityHashMap<>();
+
+    static final class Pending implements AutoCloseable {
+        final GroundQuadtreeScheduler.Ticket ticket;
+        final NodeMesh mesh;
+        final List<GroundFaceArenas.Slot> slots = new ArrayList<>();
+        Iterator<Map.Entry<Integer, java.nio.ByteBuffer>> layers;
+        GroundFaceArenas.Upload upload;
+        int resolveCursor;
+        boolean storageChecked;
+        int[] layerVertices;
+        final GroundLodBuildTrace trace;
+        final GroundMeshContext context;
+        final GroundLodPacking packing;
+        GroundLodPacking.Result packed;
+        boolean submitted;
+        final GroundPackedCache.LightRefresh lightRefresh = new GroundPackedCache.LightRefresh();
+
+        private void cachePacked(GroundLodPacking.Result result) {
+            if (mesh.packedKey != null && context.current())
+                packedCache.put(mesh.packedKey, GroundPackedCache.capture(result, mesh.geometry, packing.appearances, mesh.sky));
+        }
+
+        boolean resolve(GroundUploadBudget budget, long captureDeadline) {
+            if (mesh.cachedPacked != null) {
+                long light = RenderWorkDiagnostics.start();
+                boolean refreshed;
+                try {
+                    refreshed = lightRefresh.step(mesh.cachedPacked, packed, budget,
+                            GroundRenderer::loadedLightColumn, GroundRenderer::loadedSurfaceLight);
+                } finally { RenderWorkDiagnostics.finish(FAR_LOD_LIGHT_NS, light); }
+                if (!refreshed || !remap(budget)) return false;
+                layers = packed.layers.entrySet().iterator();
+                return true;
+            }
+            if (resolveCursor < mesh.built.bytes()) {
+                budget.limit(captureDeadline);
+                sliceLights.clear();
+                sliceLights.defaultReturnValue(-1);
+                int face = GroundQuadtree.face(ticket.node());
+                try {
+                    while (resolveCursor < mesh.built.bytes() && budget.cpuAvailable()) {
+                        int q = resolveCursor / 48;
+                        var quad = mesh.geometry.quads().get(q);
+                        packing.appearances[q] = captureAppearance(face, quad, context);
+                        for (int corner = 0; corner < 4; corner++) {
+                            var pos = quad.lights().get(corner);
+                            long key = pos.asLong();
+                            int light = sliceLights.get(key);
+                            if (light == -1) {
+                                light = surfaceLight(face, pos, mesh.sky);
+                                sliceLights.put(key, light);
+                            }
+                            packing.lights[q * 4 + corner] = light;
+                        }
+                        resolveCursor += 48;
+                    }
+                } finally {
+                    budget.limit(budget.deadline());
+                }
+            }
+            if (resolveCursor != mesh.built.bytes()) return false;
+            if (!submitted) {
+                var task = packing;
+                var capturedTicket = ticket;
+                submitted = meshes.scheduler.finish(() -> {
+                    var event = GroundLodBuildTrace.start(capturedTicket, "packing-worker");
+                    try {
+                        task.run();
+                    } finally {
+                        String outcome = task.outcome();
+                        GroundLodBuildTrace.finish(event, outcome,
+                                outcome.equals("finished") ? task.geometry.built().bytes() : 0);
+                    }
+                });
+                return false;
+            }
+            if (!packing.done()) return false;
+            if (packed == null) packed = packing.take();
+            if (!remap(budget)) return false;
+            layers = packed.layers.entrySet().iterator();
+            return true;
+        }
+
+        private boolean remap(GroundUploadBudget budget) {
+            long started = RenderWorkDiagnostics.start();
+            try { return packed.remap(budget, GroundCompact::registerMaterial); }
+            finally { RenderWorkDiagnostics.finish(FAR_LOD_REMAP_NS, started); }
+        }
+
+        Pending(GroundQuadtreeScheduler.Ticket ticket, NodeMesh mesh) {
+            this.ticket = ticket;
+            this.mesh = mesh;
+            this.context = GroundMeshContext.capture(mesh.plantSamples);
+            this.packing = mesh.cachedPacked == null
+                    ? new GroundLodPacking(mesh.geometry, mesh.packingOwner, this::cachePacked) : null;
+            this.packed = mesh.restored;
+            trace = GroundLodBuildTrace.start(ticket, "staging");
+            if (trace != null) trace.outcome = "abandoned";
+        }
+
+        public void close() {
+            GroundLodBuildTrace.finish(trace, trace == null ? "" : trace.outcome, mesh.built.bytes());
+            if (upload != null) upload.close();
+            slots.forEach(GroundFaceArenas.Slot::close);
+            if (packing != null) packing.close();
+            if (packed != null) packed.close();
+            mesh.close();
+        }
+    }
+
+    private static RenderType materialLayer(net.minecraft.world.level.block.state.BlockState state) {
+        var fluid = state.getFluidState();
+        var handler = fluid.isEmpty() ? null
+                : net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions.of(fluid.getType());
+        return handler == null || handler == net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions.DEFAULT
+                ? ItemBlockRenderTypes.getChunkRenderType(state) : ItemBlockRenderTypes.getRenderLayer(fluid);
+    }
+
+    private static boolean current(GroundQuadtreeScheduler.Ticket t) {
+        return tree != null
+                && t.session() == meshes.generation
+                && tree.valid(t.node())
+                && tree.version(t.node()) == t.version()
+                && tree.desiredStep(t.node()) == t.step();
+    }
+
+    private static void release(int handle) {
+        var bundle = meshes.bundles.remove(handle);
+        if (bundle != null) {
+            nodeEvent(diagnosticEpoch(), bundle.ticket, Kind.RETIRE, "released-generation");
+            bundle.close();
+        }
+    }
+
+    private static GroundQuadtreeCuller.Bounds bounds(int n) {
+        var previous = nodeBounds[n];
+        if (previous != null && previous.minY() == tree.targetMinY(n)
+                && previous.maxY() == tree.targetMaxY(n)) return previous;
+        return nodeBounds[n] = new GroundQuadtreeCuller.Bounds(
+                GroundQuadtree.x(n),
+                tree.targetMinY(n),
+                GroundQuadtree.z(n),
+                Math.min(shape.size(), GroundQuadtree.x(n) + GroundQuadtree.size(n)),
+                tree.targetMaxY(n),
+                Math.min(shape.size(), GroundQuadtree.z(n) + GroundQuadtree.size(n)));
+    }
+
+    private static GroundQuadtreeCuller.Evaluation nodeView(int n) {
+        var currentCullers = cullers;
+        if (currentCullers == null) return GroundQuadtreeCuller.Evaluation.UNCERTAIN;
+        boolean cache = RenderSystem.isOnRenderThread();
+        int minY = tree.targetMinY(n), maxY = tree.targetMaxY(n);
+        int face = GroundQuadtree.face(n);
+        boolean window = cache && cullWindow && (surfaceCullWindow || movementCullWindow
+                || anchorCullers[face].orbitalWindowSource(minY, maxY));
+        long epoch = window ? cullEpoch : -exactViewEpoch;
+        if (cache && nodeViewEpoch[n] == epoch
+                && nodeViewMinY[n] == minY && nodeViewMaxY[n] == maxY) return nodeViews[n];
+        var result = window && movementCullWindow
+                ? anchorCullers[face].evaluateMovementWindow(CubeSurfaceTopology.Face.VALUES[face], bounds(n))
+                : window && surfaceCullWindow
+                ? anchorCullers[face].evaluateSurfaceWindow(CubeSurfaceTopology.Face.VALUES[face], bounds(n))
+                : window ? anchorCullers[face].evaluateOrbitalWindow(CubeSurfaceTopology.Face.VALUES[face], bounds(n))
+                : currentCullers[face].evaluate(CubeSurfaceTopology.Face.VALUES[face], bounds(n));
+        if (cache) {
+            nodeViews[n] = result;
+            nodeViewEpoch[n] = epoch;
+            nodeViewMinY[n] = minY;
+            nodeViewMaxY[n] = maxY;
+        }
+        return result;
+    }
+
+    private static boolean reusableCutWindow() {
+        if (!cullWindow) return false;
+        if (surfaceCullWindow || movementCullWindow) return true;
+        for (int patch = 0; patch < GroundQuadtree.ROOT_COUNT; patch++) {
+            int root = GroundQuadtree.root(patch);
+            if (tree.valid(root) && !anchorCullers[GroundQuadtree.face(root)]
+                    .orbitalWindowSource(tree.targetMinY(root), tree.targetMaxY(root))) return false;
+        }
+        return true;
+    }
+
+    private static boolean visible(int n) {
+        boolean visible = nodeView(n).visible();
+        if (RenderWorkDiagnostics.active()) {
+            RenderWorkDiagnostics.add(FAR_CULL_GROUP_TESTS, 1);
+            if (selectingCut) {
+                RenderWorkDiagnostics.add(FAR_CHART_NODES_VISITED, 1);
+                if (GroundQuadtree.depth(n) == 4)
+                    RenderWorkDiagnostics.add(FAR_CHART_LEAVES_VISITED, 1);
+                if (!visible) RenderWorkDiagnostics.add(FAR_CHART_NODES_REJECTED, 1);
+            }
+            if (!visible) RenderWorkDiagnostics.add(FAR_CULL_GROUP_REJECTS, 1);
+        }
+        if (!visible && FarViewDiagnostics.active())
+            nodeEvent(diagnosticEpoch(), n, tree.desiredStep(n), Kind.CULL, "node-view-rejected");
+        return visible;
+    }
+
+    private static double distance(int n) {
+        return nodeView(n).distance();
+    }
+
+    private static boolean near(int n) {
+        int base = GroundQuadtree.face(n) * 16384,
+                x = GroundQuadtree.x(n) / 16,
+                z = GroundQuadtree.z(n) / 16,
+                size = GroundQuadtree.size(n) / 16;
+        for (int row = z; row < z + size; row++) {
+            int start = base + row * 128 + x, found = nearTiles.nextSetBit(start);
+            if (found >= start && found < start + size) return true;
+        }
+        return false;
+    }
+
+    private static Matrix4f walkingBaseProjection, walkingRenderedProjection;
+
+    public static void walkingProjection(Matrix4f base, Matrix4f rendered) {
+        walkingBaseProjection = base == null || !ReversedDepth.ACTIVE ? base : ReversedDepth.projection(base);
+        walkingRenderedProjection = rendered == null || !ReversedDepth.ACTIVE ? rendered : ReversedDepth.projection(rendered);
+    }
+
+    public static boolean boundedWalkingPose(org.joml.Matrix4fc pose) {
+        return GroundQuadtreeCuller.boundedWalkingPose(pose);
+    }
+
+    private static void updateCullers() {
+        var previousCullers = cullers;
+        boolean sameView = previousCullers != null;
+        var nextCullers = new GroundQuadtreeCuller[6];
+        var gap = GroundClient.gap();
+        var orbit = GroundClient.orbit();
+        var active = GroundClient.renderFrame;
+        var projection = RenderSystem.getProjectionMatrix();
+        boolean boundedBob = orbit.eye.y() <= dev.starfold.chart.GroundOrbit.START
+                && walkingRenderedProjection != null && walkingRenderedProjection.equals(projection);
+        if (boundedBob) projection = walkingBaseProjection;
+        var lens = dev.starfold.chart.GroundSpaceOptics.lens(projection, GroundClient.eye().y());
+        for (int f = 0; f < 6; f++) {
+            var tile = gap.chart.tile(CubeSurfaceTopology.Face.VALUES[f]);
+            var zero = new BentStripGeometry.Point(0, 0, 0);
+            var flat = tile == null ? zero : tile.point(zero);
+            var u =
+                    tile == null
+                            ? new BentStripGeometry.Point(1, 0, 0)
+                            : tile.point(new BentStripGeometry.Point(1, 0, 0)).sub(flat);
+            var v =
+                    tile == null
+                            ? new BentStripGeometry.Point(0, 0, 1)
+                            : tile.point(new BentStripGeometry.Point(0, 0, 1)).sub(flat);
+            nextCullers[f] =
+                    new GroundQuadtreeCuller(
+                            new GroundQuadtreeCuller.Frame(
+                                    gap,
+                                    orbit,
+                                    GroundClient.origin(f).sub(GroundClient.origin()),
+                                    flat,
+                                    u,
+                                    v,
+                                    active.viewOffset,
+                                    point(active.X),
+                                    point(active.Y),
+                                    point(active.Z),
+                                    lens, projection, true), cullGeometry, boundedBob);
+            sameView &= previousCullers != null && nextCullers[f].sameFrame(previousCullers[f]);
+        }
+        if (!sameView) exactViewEpoch++;
+        boolean reuseWindow = anchorCullers != null;
+        for (int f = 0; f < 6; f++)
+            reuseWindow &= anchorCullers != null && (nextCullers[f].withinMovementWindow(anchorCullers[f])
+                    || nextCullers[f].withinSurfaceWindow(anchorCullers[f])
+                    || nextCullers[f].withinOrbitalWindow(anchorCullers[f]));
+        if (!reuseWindow) {
+            anchorCullers = nextCullers;
+            if (!sameView) cullEpoch++;
+        }
+        movementCullWindow = surfaceCullWindow = cullWindow = true;
+        for (int f = 0; f < 6; f++) {
+            boolean movement = nextCullers[f].withinMovementWindow(anchorCullers[f]);
+            boolean surface = nextCullers[f].withinSurfaceWindow(anchorCullers[f]);
+            movementCullWindow &= movement;
+            surfaceCullWindow &= surface;
+            cullWindow &= movement || surface || nextCullers[f].withinOrbitalWindow(anchorCullers[f]);
+        }
+        cullers = nextCullers;
+    }
+
+    private static BentStripGeometry.Point point(org.joml.Vector3f p) {
+        return new BentStripGeometry.Point(p.x, p.y, p.z);
+    }
+
+    private static void invalidate(long key) {
+        int f = (int) (key / 16384), x = (int) (key % 128) * 16, z = (int) (key / 128 % 128) * 16;
+        // Include the four edge halos, canonicalized across cube seams.
+        for (int dz = -16; dz <= 16; dz += 16)
+            for (int dx = -16; dx <= 16; dx += 16) {
+                var cell =
+                        shape.topology()
+                                .canonical(
+                                        new CubeSurfaceTopology.Cell(
+                                                CubeSurfaceTopology.Face.VALUES[f],
+                                                x + dx,
+                                                0,
+                                                z + dz))
+                                .cell();
+                dirtyTiles.set((int) tileKey(cell.face().ordinal(), cell.u(), cell.v()));
+            }
+    }
+
+    private static void prepareSurfaceUpdates() {
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.FAR);
+        long prepare = RenderWorkDiagnostics.start(),
+                update = RenderWorkDiagnostics.start(),
+                chartPrepare = RenderWorkDiagnostics.start();
+        RenderWorkDiagnostics.add(FAR_PREPARE_CALLS, 1);
+        try {
+            prepareSurfaceUpdatesImpl();
+        } finally {
+            diagnosticOccupancy();
+            RenderWorkDiagnostics.finish(FAR_LOD_UPDATE_NS, update);
+            RenderWorkDiagnostics.finish(FAR_PREPARE_NS, prepare);
+            RenderWorkDiagnostics.finish(FAR_CHART_PREPARE_NS, chartPrepare);
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.FAR);
+        }
+    }
+
+    private static void prepareSurfaceUpdatesImpl() {
+        if (tree == null
+                || GroundViewClient.terrain() == null
+                || !GroundViewClient.coverageReady()) {
+            RenderWorkDiagnostics.add(FAR_LOD_BLOCK_INPUT, 1);
+            return;
+        }
+        demandObservedFrame = -1;
+        frameWork++;
+        selectionActive = true;
+        meshes.inputs.focus(GroundClient.eye());
+        dirtyTiles.clear();
+        for (long key : GroundViewClient.drainInvalidated()) invalidate(key);
+        if (!dirtyTiles.isEmpty()) tree.invalidateTiles(dirtyTiles, MIN_TERRAIN_Y, MAX_TERRAIN_Y);
+        var baseChanges = meshes.inputs.pollBase();
+        for (int p = baseChanges.nextSetBit(0); p >= 0; p = baseChanges.nextSetBit(p + 1))
+            tree.invalidate(
+                    GroundViewPolicy.face(p),
+                    GroundViewPolicy.x(p),
+                    GroundViewPolicy.z(p),
+                    GroundViewPolicy.x(p) + 256,
+                    GroundViewPolicy.z(p) + 256,
+                    MIN_TERRAIN_Y,
+                    MAX_TERRAIN_Y);
+        updateCullers();
+        nearTiles.clear();
+        var pose = GroundClient.pose();
+        for (long key :
+                GroundViewPolicy.details(
+                        shape,
+                        new PlanetShape.Pose(pose.face(), pose.point()),
+                        GroundFlightClient.controlled())) nearTiles.set((int) key);
+        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        if (recoveryPosition == null
+                || Math.abs(net.minecraft.util.Mth.wrapDegrees(camera.getYRot() - recoveryYaw)) >= 30
+                || Math.abs(camera.getXRot() - recoveryPitch) >= 20
+                || camera.getPosition().distanceToSqr(recoveryPosition) >= 32 * 32) {
+            recoveryView++;
+            recoveryYaw = camera.getYRot();
+            recoveryPitch = camera.getXRot();
+            recoveryPosition = camera.getPosition();
+        }
+        // Read the previous demand result before target refresh clears it in ordinary ground views.
+        int recoveryGroups = GroundViewPolicy.recoveryGroups(noDemand, meshes.pendingUploads.size(), meshes.scheduler.jobs(), MAX_PENDING_UPLOADS);
+        int height = GroundAntiAliasing.detailHeight();
+        long targetView = reusableCutWindow() ? cullEpoch : -exactViewEpoch;
+        boolean reuseTargets = targetsEpoch == targetView && targetsHeight == height
+                && targetsFov == lodFov && targetsNear.equals(nearTiles);
+        if (!reuseTargets) {
+            tree.requestTargetRefresh();
+            targetsEpoch = targetView;
+            targetsHeight = height;
+            targetsFov = lodFov;
+            targetsNear.clear();
+            targetsNear.or(nearTiles);
+        }
+        if (tree.hasTargetUpdates()) {
+            noDemand = false;
+            long refresh = RenderWorkDiagnostics.start();
+            try {
+                tree.updateChangedTargets(height, Math.toRadians(lodFov), GroundRenderer::distance,
+                        GroundRenderer::visible, GroundRenderer::near, 1_000_000);
+            } finally {
+                RenderWorkDiagnostics.finish(FAR_LOD_TARGET_REFRESH_NS, refresh);
+            }
+        }
+        // Work completion admits the next batch immediately; idle polling only notices arena-only space changes.
+        if (recoveryGroups > 0 && (recoveryCheckedView != recoveryView
+                || recoveryCheckedRevision != tree.cutRevision() || frameWork % 30 == 0)) {
+            recoveryCheckedView = recoveryView;
+            recoveryCheckedRevision = tree.cutRevision();
+            long cold = tree.offscreenDetailBytes();
+            long room = Math.min(Math.max(0, GroundViewPolicy.DETAIL_BYTES - tree.detailBytes()) + cold,
+                    meshes.arenas.reusableBytes() + cold);
+            long recovery = RenderWorkDiagnostics.start();
+            int recovered;
+            try { recovered = tree.recoverPressure(recoveryView, room, recoveryGroups); }
+            finally { RenderWorkDiagnostics.finish(FAR_LOD_RECOVERY_NS, recovery); }
+            RenderWorkDiagnostics.add(FAR_LOD_RECOVERY_CHECKS, 1);
+            RenderWorkDiagnostics.add(FAR_LOD_RECOVERED_GROUPS, recovered);
+            if (recovered > 0) noDemand = false;
+        }
+        if (noDemand) {
+            RenderWorkDiagnostics.add(FAR_CACHE_REUSES, 1);
+            return;
+        }
+        cancelObsoleteBuilds();
+        int workerSlots = Math.max(0, meshes.scheduler.lookupSlots());
+        int stagingSlots = Math.max(0, MAX_PENDING_UPLOADS - meshes.pendingUploads.size());
+        int available = Math.min(workerSlots, stagingSlots);
+        if (available == 0) {
+            RenderWorkDiagnostics.add(
+                    meshes.pendingUploads.size() >= MAX_PENDING_UPLOADS
+                            ? FAR_LOD_BLOCK_UPLOAD
+                            : FAR_LOD_BLOCK_WORKER_QUEUE,
+                    1);
+            return;
+        }
+        long discovery = RenderWorkDiagnostics.start();
+        record Demand(int node, double priority) {}
+        var demand = new ArrayList<Demand>();
+        var uploading = new HashSet<Integer>();
+        for (var p : meshes.pendingUploads) uploading.add(p.ticket.node());
+        sawDemand = false;
+        tree.visitDemand(
+                GroundRenderer::visible,
+                n -> {
+                    sawDemand = true;
+                    if (meshes.scheduler.pending(n) || uploading.contains(n)) return;
+                    int f = GroundQuadtree.face(n);
+                    double dot = 0;
+                    var view = nodeView(n).view();
+                    if (view != null) {
+                        double vx = (view.minX() + view.maxX()) / 2,
+                                vy = (view.minY() + view.maxY()) / 2,
+                                vz = (view.minZ() + view.maxZ()) / 2;
+                        dot = -vz / Math.max(1, Math.sqrt(vx * vx + vy * vy + vz * vz));
+                    }
+                    int siblings = 0, parent = GroundQuadtree.parent(n);
+                    if (parent >= 0)
+                        for (int i = 0; i < 4; i++)
+                            if (tree.meshHandle(GroundQuadtree.child(parent, i)) >= 0) siblings++;
+                    int previousStep = tree.builtStep(n);
+                    for (int ancestor = GroundQuadtree.parent(n);
+                            previousStep == 0 && ancestor >= 0;
+                            ancestor = GroundQuadtree.parent(ancestor))
+                        previousStep = tree.builtStep(ancestor);
+                    double gain =
+                            GroundQuadtree.sse(
+                                    Math.max(1, previousStep),
+                                    distance(n),
+                                    GroundAntiAliasing.detailHeight(),
+                                    Math.toRadians(lodFov))
+                                    - GroundQuadtree.sse(
+                                            tree.desiredStep(n),
+                                            distance(n),
+                                            GroundAntiAliasing.detailHeight(),
+                                            Math.toRadians(lodFov));
+                    demand.add(
+                            new Demand(
+                                    n,
+                                    GroundQuadtreeScheduler.priority(
+                                            Math.max(0, gain),
+                                            dot,
+                                            siblings,
+                                            GroundQuadtree.depth(n) == 0
+                                                    && tree.meshHandle(n) < 0)));
+                });
+        noDemand = !sawDemand && !tree.hasTargetUpdates();
+        demand.sort(Comparator.comparingDouble(Demand::priority).reversed());
+        RenderWorkDiagnostics.finish(FAR_LOD_DISCOVER_NS, discovery);
+        RenderWorkDiagnostics.add(FAR_LOD_DISCOVERED, demand.size());
+
+        long admission = RenderWorkDiagnostics.start();
+        var requests = new ArrayList<GroundQuadtreeScheduler.Request<NodeMesh>>();
+        final var owner = tree;
+        final var sourceShape = shape;
+        final var sourceTerrain = GroundViewClient.terrain();
+        final var meshDirectory = GroundMeshCache.directory(Minecraft.getInstance().gameDirectory.toPath(),
+                dev.starfold.worldgen.surface.SurfaceKey.of(sourceTerrain), GroundBaseDisk.registryStamp());
+        final var packedAppearance = GroundPackedAppearance.capture();
+        final var payloadOwner = meshes.readyBytes;
+        final var packingOwner = meshes.packingBytes;
+        // Snapshot immutable columns only for work that can enter the bounded executor now.
+        for (int i = 0; i < Math.min(available, demand.size()); i++) {
+            var candidate = demand.get(i);
+            int n = candidate.node(),
+                    step = tree.desiredStep(n),
+                    f = GroundQuadtree.face(n),
+                    x = GroundQuadtree.x(n),
+                    z = GroundQuadtree.z(n),
+                    size = GroundQuadtree.size(n);
+            var ticket = new GroundQuadtreeScheduler.Ticket(n, step, tree.version(n), meshes.generation);
+            int patch = f * 64 + z / 256 * 8 + x / 256;
+            var setupTrace = GroundLodBuildTrace.start(ticket, "input-snapshot");
+            var field =
+                    meshes.inputs.field(
+                            shape,
+                            GroundViewClient.terrain(),
+                            GroundViewClient.overlays(),
+                            GroundViewClient.overlayVersion(),
+                            patch);
+            GroundLodBuildTrace.finish(setupTrace, "captured", 0);
+            // Do not feed an already skirted mesh back into the next skirt floor.
+            int neighborFloor = GroundSurface.LOWEST;
+            long watchEpoch = diagnosticEpoch(), overlayVersion = GroundViewClient.overlayVersion();
+            boolean measureBuild = RenderWorkDiagnostics.active() || watchEpoch != 0;
+            var permit = new java.util.concurrent.atomic.AtomicBoolean(true);
+            meshes.buildPermits.put(ticket, permit);
+            requests.add(
+                    new GroundQuadtreeScheduler.Request<>(
+                            ticket,
+                            candidate.priority(),
+                            // Worker admission reads session identity only. Mutable node versions
+                            // and frame visibility are checked on the render thread at publication.
+                            () -> permit.get() && tree == owner && ticket.session() == meshes.generation,
+                            () -> {
+                                var meshTrace = GroundLodBuildTrace.start(ticket, "mesh");
+                                try {
+                                long buildStarted = measureBuild ? System.nanoTime() : 0;
+                                String cacheInputs = field.cacheInputs(step);
+                                var cacheKey = cacheInputs == null ? null
+                                        : new GroundMeshCache.Key(meshDirectory, n, step, cacheInputs);
+                                String lookupInputs = cacheInputs == null ? field.cacheLookupInputs(step) : cacheInputs;
+                                var lookupKey = lookupInputs == null ? null
+                                        : new GroundMeshCache.Key(meshDirectory, n, step, lookupInputs);
+                                String appearance = lookupKey == null || packedAppearance == null ? null : packedAppearance.fingerprint();
+                                var packedKey = appearance == null ? null : new GroundPackedCache.Key(lookupKey, appearance);
+                                var built = meshCache.get(cacheKey, () ->
+                                        GroundQuadtreeMesher.build(
+                                                CubeSurfaceTopology.Face.VALUES[f],
+                                                x,
+                                                z,
+                                                size,
+                                                step,
+                                                neighborFloor,
+                                                sourceShape.size(),
+                                                (u, v) -> {
+                                                    if (!permit.get()) throw new java.util.concurrent.CancellationException();
+                                                    long inputStart = meshTrace == null ? 0 : System.nanoTime();
+                                                    try {
+                                                    var c =
+                                                            sourceShape
+                                                                    .topology()
+                                                                    .canonical(
+                                                                            new CubeSurfaceTopology
+                                                                                    .Cell(
+                                                                                    CubeSurfaceTopology
+                                                                                            .Face
+                                                                                            .VALUES[
+                                                                                            f],
+                                                                                    u,
+                                                                                    0,
+                                                                                    v))
+                                                                    .cell();
+                                                    return field.cell(c.face(), c.u(), c.v(), step)
+                                                            .column();
+                                                    } finally {
+                                                        if (meshTrace != null) {
+                                                            meshTrace.inputNanos += System.nanoTime() - inputStart;
+                                                            meshTrace.columnCalls++;
+                                                        }
+                                                    }
+                                                }));
+                                if (!permit.get()) throw new java.util.concurrent.CancellationException();
+                                if (meshTrace != null) meshTrace.bytes = built.bytes();
+                                var plantTrace = GroundLodBuildTrace.start(ticket, "plant-input");
+                                Map<Long, dev.starfold.worldgen.surface.SurfaceFunction.Run> samples;
+                                try {
+                                    samples = GroundMeshContext.preparePlants(built, sourceTerrain, permit::get);
+                                } finally {
+                                    GroundLodBuildTrace.finish(plantTrace, "prepared", 0);
+                                }
+                                var skyTrace = GroundLodBuildTrace.start(ticket, "sky-input");
+                                GroundMeshContext.Sky sky;
+                                try {
+                                    sky = GroundMeshContext.prepareSky(built, sourceTerrain, permit::get);
+                                } finally {
+                                    GroundLodBuildTrace.finish(skyTrace, "prepared", 0);
+                                }
+                                var geometry = GroundLodPacking.prepare(built, permit::get);
+                                return new NodeMesh(
+                                        built,
+                                        geometry,
+                                        cacheKey == null ? null : packedKey,
+                                        null,
+                                        packingOwner,
+                                        samples,
+                                        sky,
+                                        measureBuild ? System.nanoTime() - buildStarted : -1,
+                                        watchEpoch,
+                                        overlayVersion,
+                                        payloadOwner,
+                                        GroundQuadtree.depth(n) == 0);
+                                } finally {
+                                    GroundLodBuildTrace.finish(meshTrace,
+                                            meshTrace != null && meshTrace.bytes > 0 ? "built" : "empty-or-failed",
+                                            meshTrace == null ? 0 : meshTrace.bytes);
+                                }
+                            },
+                            () -> {
+                                long started = measureBuild ? System.nanoTime() : 0;
+                                String lookupInputs = field.cacheLookupInputs(step);
+                                var key = lookupInputs == null ? null : new GroundMeshCache.Key(
+                                        meshDirectory, n, step, lookupInputs);
+                                String appearance = key == null || packedAppearance == null
+                                        ? null : packedAppearance.fingerprint();
+                                var packedKey = appearance == null ? null
+                                        : new GroundPackedCache.Key(key, appearance);
+                                var trace = GroundLodBuildTrace.start(ticket, "packed-read");
+                                try {
+                                    var cached = packedCache.get(packedKey);
+                                    if (cached == null) return null;
+                                    if (!permit.get()) throw new java.util.concurrent.CancellationException();
+                                    if (trace != null) trace.bytes = cached.built().bytes();
+                                    return new NodeMesh(cached.built(), null, packedKey, cached,
+                                            packingOwner, Map.of(), null,
+                                            measureBuild ? System.nanoTime() - started : -1,
+                                            watchEpoch, overlayVersion, payloadOwner, GroundQuadtree.depth(n) == 0);
+                                } finally {
+                                    GroundLodBuildTrace.finish(trace,
+                                            trace != null && trace.bytes > 0 ? "hit" : "miss-or-cancelled",
+                                            trace == null ? 0 : trace.bytes);
+                                }
+                            }));
+        }
+        meshes.scheduler.schedule(requests);
+        int admitted = 0;
+        for (var request : requests) {
+            var ticket = request.ticket();
+            int n = ticket.node();
+            if (!meshes.scheduler.pending(n)) continue;
+            admitted++;
+            for (int slot = 0; slot < meshes.inFlightNodes.length; slot++)
+                if (meshes.inFlightNodes[slot] == 0) {
+                    meshes.inFlightNodes[slot] = n + 1;
+                    break;
+                }
+            GroundLodLifecycleDiagnostics.nodeRequest(
+                    n, tree.builtStep(n), ticket.step(), tree.dirty(n));
+            RenderWorkDiagnostics.add(FAR_LOD_ADMITTED, 1);
+            if (failedNodes != null && failedNodes.get(n)) {
+                failedNodes.clear(n);
+                RenderWorkDiagnostics.add(FAR_LOD_RETRIED_FAILURE, 1);
+            }
+            long epoch = diagnosticEpoch();
+            if (epoch != 0) {
+                meshes.watchedRequests.put(n, epoch);
+                nodeEvent(epoch, ticket, Kind.REQUEST, "scheduler-admitted");
+            }
+        }
+        demandAfterAdmission = demand.size() - admitted;
+        demandObservedFrame = frameWork;
+        RenderWorkDiagnostics.gauge(FAR_LOD_PENDING_DEMAND, demandAfterAdmission);
+        RenderWorkDiagnostics.finish(FAR_LOD_ADMIT_NS, admission);
+    }
+
+    private static void refreshNativeDraws(boolean translucent) {
+        translucentPass = translucent;
+        window = GroundNativeCoverage.visible(translucent);
+        nativeTiles.clear();
+        for (long key : window) if (key >= 0 && key < 98304) nativeTiles.set((int) key);
+        meshes.arenas.updateNativeMask(nativeTiles);
+        if (shape != null) closureCoverage();
+    }
+
+    private static void completeNativeDraw(boolean translucent) {
+        finalNativeCoverage.complete(translucent, window);
+        if (translucent && tree != null) {
+            observeDiagnostics();
+            traceConstruction();
+        }
+    }
+
+    private static void updateMeshes() {
+        long complete = RenderWorkDiagnostics.start();
+        try {
+            updateMeshesImpl();
+        } finally {
+            diagnosticOccupancy();
+            RenderWorkDiagnostics.finish(FAR_LOD_COMPLETE_NS, complete);
+        }
+    }
+
+    private static void updateMeshesImpl() {
+        cancelObsoleteBuilds();
+        GroundQuadtreeScheduler.Completed<NodeMesh> done;
+        while ((done = meshes.scheduler.poll()) != null) {
+            meshes.buildPermits.remove(done.ticket());
+            for (int i = 0; i < meshes.inFlightNodes.length; i++)
+                if (meshes.inFlightNodes[i] == done.ticket().node() + 1) meshes.inFlightNodes[i] = 0;
+            Long watched =
+                    meshes.watchedRequests.isEmpty() ? null : meshes.watchedRequests.remove(done.ticket().node());
+            long epoch = watched == null ? 0 : watched;
+            if (done.failure() != null) {
+                jobFailure(done.ticket(), epoch, done.failure());
+                if (done.mesh() != null) done.mesh().close();
+                continue;
+            }
+            if (done.mesh() == null) {
+                nodeEvent(epoch, done.ticket(), Kind.CANCEL, "worker-no-payload");
+                continue;
+            }
+            if (!current(done.ticket())) {
+                nodeEvent(
+                        done.mesh().watchEpoch,
+                        done.ticket(),
+                        Kind.STALE,
+                        "completed-ticket-stale");
+                done.mesh().close();
+                continue;
+            }
+            nodeRecord(
+                    done.mesh().watchEpoch,
+                    done.ticket(),
+                    "quadtree-mesh",
+                    done.mesh().buildNanos,
+                    done.mesh().built.bytes());
+            meshes.pendingUploads.add(new Pending(done.ticket(), done.mesh()));
+        }
+        long backlog = meshes.arenas.pendingCopyBytes();
+        for (var p : meshes.pendingUploads) backlog += p.mesh.built.bytes();
+        long started = System.nanoTime();
+        var budget = new GroundUploadBudget(started + GroundViewPolicy.FRAME_BUDGET_NS, backlog);
+        // Leave room in the same frame for already prepared uploads and packed-cache hits.
+        long captureDeadline = started + GroundViewPolicy.FRAME_BUDGET_NS / 2;
+        meshes.arenas.progressGrowth(budget);
+        long maskWork = RenderWorkDiagnostics.start();
+        try { prepareMasks(budget); }
+        finally { RenderWorkDiagnostics.finish(FAR_LOD_MASK_NS, maskWork); }
+        for (var it = meshes.pendingUploads.iterator(); it.hasNext() && budget.cpuAvailable(); ) {
+            var p = it.next();
+            if (!current(p.ticket) || !p.context.current()) {
+                nodeEvent(p.mesh.watchEpoch, p.ticket, Kind.STALE, "upload-ticket-stale");
+                it.remove();
+                p.close();
+                continue;
+            }
+            if (!p.storageChecked) {
+                if (p.layerVertices == null) {
+                    p.layerVertices = new int[GroundFaceArenas.LAYERS];
+                    if (p.mesh.cachedPacked != null) {
+                        for (var layer : p.mesh.cachedPacked.layers())
+                            p.layerVertices[layer.index()] = layer.vertices().remaining() / 12;
+                    } else {
+                        p.mesh.geometry.verticesByState().forEach((state, count) -> {
+                            int layer = GroundFaceArenas.layerIndex(materialLayer(state));
+                            p.layerVertices[layer] += count;
+                        });
+                    }
+                }
+                int face = GroundQuadtree.face(p.ticket.node());
+                var admission = meshes.arenas.admission(face, p.layerVertices);
+                if (admission == GroundLodArena.AllocationStatus.REJECTED) {
+                    RenderWorkDiagnostics.add(FAR_LOD_ADMISSION_REJECTED, 1);
+                    long target = Math.max(0, tree.detailBytes() - Math.max(p.mesh.built.bytes(), 1024L * 1024L));
+                    long freed = tree.evictOffscreenToBudget(target, frameWork, face, GroundRenderer::release);
+                    if (!current(p.ticket)) {
+                        nodeEvent(p.mesh.watchEpoch, p.ticket, Kind.STALE, "upload-ticket-stale");
+                        it.remove();
+                        p.close();
+                        continue;
+                    }
+                    if (freed > 0) {
+                        admission = meshes.arenas.admission(face, p.layerVertices);
+                        if (admission != GroundLodArena.AllocationStatus.REJECTED)
+                            RenderWorkDiagnostics.add(FAR_LOD_ADMISSION_RECLAIMED, 1);
+                    }
+                }
+                if (admission == GroundLodArena.AllocationStatus.WAIT) {
+                    RenderWorkDiagnostics.add(FAR_LOD_BLOCK_ARENA_WAIT, 1);
+                    continue;
+                }
+                if (admission == GroundLodArena.AllocationStatus.REJECTED) {
+                    RenderWorkDiagnostics.add(FAR_LOD_BLOCK_MEMORY, 1);
+                    if (p.trace != null) p.trace.outcome = "gpu-admission-rejected";
+                    it.remove();
+                    p.close();
+                    tree.deferNode(p.ticket.node(), p.mesh.built.bytes());
+                    cancelObsoleteBuilds();
+                    continue;
+                }
+                p.storageChecked = true;
+            }
+            if (p.layers == null) {
+                long packing = p.mesh.watchEpoch == 0 ? 0 : System.nanoTime();
+                long packingStart = p.trace == null ? 0 : System.nanoTime();
+                boolean packed = false;
+                RuntimeException packingFailure = null;
+                GroundLodBuildTrace.packing = p.trace;
+                try {
+                    packed = p.resolve(budget, captureDeadline);
+                } catch (RuntimeException failure) {
+                    packingFailure = failure;
+                } finally {
+                    GroundLodBuildTrace.packing = null;
+                    if (p.trace != null) {
+                        p.trace.packingNanos += System.nanoTime() - packingStart;
+                        p.trace.slices++;
+                    }
+                }
+                if (packingFailure != null) {
+                    jobFailure(p.ticket, p.mesh.watchEpoch, packingFailure);
+                    if (p.trace != null) p.trace.outcome = "packing-failed";
+                    it.remove();
+                    p.close();
+                    continue;
+                }
+                nodeRecord(
+                        p.mesh.watchEpoch,
+                        p.ticket,
+                        "quadtree-packing",
+                        packing == 0 ? -1 : System.nanoTime() - packing,
+                        p.resolveCursor);
+                if (!packed) continue;
+            }
+            boolean blocked = false;
+            while (p.upload != null || p.layers.hasNext()) {
+                long transferStart = p.trace == null ? 0 : System.nanoTime();
+                if (p.upload == null) {
+                    var e = p.layers.next();
+                    p.upload =
+                            meshes.arenas.beginUpload(
+                                    GroundQuadtree.face(p.ticket.node()),
+                                    GroundFaceArenas.layer(e.getKey()),
+                                    e.getValue(), p.packed.requiredMaterials());
+                }
+                int beforeUpload = p.upload.uploadedBytes();
+                long uploadStarted = p.mesh.watchEpoch == 0 ? 0 : System.nanoTime();
+                long uploadWork = RenderWorkDiagnostics.start();
+                boolean uploaded;
+                try { uploaded = p.upload.step(budget); }
+                finally { RenderWorkDiagnostics.finish(FAR_LOD_UPLOAD_STEP_NS, uploadWork); }
+                if (p.trace != null) p.trace.uploadNanos += System.nanoTime() - transferStart;
+                int uploadedBytes = p.upload.uploadedBytes() - beforeUpload;
+                if (uploadedBytes != 0) {
+                    nodeEvent(p.mesh.watchEpoch, p.ticket, Kind.UPLOAD, "upload-slice-submitted");
+                    nodeRecord(
+                            p.mesh.watchEpoch,
+                            p.ticket,
+                            "quadtree-upload",
+                            uploadStarted == 0 ? -1 : System.nanoTime() - uploadStarted,
+                            uploadedBytes);
+                }
+                if (!uploaded) {
+                    blocked = true;
+                    break;
+                }
+                p.slots.add(p.upload.finish());
+                p.upload = null;
+            }
+            if (blocked) {
+                if (p.upload.allocationRejected()) {
+                    RenderWorkDiagnostics.add(FAR_LOD_BLOCK_MEMORY, 1);
+                    nodeEvent(p.mesh.watchEpoch, p.ticket, Kind.CANCEL, "gpu-allocation-rejected");
+                    if (p.trace != null) p.trace.outcome = "gpu-allocation-rejected";
+                    it.remove();
+                    p.close();
+                    tree.evictOffscreenToBudget(
+                            Math.max(0, tree.detailBytes() - Math.max(p.mesh.built.bytes(), 1024L * 1024L)),
+                            frameWork,
+                            GroundQuadtree.face(p.ticket.node()),
+                            GroundRenderer::release);
+                    tree.deferNode(p.ticket.node(), p.mesh.built.bytes());
+                    continue;
+                }
+                RenderWorkDiagnostics.add(FAR_LOD_BLOCK_UPLOAD, 1);
+                // A growing pool must not block ready uploads into independent pools.
+                continue;
+            }
+            int oldStep = tree.builtStep(p.ticket.node());
+            int handle = meshes.nextHandle++;
+            var bundle = new Bundle(p.ticket, p.mesh.overlayVersion, List.copyOf(p.slots));
+            meshes.bundles.put(handle, bundle);
+            var b = p.mesh.built.bounds();
+            boolean published =
+                    tree.publish(
+                            p.ticket.node(),
+                            p.ticket.step(),
+                            p.ticket.version(),
+                            handle,
+                            bundle.bytes(),
+                            (int) Math.floor(b.minY()),
+                            (int) Math.ceil(b.maxY()),
+                            GroundRenderer::release);
+            if (!published) {
+                nodeEvent(p.mesh.watchEpoch, p.ticket, Kind.STALE, "publication-rejected");
+                // This generation was never resident: do not report retirement.
+                meshes.bundles.remove(handle).close();
+            } else {
+                uploads++;
+                GroundLodLifecycleDiagnostics.nodePublication(p.ticket.node(), oldStep);
+                nodeEvent(p.mesh.watchEpoch, p.ticket, Kind.PUBLICATION, "node-published");
+            }
+            if (p.trace != null) p.trace.outcome = published ? "published" : "publication-stale";
+            p.slots.clear();
+            it.remove();
+            p.close();
+        }
+        if (!meshes.pendingUploads.isEmpty() && !budget.cpuAvailable())
+            RenderWorkDiagnostics.add(FAR_LOD_BLOCK_DEADLINE, 1);
+        RenderWorkDiagnostics.add(FAR_LOD_TRANSFER_BYTES, budget.consumedBytes());
+        RenderWorkDiagnostics.add(FAR_LOD_TRANSFER_NS, budget.transferNanos());
+        tree.evictToBudget(GroundViewPolicy.DETAIL_BYTES, frameWork, 120, GroundRenderer::release);
+    }
+
+    private record ModelFace(TextureAtlasSprite sprite, boolean hasQuad, int tintIndex) {}
+
+    private static ModelFace modelFace(Minecraft mc, BlockState state, Direction direction) {
+        var faces = modelFaces.get(state);
+        if (faces != null && faces[direction.ordinal()] != null) return faces[direction.ordinal()];
+        var model = mc.getBlockRenderer().getBlockModel(state);
+        var quads = model.getQuads(state, direction, net.minecraft.util.RandomSource.create(0));
+        if (quads.isEmpty() && VoxelMesher.plant(state))
+            quads = model.getQuads(state, null, net.minecraft.util.RandomSource.create(0));
+        var first = quads.isEmpty() ? null : quads.getFirst();
+        var result = new ModelFace(first == null ? model.getParticleIcon() : first.getSprite(),
+                first != null, first != null && first.isTinted() ? first.getTintIndex() : -1);
+        if (state.getFluidState().isEmpty()
+                && model.getClass() == net.minecraft.client.resources.model.SimpleBakedModel.class) {
+            if (faces == null) {
+                faces = new ModelFace[6];
+                modelFaces.put(state, faces);
+            }
+            faces[direction.ordinal()] = result;
+        }
+        return result;
+    }
+
+    private static GroundLodPacking.Appearance captureAppearance(
+            int face, GroundLodPacking.Quad quad, GroundMeshContext context) {
+        var mc = Minecraft.getInstance();
+        var m = quad.material();
+        var state = m.block();
+        var fluid = state.getFluidState();
+        var direction =
+                Direction.getNearest((float) m.normalX(), (float) m.normalY(), (float) m.normalZ());
+        var storage = context.storage(quad.appearancePosition());
+        var handler =
+                fluid.isEmpty()
+                        ? null
+                        : net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
+                                .of(fluid.getType());
+        if (handler
+                == net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
+                        .DEFAULT) handler = null;
+        var layer = materialLayer(state);
+        var modelFace = handler == null ? modelFace(mc, state, direction) : null;
+        var sprite =
+                handler == null
+                        ? modelFace.sprite()
+                        : mc.getTextureAtlas(
+                                        net.minecraft.client.renderer.texture.TextureAtlas
+                                                .LOCATION_BLOCKS)
+                                .apply(handler.getStillTexture(fluid, level, storage));
+        int color =
+                handler != null
+                        ? handler.getTintColor(fluid, level, storage)
+                        : modelFace.tintIndex() != -1
+                                ? mc.getBlockColors().getColor(state, context.tint(), storage, modelFace.tintIndex())
+                                : 0xffffff;
+        int albedo = handler == null && modelFace.hasQuad()
+                ? GroundAlbedo.color(sprite, color)
+                : GroundAlbedo.color(state, storage, context.tint(), direction);
+        if (m.rgb() == -3)
+            color = GroundMeshVertices.plantTint(color, albedo, face, quad.points(), context);
+        int calibrationAlbedo = m.rgb() >= 0 && direction != Direction.UP
+                ? GroundAlbedo.color(state, storage, context.tint()) : albedo;
+        int bounds =
+                GroundFarTexture.upper(sprite.getU1())
+                        | GroundFarTexture.upper(sprite.getV1()) << 16;
+        int surfaceClass = dev.starfold.api.SurfaceClass.of(state, context.tint(), storage);
+        float encodedV = sprite.getV0() + 2 * surfaceClass;
+        return new GroundLodPacking.Appearance(sprite.getU0(), encodedV, bounds, color, albedo,
+                calibrationAlbedo, GroundFaceArenas.layerIndex(layer), layer == RenderType.translucent());
+    }
+
+    /** Same signed-normalized byte encoding as BufferBuilder.setNormal(albedo * 2 - 1). */
+    static int packedAlbedoNormal(int rgb) {
+        return GroundLodPacking.packedAlbedoNormal(rgb);
+    }
+
+    private static void draw(RenderFrame c, boolean translucent) {
+        if (tree == null || !selectionReady()) return;
+        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.FAR);
+        try {
+        long started = System.nanoTime();
+        boolean loadingCover = PlanetRemoteRenderer.coversPartialPlanet();
+        if (!translucent) updateMeshes();
+        if (loadingCover) return;
+        long collect = RenderWorkDiagnostics.start();
+        long viewEpoch = reusableCutWindow() ? cullEpoch : -exactViewEpoch;
+        var selection = selections[translucent ? 1 : 0];
+        meshes.arenas.selectPass(translucent);
+        cut = selection.cut;
+        if (cut == null || selection.treeRevision != tree.cutRevision() || selection.viewEpoch != viewEpoch
+                || !selection.nativeTiles.equals(nativeTiles)) {
+        if (cut == null) selection.cut = cut = new GroundQuadtree.Cut();
+        long select = RenderWorkDiagnostics.start();
+        selectingCut = true;
+        try {
+            tree.selectCut(nativeTiles, GroundRenderer::visible, frameWork, cut, viewEpoch);
+        } finally {
+            selectingCut = false;
+            RenderWorkDiagnostics.finish(FAR_CHART_SELECT_NS, select);
+        }
+        RenderWorkDiagnostics.add(FAR_CHART_SELECT_CALLS, 1);
+        RenderWorkDiagnostics.add(FAR_CHART_SELECT_REBUILDS, 1);
+        selection.updateDraws(selection.viewEpoch != viewEpoch);
+        selection.treeRevision = tree.cutRevision();
+        selection.viewEpoch = viewEpoch;
+        selection.nativeTiles.clear();
+        selection.nativeTiles.or(nativeTiles);
+        } else {
+            tree.markUsed(cut, frameWork);
+            RenderWorkDiagnostics.add(FAR_CACHE_REUSES, 1);
+        }
+        if (!translucent && selection.maskRevision != maskRevision) {
+            selection.updateMasks();
+            selection.maskRevision = maskRevision;
+        }
+        RenderWorkDiagnostics.finish(FAR_COLLECT_NS, collect);
+        probeTiles += cut.pureCount + cut.maskedCount;
+        if (probeTiming) probePrepNanos += System.nanoTime() - started;
+        long drawWork = RenderWorkDiagnostics.start();
+        int gpuProbe = beginGpuProbe();
+        GroundFarDrawDiagnostics.pass(translucent);
+        var pass = new RenderPassState(true, true, false);
+        var binding = new CoverageBinding();
+        int[] textures = new int[3];
+        for (int i = 0; i < 3; i++) textures[i] = RenderSystem.getShaderTexture(i);
+        int active = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
+        try (var filtering = GroundTextureFilter.open(); var edges = GroundEdgeFilter.open(translucent)) {
+            // Mods extend chunkBufferLayers with custom shaders; those are not compact terrain.
+            for (var layer : List.of(
+                    RenderType.solid(), RenderType.cutoutMipped(), RenderType.cutout(),
+                    RenderType.translucent(), RenderType.tripwire())) {
+                boolean late = layer == RenderType.translucent() || layer == RenderType.tripwire();
+                if (late != translucent) continue;
+                var transforms =
+                        new GroundLayerTransforms(
+                                f ->
+                                        GroundClient.place(
+                                                new Matrix4f(RenderSystem.getModelViewMatrix())
+                                                        .mul(c.matrixStack().last().pose()),
+                                                f,
+                                                c.camera().getPosition()));
+                long chartDraw = RenderWorkDiagnostics.start();
+                int draws =
+                        meshes.arenas.drawLayer(
+                                layer,
+                                (f, l, masked, shader) -> {
+                                    GroundClient.source(f, true, true);
+                                    shader.setDefaultUniforms(
+                                            VertexFormat.Mode.QUADS,
+                                            transforms.copy(f),
+                                            RenderSystem.getProjectionMatrix(),
+                                            Minecraft.getInstance().getWindow());
+                                    for (int unit = 0; unit < 12; unit++)
+                                        shader.setSampler(
+                                                "Sampler" + unit,
+                                                RenderSystem.getShaderTexture(unit));
+                                    if (diagnosticBatchContainsWatch(f, l, masked))
+                                        GroundFarDrawDiagnostics.begin(
+                                                shader,
+                                                f,
+                                                l,
+                                                GroundFarDrawDiagnostics.Source.CHART,
+                                                masked ? "quadtree-masked" : "quadtree-pure");
+                                });
+                RenderWorkDiagnostics.finish(FAR_CHART_DRAW_NS, chartDraw);
+                if (draws > 0) {
+                    diagnosticSubmittedLayer(layer);
+                    if (layer == RenderType.solid() && RenderWorkDiagnostics.active()) {
+                        long maskIndices = 0;
+                        for (var maskMesh : masks)
+                            if (maskMesh != null && maskMesh.compact != null)
+                                maskIndices += maskMesh.compact.indices();
+                        // Arena submission already counted these once; only move their category.
+                        RenderWorkDiagnostics.add(FAR_INDICES_CHART, -maskIndices);
+                        RenderWorkDiagnostics.add(FAR_INDICES_MASK, maskIndices);
+                    }
+                }
+                probeGroups += draws;
+                probeCompactGroups += draws;
+                GroundFarDrawDiagnostics.end();
+                layer.setupRenderState();
+                try {
+                    for (int f = 0; f < 6; f++) {
+                        if (!GroundViewPolicy.exists(shape, f * 64)) continue;
+                        drawMask(masks[f], f, layer, transforms);
+                        drawMask(masks[f + 6], f, layer, transforms);
+                    }
+                } finally {
+                    layer.clearRenderState();
+                }
+            }
+        } finally {
+            if (gpuProbe >= 0) GL15.glEndQuery(GL33.GL_TIME_ELAPSED);
+            GroundFarDrawDiagnostics.end();
+            GroundClient.sourceEnd();
+            binding.close();
+            com.mojang.blaze3d.platform.GlStateManager._activeTexture(active);
+            for (int i = 0; i < 3; i++) RenderSystem.setShaderTexture(i, textures[i]);
+            pass.close();
+            RenderWorkDiagnostics.finish(FAR_DRAW_NS, drawWork);
+        }
+        diagnosticOccupancy();
+        if (probeTiming) probeCpuNanos += System.nanoTime() - started;
+        } finally {
+            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.FAR);
+        }
+    }
+
+    private static void drawMask(
+            MaskMesh mesh, int face, RenderType layer, GroundLayerTransforms transforms) {
+        if (mesh == null) return;
+        var gpu = mesh.layers.get(layer);
+        if (gpu == null) return;
+        var shader = RenderSystem.getShader();
+        if (shader == null) return;
+        GroundClient.source(face, true, false);
+        gpu.bind();
+        try {
+            gpu.drawWithShader(transforms.copy(face), RenderSystem.getProjectionMatrix(), shader);
+            probeDraws++;
+            long indices = mesh.indices.get(layer);
+            RenderWorkDiagnostics.add(FAR_DRAW_CALLS, 1);
+            RenderWorkDiagnostics.add(FAR_INDICES_SUBMITTED, indices);
+            RenderWorkDiagnostics.add(FAR_VERTICES_SUBMITTED, indices / 6 * 4);
+            RenderWorkDiagnostics.add(FAR_INDICES_MASK, indices);
+            RenderWorkDiagnostics.add(FAR_RANGES_VISIBLE, 1);
+            RenderWorkDiagnostics.add(
+                    switch (face) {
+                        case 0 -> FAR_INDICES_FACE_0;
+                        case 1 -> FAR_INDICES_FACE_1;
+                        case 2 -> FAR_INDICES_FACE_2;
+                        case 3 -> FAR_INDICES_FACE_3;
+                        case 4 -> FAR_INDICES_FACE_4;
+                        default -> FAR_INDICES_FACE_5;
+                    },
+                    indices);
+            RenderWorkDiagnostics.add(FAR_INDICES_STEP_OTHER, indices);
+        } finally {
+            VertexBuffer.unbind();
+        }
+    }
+
+    private static long lastConstructionSnapshot;
+
+    private static void traceConstruction() {
+        if (!GroundLodBuildTrace.enabled()) return;
+        long now = System.nanoTime();
+        if (now - lastConstructionSnapshot < 1_000_000_000L) return;
+        lastConstructionSnapshot = now;
+        var e = GroundLodBuildTrace.start(null, "snapshot");
+        if (e == null) return;
+        e.session = meshes.generation;
+        e.roots = probeParentTiles() / 256;
+        e.jobs = meshes.scheduler.jobs();
+        e.completed = meshes.scheduler.completed();
+        e.staging = meshes.pendingUploads.size();
+        e.uploads = uploads;
+        e.gpuBytes = meshes.arenas.bytes();
+        e.detailBytes = tree.detailBytes();
+        e.selected = cut == null ? 0 : cut.pureCount + cut.maskedCount;
+        e.altitude = GroundClient.pose().point().y();
+        tree.visitDemand(GroundRenderer::visible, n -> e.demand++);
+        for (int p = 0; p < GroundQuadtree.ROOT_COUNT; p++) {
+            int n = GroundQuadtree.root(p);
+            if (tree.valid(n) && visible(n) && tree.meshHandle(n) < 0) e.missingRoots++;
+        }
+        GroundLodBuildTrace.finish(e, "sample", 0);
+    }
+
+    public static int probeParentTiles() {
+        if (tree == null) return -1;
+        int count = 0;
+        for (int p = 0; p < 384; p++)
+            if (GroundViewPolicy.exists(shape, p) && tree.patchReady(p)) count += 256;
+        return count;
+    }
+
+    public static int probeParents() {
+        if (tree == null) return 0;
+        int count = 0;
+        for (int f = 0; f < 6; f++) {
+            boolean ready = true;
+            for (int p = f * 64; p < f * 64 + 64; p++)
+                if (GroundViewPolicy.exists(shape, p) && !tree.patchReady(p)) {
+                    ready = false;
+                    break;
+                }
+            if (ready) count++;
+        }
+        return count;
+    }
+
+    public static String performance() {
+        return "Quadtree roots "
+                + probeParentTiles()
+                + " tiles | jobs "
+                + meshes.scheduler.jobs()
+                + " | uploads "
+                + uploads
+                + " | failures "
+                + jobFailures
+                + " | cut "
+                + (cut == null ? 0 : cut.pureCount + cut.maskedCount);
+    }
+
+    public static String memory() {
+        return String.format(
+                Locale.ROOT,
+                "Quadtree GPU %.1f MiB | detail %.1f MiB | staging %d",
+                meshes.arenas.bytes() / 1048576.,
+                tree == null ? 0 : tree.detailBytes() / 1048576.,
+                meshes.pendingUploads.size());
+    }
+
+    static long diagnosticEpoch() {
+        return FarViewDiagnostics.epoch(planet);
+    }
+
+    static Versions diagnosticVersions(long key, int step) {
+        var surface = GroundViewClient.surface(key);
+        // There is no per-node mip identity in this pipeline. A target token is not a mip.
+        return new Versions(
+                surface == null ? -1 : surface.revision(),
+                GroundViewClient.overlayVersion(),
+                -1,
+                frameWork,
+                -1,
+                -1);
+    }
+
+    private static int selectedNode(int face, int x, int z) {
+        if (cut == null) return -1;
+        for (int i = 0; i < cut.pureCount; i++)
+            if (containsTile(cut.pure[i], face, x, z)) return cut.pure[i];
+        for (int i = 0; i < cut.maskedCount; i++)
+            if (containsTile(cut.masked[i], face, x, z)) return cut.masked[i];
+        return -1;
+    }
+
+    private static int desiredNode(int face, int x, int z) {
+        int node = GroundQuadtree.root(GroundViewPolicy.patch(tileKey(face, x, z)));
+        if (!tree.valid(node) || !tree.valid(GroundQuadtree.nodeId(face, 4, x / 16, z / 16)))
+            return -1;
+        while (GroundQuadtree.depth(node) < 4 && tree.wantsSplit(node)) {
+            int half = GroundQuadtree.size(node) / 2;
+            int quadrant =
+                    (x >= GroundQuadtree.x(node) + half ? 1 : 0)
+                            | (z >= GroundQuadtree.z(node) + half ? 2 : 0);
+            node = GroundQuadtree.child(node, quadrant);
+            if (!tree.valid(node)) return -1;
+        }
+        return node;
+    }
+
+    private static Pending pendingAt(int face, int x, int z) {
+        Pending found = null;
+        for (var p : meshes.pendingUploads)
+            if (containsTile(p.ticket.node(), face, x, z)
+                    && (found == null
+                            || GroundQuadtree.depth(p.ticket.node())
+                                    > GroundQuadtree.depth(found.ticket.node()))) found = p;
+        return found;
+    }
+
+    static Map<String, Object> diagnosticDrawInputs(FarViewDiagnostics.Watch w) {
+        var fields = new LinkedHashMap<String, Object>();
+        long key = tileKey(w.face(), w.x(), w.z());
+        int selected = selectedNode(w.face(), w.x(), w.z());
+        int desired = tree == null ? -1 : desiredNode(w.face(), w.x(), w.z());
+        var pending = pendingAt(w.face(), w.x(), w.z());
+        var selectedBundle = selected < 0 ? null : meshes.bundles.get(tree.meshHandle(selected));
+        fields.put("nativeWindow", window.contains(key));
+        fields.put("nativePass", translucentPass ? "translucent" : "opaque");
+        fields.put("rootReady", tree != null && tree.patchReady(GroundViewPolicy.patch(key)));
+        fields.put("selectedNode", selected);
+        fields.put("selectedDepth", selected < 0 ? -1 : GroundQuadtree.depth(selected));
+        fields.put("selectedStep", selected < 0 ? -1 : tree.builtStep(selected));
+        fields.put("desiredNode", desired);
+        fields.put("desiredStep", desired < 0 ? -1 : tree.desiredStep(desired));
+        fields.put("pendingNode", pending == null ? -1 : pending.ticket.node());
+        fields.put("pendingSlots", pending == null ? 0 : pending.slots.size());
+        fields.put("pendingStep", pending == null ? -1 : pending.ticket.step());
+        fields.put("pendingVersion", pending == null ? -1 : pending.ticket.version());
+        fields.put(
+                "selectedVersion", selectedBundle == null ? -1 : selectedBundle.ticket.version());
+        fields.put("desiredVersion", desired < 0 ? -1 : tree.version(desired));
+        fields.put(
+                "selectedOverlayVersion",
+                selectedBundle == null ? -1 : selectedBundle.overlayVersion);
+        fields.put(
+                "selectedCurrent",
+                selectedBundle == null
+                        ? "unknown: no selected bundle"
+                        : current(selectedBundle.ticket));
+        fields.put(
+                "pendingAllocation",
+                pending == null || pending.upload == null
+                        ? "none"
+                        : "unknown: no read-only allocation accessor");
+        fields.put("currentOverlayVersion", GroundViewClient.overlayVersion());
+        fields.put("nativeMasked", selected >= 0 && nativeTiles.get((int) key));
+        fields.put(
+                "pendingUploadBytes",
+                pending == null || pending.upload == null ? 0 : pending.upload.uploadedBytes());
+        fields.put(
+                "pendingUploadRemainingBytes",
+                pending == null || pending.upload == null ? 0 : pending.upload.remainingBytes());
+        var pendingSlots = new ArrayList<Map<String, Object>>();
+        if (pending != null)
+            for (var slot : pending.slots)
+                pendingSlots.add(
+                        Map.of(
+                                "face",
+                                slot.face,
+                                "layer",
+                                slot.layer,
+                                "vertices",
+                                slot.vertices(),
+                                "bytes",
+                                slot.bytes()));
+        fields.put("pendingSlotDetails", pendingSlots);
+        var coveringJobs = new ArrayList<Integer>();
+        for (int encoded : meshes.inFlightNodes)
+            if (encoded != 0 && containsTile(encoded - 1, w.face(), w.x(), w.z()))
+                coveringJobs.add(encoded - 1);
+        fields.put("coveringJobNodes", coveringJobs);
+        fields.put(
+                "pendingDemand",
+                demandObservedFrame == frameWork
+                        ? demandAfterAdmission
+                        : "unknown: discovery skipped");
+        fields.put("pendingDemandScope", "after admission; undiscovered demand excluded");
+        // nativeMaskTexture() lazily allocates GL storage; diagnostics must remain read-only.
+        fields.put("maskTexture", "unknown: no read-only owner accessor");
+        fields.put("pureNodes", cut == null ? 0 : cut.pureCount);
+        fields.put("maskedNodes", cut == null ? 0 : cut.maskedCount);
+        fields.put("session", meshes.generation);
+        fields.put("readyDetailBytes", meshes.readyBytes.detail());
+        fields.put("readyCoverBytes", meshes.readyBytes.cover());
+        fields.put("residentDetailBytes", tree == null ? 0 : tree.detailBytes());
+        fields.put(
+                "residentCoverBytes", tree == null ? 0 : tree.residentBytes() - tree.detailBytes());
+        fields.put("allocatedArenaBytes", meshes.arenas.bytes());
+        fields.put("jobFailures", jobFailures);
+        fields.put("mipIdentity", "unknown");
+        fields.put("meshSurfaceRevision", "unknown: multi-tile snapshot");
+        fields.put("workerRetainedBytes", "unknown");
+        fields.put("arenaFreeBytes", "unknown");
+        fields.put("arenaGrowingBytes", "unknown");
+        fields.put("localInputEquality", "unknown");
+        fields.put("pixelVisibility", "unknown");
+        return fields;
+    }
+
+    /** Called only after a successful layer submission; tripwire shares the translucent batch. */
+    private static void diagnosticSubmittedLayer(RenderType layer) {
+        if (!RenderWorkDiagnostics.active() && !FarViewDiagnostics.active()) return;
+        for (int pass = 0; pass < 2; pass++) {
+            int count = pass == 0 ? cut.pureCount : cut.maskedCount;
+            int[] nodes = pass == 0 ? cut.pure : cut.masked;
+            for (int i = 0; i < count; i++) {
+                var bundle = meshes.bundles.get(tree.meshHandle(nodes[i]));
+                if (bundle == null) continue;
+                boolean submitted = false;
+                for (var slot : bundle.slots) {
+                    if (slot.layer != GroundFaceArenas.layerIndex(layer)) continue;
+                    submitted = true;
+                    long indices = (long) slot.vertices() / 4 * 6;
+                    RenderWorkDiagnostics.add(FAR_RANGES_VISIBLE, 1);
+                    RenderWorkDiagnostics.add(FAR_INDICES_CHART, indices);
+                    GroundQuadtreeDiagnostics.recordIndexDimensions(slot.face, bundle.ticket.step(), indices);
+                }
+                if (submitted)
+                    nodeEvent(
+                            diagnosticEpoch(),
+                            bundle.ticket,
+                            Kind.DRAW,
+                            translucentPass
+                                    ? "translucent-layer-submitted"
+                                    : "opaque-layer-submitted");
+            }
+        }
+    }
+
+    /** A face batch is evidence for this watch only if its selected node has this layer. */
+    private static boolean diagnosticBatchContainsWatch(
+            int face, RenderType layer, boolean masked) {
+        long epoch = diagnosticEpoch();
+        if (epoch == 0) return false;
+        var w = FarViewDiagnostics.currentWatch(epoch);
+        if (w == null || w.face() != face || nativeTiles.get((int) tileKey(face, w.x(), w.z())))
+            return false;
+        int node = selectedNode(face, w.x(), w.z());
+        if (node < 0) return false;
+        boolean inMasked = false;
+        for (int i = 0; i < cut.maskedCount; i++) if (cut.masked[i] == node) inMasked = true;
+        if (inMasked != masked) return false;
+        var bundle = meshes.bundles.get(tree.meshHandle(node));
+        if (bundle == null) return false;
+        for (var slot : bundle.slots)
+            if (slot.layer == GroundFaceArenas.layerIndex(layer)) return true;
+        return false;
+    }
+
+    private static void nodeEvent(
+            long epoch, GroundQuadtreeScheduler.Ticket ticket, Kind kind, String reason) {
+        if (epoch == 0 || ticket.session() != meshes.generation) return;
+        nodeEvent(
+                epoch,
+                ticket.node(),
+                ticket.step(),
+                kind,
+                reason + ";targetVersion=" + ticket.version() + ";session=" + ticket.session());
+    }
+
+    private static void nodeEvent(long epoch, int node, int step, Kind kind, String reason) {
+        if (epoch == 0) return;
+        GroundQuadtreeDiagnostics.nodeEvent(
+                epoch, node, step, kind, reason, frameWork, translucentPass, nativeTiles);
+    }
+
+    private static void nodeRecord(
+            long epoch,
+            GroundQuadtreeScheduler.Ticket ticket,
+            String stage,
+            long nanos,
+            long bytes) {
+        if (epoch == 0 || ticket.session() != meshes.generation) return;
+        GroundQuadtreeDiagnostics.nodeRecord(epoch, ticket, stage, nanos, bytes, planet);
+    }
+
+    private static void jobFailure(
+            GroundQuadtreeScheduler.Ticket ticket, long epoch, Throwable failure) {
+        jobFailures++;
+        if (current(ticket)) {
+            if (failedNodes == null) failedNodes = new BitSet(GroundQuadtree.NODE_COUNT);
+            failedNodes.set(ticket.node());
+        }
+        nodeEvent(epoch, ticket, Kind.SKIP, "worker-failed");
+        if (epoch != 0) {
+            var w = FarViewDiagnostics.currentWatch(epoch);
+            int x =
+                    w == null
+                            ? -1
+                            : Math.max(
+                                    GroundQuadtree.x(ticket.node()),
+                                    Math.max(0, w.x() - 16 * w.radius()));
+            int z =
+                    w == null
+                            ? -1
+                            : Math.max(
+                                    GroundQuadtree.z(ticket.node()),
+                                    Math.max(0, w.z() - 16 * w.radius()));
+            if (w != null
+                    && x <= w.x() + 16 * w.radius()
+                    && z <= w.z() + 16 * w.radius()
+                    && containsTile(ticket.node(), w.face(), x, z)) {
+                String message = failure.toString();
+                FarViewDiagnostics.record(
+                        epoch,
+                        planet,
+                        w.face(),
+                        x,
+                        z,
+                        "quadtree-job-failure",
+                        Map.of(
+                                "node",
+                                ticket.node(),
+                                "step",
+                                ticket.step(),
+                                "targetVersion",
+                                ticket.version(),
+                                "failureCount",
+                                jobFailures,
+                                "error",
+                                message.substring(0, Math.min(1024, message.length()))));
+            }
+        }
+        long now = System.nanoTime();
+        // At most eight stack traces per renderer session, separated by at least five seconds.
+        if (failureLogs < 8 && (failureLogs == 0 || now - lastFailureLog >= 5_000_000_000L)) {
+            failureLogs++;
+            lastFailureLog = now;
+            FailureLog.LOG.warn(
+                    "Quadtree mesh failure #{} (node={}, step={}, version={}, session={}); "
+                            + "further failures are counted; logs limited to 8/session and 1/5s",
+                    jobFailures,
+                    ticket.node(),
+                    ticket.step(),
+                    ticket.version(),
+                    ticket.session(),
+                    failure);
+        }
+    }
+
+    private static void diagnosticOccupancy() {
+        if (!RenderWorkDiagnostics.active()) return;
+        RenderWorkDiagnostics.gauge(FAR_LOD_READERS_ACTIVE, meshes.scheduler.readersActive());
+        RenderWorkDiagnostics.gauge(FAR_LOD_READERS_QUEUED, meshes.scheduler.readersQueued());
+        RenderWorkDiagnostics.gauge(FAR_LOD_STAGING, meshes.pendingUploads.size());
+        RenderWorkDiagnostics.gauge(FAR_LOD_GPU_BYTES, meshes.arenas.bytes());
+        long[] cacheStages = packedCache.stages();
+        RenderWorkDiagnostics.gauge(FAR_LOD_CACHE_LOOKUPS_TOTAL, cacheStages[0]);
+        RenderWorkDiagnostics.gauge(FAR_LOD_CACHE_LOOKUP_TOTAL_NANOS, cacheStages[1]);
+        RenderWorkDiagnostics.gauge(FAR_LOD_CACHE_DECODE_TOTAL_NANOS, cacheStages[2]);
+        RenderWorkDiagnostics.gauge(FAR_LOD_CACHE_TOUCH_TOTAL_NANOS, cacheStages[3]);
+        RenderWorkDiagnostics.gauge(FAR_LOD_CACHE_RESTORE_TOTAL_NANOS, cacheStages[4]);
+        long readyDetail = meshes.readyBytes.detail(), readyCover = meshes.readyBytes.cover();
+        long retained = meshes.inputs.fineBytes() + meshes.inputs.coarseBytes() + readyDetail + readyCover;
+        int first = 0, rebuild = 0;
+        for (int encoded : meshes.inFlightNodes) {
+            if (encoded == 0) continue;
+            if (tree != null && tree.meshHandle(encoded - 1) >= 0) rebuild++;
+            else first++;
+        }
+        retained += meshes.packingBytes.get();
+        for (var p : meshes.pendingUploads) {
+            if (tree != null && tree.meshHandle(p.ticket.node()) >= 0) rebuild++;
+            else first++;
+        }
+        RenderWorkDiagnostics.gauge(FAR_LOD_PENDING_FIRST, first);
+        RenderWorkDiagnostics.gauge(FAR_LOD_PENDING_REBUILD, rebuild);
+        RenderWorkDiagnostics.gauge(FAR_LOD_JOBS, meshes.scheduler.jobs());
+        // Preserve ready-byte semantics: completed CPU payloads awaiting upload/publication.
+        // Unified descendants map to resident/detail work, roots to mandatory cover work.
+        RenderWorkDiagnostics.gauge(FAR_LOD_READY_RESIDENT_BYTES, readyDetail);
+        RenderWorkDiagnostics.gauge(FAR_LOD_READY_COVER_BYTES, readyCover);
+        RenderWorkDiagnostics.gauge(FAR_LOD_ALLOCATED_BYTES, meshes.arenas.bytes());
+        RenderWorkDiagnostics.gauge(FAR_LOD_RETAINED_CPU_BYTES, retained);
+        // Free/growing VBO breakdown and worker payload sizes are not exposed by these owners.
+    }
+
+    private static void observeDiagnostics() {
+        long epoch = diagnosticEpoch();
+        var w = FarViewDiagnostics.currentWatch(epoch);
+        if (w == null) return;
+        var tiles = new ArrayList<TileState>();
+        boolean sample = FarViewDiagnostics.sampleDue(epoch);
+        var nodeStates = sample ? new ArrayList<Map<String, Object>>() : null;
+        var finalWindow = finalNativeWindow();
+        for (int z = Math.max(0, w.z() - w.radius() * 16);
+                z <= Math.min(2032, w.z() + w.radius() * 16);
+                z += 16)
+            for (int x = Math.max(0, w.x() - w.radius() * 16);
+                    x <= Math.min(2032, w.x() + w.radius() * 16);
+                    x += 16) {
+                long key = tileKey(w.face(), x, z);
+                int selected = selectedNode(w.face(), x, z), desired = desiredNode(w.face(), x, z);
+                boolean nativeDrawn = finalWindow.contains(key);
+                boolean present = selected >= 0 && meshes.bundles.containsKey(tree.meshHandle(selected));
+                int selectedStep = selected < 0 ? 0 : tree.builtStep(selected);
+                int jobs = 0;
+                boolean ancestorPresent = false;
+                for (int encoded : meshes.inFlightNodes)
+                    if (encoded != 0 && containsTile(encoded - 1, w.face(), x, z)) jobs++;
+                int anchor = selected < 0 ? desired : selected;
+                for (int n = anchor < 0 ? -1 : GroundQuadtree.parent(anchor);
+                        n >= 0;
+                        n = GroundQuadtree.parent(n))
+                    if (tree.meshHandle(n) >= 0) ancestorPresent = true;
+                var pending = pendingAt(w.face(), x, z);
+                if (sample) {
+                    var state =
+                            diagnosticDrawInputs(
+                                    new FarViewDiagnostics.Watch(
+                                            w.planet(), w.face(), x, z, 0, epoch));
+                    state.put("x", x);
+                    state.put("z", z);
+                    state.put("coveringJobs", jobs);
+                    nodeStates.add(state);
+                }
+                // No fade/previous generation exists: publish replaces synchronously after upload.
+                tiles.add(
+                        new TileState(
+                                w.face(),
+                                x,
+                                z,
+                                nativeDrawn,
+                                desired < 0 ? -1 : tree.desiredStep(desired),
+                                selectedStep,
+                                present,
+                                present,
+                                false,
+                                false,
+                                false,
+                                jobs != 0 || pending != null,
+                                jobs,
+                                desired < 0 ? -1 : tree.desiredStep(desired),
+                                nativeDrawn ? 0 : selectedStep,
+                                present,
+                                ancestorPresent,
+                                pending != null && !pending.slots.isEmpty(),
+                                diagnosticVersions(key, selectedStep),
+                                -1,
+                                -1));
+            }
+        FarViewDiagnostics.observeRegion(
+                new RegionState(
+                        System.nanoTime(),
+                        epoch,
+                        planet,
+                        GroundClient.face(),
+                        selectionReady(),
+                        GroundViewClient.coverageReady(),
+                        remoteReplacementReady(),
+                        meshes.pendingUploads.size(),
+                        meshes.scheduler.jobs(),
+                        tiles));
+        if (sample)
+            FarViewDiagnostics.record(
+                    epoch,
+                    planet,
+                    w.face(),
+                    w.x(),
+                    w.z(),
+                    "quadtree-region",
+                    Map.of(
+                            "nativePass",
+                            "translucent",
+                            "tiles",
+                            nodeStates,
+                            "pixelVisibility",
+                            "unknown"));
+    }
+
+    static long meshSession() {
+        return meshes.generation;
+    }
+
+    static Set<Long> finalNativeWindow() {
+        return finalNativeCoverage.snapshot();
     }
 
     public static boolean selectionReady() {
-        return selectionActive && coverage.texture() != 0;
+        return selectionActive && tree != null;
     }
 
     public static int coverageTexture() {
-        return coverage.texture();
+        return meshes.arenas.nativeMaskTexture();
     }
 
-    public static boolean nativeVolume(int face) {
-        return false;
-    } // No face-wide ownership override: ground uses canonical full volumes.
+    public static boolean remotePatchReady(int patch) {
+        return selectionReady() && tree.patchReady(patch);
+    }
+
+    static boolean visiblePlanetReady() {
+        if (!selectionReady()) return false;
+        for (int patch = 0; patch < GroundQuadtree.ROOT_COUNT; patch++) {
+            int root = GroundQuadtree.root(patch);
+            if (tree.valid(root) && !tree.patchReady(patch) && nodeView(root).visible()) return false;
+        }
+        return true;
+    }
+
+    public static boolean remoteReplacementReady() {
+        if (!selectionReady()) return false;
+        for (int p = 0; p < GroundViewPolicy.PATCH_COUNT; p++)
+            if (GroundViewPolicy.exists(shape, p) && !remotePatchReady(p)) return false;
+        return true;
+    }
+
+    public static void clear() {
+        recoveryPosition = null;
+        recoveryCheckedView = recoveryCheckedRevision = Long.MIN_VALUE;
+        GroundMeshContext.clearBiomeCache();
+        meshes.invalidate();
+        for (int i = 0; i < gpuQueries.length; i++) {
+            if (gpuQueries[i] != 0) GL15.glDeleteQueries(gpuQueries[i]);
+            gpuQueries[i] = 0;
+            gpuPending[i] = false;
+        }
+        gpuCursor = 0;
+        meshes.clear(diagnosticEpoch(), frameWork, nativeTiles);
+        demandObservedFrame = -1;
+        if (failedNodes != null) failedNodes.clear();
+        failureLogs = 0;
+        tree = null;
+        cut = null;
+        for (int i = 0; i < selections.length; i++) selections[i] = new Selection(i == 1);
+        cullers = null;
+        anchorCullers = null;
+        targetsEpoch = Long.MIN_VALUE;
+        cullWindow = surfaceCullWindow = movementCullWindow = false;
+        Arrays.fill(nodeBounds, null);
+        Arrays.fill(nodeViews, null);
+        cullGeometry = new GroundQuadtreeCuller.Geometry();
+        closeMasks();
+        GroundExterior.clear();
+        GroundCompact.clear();
+        selectionActive = false;
+        finalNativeCoverage.reset();
+        window = Set.of();
+        Arrays.fill(realCorners, 0);
+        level = null;
+        shape = null;
+        planet = -1;
+        mask = null;
+        FarViewDiagnostics.observeContext(-1, meshes.generation, true, "renderer-clear");
+    }
+
+    private static void closeMasks() {
+        for (int i = 0; i < masks.length; i++) {
+            if (masks[i] != null) masks[i].close();
+            masks[i] = null;
+            maskAttempted[i] = false;
+        }
+    }
+
+    private static void ensureState() {
+        var mc = Minecraft.getInstance();
+        var observed = GroundClient.shape();
+        int id = GroundClient.planet();
+        var config = GroundFlightServer.mask(mc.level);
+        if (level == mc.level && planet == id && observed.equals(shape) && config.equals(mask))
+            return;
+        clear();
+        level = mc.level;
+        planet = id;
+        shape = observed;
+        mask = config;
+        tree = new GroundQuadtree(shape, MIN_TERRAIN_Y, MAX_TERRAIN_Y);
+        FarViewDiagnostics.observeContext(planet, meshes.generation, false, "quadtree-identity");
+    }
+
+    private static long tileKey(int face, int x, int z) {
+        return ChunkKeys.faceLocal(face, x / 16, z / 16);
+    }
+
+    private static void prepareMasks(GroundUploadBudget budget) {
+        for (int i = 0; i < masks.length && budget.cpuAvailable(); i++) {
+            int face = i % 6;
+            if (!GroundViewPolicy.exists(shape, face * 64)) continue;
+            if (!maskAttempted[i]) {
+                masks[i] = buildMask(face, i >= 6);
+                maskAttempted[i] = true;
+                maskRevision++;
+            }
+            var mesh = masks[i];
+            if (mesh != null && mesh.compact != null) {
+                int before = mesh.compact.indices();
+                mesh.compact.prepare(meshes.arenas, face, budget);
+                if (before != mesh.compact.indices()) maskRevision++;
+            }
+        }
+    }
+
+    private record MaskMesh(Map<RenderType, VertexBuffer> layers, Map<RenderType, Integer> indices,
+                            GroundMaskMesh compact) implements AutoCloseable {
+        public void close() {
+            if (compact != null) compact.close();
+            layers.values().forEach(VertexBuffer::close);
+        }
+    }
+
+    private static final class Builders extends GroundMeshVertices.Buffers {
+        MaskMesh upload(int ignored) {
+            var result = new LinkedHashMap<RenderType, VertexBuffer>();
+            var indices = new LinkedHashMap<RenderType, Integer>();
+            for (var e : buffers.entrySet()) {
+                var data = e.getValue().build();
+                if (data == null) continue;
+                if (buffers.size() == 1 && e.getKey() == RenderType.solid()
+                        && GroundMaskMesh.fits(data))
+                    return new MaskMesh(Map.of(), Map.of(), new GroundMaskMesh(data));
+                indices.put(e.getKey(), data.drawState().indexCount());
+                var gpu = new VertexBuffer(VertexBuffer.Usage.STATIC);
+                gpu.bind();
+                gpu.upload(data);
+                VertexBuffer.unbind();
+                result.put(e.getKey(), gpu);
+            }
+            return result.isEmpty() ? null : new MaskMesh(result, indices, null);
+        }
+    }
 
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
         GroundExterior.initialize(modBus);
@@ -192,56 +2061,59 @@ public final class GroundRenderer {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ViewportEvent.ComputeFov event) -> {
                     // Vanilla's FOV interpolation starts at zero before its first client tick.
-                    if(event.usedConfiguredFov() && event.getFOV()>0) lodFov=event.getFOV();
+                    if (event.usedConfiguredFov() && event.getFOV() > 0) {
+                        lodFov = event.getFOV();
+                        GroundMeshScheduler.lodFov = lodFov;
+                    }
                 });
         // Selection and connectors become visible before vanilla terrain draws, not mid-frame.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.RenderLevelStageEvent cpEvent) -> {
                     if (cpEvent.getStage()
                             != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage
-                                    .AFTER_SKY || probeOff) return;
-                    long start = System.nanoTime();
-                    if (GroundClient.ready() && RendererGuard.pipelineSupported()) ensureState();
-                    selectionActive =
-                            GroundClient.ready()
-                                    && RendererGuard.pipelineSupported()
-                                    && level == Minecraft.getInstance().level
-                                    && (ready || parentsComplete());
-                    if (GroundClient.ready()
-                            && RendererGuard.pipelineSupported()
-                            && level == Minecraft.getInstance().level) prepareSurfaceUpdates();
-                    if (selectionActive) updateExclusions();
-                    else if (level == Minecraft.getInstance().level && GroundClient.ready()) {
-                        // Partial startup cover must yield to submitted vanilla, not cover it.
-                        window = GroundNativeCoverage.visible();
-                        publishOwnership(coverage.ownership);
+                                    .AFTER_SKY) return;
+                    if (probeOff || !GroundClient.ready() || !RendererGuard.pipelineSupported()) {
+                        finalNativeCoverage.reset();
+                        return;
                     }
-                    selectionWork = System.nanoTime() - start;
-                    if (probeTiming) probeSkyNanos += selectionWork;
+                    long start = System.nanoTime();
+                    ensureState();
+                    prepareSurfaceUpdates();
+                    if (probeTiming) probeSkyNanos += System.nanoTime() - start;
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.RenderLevelStageEvent cpEvent) -> {
                     if (cpEvent.getStage()
-                            != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage
-                                    .AFTER_ENTITIES || probeOff) return;
+                                    != net.neoforged.neoforge.client.event.RenderLevelStageEvent
+                                            .Stage.AFTER_ENTITIES
+                            || probeOff) return;
                     var c = new RenderFrame(cpEvent);
                     if (!GroundClient.ready()
                             || !RendererGuard.pipelineSupported()
                             || c.matrixStack() == null) return;
-                    refreshNativeDraws();
-                    draw(c, false);
+                    try {
+                        refreshNativeDraws(false);
+                        draw(c, false);
+                        completeNativeDraw(false);
+                    } finally {
+                        GroundEdgeFilter.endNative();
+                    }
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.RenderLevelStageEvent cpEvent) -> {
                     if (cpEvent.getStage()
-                            != net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage
-                                    .AFTER_PARTICLES || probeOff) return;
+                                    != net.neoforged.neoforge.client.event.RenderLevelStageEvent
+                                            .Stage.AFTER_PARTICLES
+                            || probeOff) return;
                     var c = new RenderFrame(cpEvent);
                     if (GroundClient.ready()
                             && RendererGuard.pipelineSupported()
                             && c.matrixStack() != null) {
-                        refreshNativeDraws();
+                        refreshNativeDraws(true);
                         draw(c, true);
+                        completeNativeDraw(true);
+                    } else {
+                        finalNativeCoverage.reset();
                     }
                 });
         ClientPlayLifecycle();
@@ -258,6 +2130,7 @@ public final class GroundRenderer {
                                     @Override
                                     public void onResourceManagerReload(ResourceManager manager) {
                                         GroundTextureFilter.invalidateResources();
+                                        modelFaces.clear();
                                         clear();
                                         GroundMeshResources.endReload();
                                     }
@@ -275,136 +2148,6 @@ public final class GroundRenderer {
                     if (level != null && level != mc.level) clear();
                 });
     }
-
-    private static volatile long meshSession;
-
-    static long meshSession() { return meshSession; }
-
-    public static void clear() {
-        meshSession++;
-        lodSourceTerrain = null;
-        lodSource = null;
-        farPyramids.clear();
-        Arrays.fill(farVersions, 0);
-        Arrays.fill(overlayVersions, 0);
-        Arrays.fill(builtFarVersions, 0);
-        selectionActive = false;
-        selectionWork = 0;
-        if (pendingStitches != null) {
-            for (var mesh : pendingStitches) if (mesh != null) mesh.close();
-            pendingStitches = null;
-        }
-        pendingJob = null;
-        coverEpoch = stagedEpoch = 0;
-        nativeFace = -1;
-        clearParents();
-        closeSlots(staging);
-        patchQuads.clear();
-        stagedQuads.clear();
-        Arrays.fill(patchPaired, false);
-        Arrays.fill(stagedPaired, false);
-        Arrays.fill(patchLevels, 0);
-        Arrays.fill(builtLevels, 0);
-        Arrays.fill(drawnLevels, 0);
-        GroundExterior.clear();
-        Arrays.fill(coverInputs, null);
-        if (stitchJob != null) {
-            stitchJob.close();
-            stitchJob = null;
-        }
-        closeSlots(stitches);
-        stitchDirty = true;
-        coverJobs.forEach(CoverJob::close);
-        coverJobs.clear();
-        clearLod();
-        closeSlots(masks);
-        closeSlots(patches);
-        GroundCompact.clear();
-        coverage.close();
-        dirty.all();
-        coverCohort = null;
-        priorCoverage.clear();
-        window = Set.of();
-        level = null;
-        planet = -1;
-        mask = null;
-        ready = false;
-    }
-
-    public static int probeParentTiles() {
-        return parentJob == null ? -1 : parentJob.finished * 256;
-    }
-
-    public static int probeParents() {
-        int n = 0;
-        for (int face = 0; face < 6; face++) {
-            boolean complete = true;
-            for (int p = face * 64; p < (face + 1) * 64; p++)
-                if (GroundViewPolicy.exists(GroundClient.shape(), p) && parents[p] == null)
-                    complete = false;
-            if (complete) n++;
-        }
-        return n;
-    }
-
-    public static String performance() {
-        return "Parent coverage "
-                + probeParents()
-                + "/6 | derived build "
-                + String.format(java.util.Locale.ROOT, "%.2f", frameWork / 1e6)
-                + "ms | uploads "
-                + uploads
-                + " | dirty tiles "
-                + dirty.count()
-                + " | LOD "
-                + lodTiles.size()
-                + " / "
-                + String.format(java.util.Locale.ROOT, "%.1f MiB", lodBytes / 1048576.0)
-                + " | LOD queue "
-                + lodRequests.size()
-                + " | scanned "
-                + lastCells;
-    }
-
-    /** Vertex payloads (driver overhead/shared index buffers excluded) and packed CPU payloads. */
-    public static String memory() {
-        var meshes=Collections.newSetFromMap(new IdentityHashMap<Mesh,Boolean>());
-        for(var group:new Mesh[][]{masks,stitches,parents,patches,staging})
-            for(var mesh:group) if(mesh!=null) meshes.add(mesh);
-        var bands=new TreeMap<Integer,Integer>();
-        for(var tile:lodTiles.values()) {
-            meshes.add(tile.current); if(tile.previous!=null) meshes.add(tile.previous);
-            bands.merge(tile.requested,1,Integer::sum);
-        }
-        var farBands=new TreeMap<Integer,Integer>();
-        var stagedBands=new TreeMap<Integer,Integer>();
-        int coarseParents=0;
-        for(int p=0;p<patches.length;p++) {
-            if(patches[p]!=null) farBands.merge(drawnLevels[p],1,Integer::sum);
-            if(staging[p]!=null) stagedBands.merge(builtLevels[p],1,Integer::sum);
-            if(parents[p]!=null) coarseParents++;
-        }
-        long gpu=meshes.stream().mapToLong(m->m.bytes).sum()+GroundExterior.gpuBytes()+GroundCompact.gpuBytes();
-        long edits=GroundViewClient.overlays().values().stream().mapToLong(GroundSurface::memoryBytes).sum();
-        long quads=patchQuads.values().stream().mapToLong(List::size).sum()+stagedQuads.values().stream().mapToLong(List::size).sum();
-        var runtime=Runtime.getRuntime();
-        return "LOD_MEMORY basePackedBytes="+GroundBaseCache.retainedBytes()+" fineLruBytes="+GroundBaseCache.fineBytes()+" overlayPackedBytes="+edits
-                +" gpuVertexBytes="+gpu+" retainedPatchQuads="+quads
-                +" heapUsedBytes="+(runtime.totalMemory()-runtime.freeMemory())
-                +" heapCommittedBytes="+runtime.totalMemory()+" residentAccountedBytes="+lodBytes
-                +" residentBands="+bands+" farBands="+farBands+" stagedFarBands="+stagedBands+" L64Parents="+coarseParents
-                +" farBuild="+(coverJobs.isEmpty() ? "idle":coverJobs.size()+" building")
-                +" fov="+lodFov+" windowHeight="+Minecraft.getInstance().getWindow().getHeight()
-                +" edits="+GroundViewClient.overlays().entrySet().stream().map(e->{
-                    var tile=lodTiles.get(e.getKey());
-                    return e.getKey()+":"+Arrays.stream(e.getValue().heights()).max().orElse(-1)+":"
-                            +(tile==null ? "absent":tile.current.surface==null ? "base":tile.current.surface.revision())
-                            +"/"+e.getValue().revision();
-                }).toList();
-    }
-
-    private static PlanetShape shape;
-    private static final int[] realCorners = new int[6];
 
     public static int realCorners(int face) {
         return realCorners[face];
@@ -437,1069 +2180,12 @@ public final class GroundRenderer {
                 if (masks[face] != null) masks[face].close();
                 if (masks[face + 6] != null) masks[face + 6].close();
                 masks[face] = masks[face + 6] = null;
+                maskAttempted[face] = maskAttempted[face + 6] = false;
             }
         }
     }
 
-    private static boolean parentsComplete() {
-        for (int p = 0; p < parents.length; p++)
-            if (GroundViewPolicy.exists(shape, p) && parents[p] == null) return false;
-        return true;
-    }
-
-    /** Every patch the observed planet has is built. */
-    private static boolean patchesComplete() {
-        var now = GroundClient.shape();
-        for (int p = 0; p < patches.length; p++)
-            if (patches[p] == null && GroundViewPolicy.exists(now, p)) return false;
-        return true;
-    }
-
-    private static void ensureState() {
-        var mc = Minecraft.getInstance();
-        // Another planet is another surface: nothing built for the last one is kept, and its
-        // patches need not exist here.
-        var observed = GroundClient.shape();
-        int observedPlanet = GroundClient.planet();
-        if (level != mc.level || planet != observedPlanet || !observed.equals(shape)) {
-            clear();
-            level = mc.level;
-            planet = observedPlanet;
-            shape = observed;
-        }
-        var current = GroundFlightServer.mask(level);
-        if (!current.equals(mask)) {
-            mask = current;
-            Arrays.fill(coverInputs, null);
-            clearParents();
-            stitchDirty = true;
-            dirty.all();
-            coverCohort = null;
-            if (stitchJob != null) {
-                stitchJob.close();
-                stitchJob = null;
-            }
-            if (pendingStitches != null) {
-                for (var m : pendingStitches) m.close();
-                pendingStitches = null;
-            }
-            pendingJob = null;
-            coverJobs.forEach(CoverJob::close);
-            coverJobs.clear();
-            for (int i = 0; i < masks.length; i++) {
-                if (masks[i] != null) masks[i].close();
-                masks[i] = null;
-            }
-                clearLod();
-        }
-    }
-
-    private static void draw(RenderFrame c, boolean translucent) {
-        var mc = Minecraft.getInstance();
-        long prep = System.nanoTime();
-        ensureState();
-        if (GroundViewClient.terrain() == null || lodSource(GroundViewClient.terrain()) == null) return;
-        refreshCoverage();
-        closureCoverage();
-        if (!translucent) updateMeshes();
-        if (probeTiming) probePrepNanos += System.nanoTime() - prep;
-        if (!probeTiming) {
-            drawLayers(c, translucent);
-            return;
-        }
-        if (probeQueries[0] == 0) GL15.glGenQueries(probeQueries);
-        int query = probeQueries[probeQuery++ % probeQueries.length];
-        // The slot was last used a few frames ago; its result is ready or nearly so.
-        if (probeQuery > probeQueries.length)
-            probeGpuNanos += GL33.glGetQueryObjecti64(query, GL15.GL_QUERY_RESULT);
-        long start = System.nanoTime();
-        GL15.glBeginQuery(GL33.GL_TIME_ELAPSED, query);
-        drawLayers(c, translucent);
-        GL15.glEndQuery(GL33.GL_TIME_ELAPSED);
-        probeCpuNanos += System.nanoTime() - start;
-    }
-
-    private static void updateMeshes() {
-        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.MESH);
-        try {
-        long start = System.nanoTime();
-        // Near volumes are the only terrain shown on the ground: while any is meshing or
-        // waiting to
-        // commit, spend the larger near budget. Idle frames and background cover keep the base
-        // budget.
-        boolean parentsReady = parentsComplete();
-        long deadline =
-                start
-                        + (!parentsReady
-                                        || !lodJobs.isEmpty()
-                                        || stitchJob != null
-                                ? GroundViewPolicy.NEAR_BUDGET_NS
-                                : GroundViewPolicy.FRAME_BUDGET_NS);
-        uploads = 0;
-        lastCells = 0;
-        long readyBytes = 0;
-        for (var resident : lodJobs)
-            if (resident.quads.state() == java.util.concurrent.Future.State.SUCCESS)
-                readyBytes += resident.quads.resultNow().size() * 4L * GroundCompact.FORMAT.getVertexSize();
-        for (var cover : coverJobs)
-            if (cover.done()) readyBytes += (cover.quads.size() + cover.previous.size()) * 96L;
-        lodWorkers.readyBytes(readyBytes);
-        selectionPose = shape.canonical(CubeSurfaceTopology.Face.VALUES[GroundClient.face()], GroundClient.eye()).pose();
-        selectionCamera = shape.position(selectionPose);
-        for (int face = 0; face < 6 && System.nanoTime() < deadline; face++)
-            if (masks[face] == null) {
-                masks[face] = buildMask(face, false);
-                masks[face + 6] = buildMask(face, true);
-                uploads++;
-            }
-        // Build the first complete cover promptly; refinements then return to their background
-        // share.
-        long coverDeadline = start + GroundViewPolicy.coverBudget(parentsReady);
-        // Commit/build before optional discovery, which can otherwise consume the whole share.
-        updateCover(coverDeadline);
-        var look = Minecraft.getInstance().gameRenderer.getMainCamera().getLookVector();
-        selectionNow = System.nanoTime();
-        selectionChanged = lodRefresh.update(selectionPose, lodFov,
-                Minecraft.getInstance().getWindow().getHeight(), selectionVersion,
-                look.x(), look.y(), look.z(), selectionNow);
-        if (selectionChanged) {
-            farRemaining = GroundViewPolicy.PATCH_COUNT;
-            maintenanceRemaining = lodMaintenance.size();
-        }
-        selectFarLevels(coverDeadline);
-        // Own budget: earlier cover/parent work must not starve resident scheduling and drains.
-        if (parentsReady) updateLod(System.nanoTime() + GroundViewPolicy.NEAR_BUDGET_NS / 2);
-        ready = GroundViewClient.coverageReady() && patchesComplete();
-        updateStitches(deadline);
-        // Only G changes here. Vanilla's R ownership was fixed before its draw began.
-        if (lodAtlasDirty && coverage.texture() != 0) publishOwnership(coverage.ownership);
-        frameWork = System.nanoTime() - start + selectionWork;
-        } finally {
-            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.MESH);
-        }
-    }
-
-    private static void updateCover(long coverDeadline) {
-        farPyramids.focus(selectionCamera);
-        farPyramids.poll().stream()
-                .forEach(
-                        p -> {
-                            farVersions[p]++;
-                            selectionVersion++;
-                            dirty.patch(p);
-                        });
-        var overlays = farPyramids.polledOverlays();
-        for (int p = overlays.nextSetBit(0); p >= 0; p = overlays.nextSetBit(p + 1)) overlayVersions[p]++;
-        if (GroundViewClient.coverageReady()
-                && !parentsComplete()
-                && System.nanoTime() < coverDeadline) {
-            long parentStart = DevelopmentHooks.arrival.start();
-            if (parentJob == null) parentJob = new ParentJob();
-            parentJob.step(coverDeadline);
-            if (DevelopmentHooks.arrival.enabled())
-                DevelopmentHooks.parentNanos += System.nanoTime() - parentStart;
-            if (parentJob.done()) {
-                parentJob.close();
-                parentJob = null;
-                stitchDirty = true;
-            }
-        }
-        if (GroundViewClient.coverageReady()
-                && parentsComplete()
-                && System.nanoTime() < coverDeadline) {
-            // A latched cohort polls each patch once, so jobs in flight never share a patch.
-            int polled = 0;
-            while (coverJobs.size() < LOD_THREADS && lodWorkers.canSubmit(true)
-                    && polled++ < 64 && System.nanoTime() < coverDeadline) {
-                if (coverCohort == null && dirty.count() != 0) {
-                    coverCohort =
-                            GroundCoverSnapshot.far(
-                                    GroundViewClient.heights(),
-                                    GroundViewClient.overlays(),
-                                    GroundViewClient.changed());
-                    dirty.latch();
-                }
-                int patch = dirty.poll();
-                if (patch < 0) break;
-                if (patchPaired[patch]
-                        && VoxelLodPolicy.fade(patchCommitted[patch], System.nanoTime()) < 1) {
-                    dirty.tile(
-                            tileKey(
-                                    GroundViewPolicy.face(patch),
-                                    GroundViewPolicy.x(patch),
-                                    GroundViewPolicy.z(patch)));
-                    break;
-                }
-                var inputs =
-                        coverCohort.farPatch(
-                                GroundViewPolicy.face(patch),
-                                GroundViewPolicy.x(patch),
-                                GroundViewPolicy.z(patch));
-                if (!inputs.sameInputs(coverInputs[patch])
-                        || builtLevels[patch] != patchLevels[patch]
-                        || builtFarVersions[patch] != farVersions[patch])
-                    coverJobs.add(new CoverJob(patch, inputs));
-            }
-            for (var it = coverJobs.iterator(); it.hasNext(); ) {
-                var coverJob = it.next();
-                coverJob.step(coverDeadline);
-                if (!coverJob.done()) continue;
-                it.remove();
-                int patch = coverJob.patch;
-                var inputs = coverJob.builders.cover;
-                var mesh = coverJob.finish();
-                coverInputs[patch] = inputs;
-                builtLevels[patch] = coverJob.step;
-                builtFarVersions[patch] = coverJob.farVersion;
-                stagedQuads.put(patch, coverJob.quads);
-                stagedPaired[patch] = !coverJob.previous.isEmpty();
-                var old = staging[patch];
-                staging[patch] = mesh;
-                stagedEpoch++;
-                if (old != null) old.close();
-                uploads++;
-            }
-            if (coverCohort != null
-                    && dirty.count() == 0
-                    && coverJobs.isEmpty()
-                    && Arrays.stream(staging).allMatch(Objects::isNull)) {
-                coverCohort = null;
-                dirty.promote();
-            }
-        }
-    }
-
-    private static final GroundMipCache farPyramids = new GroundMipCache();
-    private static final long[] farVersions = new long[GroundViewPolicy.PATCH_COUNT];
-    // Captured-column changes only: L1/L2 tiles read fine columns, never the coarse base mips.
-    private static final long[] overlayVersions = new long[GroundViewPolicy.PATCH_COUNT];
-    private static final long[] builtFarVersions = new long[GroundViewPolicy.PATCH_COUNT];
-    private static int farCursor;
-
-    private static void selectFarLevels(long deadline) {
-        if (!GroundViewClient.coverageReady()) return;
-        var camera = selectionCamera;
-        // Complete a bounded sweep only when its spatial/projection/data inputs changed.
-        for (int work = 0; work < 8 && farRemaining > 0 && System.nanoTime() < deadline; work++, farRemaining--) {
-            int p = farCursor;
-            farCursor = (farCursor + 1) % GroundViewPolicy.PATCH_COUNT;
-            if (!GroundViewPolicy.exists(shape, p)) continue;
-            var mesh = patches[p] == null ? parents[p] : patches[p];
-            double distance =
-                    mesh == null ? Double.POSITIVE_INFINITY : mesh.cover.distance(shape, camera, p);
-            if (!Double.isFinite(distance)) {
-                var heights = GroundViewClient.heights();
-                double h =
-                        heights == null
-                                ? 0
-                                : heights.surfaceNode(
-                                        CubeSurfaceTopology.Face.VALUES[GroundViewPolicy.face(p)],
-                                        Math.min(shape.size(), GroundViewPolicy.x(p) + 128),
-                                        Math.min(shape.size(), GroundViewPolicy.z(p) + 128));
-                distance = GroundFarMesh.distance(shape, camera, p, h);
-            }
-            int next = Double.isFinite(distance) ? GroundFarMesh.level(distance, patchLevels[p],lodFov,
-                    Minecraft.getInstance().getWindow().getHeight()) : 64;
-            if (next != patchLevels[p]) {
-                patchLevels[p] = next;
-                dirty.tile(
-                        tileKey(
-                                GroundViewPolicy.face(p),
-                                GroundViewPolicy.x(p),
-                                GroundViewPolicy.z(p)));
-            }
-        }
-    }
-
-    static java.util.concurrent.Future<List<VoxelMesher.Quad>> farMesh(
-            PlanetShape observed,
-            int patch,
-            int step,
-            PlanetTerrain terrain,
-            GroundCoverSnapshot cover,
-            GroundMipCache pyramids) {
-        var field = pyramids==farPyramids
-                ? pyramids.field(observed,terrain,GroundViewClient::overlay,patch)
-                : pyramids.field(observed, terrain, cover, patch);
-        return lodWorkers.farMesh(observed, patch, step, field);
-    }
-
-    private static double lodHeight(long key) {
-        var image = GroundViewClient.surface(key);
-        if (image != null) return image.height(8, 8) + 1 - 128;
-        return GroundTransition.generated(
-                GroundViewClient.heights(),
-                CubeSurfaceTopology.Face.VALUES[(int) (key / 16384)],
-                key % 128 * 16 + 8,
-                key / 128 % 128 * 16 + 8);
-    }
-
-    /** In orbit the drawn disk is flatter than the sphere and reaches far past its horizon: use the
-     *  orbit shader's own facing and range clip. Near the ground the sphere horizon stays. */
-    private static java.util.function.LongPredicate displayed(BentStripGeometry.Point camera) {
-        var e = GroundClient.eye();
-        if (e.y() <= GroundOrbit.START)
-            return key ->
-                    VoxelLodPolicy.horizonVisible(
-                            shape,
-                            camera,
-                            CubeSurfaceTopology.Face.VALUES[(int) (key / 16384)],
-                            (int) (key % 128) * 16,
-                            (int) (key / 128 % 128) * 16);
-        var orbit = GroundClient.orbit();
-        // Half a tile diagonal beyond the clip, so edge tiles are not left coarse.
-        double range = GroundClient.range(e, orbit, GroundClient.gap()) + 12;
-        return key -> {
-            var face = CubeSurfaceTopology.Face.VALUES[(int) (key / 16384)];
-            var p =
-                    new BentStripGeometry.Point(
-                            key % 128 * 16 + 8, lodHeight(key), key / 128 % 128 * 16 + 8);
-            if (shape.direction(face, p.x(), p.z()).dot(orbit.normal) < orbit.minimumFacing - .01)
-                return false;
-            var q = orbit.point(face, p);
-            return Math.hypot(q.x() - e.x(), q.z() - e.z()) <= range;
-        };
-    }
-
-    private static void requestLod(GroundLodSelection.Tile tile, int step) {
-        var old = lodTiles.get(tile.key());
-        if (old != null
-                && (old.retiring
-                        || old.fadeQueued
-                        || old.requested == step
-                                && !lodInputsChanged(old, GroundViewClient.surface(tile.key()))))
-            return;
-        double priority=tile.distance();
-        if(lodFov<30) {
-            var chart = GroundClient.projectedFrame() ? GroundClient.gap().chart
-                    : new PlanetChart(shape,CubeSurfaceTopology.Face.VALUES[GroundClient.face()]);
-            var plot=chart.tile(CubeSurfaceTopology.Face.VALUES[(int)(tile.key()/16384)]);
-            if(plot!=null) {
-                var target=plot.point(new BentStripGeometry.Point(tile.key()%128*16+8,lodHeight(tile.key()),tile.key()/128%128*16+8))
-                        .sub(GroundClient.eye());
-                var look=Minecraft.getInstance().gameRenderer.getMainCamera().getLookVector();
-                priority+=(1-(target.x()*look.x()+target.y()*look.y()+target.z()*look.z())/target.length())*100000;
-            } else priority+=200000;
-        }
-        if (lodQueued.size() < VoxelLodPolicy.RESIDENT_TILES && lodQueued.add(tile.key()))
-            lodRequests.add(new GroundLodSelection.Tile(tile.key(),priority,GroundViewClient.overlay(tile.key())!=null));
-    }
-
-    private static boolean lodInputsChanged(LodTile tile, GroundSurface image) {
-        if (tile.observed != image) {
-            tile.observed = image;
-            tile.dirty =
-                    tile.current.surface == null
-                            ? image != null
-                            : image == null || !tile.current.surface.sameColumns(image);
-        }
-        return tile.dirty || tile.mipVersion != mipVersion(tile.mipPatch, tile.requested);
-    }
-
-    /** A rebuild input version for a tile at {@code step}; base-mip progress cannot change L1/L2. */
-    private static long mipVersion(int patch, int step) {
-        return step >= 4 ? farVersions[patch] : overlayVersions[patch];
-    }
-
-    private static void retireLod(long key, LodTile tile, long now) {
-        if (tile.retiring) return;
-        changedLod(key, tile);
-        // The coarse layer is already committed. Restore it before fading/releasing the resident.
-        lodComplete.clear((int) key);
-        lodAtlasDirty = true;
-        closeLodMesh(tile.previous);
-        tile.previous = null;
-        tile.retiring = true;
-        tile.committed = now;
-        if (!tile.fadeQueued) {
-            lodFades.add(key);
-            tile.fadeQueued = true;
-        }
-    }
-
-    private static void updateLod(long deadline) {
-        if (!GroundViewClient.coverageReady()) return;
-        if (!lodStarted) {
-            selectionChanged = true;
-            lodStarted = true;
-        }
-        var camera = selectionCamera;
-        if (selectionChanged) {
-            lodSelection.visible(displayed(camera));
-            lodSelection.projection(lodFov,Minecraft.getInstance().getWindow().getHeight(),selectionNow);
-        }
-        if (selectionChanged && lodSelection.move(shape, selectionPose, camera, GroundRenderer::lodHeight)) {
-            lodRequests.clear();
-            lodQueued.clear();
-            lodPressure = Double.POSITIVE_INFINITY;
-            lodJobs.removeIf(
-                    job -> {
-                        double distance =
-                                GroundLodSelection.distance(
-                                        shape, camera, job.key, lodHeight(job.key));
-                        int step = lodSelection.level(job.key, distance);
-                        if (step != 0 && step <= job.requested && !window.contains(job.key))
-                            return false;
-                        job.close();
-                        return true;
-                    });
-        }
-        long now = System.nanoTime();
-        // Poll transitions separately: stable far residents must not delay a half-second swap.
-        int fading = Math.min(128, lodFades.size());
-        while (fading-- > 0 && System.nanoTime() < deadline) {
-            long key = lodFades.remove();
-            var tile = lodTiles.get(key);
-            if (tile == null) continue;
-            if (VoxelLodPolicy.fade(tile.committed, now) < 1) {
-                lodFades.add(key);
-                continue;
-            }
-            tile.fadeQueued = false;
-            closeLodMesh(tile.previous);
-            tile.previous = null;
-            if (tile.retiring) {
-                closeLodMesh(tile.current);
-                lodTiles.remove(key);
-                changedLod(key, null);
-                lodMaintenance.remove(key);
-            } else {
-                changedLod(key, tile);
-                lodComplete.set((int) key);
-                lodAtlasDirty = true;
-                maintenanceRemaining = lodMaintenance.size();
-            }
-        }
-        // Bound housekeeping too; retained geometry is safe if fast motion outruns this queue.
-        int count = Math.min(128, Math.min(maintenanceRemaining, lodMaintenance.size()));
-        while (count-- > 0 && System.nanoTime() < deadline) {
-            maintenanceRemaining--;
-            long key = lodMaintenance.removeFirst();
-            var tile = lodTiles.get(key);
-            if (tile == null) continue;
-            lodMaintenance.add(key);
-            if (tile.retiring) continue;
-            double distance = GroundLodSelection.distance(shape, camera, key, lodHeight(key));
-            int step = lodSelection.level(key, distance);
-            if (step == 0 || distance > Math.max(256, lodPressure + 64)) retireLod(key, tile, now);
-            else if (!tile.fadeQueued) requestLod(new GroundLodSelection.Tile(key, distance), step);
-        }
-        // Discovery gets at most a quarter of this frame's existing base budget.
-        lodSelection.step(
-                shape,
-                Math.min(deadline, System.nanoTime() + GroundViewPolicy.FRAME_BUDGET_NS / 4),
-                System::nanoTime,
-                GroundRenderer::lodHeight,
-                GroundRenderer::requestLod);
-        while (lodJobs.size() < 4 * LOD_THREADS
-                && lodWorkers.canSubmit(false)
-                && !lodRequests.isEmpty()
-                && System.nanoTime() < deadline) {
-            var next = lodRequests.peek();
-            double distance =
-                    GroundLodSelection.distance(shape, camera, next.key(), lodHeight(next.key()));
-            int step = lodSelection.level(next.key(), distance);
-            var prior = lodTiles.get(next.key());
-            var image = GroundViewClient.surface(next.key());
-            if (step == 0
-                    || window.contains(next.key())
-                    || prior != null
-                            && (prior.retiring
-                                    || prior.fadeQueued
-                                    || prior.requested == step && !lodInputsChanged(prior, image))
-                    || image == null && GroundViewClient.terrain() == null
-                    || GroundViewClient.isChanged(next.key()) && image == null
-                    || lodJobs.stream().anyMatch(j -> j.key == next.key())) {
-                lodRequests.remove();
-                lodQueued.remove(next.key());
-                continue;
-            }
-            if (!VoxelLodPolicy.admits(
-                    lodBytes + lodJobs.size() * VoxelLodPolicy.TILE_BYTES,
-                    VoxelLodPolicy.TILE_BYTES,
-                    lodTiles.size() + lodJobs.size())) {
-                lodPressure = distance;
-                break;
-            }
-            lodPressure = Double.POSITIVE_INFINITY;
-            lodRequests.remove();
-            lodQueued.remove(next.key());
-            lodJobs.add(new LodJob(next.key(), step, image));
-        }
-        if (lodRequests.isEmpty()) lodPressure = Double.POSITIVE_INFINITY;
-        for (var it = lodJobs.iterator(); it.hasNext() && System.nanoTime() < deadline; ) {
-            var job = it.next();
-            if (!job.drain(deadline)) continue;
-            it.remove();
-            if (job.failed()) {
-                job.close();
-                continue;
-            }
-            {
-                long key = job.key;
-                int step = job.requested;
-                var mesh = job.finish();
-                if (mesh == null) continue; // Arena capacity hit the resident byte ceiling.
-                // Current + fading previous + one candidate share the same byte ceiling.
-                if (VoxelLodPolicy.admits(lodBytes, lodBytes(mesh), lodTiles.size())) {
-                    var old = lodTiles.get(key);
-                    if (old != null) closeLodMesh(old.previous);
-                    var tile =
-                            new LodTile(
-                                    mesh,
-                                    old == null ? null : old.current,
-                                    step,
-                                    System.nanoTime(),
-                                    key,
-                                    job.mipVersion);
-                    if (old == null || !old.fadeQueued) lodFades.add(key);
-                    tile.fadeQueued = true;
-                    lodTiles.put(key, tile);
-                    changedLod(key, tile);
-                    lodBytes += lodBytes(mesh) - mesh.bytes;
-                    if (old == null) lodMaintenance.add(key);
-                    uploads++;
-                } else mesh.close();
-            }
-        }
-    }
-
-    private static PlanetTerrain lodSourceTerrain;
-    private static dev.starfold.worldgen.surface.SurfaceFunction lodSource;
-
-    private static dev.starfold.worldgen.surface.SurfaceFunction lodSource(PlanetTerrain terrain) {
-        if (terrain == null) return null;
-        var ready = terrain.readySurface();
-        if (ready != null) {
-            GroundBaseCache.observe(terrain);
-            lodSourceTerrain = terrain;
-            lodSource = ready;
-        }
-        return terrain == lodSourceTerrain ? lodSource : null;
-    }
-
-    private static final class LodJob implements AutoCloseable {
-        final long key;
-        final int requested, face, x, z;
-        final long mipVersion;
-        final Builders builders = new Builders(true, true);
-        final java.util.concurrent.Future<List<VoxelMesher.Quad>> quads;
-        List<VoxelMesher.Quad> ready;
-        private final GroundMeshLease lease = new GroundMeshLease(builders::close);
-
-        LodJob(long key, int requested, GroundSurface image) {
-            this.key = key;
-            this.requested = requested;
-            mipVersion = mipVersion(GroundViewPolicy.patch(key), requested);
-            face = (int) (key / 16384);
-            x = (int) (key % 128) * 16;
-            z = (int) (key / 128 % 128) * 16;
-            builders.surfaceFace = face;
-            builders.lodKey = key;
-            builders.image = image;
-            builders.cover = GroundCoverSnapshot.parent(GroundViewClient.heights(), new BitSet());
-            var observed = shape;
-            int patch = GroundViewPolicy.patch(key);
-            // Freeze captured column inputs here; workers never access the live view or height
-            // cache.
-            var field =
-                    farPyramids.field(
-                            observed,
-                            GroundViewClient.terrain(),
-                            GroundViewClient::overlay,
-                            patch);
-            // Vertex building (models, atlas, biome tint) runs on the worker like vanilla section
-            // compiles; the render thread only uploads.
-            quads =
-                    lodWorkers.submit(
-                            () -> {
-                                var built =
-                                        GroundFarMesh.build(
-                                                observed,
-                                                CubeSurfaceTopology.Face.VALUES[face],
-                                                x,
-                                                z,
-                                                16,
-                                                requested,
-                                                field);
-                                if (!lease.begin()) return List.<VoxelMesher.Quad>of();
-                                try {
-                                    GroundMeshResources.read(builders.context.resources(), () -> {
-                                    for (var q : built)
-                                        surfacePolygon(
-                                                builders,
-                                                q.material(),
-                                                q.points(),
-                                                x,
-                                                z,
-                                                true,
-                                                GroundShaderSource.patchTag(false, GroundFarMesh.side(q)),
-                                                q.rgb());
-                                    });
-                                } finally {
-                                    lease.end();
-                                }
-                                return built;
-                            });
-        }
-
-        /** True once the worker has built and fed the tile (or failed). */
-        boolean drain(long deadline) {
-            if (ready == null) {
-                if (!quads.isDone()) return false;
-                try {
-                    ready = quads.get();
-                } catch (Exception failure) {
-                    org.slf4j.LoggerFactory.getLogger("starfold")
-                            .warn("LOD tile {} failed", key, failure);
-                    ready = List.of();
-                }
-            }
-            return true;
-        }
-
-        boolean failed() {
-            return ready == null || ready.isEmpty();
-        }
-
-        Mesh finish() {
-            try {
-                return builders.upload(0);
-            } finally {
-                close();
-            }
-        }
-
-        public void close() {
-            quads.cancel(false);
-            lease.close();
-        }
-    }
-
-    // Repaired grid nodes for this frame's gap; kept across frames only for its capacity.
-    private static final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<BentStripGeometry.Point> lodNodes =
-            new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
-
-    private static boolean compactLod(GroundLodGroup<LodTile> group) {
-        var counts = new LinkedHashMap<RenderType, Integer>();
-        AABB bounds = null;
-        for (var tile : group.members.values()) {
-            var mesh = tile.current;
-            if (mesh.bounds != null) bounds = bounds == null ? mesh.bounds : bounds.minmax(mesh.bounds);
-            for (var e : mesh.lodLayers.entrySet()) counts.merge(e.getKey(), e.getValue().vertices(), Integer::sum);
-        }
-        // Reserve every destination before freeing any source: same-buffer copies cannot overlap.
-        var blocks = new LinkedHashMap<RenderType, GroundLodArena.Range>();
-        int face = (int)(group.members.keySet().iterator().next() / 16384);
-        for (var e : counts.entrySet()) {
-            var target = lodArenas.get(face).get(e.getKey());
-            long before = target.bytes();
-            var block = target.allocate(e.getValue(), VoxelLodPolicy.RESIDENT_BYTES - lodBytes);
-            lodBytes += target.bytes() - before;
-            if (block == null) {
-                for (var allocated : blocks.values()) allocated.close();
-                return false;
-            }
-            blocks.put(e.getKey(), block);
-        }
-        for (var e : blocks.entrySet()) {
-            int offset = 0;
-            for (var tile : group.members.values()) {
-                var ranges = tile.current.lodLayers;
-                var source = ranges.get(e.getKey());
-                if (source == null) continue;
-                var range = e.getValue().slice(offset, source.vertices());
-                source.arena().copy(source, range);
-                source.close();
-                ranges.put(e.getKey(), range);
-                offset += range.vertices();
-            }
-        }
-        group.layers.putAll(blocks);
-        group.bounds = bounds;
-        group.compact = true;
-        lodDrawCache.invalidate(group);
-        return true;
-    }
-
-    private static void compactLods() {
-        long now = System.nanoTime();
-        // Round-robin, including budget failures: at most four groups (64 members) checked/copied.
-        int count = Math.min(4, lodCompactions.size());
-        while (count-- > 0) {
-            var group = lodCompactions.removeFirst();
-            boolean settled = true;
-            for (var tile : group.members.values()) {
-                probeTiles++;
-                if (tile.previous != null || tile.retiring || VoxelLodPolicy.fade(tile.committed, now) != 1) {
-                    settled = false;
-                    break;
-                }
-            }
-            if (!settled || !compactLod(group)) lodCompactions.add(group);
-        }
-    }
-
-    private static boolean visibleLod(RenderFrame c, int face, AABB bounds, PlanetGap gap) {
-        if (gap == null || bounds == null) return true;
-        bounds = GroundLodBounds.planar(bounds, gap, CubeSurfaceTopology.Face.VALUES[face], lodNodes);
-        if (bounds == null) return true;
-        var frame = GroundClient.frame();
-        var origin = GroundClient.origin();
-        var a = frame.toClient(origin.add(new BentStripGeometry.Point(bounds.minX, bounds.minY, bounds.minZ)));
-        var b = frame.toClient(origin.add(new BentStripGeometry.Point(bounds.maxX, bounds.maxY, bounds.maxZ)));
-        bounds = new AABB(a.x(), a.y(), a.z(), b.x(), b.y(), b.z());
-        var eye = c.camera().getPosition();
-        // Closure walls are pushed along the eye ray in the shader.
-        double dx = Math.max(Math.abs(bounds.minX-eye.x), Math.abs(bounds.maxX-eye.x));
-        double dy = Math.max(Math.abs(bounds.minY-eye.y), Math.abs(bounds.maxY-eye.y));
-        double dz = Math.max(Math.abs(bounds.minZ-eye.z), Math.abs(bounds.maxZ-eye.z));
-        double radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        double scale = 1 + Math.max(.002, 3e-6 * radius);
-        var pushed = new AABB(eye.x + (bounds.minX-eye.x)*scale, eye.y + (bounds.minY-eye.y)*scale, eye.z + (bounds.minZ-eye.z)*scale,
-                eye.x + (bounds.maxX-eye.x)*scale, eye.y + (bounds.maxY-eye.y)*scale, eye.z + (bounds.maxZ-eye.z)*scale);
-        return c.event().getFrustum().isVisible(bounds.minmax(pushed).inflate(1));
-    }
-
-    private static void prepareLodDraws(RenderFrame c) {
-        compactLods();
-        // Above the ground chart the shader changes the screen lens too; vanilla's frustum
-        // cannot conservatively test those positions. Keep them until a lens-aware culler exists.
-        var gap = GroundClient.eye().y() <= GroundOrbit.START && !GroundFlightClient.controlled()
-                ? GroundClient.gap() : null;
-        lodNodes.clear();
-        // The orbital path has no camera culling; only mesh/fade/group changes affect its draws.
-        if (lodDrawCache.prepare(lodGroups, gap != null, !lodFades.isEmpty(),
-                (face, bounds) -> visibleLod(c, face, bounds, gap))) {
-            probeTiles += lodDrawCache.visited;
-            probeGroups += lodDrawCache.groups;
-            probeCompactGroups += lodDrawCache.compact;
-        }
-    }
-
-    private static void drawLods(RenderFrame c, int face, RenderType layer) {
-        var tiles = lodDrawCache.faces.get(face).get(layer);
-        if (tiles == null || tiles.isEmpty()) return;
-        var arena = lodArenas.get(face).get(layer);
-        if (arena == null) return;
-        var shader = GroundCompact.shader();
-        if (shader == null) return;
-        GroundClient.source(face, true, true);
-        GroundClient.cover(true);
-        GroundClient.lod(0, 1);
-        var matrix =
-                GroundClient.place(
-                        new Matrix4f(RenderSystem.getModelViewMatrix())
-                                .mul(c.matrixStack().last().pose()),
-                        face,
-                        c.camera().getPosition());
-        // All resident buffers use the same format/program and face transform. Do not upload
-        // the entire ground/atmosphere uniform set for every 16-block tile.
-        shader.setDefaultUniforms(
-                VertexFormat.Mode.QUADS,
-                matrix,
-                RenderSystem.getProjectionMatrix(),
-                Minecraft.getInstance().getWindow());
-        boolean rebuild = arena.begin(tiles.size(), lodDrawCache.epoch);
-        long now = System.nanoTime();
-        try {
-            shader.apply();
-            if (rebuild) for (var draw : tiles) {
-                probeTiles++;
-                var tile = draw.tile();
-                var range = draw.range();
-                if (tile == null) {
-                    arena.add(range);
-                    continue;
-                }
-                float fade = VoxelLodPolicy.fade(tile.committed, now);
-                if (range != null && tile.previous == null && !tile.retiring && fade == 1) {
-                    arena.add(range);
-                    continue;
-                }
-                if (tile.previous != null) drawLodMesh(tile.previous, shader, 1, layer);
-                drawLodMesh(tile.current, shader, tile.retiring ? 1 - fade : fade, layer);
-            }
-            ShaderUniforms.set(shader, "CPNativeLodFade", 1);
-            arena.draw();
-        } finally {
-            shader.clear();
-            VertexBuffer.unbind();
-            GroundClient.sourceEnd();
-        }
-    }
-
-    private static void drawLodMesh(Mesh mesh, ShaderInstance shader, float fade, RenderType layer) {
-        var range = mesh.lodLayers.get(layer);
-        if (range == null || fade <= 0) return;
-        ShaderUniforms.set(shader, "CPNativeLodFade", fade);
-        range.arena().draw(range);
-    }
-
-    private static void updateStitches(long deadline) {
-        if (stitchJob != null && System.nanoTime() < deadline) {
-            stitchJob.step(deadline);
-            if (stitchJob.done()) {
-                pendingJob = stitchJob;
-                pendingStitches = stitchJob.finish();
-                stitchJob = null;
-                uploads++;
-            }
-        }
-    }
-
-    private static void drawLayers(RenderFrame c, boolean translucent) {
-        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.FAR);
-        try {
-        if (!translucent) prepareLodDraws(c);
-        if (DevelopmentHooks.arrival.enabled()
-                && !translucent
-                && selectionReady()
-                && (ready || parentsComplete())) DevelopmentHooks.ownDraw = true;
-        var pass = new RenderPassState(true, true, false);
-        int texture0 = RenderSystem.getShaderTexture(0),
-                texture1 = RenderSystem.getShaderTexture(1),
-                texture2 = RenderSystem.getShaderTexture(2);
-        int activeTexture = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
-        var coverage = new CoverageBinding();
-        boolean orbitalChart = GroundClient.eye().y() > GroundOrbit.START;
-        var chart = orbitalChart ? null : GroundClient.projectedFrame() ? GroundClient.gap().chart
-                : new PlanetChart(GroundClient.shape(), CubeSurfaceTopology.Face.VALUES[GroundClient.face()]);
-        try (var filtering = GroundTextureFilter.open()) {
-            GroundDrawPlan.draw(translucent, orbitalChart, GroundClient.face(),
-                    selectionReady() && ready,
-                    face -> chart.tile(CubeSurfaceTopology.Face.VALUES[face]) != null,
-                    new GroundDrawPlan.Draw() {
-                        private RenderType layer;
-                        public void begin(RenderType value) {
-                            layer = value;
-                            layer.setupRenderState();
-                        }
-                        public void mask(int face, boolean residual) {
-                            render(c, face, masks[face + (residual ? 6 : 0)], layer);
-                        }
-                        public void stitch(int face) { render(c, face, stitches[face], layer, true); }
-                        public void surface(int face, int patch, boolean ready) {
-                            if (ready) renderPatch(c, face, patch, layer);
-                            else render(c, face, parents[patch], layer, true);
-                        }
-                        public void lod(int face) { drawLods(c, face, layer); }
-                        public void end(RenderType value) { value.clearRenderState(); }
-                    });
-            if (!translucent) {
-                drawResidual(c);
-            }
-        } finally {
-            try {
-                GroundClient.sourceEnd();
-                coverage.close();
-                com.mojang.blaze3d.platform.GlStateManager._activeTexture(activeTexture);
-                RenderSystem.setShaderTexture(0, texture0);
-                RenderSystem.setShaderTexture(1, texture1);
-                RenderSystem.setShaderTexture(2, texture2);
-            } finally {
-                pass.close();
-            }
-        }
-        } finally {
-            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.FAR);
-        }
-    }
-
-    private static void prepareSurfaceUpdates() {
-        if (!GroundViewClient.coverageReady()) return;
-        refreshCoverage();
-        var mc = Minecraft.getInstance();
-        int next = GroundFlightClient.controlled() ? -1 : GroundClient.face();
-        // A face crossing changes projection only. No mesh/owner rebase or native promotion.
-        nativeFace = next;
-        for (long key : GroundViewClient.drainInvalidated()) {
-            stitchDirty = true;
-            // Cover geometry reads a tile's surface only while its coverage bit is set; an unedited
-            // volume arriving must not restart the patch being built around it.
-            dirtyHalo(key);
-            // Edited structures must not wait behind thousands of optional procedural refinements.
-            var lod=lodTiles.get(key);
-            if(lod!=null) {
-                lod.dirty=true;
-                lodRequests.removeIf(t->t.key()==key); lodQueued.remove(key);
-                requestLod(new GroundLodSelection.Tile(key,0,true),lod.requested);
-            }
-        }
-    }
-
-    private static void refreshCoverage() {
-        if (!GroundViewClient.coverageReady()) return;
-        var changed = GroundViewClient.changed();
-        for (int key = priorCoverage.nextSetBit(0);
-                key >= 0;
-                key = priorCoverage.nextSetBit(key + 1)) if (!changed.get(key)) dirtyHalo(key);
-        for (int key = changed.nextSetBit(0); key >= 0; key = changed.nextSetBit(key + 1))
-            if (!priorCoverage.get(key)) dirtyHalo(key);
-        dirty.coverage(priorCoverage, changed);
-        priorCoverage = changed;
-    }
-
-    private static void dirtyHalo(long key) {
-        selectionVersion++;
-        int face = (int) (key / 16384),
-                x = (int) (key % 128) * 16,
-                z = (int) (key / 128 % 128) * 16;
-        for (int dx = -64; dx <= 64; dx += 64)
-            for (int dz = -64; dz <= 64; dz += 64) {
-                var cell =
-                        GroundClient.shape()
-                                .topology()
-                                .canonical(
-                                        new CubeSurfaceTopology.Cell(
-                                                CubeSurfaceTopology.Face.VALUES[face],
-                                                x + dx,
-                                                0,
-                                                z + dz))
-                                .cell();
-                dirty.tile(tileKey(cell.face().ordinal(), cell.u(), cell.v()));
-            }
-    }
-
-    private static boolean coversPending() {
-        return GroundPipeline.publish(dirty.count(), !coverJobs.isEmpty(), patches, staging,
-                p->GroundViewPolicy.exists(shape,p));
-    }
-
-    private static GroundCoverSnapshot[] coverSnapshots(boolean pending) {
-        var result = new GroundCoverSnapshot[patches.length];
-        for (int p = 0; p < result.length; p++) {
-            var mesh = pending && staging[p] != null ? staging[p] : ready ? patches[p] : parents[p];
-            result[p] = mesh == null ? null : mesh.cover;
-        }
-        return result;
-    }
-
-    private static void commitCovers() {
-        boolean firstCover = !ready;
-        for (int p = 0; p < patches.length; p++)
-            if (staging[p] != null) {
-                if (patches[p] != null) patches[p].close();
-                patchQuads.put(p, stagedQuads.remove(p));
-                patchPaired[p] = stagedPaired[p];
-                patches[p] = staging[p];
-                drawnLevels[p] = builtLevels[p];
-                staging[p] = null;
-                patchCommitted[p] = System.nanoTime();
-            }
-        coverEpoch++;
-        selectionVersion++;
-        GroundExterior.commit();
-        coverCohort = null;
-        dirty.promote();
-        ready = GroundViewClient.coverageReady() && patchesComplete();
-        // Initial parents use 64-block tops; rebuild their resident edge skirts once patches take
-        // over.
-        if (firstCover && ready) for (var tile : lodTiles.values()) tile.dirty = true;
-    }
-
-    /** Run after vanilla's layer draws, never infer this frame's coverage at AFTER_SKY. */
-    private static void refreshNativeDraws() {
-        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.NATIVE);
-        try {
-            window = GroundNativeCoverage.visible();
-            publishOwnership(coverage.ownership);
-        } finally {
-            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.NATIVE);
-        }
-    }
-
-    private static void updateExclusions() {
-        // No native draw has happened at AFTER_SKY: do not walk last frame's visible list.
-        window = GroundNativeCoverage.visible();
-        // A dirty replacement is staged; the currently drawn mesh and strips remain valid.
-        publishOwnership(coverage.ownership.retainCompatible(residentOwnership));
-        var available = availableOwnership;
-        if (pendingStitches != null) {
-            var retained = pendingJob.selection.retainCompatible(available);
-            // Never trim an already displayed owner to COVER merely because its adapter is
-            // changing.
-            boolean preserves = GroundHandoff.preservesSelected(coverage.ownership, retained, available);
-            if (preserves
-                    && GroundOwnership.canCommit(
-                            pendingJob.nextCover,
-                            coversPending(),
-                            pendingJob.coverVersion,
-                            coverEpoch,
-                            pendingJob.stagedVersion,
-                            stagedEpoch,
-                            retained,
-                            available)) {
-                if (pendingJob.nextCover) commitCovers();
-                for (int i = 0; i < 6; i++) {
-                    var old = stitches[i];
-                    stitches[i] = pendingStitches[i];
-                    if (old != null) old.close();
-                }
-                publishOwnership(retained);
-                stitchDirty = false;
-            } else for (var mesh : pendingStitches) mesh.close();
-            pendingStitches = null;
-            pendingJob = null;
-        }
-        if (coverage.texture() == 0) publishOwnership(coverage.ownership);
-        if (stitchJob == null
-                && pendingJob == null
-                && (stitchDirty || coversPending() || !coverage.ownership.sameAs(available))) {
-            stitchDirty = false;
-            boolean next = coversPending();
-            stitchJob =
-                    new StitchJob(available, coverSnapshots(next), next, coverEpoch, stagedEpoch);
-        }
-    }
-
-    // Each render stage sees its own native window (translucent sections draw after entities),
-    // so one frame publishes up to three atlases; repack only when ownership or LOD coverage moves.
-
-    private static void publishOwnership(GroundOwnership.Snapshot next) {
-        dev.starfold.api.RenderTimings.begin(dev.starfold.api.RenderTimings.Section.OWNERSHIP);
-        try {
-            coverage.publish(GroundClient.shape(), next, window, lodComplete, lodAtlasDirty);
-            lodAtlasDirty = false;
-        } finally {
-            dev.starfold.api.RenderTimings.end(dev.starfold.api.RenderTimings.Section.OWNERSHIP);
-        }
-    }
-
-    /**
-     * Diagnostic for the part of the corner gap the repair leaves open; the closure stands on it,
-     * so only draw it without one.
-     */
-    private static void drawResidual(RenderFrame c) {
-        if (GroundFlightClient.controlled() || mask != null && mask.core() > 0) return;
-        var map = GroundClient.gap();
-        var quads = map.residual();
-        if (quads.isEmpty()) return;
-        RenderSystem.disableCull();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        var matrix =
-                GroundClient.place(
-                        new Matrix4f(c.matrixStack().last().pose()),
-                        GroundClient.face(),
-                        c.camera().getPosition());
-        var out =
-                Tesselator.getInstance()
-                        .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        for (var quad : quads) {
-            var points = new BentStripGeometry.Point[] {quad.a(), quad.b(), quad.c(), quad.d()};
-            int[] order =
-                    quad.b().sub(quad.a()).cross(quad.c().sub(quad.a())).y() < 0
-                            ? new int[] {0, 2, 1, 0, 3, 2}
-                            : new int[] {0, 1, 2, 0, 2, 3};
-            for (int i : order)
-                out.addVertex(matrix, (float) points[i].x(), -.002f, (float) points[i].z())
-                        .setColor(220, 35, 35, 255);
-        }
-        var mesh = out.build();
-        if (mesh != null) BufferUploader.drawWithShader(mesh);
-    }
-
-    private static Mesh buildMask(int face, boolean wedge) {
+    private static MaskMesh buildMask(int face, boolean wedge) {
         try (var builders = new Builders()) {
             int core = mask.core(), height = mask.height();
             var state = Anomaly.shell();
@@ -1682,463 +2368,36 @@ public final class GroundRenderer {
                     .setNormal(nx, 0, nz);
     }
 
-    private static void renderPatch(RenderFrame c, int face, int p, RenderType layer) {
-        float fade = patchPaired[p] ? VoxelLodPolicy.fade(patchCommitted[p], System.nanoTime()) : 1;
-        render(c, face, patches[p], layer, true, fade);
-    }
-
-    private static void render(RenderFrame c, int face, Mesh mesh, RenderType layer) {
-        render(c, face, mesh, layer, mesh == masks[face] || mesh == masks[face + 6]);
-    }
-
-    private static void render(
-            RenderFrame c, int face, Mesh mesh, RenderType layer, boolean coarse) {
-        render(c, face, mesh, layer, coarse, 1);
-    }
-
-    private static void render(
-            RenderFrame c, int face, Mesh mesh, RenderType layer, boolean coarse, float fade) {
-        if (mesh == null) return;
-        var gpu = mesh.layers.get(layer);
-        if (gpu == null) return;
-        GroundClient.source(face, true, coarse);
-        GroundClient.cover(
-                coarse && mesh != masks[face] && mesh != masks[face + 6] && mesh != stitches[face]);
-        GroundClient.stitch(mesh == stitches[face]);
-        GroundClient.patchFade(fade);
-        var matrix =
-                GroundClient.place(
-                        new Matrix4f(RenderSystem.getModelViewMatrix())
-                                .mul(c.matrixStack().last().pose()),
-                        face,
-                        c.camera().getPosition());
-        var shader = mesh.compact ? GroundCompact.shader() : RenderSystem.getShader();
-        if (shader == null) return;
-        gpu.bind();
-        try {
-            gpu.drawWithShader(matrix, RenderSystem.getProjectionMatrix(), shader);
-            probeDraws++;
-        } finally {
-            VertexBuffer.unbind();
-            GroundClient.sourceEnd();
-        }
-    }
-
-    private static final class Builders extends GroundMeshVertices.Buffers {
-        Builders() { super(); }
-        Builders(boolean surface) { super(surface); }
-        Builders(boolean surface, boolean compact) { super(surface, compact); }
-
-        Mesh upload(long version) {
-            if (!context.current()) return null;
-            var out = new LinkedHashMap<RenderType, VertexBuffer>();
-            var lodOut = new LinkedHashMap<RenderType, GroundLodArena.Range>();
-            long size = 0;
-            AABB bounds = null;
-            try {
-                for (var e : buffers.entrySet()) {
-                    var data = e.getValue().build();
-                    if (data == null) continue;
-                    if (lodKey >= 0) {
-                        var vertices = data.vertexBuffer();
-                        for (int i = 0; i < data.drawState().vertexCount(); i++) {
-                            int p = i * 32;
-                            double x = Math.round(vertices.getFloat(p) * 16) / 16.0;
-                            double y = Math.round((vertices.getFloat(p + 4) + 2048.0) * 16) / 16.0 - 2048;
-                            double z = Math.round(vertices.getFloat(p + 8) * 16) / 16.0;
-                            var point = new AABB(x, y, z, x, y, z);
-                            bounds = bounds == null ? point : bounds.minmax(point);
-                        }
-                    }
-                    try (var packed = new ByteBufferBuilder(4096)) {
-                        if (compact) data = GroundCompact.pack(data, packed, e.getKey(), surfaceFace, lodKey);
-                        size += data.vertexBuffer().remaining();
-                        if (lodKey >= 0) {
-                            var arena = lodArenas.get(surfaceFace).computeIfAbsent(e.getKey(), l -> new GroundLodArena());
-                            long before = arena.bytes();
-                            try (var upload = data) {
-                                var range = arena.upload(upload, VoxelLodPolicy.RESIDENT_BYTES - lodBytes);
-                                if (range == null) {
-                                    for (var prior : lodOut.values()) prior.close();
-                                    return null;
-                                }
-                                lodOut.put(e.getKey(), range);
-                            } finally {
-                                lodBytes += arena.bytes() - before;
-                            }
-                            continue;
-                        }
-                        var gpu = new VertexBuffer(VertexBuffer.Usage.STATIC);
-                        gpu.bind();
-                        try {
-                            gpu.upload(data);
-                        } catch (RuntimeException failure) {
-                            gpu.close();
-                            throw failure;
-                        } finally {
-                            VertexBuffer.unbind();
-                        }
-                        out.put(e.getKey(), gpu);
-                    }
-                }
-                return new Mesh(version, out, lodOut, size, image, cover, compact, bounds);
-            } catch (RuntimeException failure) {
-                for (var gpu : out.values()) gpu.close();
-                for (var range : lodOut.values()) range.close();
-                throw failure;
-            }
-        }
-
-    }
-
-    private static long tileKey(int face, int x, int z) {
-        return ChunkKeys.faceLocal(face, x / 16, z / 16);
-    }
-
-    // Source-chart edges: neighbour column, edge origin, edge delta, outward normal.
-    private static final int[][] EDGES = {
-        {-1, 0, 0, 0, 0, 1, -1, 0},
-        {1, 0, 1, 1, 0, -1, 1, 0},
-        {0, -1, 1, 0, -1, 0, 0, -1},
-        {0, 1, 0, 1, 1, 0, 0, 1}
-    };
-
-    /**
-     * Cached strips between actually drawn native/detail tiles and the simplified cover. An
-     * exclusion bit removes a surface; it is not by itself a geometric stitch.
-     */
-    private static final class StitchJob implements AutoCloseable {
-        final GroundOwnership.Snapshot selection;
-        final GroundCoverSnapshot[] covers;
-        final boolean nextCover;
-        final long coverVersion, stagedVersion;
-        final GroundSpace.Config config = mask;
-        final long[] keys;
-        final Builders[] builders = new Builders[6];
-        int tile, column, edge;
-
-        StitchJob(
-                GroundOwnership.Snapshot selection,
-                GroundCoverSnapshot[] covers,
-                boolean nextCover,
-                long coverVersion,
-                long stagedVersion) {
-            this.selection = selection;
-            this.covers = covers.clone();
-            this.nextCover = nextCover;
-            this.coverVersion = coverVersion;
-            this.stagedVersion = stagedVersion;
-            keys = selection.keys().stream().sorted().mapToLong(Long::longValue).toArray();
-            for (int i = 0; i < 6; i++) builders[i] = new Builders();
-        }
-
-        void step(long deadline) {
-            while (tile < keys.length && System.nanoTime() < deadline) {
-                long key = keys[tile];
-                int face = (int) (key / 16384),
-                        x = (int) (key % 128) * 16,
-                        z = (int) (key / 128 % 128) * 16;
-                var e = EDGES[edge];
-                int u = edge == 0 ? 0 : edge == 1 ? 15 : column,
-                        v = edge == 2 ? 0 : edge == 3 ? 15 : column;
-                long neighbour = GroundOwnership.key(face, x + u + e[0], z + v + e[1]);
-                {
-                    // Prebuild all canonical exits, including the current native face: chart
-                    // rebasing reuses them.
-                    var fine = selection.surface(key);
-                    var cover = covers[GroundViewPolicy.patch(neighbour)];
-                    double h = fine.height(u, v) + 1 - 128;
-                    double
-                            a =
-                                    cover.height(
-                                            face,
-                                            x + u + e[0],
-                                            z + v + e[1],
-                                            x + u + e[2],
-                                            z + v + e[3]),
-                            b =
-                                    cover.height(
-                                            face,
-                                            x + u + e[0],
-                                            z + v + e[1],
-                                            x + u + e[2] + e[4],
-                                            z + v + e[3] + e[5]);
-                    var bridge =
-                            GroundTransition.bridge(
-                                    x + u + e[2] - e[6] * .02,
-                                    z + v + e[3] - e[7] * .02,
-                                    e[4],
-                                    e[5],
-                                    Math.max(h, Math.max(a, b)),
-                                    Math.min(h, a) - 64,
-                                    Math.min(h, b) - 64);
-                    var owner = new BlockPos(face * 4096 + x + u, (int) h + 127, z + v);
-                    var state = fine.state(u, v);
-                    if (!state.isAir()
-                            && !Anomaly.mask(
-                                    GroundClient.shape(), config, GroundTopology.cell(owner)))
-                        surfaceWall(
-                                builders[face],
-                                state,
-                                bridge,
-                                face,
-                                x + u,
-                                z + v,
-                                e[6],
-                                e[7],
-                                true);
-                }
-                if (++column == 16) {
-                    column = 0;
-                    if (++edge == 4) {
-                        edge = 0;
-                        tile++;
-                    }
-                }
-            }
-        }
-
-        boolean done() {
-            return tile == keys.length;
-        }
-
-        Mesh[] finish() {
-            var result = new Mesh[6];
-            try {
-                for (int i = 0; i < 6; i++) result[i] = builders[i].upload(0);
-                return result;
-            } catch (RuntimeException failure) {
-                for (var mesh : result) if (mesh != null) mesh.close();
-                throw failure;
-            } finally {
-                close();
-            }
-        }
-
-        public void close() {
-            for (var b : builders) b.close();
-        }
-    }
-
-    private static void clearParents() {
-        if (parentJob != null) {
-            parentJob.close();
-            parentJob = null;
-        }
-        for (int i = 0; i < parents.length; i++) {
-            if (parents[i] != null) parents[i].close();
-            parents[i] = null;
-        }
-    }
-
-    /** Startup terraces use the existing distance levels, nearest first, one patch per commit. */
-    private static final class ParentJob implements AutoCloseable {
-        final GroundCoverSnapshot snapshot =
-                GroundCoverSnapshot.parent(GroundViewClient.heights(), new BitSet());
-        final List<Integer> order = new ArrayList<>();
-        final Map<Integer, java.util.concurrent.Future<List<VoxelMesher.Quad>>> prefetched =
-                new LinkedHashMap<>();
-        final GroundFarMesh.Field field =
-                farPyramids.initialField(GroundViewClient.terrain());
-        final Map<Integer, Integer> steps = new HashMap<>();
-        Builders builders;
-        List<VoxelMesher.Quad> quads;
-        int patch = -1, step, fed, finished;
-
-        void step(long deadline) {
-            // Re-sort unscheduled work when the camera moves; already submitted work stays bounded.
-            var pose =
-                    shape.canonical(
-                                    CubeSurfaceTopology.Face.VALUES[GroundClient.face()],
-                                    GroundClient.eye())
-                            .pose();
-            order.clear();
-            order.addAll(GroundViewPolicy.nearestPatches(shape, shape.position(pose)));
-            order.removeIf(p -> parents[p] != null || prefetched.containsKey(p));
-            while (!done() && System.nanoTime() < deadline) {
-                while (prefetched.size() < LOD_THREADS
-                        && !order.isEmpty()
-                        && System.nanoTime() < deadline) {
-                    int p = order.removeFirst();
-                    var observed = shape;
-                    var heights = GroundViewClient.heights();
-                    double h = heights == null ? 0 : heights.surfaceNode(
-                            CubeSurfaceTopology.Face.VALUES[GroundViewPolicy.face(p)],
-                            Math.min(shape.size(), GroundViewPolicy.x(p) + 128),
-                            Math.min(shape.size(), GroundViewPolicy.z(p) + 128));
-                    int selected = GroundFarMesh.level(
-                            GroundFarMesh.distance(shape, shape.position(pose), p, h), 64,
-                            lodFov, Minecraft.getInstance().getWindow().getHeight());
-                    steps.put(p, selected);
-                    var source=GroundViewClient.overlays().isEmpty() ? field : farPyramids.field(
-                            observed,GroundViewClient.terrain(),GroundViewClient::overlay,p);
-                    prefetched.put(
-                            p,
-                            lodWorkers.submitFirst(() -> GroundFarMesh.build(observed, p, selected, source)));
-                }
-                if (patch < 0) {
-                    patch =
-                            prefetched.entrySet().stream()
-                                    .filter(e -> e.getValue().isDone())
-                                    .mapToInt(Map.Entry::getKey)
-                                    .findFirst()
-                                    .orElse(-1);
-                    if (patch < 0) return;
-                    quads = completed(prefetched.get(patch));
-                    step = steps.remove(patch);
-                    builders = new Builders(true, true);
-                    builders.surfaceFace = GroundViewPolicy.face(patch);
-                    builders.cover = snapshot;
-                }
-                while (fed < quads.size() && System.nanoTime() < deadline) {
-                    var q = quads.get(fed++);
-                    surfacePolygon(
-                            builders,
-                            q.material(),
-                            q.points(),
-                            GroundViewPolicy.x(patch),
-                            GroundViewPolicy.z(patch),
-                            true,
-                            GroundShaderSource.patchTag(false, GroundFarMesh.side(q)),q.rgb());
-                }
-                if (fed < quads.size()) return;
-                builders.cover = snapshot.withTerraces(GroundViewPolicy.face(patch), quads, step);
-                parents[patch] = builders.upload(0);
-                patchQuads.put(patch, quads);
-                builders.close();
-                builders = null;
-                prefetched.remove(patch);
-                patch = -1;
-                quads = null;
-                fed = 0;
-                finished++;
-                uploads++;
-            }
-        }
-
-        boolean done() {
-            return parentsComplete();
-        }
-
-        public void close() {
-            prefetched.values().forEach(f -> f.cancel(false));
-            if (builders != null) builders.close();
-        }
-    }
-
-    private static final class CoverJob implements AutoCloseable {
-        final int patch, face, x0, z0, step;
-        final long farVersion;
-        final Builders builders = new Builders(true, true);
-        final GroundExterior.Job exterior;
-        final java.util.concurrent.Future<List<VoxelMesher.Quad>> future;
-        final List<VoxelMesher.Quad> previous;
-        List<VoxelMesher.Quad> quads;
-        java.util.concurrent.Future<?> fill;
-        private final GroundMeshLease lease;
-
-        CoverJob(int patch, GroundCoverSnapshot inputs) {
-            this.patch = patch;
-            farVersion = farVersions[patch];
-            face = GroundViewPolicy.face(patch);
-            x0 = GroundViewPolicy.x(patch);
-            z0 = GroundViewPolicy.z(patch);
-            step = patchLevels[patch] == 0 ? 16 : patchLevels[patch];
-            builders.surfaceFace = face;
-            builders.cover = inputs;
-            exterior = new GroundExterior.Job(patch, shape, mask);
-            lease = new GroundMeshLease(() -> {
-                builders.close();
-                exterior.close();
-            });
-            previous = patchQuads.getOrDefault(patch, List.of());
-            future =
-                    farMesh(
-                            shape,
-                            patch,
-                            step,
-                            GroundViewClient.terrain(),
-                            coverCohort,
-                            farPyramids);
-        }
-
-        /** Vertices are written on a worker; the render thread only uploads in {@link #finish()}. */
-        void step(long deadline) {
-            if (fill != null || !future.isDone() || !lodWorkers.canSubmit(true)) return;
-            quads = completed(future);
-            fill =
-                    lodWorkers.submitRefinement(
-                            () -> {
-                                if (!lease.begin()) return null;
-                                try {
-                                    GroundMeshResources.read(builders.context.resources(), () -> {
-                                        for (var q : quads) emit(q, false);
-                                        for (var q : previous) emit(q, true);
-                                    });
-                                } finally {
-                                    lease.end();
-                                }
-                                return null;
-                            });
-        }
-
-        private void emit(VoxelMesher.Quad q, boolean old) {
-            surfacePolygon(
-                    builders,
-                    q.material(),
-                    q.points(),
-                    x0,
-                    z0,
-                    true,
-                    GroundShaderSource.patchTag(old, GroundFarMesh.side(q)),q.rgb());
-            var pos=builders.context.storage(GroundAlbedo.position(face,q.points()));
-            var p=q.points(); var normal=p.get(1).sub(p.getFirst()).cross(p.get(2).sub(p.getFirst()));
-            int rgb=GroundAlbedo.color(q.material(),pos,builders.context.tint(),Direction.getNearest((float)normal.x(),(float)normal.y(),(float)normal.z()));
-            if(q.rgb()>=0) rgb=GroundAlbedo.calibrate(q.rgb(),
-                    dev.starfold.worldgen.surface.SurfaceColor.color(q.material()),rgb);
-            exterior.emit(q, rgb, old);
-        }
-
-        boolean done() {
-            return fill != null && fill.isDone();
-        }
-
-        Mesh finish() {
-            try {
-                completed(fill);
-                builders.cover = builders.cover.withTerraces(face, quads, step);
-                var mesh = builders.upload(0);
-                try {
-                    GroundExterior.replace(patch, exterior.finish(), !previous.isEmpty());
-                    return mesh;
-                } catch (RuntimeException failure) {
-                    mesh.close();
-                    throw failure;
-                }
-            } finally {
-                close();
-            }
-        }
-
-        public void close() {
-            future.cancel(false);
-            if (fill != null) fill.cancel(false);
-            lease.close();
-        }
-    }
-
     static int surfaceLight(int face, BlockPos pos) {
+        return surfaceLight(face, pos, null);
+    }
+
+    private static boolean loadedLightColumn(long chartChunk) {
+        int x = net.minecraft.world.level.ChunkPos.getX(chartChunk) * 16 + GroundClient.storageOffset();
+        int z = net.minecraft.world.level.ChunkPos.getZ(chartChunk) * 16 + GroundClient.storageOffsetZ();
+        return level != null && level.getChunkSource().hasChunk(x >> 4, z >> 4);
+    }
+
+    private static int loadedSurfaceLight(BlockPos pos) {
         var storage = GroundClient.storage(pos);
-        if (level.getChunkSource().hasChunk(storage.getX() >> 4, storage.getZ() >> 4)
-                && level.getLightEngine().lightOnInSection(net.minecraft.core.SectionPos.of(storage)))
+        if (level == null || !level.getLightEngine().lightOnInSection(net.minecraft.core.SectionPos.of(storage))) return -1;
+        return level.getBrightness(LightLayer.BLOCK, storage) * 16
+                | level.getBrightness(LightLayer.SKY, storage) * 4096;
+    }
+
+    private static int surfaceLight(int face, BlockPos pos, GroundMeshContext.Sky sky) {
+        var storage = GroundClient.storage(pos);
+        if (level != null
+                && level.getChunkSource().hasChunk(storage.getX() >> 4, storage.getZ() >> 4)
+                && level.getLightEngine()
+                        .lightOnInSection(net.minecraft.core.SectionPos.of(storage)))
             return level.getBrightness(LightLayer.BLOCK, storage) * 16
                     | level.getBrightness(LightLayer.SKY, storage) * 4096;
         var terrain = GroundViewClient.terrain();
-        var liquid = terrain == null ? null : terrain.liquid(CubeSurfaceTopology.Face.VALUES[face], pos.getX() - face * 4096, pos.getZ());
-        int depth = liquid == null
-                || terrain.groundY(CubeSurfaceTopology.Face.VALUES[face], pos.getX() - face * 4096, pos.getZ()) >= liquid.level()
-                ? 0 : liquid.level() + 1 - pos.getY();
-        return GroundFarTexture.sky(depth) * 4096;
+        int x = pos.getX() - face * 4096, z = pos.getZ();
+        int water = sky == null ? GroundMeshContext.skyLevel(terrain, face, x, z)
+                : sky.level(terrain, face, x, z);
+        return GroundFarTexture.sky(water == Integer.MIN_VALUE ? 0 : water - pos.getY()) * 4096;
     }
 
     private GroundRenderer() {}

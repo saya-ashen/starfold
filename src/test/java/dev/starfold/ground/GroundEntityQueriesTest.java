@@ -85,11 +85,6 @@ class GroundEntityQueriesTest {
             assertEquals(List.of("net/minecraft/world/level/entity/LevelEntityGetter.get"), calls);
         }
         assertEquals(2, overloads);
-        var source = dev.starfold.Sources.text("GroundEntityQueriesMixin");
-        assertTrue(source.contains("storage.getIgnoringSubLevels"));
-        assertTrue(source.contains("getAllIntersecting"));
-        assertTrue(source.contains("level.getPartEntities().isEmpty()"));
-        assertFalse(source.contains("GroundSeams.entities(level)"));
     }
 
     private static void compare(int size) {

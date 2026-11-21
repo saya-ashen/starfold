@@ -1,10 +1,11 @@
 package dev.starfold.ship;
 
 import dev.starfold.geometry.BentStripGeometry;
+import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.sky.Space;
+
 import org.joml.Vector3d;
 
 /** Paired PRE/POST gravity impulses and per-tick hull damping and fluid support. */
@@ -69,8 +70,7 @@ final class HullPhysics {
         WEIGHING.put(physics, pending);
     }
 
-    static void weighPost(
-            dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics) {
+    static void weighPost(dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics) {
         var pending = WEIGHING.remove(physics);
         if (pending == null) return;
         for (var entry : pending.entrySet()) {

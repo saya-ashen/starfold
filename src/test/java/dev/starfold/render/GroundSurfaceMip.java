@@ -13,15 +13,14 @@ import java.util.function.BiFunction;
 
 /** One column image, recursively downscaled. Heights remain block Y until mesh lookup. */
 final class GroundSurfaceMip {
-    record Column(
-            int y,
-            BlockState material,
-            GroundSurface.Run canopy,
-            GroundSurface.Run trunk) {
+    record Column(int y, BlockState material, GroundSurface.Run canopy, GroundSurface.Run trunk) {
         Column(int y, BlockState material) {
             this(y, material, null, null);
         }
-        GroundFarMesh.Surface surface() { return new GroundFarMesh.Surface(y+1-128.,material,y+1-128.,canopy,trunk); }
+
+        GroundFarMesh.Surface surface() {
+            return new GroundFarMesh.Surface(y + 1 - 128., material, y + 1 - 128., canopy, trunk);
+        }
     }
 
     private final int width, depth;
@@ -260,20 +259,37 @@ final class GroundSurfaceMip {
                     count > 1 ? capture.run(u, v, 0) : null,
                     count > 2 ? capture.run(u, v, 1) : null);
         }
-        if (terrain == null) return new Column(127,Blocks.GRASS_BLOCK.defaultBlockState());
-        return fromVisible(function == null ? new dev.starfold.worldgen.surface.SurfaceFunction(terrain) : function,face,x,z);
+        if (terrain == null) return new Column(127, Blocks.GRASS_BLOCK.defaultBlockState());
+        return fromVisible(
+                function == null
+                        ? new dev.starfold.worldgen.surface.SurfaceFunction(terrain)
+                        : function,
+                face,
+                x,
+                z);
     }
 
-    static Column fromVisible(dev.starfold.worldgen.surface.SurfaceFunction function,Face face,int u,int v) {
-        var c=function.visible(face,u,v);
-        int top=c.top();
-        for(var r:c.objects()) if(!VoxelMesher.shown(r.block()).isAir()) top=Math.max(top,r.top());
-        final int high=top;
-        var runs=GroundSurfaceCapture.scan(high,function.terrain().floor(),y->{
-            for(var r:c.objects()) if(y>=r.bottom() && y<=r.top()) return r.block();
-            return y<=c.top() ? c.block() : Blocks.AIR.defaultBlockState();
-        });
-        var ground=runs[runs.length-1];
-        return new Column(ground.top(),ground.material(),runs.length>1 ? runs[0] : null,runs.length>2 ? runs[1] : null);
+    static Column fromVisible(
+            dev.starfold.worldgen.surface.SurfaceFunction function, Face face, int u, int v) {
+        var c = function.visible(face, u, v);
+        int top = c.top();
+        for (var r : c.objects())
+            if (!VoxelMesher.shown(r.block()).isAir()) top = Math.max(top, r.top());
+        final int high = top;
+        var runs =
+                GroundSurfaceCapture.scan(
+                        high,
+                        function.terrain().floor(),
+                        y -> {
+                            for (var r : c.objects())
+                                if (y >= r.bottom() && y <= r.top()) return r.block();
+                            return y <= c.top() ? c.block() : Blocks.AIR.defaultBlockState();
+                        });
+        var ground = runs[runs.length - 1];
+        return new Column(
+                ground.top(),
+                ground.material(),
+                runs.length > 1 ? runs[0] : null,
+                runs.length > 2 ? runs[1] : null);
     }
 }

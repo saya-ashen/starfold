@@ -2,6 +2,7 @@ package dev.starfold.ship;
 
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
+import dev.starfold.DevelopmentHooks;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry;
 import dev.starfold.geometry.ChartLabSpace;
@@ -11,10 +12,8 @@ import dev.starfold.ground.ObserverFrame;
 import dev.starfold.ground.ObserverFrames;
 import dev.starfold.ground.PacketMap;
 import dev.starfold.network.StarfoldNetwork;
-import dev.starfold.planet.GroundCoordinates;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
-import dev.starfold.DevelopmentHooks;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 
@@ -22,8 +21,6 @@ import net.minecraft.server.level.ServerPlayer;
 
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
-
-import java.util.ArrayList;
 
 /** Sable tells each client where a sub-level's body is in the level's own coordinates, on its own channel. For an
  *  observer those are storage coordinates: the body is relabelled as an entity there would be. The plot that holds
@@ -306,8 +303,7 @@ public final class SableFrames {
         var clock = GroundClock.get(level).clock;
         int planet = access.storagePlanet(at.x, at.z);
         if (!Space.leaves(clock.model.body(planet), point.y())) return;
-        var pose =
-                new PlanetShape.Pose(CubeSurfaceTopology.Face.VALUES[access.face(at.x)], point);
+        var pose = new PlanetShape.Pose(CubeSurfaceTopology.Face.VALUES[access.face(at.x)], point);
         var universe =
                 Space.out(
                         clock.model,
@@ -409,14 +405,8 @@ public final class SableFrames {
             GroundSeams.Transport seam) {
         var before = new Pose3d(body.logicalPose());
         var riders = new java.util.LinkedHashMap<net.minecraft.world.entity.Entity, Vector3d>();
-        for (var e : crew(level, body, before))
-            if (!e.isRemoved() && aboard(e) == body) {
-                riders.put(e, new Vector3d(e.getX(), e.getY(), e.getZ()));
-                for (var passenger : e.getIndirectPassengers())
-                    riders.put(
-                            passenger,
-                            new Vector3d(passenger.getX(), passenger.getY(), passenger.getZ()));
-            }
+        for (var rider : riders(level, body, before))
+            riders.put(rider, new Vector3d(rider.getX(), rider.getY(), rider.getZ()));
         var turn =
                 next.orientation()
                         .mul(new Quaterniond(before.orientation()).conjugate())
@@ -501,6 +491,34 @@ public final class SableFrames {
                 if (rider instanceof ServerPlayer player) CARRYING.remove(player);
             }
         }
+    }
+
+    public static boolean canShiftRegion(
+            net.minecraft.server.level.ServerLevel level,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
+            BentStripGeometry.Point delta) {
+        var pose = body.logicalPose();
+        var at = pose.position();
+        if (!Space.holds(at.x + delta.x(), at.z + delta.z())) return false;
+        for (var rider : riders(level, body, pose)) {
+            if (!Space.in(rider)
+                    || !Space.holds(rider.getX() + delta.x(), rider.getZ() + delta.z()))
+                return false;
+        }
+        return true;
+    }
+
+    private static java.util.Set<net.minecraft.world.entity.Entity> riders(
+            net.minecraft.server.level.ServerLevel level,
+            dev.ryanhcode.sable.sublevel.ServerSubLevel body,
+            Pose3dc before) {
+        var riders = new java.util.LinkedHashSet<net.minecraft.world.entity.Entity>();
+        for (var entity : crew(level, body, before))
+            if (!entity.isRemoved() && aboard(entity) == body) {
+                riders.add(entity);
+                for (var passenger : entity.getIndirectPassengers()) riders.add(passenger);
+            }
+        return riders;
     }
 
     private static java.util.Set<net.minecraft.world.entity.Entity> crew(

@@ -28,8 +28,21 @@ class AnomalyClosureTest {
         for (int size : new int[] {512, 1024, 2048}) {
             int depth = Math.max(191, (int) Math.round(size / Math.PI));
             var generation =
-                    new PlanetGeneration("temperate",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION).recipe(),size,depth,PlanetGeneration.CORE_SHELL,true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(true,size));
-            var terrain = new PlanetTerrain(7,dev.starfold.worldgen.PlanetTerrain.VERSION,generation);
+                    new PlanetGeneration(
+                            "temperate",
+                            PlanetGeneration.SURFACE_VERSION,
+                            dev.starfold.worldgen.PlanetGeneration.defaults(
+                                            dev.starfold.worldgen.PlanetTerrain.VERSION)
+                                    .recipe(),
+                            size,
+                            depth,
+                            PlanetGeneration.CORE_SHELL,
+                            true,
+                            false,
+                            false,
+                            dev.starfold.worldgen.PlanetEnvironment.defaults(true, size));
+            var terrain =
+                    new PlanetTerrain(7, dev.starfold.worldgen.PlanetTerrain.VERSION, generation);
             var mask = GroundSpace.DEFAULT_MASK;
             for (var face : CubeSurfaceTopology.Face.values())
                 for (int x : new int[] {0, 15, 16, size - 17, size - 16, size - 1})
@@ -78,8 +91,15 @@ class AnomalyClosureTest {
                         java.util.List.of());
         settings.updateLayers();
         for (int version : new int[] {PlanetTerrain.VERSION}) {
-            var generator = new PlanetChunkGenerator(settings, 7, version, java.util.Optional.empty(),
-                    java.util.Optional.of(PlanetGeneration.defaults(dev.starfold.worldgen.PlanetTerrain.VERSION)));
+            var generator =
+                    new PlanetChunkGenerator(
+                            settings,
+                            7,
+                            version,
+                            java.util.Optional.empty(),
+                            java.util.Optional.of(
+                                    PlanetGeneration.defaults(
+                                            dev.starfold.worldgen.PlanetTerrain.VERSION)));
             var height = LevelHeightAccessor.create(-64, 384);
             for (var face : CubeSurfaceTopology.Face.values()) {
                 int x = face.ordinal() * 4096;

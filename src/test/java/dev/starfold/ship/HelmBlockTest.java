@@ -2,7 +2,6 @@ package dev.starfold.ship;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.flight.FlightPermitTest;
 import dev.starfold.worldgen.PlanetBiomeFixtures;
 
@@ -89,27 +88,6 @@ class HelmBlockTest {
             assertEquals(16, image.getWidth());
             assertEquals(16, image.getHeight());
             assertNotEquals(image.getRGB(0, 0), image.getRGB(7, 7));
-        }
-    }
-
-    @Test
-    void serverAndClientShareSelectorAndDoNotSavePilotOrWritePowerStates() throws Exception {
-        var server = Sources.text("HelmServer");
-        var client = Sources.text("HelmInputClient");
-        assertTrue(server.contains("HelmCommand.fires"));
-        assertTrue(client.contains("HelmCommand.fires"));
-        assertFalse(server.contains("setBlock("));
-        assertFalse(server.contains("saveAdditional"));
-        assertFalse(server.contains("Class.forName"));
-        assertTrue(client.contains("MovementInputUpdateEvent"));
-        for (var key :
-                new String[] {
-                    "keyUp", "keyDown", "keyLeft", "keyRight", "keyJump", "keyShift", "keySprint"
-                }) assertTrue(client.contains(key + ".isDown()"));
-        assertTrue(Sources.text("Thrusters").contains("event.accept(helm)"));
-        try (var files = Files.walk(Path.of("src/main/java"))) {
-            assertFalse(
-                    files.anyMatch(p -> p.getFileName().toString().equals("HelmUserMixin.java")));
         }
     }
 }

@@ -4,8 +4,11 @@ import dev.starfold.chart.GroundEphemeris;
 import dev.starfold.flight.ArrivalState;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.sky.Space;
+
 import net.minecraft.nbt.CompoundTag;
+
 import org.joml.Quaterniond;
+
 import java.util.function.Supplier;
 
 /** Strict saved frame format; ownership and dirty tracking remain with SpaceServer. */
@@ -26,27 +29,18 @@ final class SpaceFrameCodec {
                 || !tag.contains("originEpoch", 4)
                 || tag.getLong("epoch") < 0)
             throw new IllegalArgumentException("Space reference fields");
-        var frame = new Space.Frame(
-                                new Quaterniond(
-                                        tag.getDouble("qx"),
-                                        tag.getDouble("qy"),
-                                        tag.getDouble("qz"),
-                                        tag.getDouble("qw")),
-                                new Point(
-                                        tag.getDouble("x"), tag.getDouble("y"), tag.getDouble("z")),
-                                model.get()
-                                        .slot(
-                                                dev.starfold.chart.BodyId.read(
-                                                        tag.getCompound("planet"))),
-                                new Point(
-                                        tag.getDouble("ox"),
-                                        tag.getDouble("oy"),
-                                        tag.getDouble("oz")),
-                                new Point(
-                                        tag.getDouble("wx"),
-                                        tag.getDouble("wy"),
-                                        tag.getDouble("wz")),
-                                tag.getLong("originEpoch"));
+        var frame =
+                new Space.Frame(
+                        new Quaterniond(
+                                tag.getDouble("qx"),
+                                tag.getDouble("qy"),
+                                tag.getDouble("qz"),
+                                tag.getDouble("qw")),
+                        new Point(tag.getDouble("x"), tag.getDouble("y"), tag.getDouble("z")),
+                        model.get().slot(dev.starfold.chart.BodyId.read(tag.getCompound("planet"))),
+                        new Point(tag.getDouble("ox"), tag.getDouble("oy"), tag.getDouble("oz")),
+                        new Point(tag.getDouble("wx"), tag.getDouble("wy"), tag.getDouble("wz")),
+                        tag.getLong("originEpoch"));
         long epoch = tag.getLong("epoch");
         var arrivalState = ArrivalState.empty();
         if (tag.getBoolean("arrivalLatched")) {
@@ -84,7 +78,12 @@ final class SpaceFrameCodec {
         return new State(frame, epoch, arrivalState);
     }
 
-    static CompoundTag write(CompoundTag tag, Space.Frame frame, long epoch, ArrivalState arrivalState, Supplier<GroundEphemeris.Model> model) {
+    static CompoundTag write(
+            CompoundTag tag,
+            Space.Frame frame,
+            long epoch,
+            ArrivalState arrivalState,
+            Supplier<GroundEphemeris.Model> model) {
         tag.putInt("format", 1);
         var q = frame.rotation();
         var p = frame.shift();

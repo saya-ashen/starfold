@@ -1,0 +1,74 @@
+# Hearth to Fleck on the Extras starter ship, with required face-interior landing.
+# Hearth (0) -> Fleck (8), its nearest landable moon in the single-star experience.
+# No hull teleport, terrain preparation, or production behaviour changes.
+strict
+waitworld
+wait 300
+cmd gamemode creative
+boardblock helm
+wait 30
+find starfold:helm
+wait 6
+usehit helm
+wait 30
+requirehelm
+wait 60
+wait 40
+press 32 1
+until region 6000
+press 32 0
+nav s-space
+wait 40
+shipaim 8 700
+nav s-aimed
+press 70 1
+wait 2
+press 70 0
+wait 40
+lock s-lock
+navplanets trip-lock
+wait 30
+press 87 1
+press 341 1
+wait 140
+wait 100
+press 341 0
+press 87 0
+wait 20
+shipaim 8 300
+nav s-cruise
+navplanets trip-cruise
+until notice 1600
+nav s-notice
+until chart 1200
+nav s-chart
+wait 100
+# Move towards the face centre before descending. Require the entire hull inside the margin.
+facecenter 1200
+press 87 1
+until faceinset> 112 1800
+press 87 0
+wait 80
+until faceinset> 104 40
+nav s-interior
+press 340 1
+until clearance< 60 2400
+press 340 0
+nav s-low
+followlanding 2400
+until faceinset> 96 40
+nav s-site
+press 340 1
+# Continue the normal descent input to contact; releasing early captures a hover.
+until clearance< 0.15 1200
+until rested 80 600
+press 340 0
+nav s-hover
+until stair 1500
+nav s-stair
+until rested 80 600
+until faceinset> 96 40
+requirehelm
+nav s-landed
+shot fleck-interior-landed
+quit

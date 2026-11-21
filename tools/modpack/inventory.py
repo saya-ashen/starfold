@@ -77,7 +77,7 @@ for meta in sorted((ROOT / 'mods').glob('*.pw.toml')):
 
 # Unpublished Starfold resources, including Materials aluminum, are sourced locally;
 # they have no external packwiz pin and must not depend on a cached provider jar.
-for resource_root in map(Path, ('src/main/resources', 'worlds/src/main/resources', 'materials/src/main/resources', 'biotech/src/main/resources')):
+for resource_root in map(Path, ('src/main/resources', 'worlds/src/main/resources', 'materials/src/main/resources', 'biotech/src/main/resources', 'mining/src/main/resources')):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w') as z:
         for path in resource_root.rglob('*.json'):

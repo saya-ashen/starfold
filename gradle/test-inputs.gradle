@@ -1,0 +1,58 @@
+// Sources searches all implementation owners, and cross-module contracts read raw resources.
+// Track checkout bytes as files: Test's classpath normalization deliberately ignores Java comments.
+// One root preserves module ownership in relative paths, even for identical resource bytes.
+def checkoutSources = fileTree(rootProject.projectDir) {
+    include 'src/**'
+    subprojects.each { owner -> include "${owner.name}/src/**" }
+}
+def rawInputs = { Test task, sources ->
+    task.inputs.files(sources).withPropertyName('checkoutSources').withPathSensitivity(PathSensitivity.RELATIVE)
+}
+tasks.named('test', Test) { Test task ->
+    rawInputs(task, checkoutSources)
+    inputs.files('docs/DATAPACKS.md', 'docs/DATAPACKS_zh-CN.md')
+            .withPropertyName('datapackDocs').withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(fileTree('tools/datapacks/example_system'))
+            .withPropertyName('exampleDatapack').withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(fileTree('modpack/kubejs/data'))
+            .withPropertyName('modpackData').withPathSensitivity(PathSensitivity.RELATIVE)
+    // ShipGuideTest branches on directory presence, even when it contains no archives.
+    inputs.property('optionalDevelopmentModsPresent', providers.provider { file('run/mods').isDirectory() })
+    inputs.files(fileTree('run/mods') { include '*.jar' })
+            .withPropertyName('optionalDevelopmentMods').withPathSensitivity(PathSensitivity.RELATIVE)
+}
+gradle.projectsEvaluated {
+    project(':atlas').tasks.named('test', Test) { Test task ->
+        rawInputs(task, fileTree(rootDir) {
+            include 'src/**', 'atlas/src/**'
+            include 'worlds/src/main/resources/data/starfold_worlds/starfold/system/experience*.json'
+            include 'worlds/src/main/resources/assets/starfold_worlds/lang/*.json'
+        })
+    }
+    project(':probes').tasks.named('test', Test) { Test task ->
+        rawInputs(task, fileTree(rootDir) { include 'src/main/java/**' })
+    }
+    project(':worlds').tasks.named('test', Test) { Test task ->
+        rawInputs(task, fileTree(rootDir) {
+            include 'src/main/resources/**', 'worlds/src/main/resources/**'
+        })
+        inputs.file(rootProject.file('modpack/kubejs/data/starfold_worlds/starfold/planet_type/home.json'))
+                .withPropertyName('modpackHome').withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+    project(':extras').tasks.named('test', Test) { Test task ->
+        rawInputs(task, fileTree(rootDir) {
+            include 'src/main/resources/**', 'worlds/src/main/resources/**'
+            include 'extras/src/main/resources/data/starfold_extras/structure/**'
+        })
+        inputs.files(fileTree(rootDir) {
+            include 'tools/ship/pack/check_resource.py', 'tools/ship/pack/shipgen.py', 'tools/ship/pack/r3_geometry.py'
+        }).withPropertyName('structureChecker').withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+    // These tests inspect archives rather than their normalized runtime classpath.
+    project(':devtools').tasks.named('test', Test) {
+        inputs.files(tasks.named('jar', Jar).flatMap { it.archiveFile },
+                rootProject.tasks.named('jar', Jar).flatMap { it.archiveFile },
+                tasks.named('createMinecraftArtifacts').flatMap { it.gameJarArtifact })
+                .withPropertyName('packagingArchives').withPathSensitivity(PathSensitivity.NONE)
+    }
+}

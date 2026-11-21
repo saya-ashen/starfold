@@ -1,11 +1,14 @@
 package dev.starfold.atlas;
 
-import org.junit.jupiter.api.Test;
 import static dev.starfold.atlas.AtlasScreen.Layer.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.junit.jupiter.api.Test;
+
 class AtlasScaleTest {
-    @Test void extraScrollChangesOneLayerOnlyAfterTheSmoothedCameraReachesItsLimit() {
+    @Test
+    void extraScrollChangesOneLayerOnlyAfterTheSmoothedCameraReachesItsLimit() {
         assertEquals(GLOBE, GLOBE.scroll(3.5, 2.35, 1));
         assertEquals(GLOBE, GLOBE.scroll(2.35, 3.5, 1));
         assertEquals(GROUND, GLOBE.scroll(2.35, 2.35, 1));
@@ -18,8 +21,10 @@ class AtlasScaleTest {
         assertEquals(GLOBE, GLOBE.scroll(2.35, 2.35, 0));
         assertEquals(GLOBE, GLOBE.scroll(12, 12, 0));
     }
-    @Test void orreryAndGalaxyUseTheirOwnSmoothedDistanceLimits() {
-        for (double far : new double[]{4, 80, 900}) {
+
+    @Test
+    void orreryAndGalaxyUseTheirOwnSmoothedDistanceLimits() {
+        for (double far : new double[] {4, 80, 900}) {
             double near = far * .008;
             assertEquals(SYSTEM, SYSTEM.scroll(far * .8, far, -1, near, far));
             assertEquals(GALAXY, SYSTEM.scroll(far, far, -1, near, far));

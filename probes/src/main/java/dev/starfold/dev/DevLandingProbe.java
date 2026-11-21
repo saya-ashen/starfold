@@ -123,6 +123,73 @@ final class DevLandingProbe {
     private static Vec3 measuredFoot;
     private static double side, localFootX, localFootZ;
 
+    private static dev.ryanhcode.sable.sublevel.SubLevel loopHull(Minecraft mc) {
+        var bodies = dev.ryanhcode.sable.api.sublevel.SubLevelContainer.getContainer(mc.level);
+        return bodies == null ? null : bodies.getAllSubLevels().stream()
+                .filter(hull -> ProbeSession.loopHull.startsWith(hull.getUniqueId() + ","))
+                .findFirst().orElse(null);
+    }
+
+    static void logLoopStair(Minecraft mc, String label) {
+        var logger = org.slf4j.LoggerFactory.getLogger("starfold-probe");
+        var body = loopHull(mc);
+        logger.info("PROBE LOOPSTAIR {} expected={} loaded={}", label, ProbeSession.loopHull, body != null);
+        if (body == null) return;
+        for (var holder : body.getPlot().getLoadedChunks())
+            for (var be : holder.getChunk().getBlockEntities().values())
+                if (be instanceof Airstair.Stair stair)
+                    logger.info("PROBE LOOPSTAIR {} pos={} drop={} visual={} foot={}",
+                            label, stair.getBlockPos(), stair.length, stair.visual, Airstair.foot(stair, 0));
+    }
+
+    static org.joml.Vector3d loopStairFoot(Minecraft mc) {
+        var body = loopHull(mc);
+        if (body != null)
+            for (var holder : body.getPlot().getLoadedChunks())
+                for (var be : holder.getChunk().getBlockEntities().values())
+                    if (be instanceof Airstair.Stair stair && stair.length > 0 && stair.visual >= 1)
+                        return Airstair.foot(stair, 1.5);
+        throw new IllegalStateException("Loop hull has no deployed stair for the ground route");
+    }
+
+    static boolean loopStairDeployed(Minecraft mc) {
+        var body = loopHull(mc);
+        if (body == null) return false;
+        for (var holder : body.getPlot().getLoadedChunks())
+            for (var be : holder.getChunk().getBlockEntities().values())
+                if (be instanceof Airstair.Stair stair && stair.length > 0 && stair.visual >= 1)
+                    return true;
+        return false;
+    }
+
+    static List<String> loopStairs(Minecraft mc, boolean back) {
+        var body = loopHull(mc);
+        if (body == null) throw new IllegalStateException("Loop hull is not loaded");
+        var box = body.getPlot().getBoundingBox();
+        double centerX = (box.minX() + box.maxX() + 1) / 2.0;
+        double centerZ = (box.minZ() + box.maxZ() + 1) / 2.0;
+        for (var holder : body.getPlot().getLoadedChunks())
+            for (var be : holder.getChunk().getBlockEntities().values())
+                if (be instanceof Airstair.Stair stair && stair.length > 0 && stair.visual >= 1) {
+                    var end = Airstair.foot(stair, .6);
+                    if (back)
+                        return List.of("guide walk " + end.x + " " + end.z + " 180",
+                                "walklocal 5.1 0 200 jump", "walklocal 2.5 0 160 jump");
+                    var foot = body.logicalPose().transformPositionInverse(end);
+                    String footOffset = (foot.x - centerX) + " " + (foot.z - centerZ);
+                    // Copper Swift's booster and barrel occupy the center aisle. Use the side
+                    // deck and step over the tank before lining up with the sill.
+                    return List.of(
+                            "walklocal 0.7 1 70",
+                            "walklocal 2.6 1 120",
+                            "walklocal 3.5 1 110 jump",
+                            "walklocal 3.8 0 100",
+                            "walklocal 5.1 0 100",
+                            "walklocal " + footOffset + " 300");
+                }
+        throw new IllegalStateException("Loop hull has no deployed stair");
+    }
+
     static List<String> stairs(Minecraft mc, boolean back) {
         if (back)
             return List.of(
@@ -136,14 +203,7 @@ final class DevLandingProbe {
         for (var holder : body.getPlot().getLoadedChunks())
             for (var be : holder.getChunk().getBlockEntities().values())
                 if (be instanceof Airstair.Stair stair && stair.length > 0 && stair.width > 0) {
-                    var top = Airstair.top(stair, body);
-                    var dir = Airstair.outward(stair, body);
-                    var end =
-                            new org.joml.Vector3d(top)
-                                    .add(
-                                            new org.joml.Vector3d(dir)
-                                                    .mul(Math.ceil(stair.length / .5 - 1e-8) * .5));
-                    end.y -= stair.length;
+                    var end = Airstair.foot(stair, 0);
                     measuredFoot = new Vec3(end.x, end.y, end.z);
                     var path = groundRoute(mc, measuredFoot);
                     if (path.isEmpty()) continue;

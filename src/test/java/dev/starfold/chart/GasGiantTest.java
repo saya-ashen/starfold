@@ -148,7 +148,9 @@ class GasGiantTest {
         assertThrows(IllegalArgumentException.class, () -> m.slot(gas.body(m).id()));
         assertThrows(IllegalArgumentException.class, () -> m.at(gasIndex, 50));
         assertTrue(CelestialTarget.resolve(m, 0).surfaceSlot(m).isEmpty());
-        assertThrows(IllegalArgumentException.class, () -> CelestialTarget.resolve(m, 0).requireSurfaceSlot(m));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CelestialTarget.resolve(m, 0).requireSurfaceSlot(m));
         assertThrows(IllegalArgumentException.class, () -> CelestialTarget.resolve(m, -1));
         assertThrows(
                 IllegalArgumentException.class, () -> CelestialTarget.resolve(m, gasIndex + 1));

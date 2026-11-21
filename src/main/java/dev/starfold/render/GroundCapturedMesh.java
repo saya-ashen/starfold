@@ -52,7 +52,7 @@ final class GroundCapturedMesh implements AutoCloseable {
                                             .cell();
                             var neighbour =
                                     surfaces.apply(
-                                            GroundOwnership.key(
+                                            GroundTileKeys.key(
                                                     shape, c.face().ordinal(), c.u(), c.v()));
                             if (neighbour == null && generated != null)
                                 return generated.column(c.face(), c.u(), c.v());

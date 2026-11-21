@@ -44,7 +44,24 @@ public class SingleLevelStorageTest {
                 .add(new net.minecraft.world.level.levelgen.flat.FlatLayerInfo(1, Blocks.BEDROCK));
         settings.updateLayers();
         var b =
-                new PlanetChunkGenerator(settings,20261002L,dev.starfold.worldgen.PlanetTerrain.VERSION,Optional.empty(),Optional.of(new PlanetGeneration("rocky",PlanetGeneration.SURFACE_VERSION,dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),1024,191,"core_shell",true,false,false,dev.starfold.worldgen.PlanetEnvironment.defaults(false,1024))));
+                new PlanetChunkGenerator(
+                        settings,
+                        20261002L,
+                        dev.starfold.worldgen.PlanetTerrain.VERSION,
+                        Optional.empty(),
+                        Optional.of(
+                                new PlanetGeneration(
+                                        "rocky",
+                                        PlanetGeneration.SURFACE_VERSION,
+                                        dev.starfold.worldgen.PlanetBiomeFixtures.recipe("rocky"),
+                                        1024,
+                                        191,
+                                        "core_shell",
+                                        true,
+                                        false,
+                                        false,
+                                        dev.starfold.worldgen.PlanetEnvironment.defaults(
+                                                false, 1024))));
         return new SystemChunkGenerator(PlanetStorage.LAYOUT, a, b);
     }
 
@@ -189,7 +206,8 @@ public class SingleLevelStorageTest {
                                         Heightmap.Types.OCEAN_FLOOR_WG))
                             assertEquals(
                                     c.getHeight(type, x, z) + 1,
-                                    g.getBaseHeight(wx, wz, type, PlanetBiomeFixtures.HEIGHT, null));
+                                    g.getBaseHeight(
+                                            wx, wz, type, PlanetBiomeFixtures.HEIGHT, null));
                     }
             }
     }

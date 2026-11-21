@@ -46,42 +46,57 @@ class GroundSurfaceRunsTest {
                                         ? new GroundSurface.Run[] {
                                             run(145, 143, LEAVES), run(142, 128, LOG), ground
                                         }
-                                        : new GroundSurface.Run[] {
-                                            run(145, 143, LEAVES), ground
-                                        };
+                                        : new GroundSurface.Run[] {run(145, 143, LEAVES), ground};
             }
         return new GroundSurface(1, columns);
     }
 
     @Test
     void buriedDifferencesDoNotStarveExteriorEditsButAdmittedEditsRetainFullHeight() {
-        var terrain=new dev.starfold.worldgen.PlanetTerrain(42,dev.starfold.worldgen.PlanetTerrain.VERSION);
-        var function=new dev.starfold.worldgen.surface.SurfaceFunction(terrain);
-        var chunk=new ProtoChunk(new ChunkPos(0,0),UpgradeData.EMPTY,PlanetTerrainTest.HEIGHT,
-                PlanetTerrainTest.biomes,null);
-        int u=1024,v=1024;
-        long key=Face.TOP.ordinal()*16384L+u/16+v/16*128L;
-        for(int z=0;z<16;z++) for(int x=0;x<16;x++) {
-            var blocks=function.blocks(Face.TOP,u+x,v+z);
-            for(int y=-64;y<320 && y-terrain.floor()<blocks.length;y++)
-                chunk.setBlockState(new BlockPos(x,y,z),blocks[y-terrain.floor()],false);
+        var terrain =
+                new dev.starfold.worldgen.PlanetTerrain(
+                        42, dev.starfold.worldgen.PlanetTerrain.VERSION);
+        var function = new dev.starfold.worldgen.surface.SurfaceFunction(terrain);
+        var chunk =
+                new ProtoChunk(
+                        new ChunkPos(0, 0),
+                        UpgradeData.EMPTY,
+                        PlanetTerrainTest.HEIGHT,
+                        PlanetTerrainTest.biomes,
+                        null);
+        int u = 1024, v = 1024;
+        long key = Face.TOP.ordinal() * 16384L + u / 16 + v / 16 * 128L;
+        for (int z = 0; z < 16; z++)
+            for (int x = 0; x < 16; x++) {
+                var blocks = function.blocks(Face.TOP, u + x, v + z);
+                for (int y = -64; y < 320 && y - terrain.floor() < blocks.length; y++)
+                    chunk.setBlockState(new BlockPos(x, y, z), blocks[y - terrain.floor()], false);
+            }
+        chunk.setBlockState(
+                new BlockPos(0, -40, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(), false);
+        Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.WORLD_SURFACE));
+        var capture = new GroundSurfaceCapture(chunk, function, key);
+        int reads = 0;
+        while (!capture.done()) {
+            int n = capture.step(17);
+            assertTrue(n <= 17);
+            reads += n;
         }
-        chunk.setBlockState(new BlockPos(0,-40,0),Blocks.DIAMOND_BLOCK.defaultBlockState(),false);
-        Heightmap.primeHeightmaps(chunk,EnumSet.of(Heightmap.Types.WORLD_SURFACE));
-        var capture=new GroundSurfaceCapture(chunk,function,key);
-        int reads=0;
-        while(!capture.done()) { int n=capture.step(17); assertTrue(n<=17); reads+=n; }
-        assertTrue(capture.matchesBaseline(),"buried variation is not an exterior change");
-        assertTrue(reads<65536,"unchanged columns only compare the exterior band");
-        chunk.setBlockState(new BlockPos(0,300,0),Blocks.GOLD_BLOCK.defaultBlockState(),false);
-        Heightmap.primeHeightmaps(chunk,EnumSet.of(Heightmap.Types.WORLD_SURFACE));
+        assertTrue(capture.matchesBaseline(), "buried variation is not an exterior change");
+        assertTrue(reads < 65536, "unchanged columns only compare the exterior band");
+        chunk.setBlockState(new BlockPos(0, 300, 0), Blocks.GOLD_BLOCK.defaultBlockState(), false);
+        Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.WORLD_SURFACE));
         capture.restart(chunk);
-        while(!capture.done()) assertTrue(capture.step(17)<=17);
+        while (!capture.done()) assertTrue(capture.step(17) <= 17);
         assertFalse(capture.matchesBaseline());
-        var surface=capture.result(1);
-        assertEquals(run(300,300,Blocks.GOLD_BLOCK.defaultBlockState()),surface.run(0,0,0));
-        assertEquals(-64,java.util.stream.IntStream.range(0,surface.runCount(0,0))
-                .map(i->surface.run(0,0,i).bottom()).min().orElseThrow());
+        var surface = capture.result(1);
+        assertEquals(run(300, 300, Blocks.GOLD_BLOCK.defaultBlockState()), surface.run(0, 0, 0));
+        assertEquals(
+                -64,
+                java.util.stream.IntStream.range(0, surface.runCount(0, 0))
+                        .map(i -> surface.run(0, 0, i).bottom())
+                        .min()
+                        .orElseThrow());
     }
 
     @Test
@@ -144,6 +159,48 @@ class GroundSurfaceRunsTest {
                         });
         assertEquals(365, reads[0]);
         assertEquals(run(300, -64, STONE), tower[0]);
+    }
+
+    @Test
+    void recapturedAquaticPlantsKeepTheirStatesAndIndependentWaterCap() {
+        var water = Blocks.WATER.defaultBlockState();
+        for (var plant :
+                List.of(
+                        Blocks.SEAGRASS.defaultBlockState(),
+                        Blocks.KELP.defaultBlockState(),
+                        Blocks.KELP_PLANT.defaultBlockState(),
+                        Blocks.TUBE_CORAL_FAN.defaultBlockState(),
+                        Blocks.TUBE_CORAL_WALL_FAN.defaultBlockState())) {
+            assertFalse(plant.getFluidState().isEmpty());
+            var runs =
+                    GroundSurfaceCapture.scan(
+                            128, 124, y -> y == 124 ? STONE : y == 126 ? plant : water);
+            assertArrayEquals(
+                    new GroundSurface.Run[] {
+                        run(128, 127, water), run(126, 126, plant),
+                        run(125, 125, water), run(124, 124, STONE)
+                    },
+                    runs);
+            var columns = new GroundSurface.Run[256][];
+            Arrays.fill(columns, runs);
+            var surface = new GroundSurface(1, columns);
+            assertTrue(
+                    surface.sameAs(GroundSurfaceCodec.unpack(1, GroundSurfaceCodec.pack(surface))));
+            var volume = new dev.starfold.worldgen.lod.VoxelColumns.Capture(124, 320);
+            while (!volume.done())
+                volume.step(
+                        (x, y, z) ->
+                                y > 128
+                                        ? Blocks.AIR.defaultBlockState()
+                                        : y == 124 ? STONE : y == 126 ? plant : water,
+                        8192);
+            var detailed =
+                    new GroundSurface(
+                            1, surface.heights(), surface.states(), volume.result().orElseThrow());
+            assertTrue(
+                    surface.sameAs(detailed.surfaceOnly()),
+                    "Evicting the detailed payload must keep aquatic cutouts");
+        }
     }
 
     @Test
@@ -268,35 +325,52 @@ class GroundSurfaceRunsTest {
         System.out.printf(
                 "ROUND9_RESIDENT forest_bound=%d double=%d cap=%d%n",
                 maximum, 2 * maximum, dev.starfold.worldgen.lod.VoxelLodPolicy.RESIDENT_BYTES);
-        // Full-sphere pixel fidelity is not a 3-GiB promise: hidden hemispheres retain coarse cover.
+        // Full-sphere pixel fidelity is not a 3-GiB promise: hidden hemispheres retain coarse
+        // cover.
         assertTrue(2 * maximum > dev.starfold.worldgen.lod.VoxelLodPolicy.RESIDENT_BYTES);
-        assertFalse(dev.starfold.worldgen.lod.VoxelLodPolicy.admits(maximum,128,0));
+        assertFalse(dev.starfold.worldgen.lod.VoxelLodPolicy.admits(maximum, 128, 0));
     }
 
     @Test
     void tallEditedStructureSurvivesCapturePersistenceAndStreamingWithItsAirGaps() {
-        var chunk=new ProtoChunk(new ChunkPos(0,0),UpgradeData.EMPTY,PlanetTerrainTest.HEIGHT,PlanetTerrainTest.biomes,null);
-        for(int y=-64;y<128;y++) chunk.setBlockState(new BlockPos(0,y,0),STONE,false);
-        for(int y:new int[]{150,180,220,260,300})
-            chunk.setBlockState(new BlockPos(0,y,0),Blocks.GOLD_BLOCK.defaultBlockState(),false);
-        Heightmap.primeHeightmaps(chunk,EnumSet.of(Heightmap.Types.WORLD_SURFACE));
-        var index=new GroundSurfaceIndex(); index.edited(chunk); index.finishPending();
-        var image=index.surface(0);
-        assertEquals(6,image.runCount(0,0));
-        assertEquals(300,image.run(0,0,0).top());
-        assertEquals(-64,image.run(0,0,5).bottom());
-        var loaded=GroundSurfaceIndex.load(index.save(new net.minecraft.nbt.CompoundTag(),null),null);
+        var chunk =
+                new ProtoChunk(
+                        new ChunkPos(0, 0),
+                        UpgradeData.EMPTY,
+                        PlanetTerrainTest.HEIGHT,
+                        PlanetTerrainTest.biomes,
+                        null);
+        for (int y = -64; y < 128; y++) chunk.setBlockState(new BlockPos(0, y, 0), STONE, false);
+        for (int y : new int[] {150, 180, 220, 260, 300})
+            chunk.setBlockState(
+                    new BlockPos(0, y, 0), Blocks.GOLD_BLOCK.defaultBlockState(), false);
+        Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.WORLD_SURFACE));
+        var index = new GroundSurfaceIndex();
+        index.edited(chunk);
+        index.finishPending();
+        var image = index.surface(0);
+        assertEquals(6, image.runCount(0, 0));
+        assertEquals(300, image.run(0, 0, 0).top());
+        assertEquals(-64, image.run(0, 0, 5).bottom());
+        var loaded =
+                GroundSurfaceIndex.load(
+                        index.save(new net.minecraft.nbt.CompoundTag(), null), null);
         assertTrue(image.sameColumns(loaded.surface(0)));
-        var raw=Unpooled.buffer();
+        var raw = Unpooled.buffer();
         try {
-            var buffer=new RegistryFriendlyByteBuf(raw,RegistryAccess.EMPTY);
-            GroundViewPackets.Surface.CODEC.encode(buffer,new GroundViewPackets.Surface(17,0,image));
-            var received=GroundViewPackets.Surface.CODEC.decode(buffer).image();
-            assertTrue(image.sameAs(received)); assertFalse(buffer.isReadable());
-            assertEquals(6,received.runCount(0,0));
-        } finally { raw.release(); }
-        var old=index.save(new net.minecraft.nbt.CompoundTag(),null); old.putInt("surface_form",1);
-        assertThrows(IllegalArgumentException.class,()->GroundSurfaceIndex.load(old,null));
+            var buffer = new RegistryFriendlyByteBuf(raw, RegistryAccess.EMPTY);
+            GroundViewPackets.Surface.CODEC.encode(
+                    buffer, new GroundViewPackets.Surface(17, 0, image));
+            var received = GroundViewPackets.Surface.CODEC.decode(buffer).image();
+            assertTrue(image.sameAs(received));
+            assertFalse(buffer.isReadable());
+            assertEquals(6, received.runCount(0, 0));
+        } finally {
+            raw.release();
+        }
+        var old = index.save(new net.minecraft.nbt.CompoundTag(), null);
+        old.putInt("surface_form", 1);
+        assertThrows(IllegalArgumentException.class, () -> GroundSurfaceIndex.load(old, null));
     }
 
     @Test
@@ -304,7 +378,10 @@ class GroundSurfaceRunsTest {
         var columns = new GroundSurface.Run[256][];
         for (int i = 0; i < 256; i++) {
             columns[i] = new GroundSurface.Run[GroundSurfaceCodec.MAX_RUNS];
-            for(int r=0;r<columns[i].length;r++) columns[i][r]=new GroundSurface.Run(300-r*3,300-r*3,i*GroundSurfaceCodec.MAX_RUNS+r);
+            for (int r = 0; r < columns[i].length; r++)
+                columns[i][r] =
+                        new GroundSurface.Run(
+                                300 - r * 3, 300 - r * 3, i * GroundSurfaceCodec.MAX_RUNS + r);
         }
         var worst = new GroundSurface(1, columns);
         assertEquals(82178, worst.packed().length);

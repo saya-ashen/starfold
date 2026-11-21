@@ -31,15 +31,18 @@ class GasSkimTest {
 
     @Test
     void rejectsMalformedAndUnboundedJson() {
-        for (var json : List.of("{}", "{\"fluid\":1,\"rate\":1}",
-                "{\"fluid\":\"BAD:ID\",\"rate\":1}",
-                "{\"fluid\":\"#test:gas\",\"rate\":1}",
-                "{\"fluid\":\"test:gas\"}",
-                "{\"fluid\":\"test:gas\",\"rate\":\"1\"}",
-                "{\"fluid\":\"test:gas\",\"rate\":0}",
-                "{\"fluid\":\"test:gas\",\"rate\":-1}",
-                "{\"fluid\":\"test:gas\",\"rate\":1e999}",
-                "{\"fluid\":\"test:gas\",\"rate\":1073741824}"))
+        for (var json :
+                List.of(
+                        "{}",
+                        "{\"fluid\":1,\"rate\":1}",
+                        "{\"fluid\":\"BAD:ID\",\"rate\":1}",
+                        "{\"fluid\":\"#test:gas\",\"rate\":1}",
+                        "{\"fluid\":\"test:gas\"}",
+                        "{\"fluid\":\"test:gas\",\"rate\":\"1\"}",
+                        "{\"fluid\":\"test:gas\",\"rate\":0}",
+                        "{\"fluid\":\"test:gas\",\"rate\":-1}",
+                        "{\"fluid\":\"test:gas\",\"rate\":1e999}",
+                        "{\"fluid\":\"test:gas\",\"rate\":1073741824}"))
             assertThrows(JsonParseException.class, () -> parse(json), json);
     }
 
@@ -76,11 +79,20 @@ class GasSkimTest {
         var field = new GasPressure.Field(List.of(layer));
         var definition = parse("{\"fluid\":\"test:gas\",\"rate\":10}");
         for (double depth : new double[] {-257, -256, -128, 0, 128, 512, 1024}) {
-            var reading = field.worst(new dev.starfold.geometry.BentStripGeometry.Point(2048 - depth, 0, 0), 0).orElseThrow();
+            var reading =
+                    field.worst(
+                                    new dev.starfold.geometry.BentStripGeometry.Point(
+                                            2048 - depth, 0, 0),
+                                    0)
+                            .orElseThrow();
             assertEquals(policy.pressure(depth), reading.pressure());
             assertEquals(20 * policy.pressure(depth), definition.amount(reading.pressure()));
         }
-        assertTrue(field.worst(new dev.starfold.geometry.BentStripGeometry.Point(2176, 0, 0), 0).orElseThrow().pressure() > 0);
+        assertTrue(
+                field.worst(new dev.starfold.geometry.BentStripGeometry.Point(2176, 0, 0), 0)
+                                .orElseThrow()
+                                .pressure()
+                        > 0);
     }
 
     @Test
@@ -89,13 +101,25 @@ class GasSkimTest {
             assertFalse(paths.anyMatch(p -> p.toString().contains("/starfold/gas_skim/")));
         }
         for (var lang : List.of("en_us", "zh_cn")) {
-            var json = JsonParser.parseString(Files.readString(Path.of(
-                    "src/main/resources/assets/starfold/lang/" + lang + ".json"))).getAsJsonObject();
+            var json =
+                    JsonParser.parseString(
+                                    Files.readString(
+                                            Path.of(
+                                                    "src/main/resources/assets/starfold/lang/"
+                                                            + lang
+                                                            + ".json")))
+                            .getAsJsonObject();
             assertFalse(json.get("block.starfold.gas_scoop").getAsString().isBlank());
         }
-        for (var path : List.of("assets/starfold/blockstates/gas_scoop.json",
-                "assets/starfold/models/block/gas_scoop.json", "assets/starfold/models/item/gas_scoop.json",
-                "data/starfold/recipe/gas_scoop.json", "data/starfold/loot_table/blocks/gas_scoop.json"))
-            assertNotNull(JsonParser.parseString(Files.readString(Path.of("src/main/resources/" + path))));
+        for (var path :
+                List.of(
+                        "assets/starfold/blockstates/gas_scoop.json",
+                        "assets/starfold/models/block/gas_scoop.json",
+                        "assets/starfold/models/item/gas_scoop.json",
+                        "data/starfold/recipe/gas_scoop.json",
+                        "data/starfold/loot_table/blocks/gas_scoop.json"))
+            assertNotNull(
+                    JsonParser.parseString(
+                            Files.readString(Path.of("src/main/resources/" + path))));
     }
 }

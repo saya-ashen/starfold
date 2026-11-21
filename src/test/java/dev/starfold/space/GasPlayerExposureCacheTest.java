@@ -20,19 +20,30 @@ class GasPlayerExposureCacheTest {
 
     private static GroundEphemeris.Model model() {
         var bodies = new ArrayList<>(GroundSolar.defaults().bodies());
-        bodies.add(GroundEphemeris.Body.gas(
-                new GroundEphemeris.Fixed(new Point(40000, 0, 0)), 4096,
-                new GasGiant(1, 31, "Amber", 0x98653d, 0xead1a2, 256, 512)));
+        bodies.add(
+                GroundEphemeris.Body.gas(
+                        new GroundEphemeris.Fixed(new Point(40000, 0, 0)),
+                        4096,
+                        new GasGiant(1, 31, "Amber", 0x98653d, 0xead1a2, 256, 512)));
         return new GroundEphemeris.Model(bodies);
     }
 
     private static GasPlayerExposurePacket packet(long sequence, int age) {
         var model = model();
-        return new GasPlayerExposurePacket(17, DIMENSION, sequence, age,
-                Optional.of(new GasPlayerExposurePacket.Snapshot(
-                        new GasPlayerExposure.Sample(GasPlayerExposure.Condition.DANGER,
-                                Optional.of(new GasPressure.Reading(model.bodies().size() - 1, 512, 1))),
-                        new GasPlayerExposureValues(37, 0, 0), Participation.ACTIVE)));
+        return new GasPlayerExposurePacket(
+                17,
+                DIMENSION,
+                sequence,
+                age,
+                Optional.of(
+                        new GasPlayerExposurePacket.Snapshot(
+                                new GasPlayerExposure.Sample(
+                                        GasPlayerExposure.Condition.DANGER,
+                                        Optional.of(
+                                                new GasPressure.Reading(
+                                                        model.bodies().size() - 1, 512, 1))),
+                                new GasPlayerExposureValues(37, 0, 0),
+                                Participation.ACTIVE)));
     }
 
     @Test
@@ -69,11 +80,16 @@ class GasPlayerExposureCacheTest {
         var cache = new GasPlayerExposureCache();
         cache.focus(FOCUS);
         var good = packet(1, 0);
-        for (var bad : new GasPlayerExposurePacket[] {
-                new GasPlayerExposurePacket(18, DIMENSION, 999, 0, good.snapshot()),
-                new GasPlayerExposurePacket(17, ResourceLocation.parse("minecraft:overworld"),
-                        999, 0, good.snapshot())})
-            assertFalse(cache.receive(bad, model(), 1));
+        for (var bad :
+                new GasPlayerExposurePacket[] {
+                    new GasPlayerExposurePacket(18, DIMENSION, 999, 0, good.snapshot()),
+                    new GasPlayerExposurePacket(
+                            17,
+                            ResourceLocation.parse("minecraft:overworld"),
+                            999,
+                            0,
+                            good.snapshot())
+                }) assertFalse(cache.receive(bad, model(), 1));
         assertFalse(cache.receive(packet(999, 0), GroundSolar.defaults(), 1));
         assertFalse(cache.receive(packet(999, 0), null, 1));
         assertTrue(cache.receive(good, model(), 1));
@@ -86,11 +102,17 @@ class GasPlayerExposureCacheTest {
         var cache = new GasPlayerExposureCache();
         cache.focus(FOCUS);
         assertTrue(cache.receive(packet(1, 0), model(), 1));
-        var unknown = GasPlayerExposurePacket.sampled(17, DIMENSION, 2,
-                GasPlayerExposure.unknown(), new GasPlayerExposureValues(0, 0, 19),
-                Participation.EXEMPT);
+        var unknown =
+                GasPlayerExposurePacket.sampled(
+                        17,
+                        DIMENSION,
+                        2,
+                        GasPlayerExposure.unknown(),
+                        new GasPlayerExposureValues(0, 0, 19),
+                        Participation.EXEMPT);
         assertTrue(cache.receive(unknown, null, 2));
-        assertEquals(GasPlayerExposure.Risk.UNKNOWN,
+        assertEquals(
+                GasPlayerExposure.Risk.UNKNOWN,
                 cache.current(2).snapshot().orElseThrow().sample().risk());
         assertEquals(0, cache.current(2).snapshot().orElseThrow().values().graceTicks());
         assertTrue(cache.receive(GasPlayerExposurePacket.clear(17, DIMENSION, 3), null, 3));
@@ -104,8 +126,9 @@ class GasPlayerExposureCacheTest {
         var cache = new GasPlayerExposureCache();
         cache.focus(FOCUS);
         assertTrue(cache.receive(packet(1, 0), model(), 1));
-        cache.focus(new GasPlayerExposureCache.Identity(
-                ResourceLocation.parse("minecraft:overworld"), 18));
+        cache.focus(
+                new GasPlayerExposureCache.Identity(
+                        ResourceLocation.parse("minecraft:overworld"), 18));
         assertNull(cache.current(2));
         assertFalse(cache.receive(packet(999, 0), model(), 2));
         cache.focus(new GasPlayerExposureCache.Identity(DIMENSION, 19));
@@ -132,15 +155,22 @@ class GasPlayerExposureCacheTest {
         var newLife = new GasPlayerExposurePacket(18, DIMENSION, 0, 0, packet(0, 0).snapshot());
         assertTrue(cache.receive(newLife, model(), 3));
         assertFalse(cache.receive(packet(999, 0), model(), 3));
-        assertEquals(37, cache.current(3).snapshot().orElseThrow().values().graceTicks(),
+        assertEquals(
+                37,
+                cache.current(3).snapshot().orElseThrow().values().graceTicks(),
                 "a new display session does not reset persisted grace");
     }
 
     @Test
     void unknownSequenceFenceSurvivesTemporaryLossOfTheSameAuthority() {
-        temporaryLossPreservesSequence(GasPlayerExposurePacket.sampled(17, DIMENSION, 10,
-                GasPlayerExposure.unknown(), new GasPlayerExposureValues(0, 0, 19),
-                Participation.ACTIVE));
+        temporaryLossPreservesSequence(
+                GasPlayerExposurePacket.sampled(
+                        17,
+                        DIMENSION,
+                        10,
+                        GasPlayerExposure.unknown(),
+                        new GasPlayerExposureValues(0, 0, 19),
+                        Participation.ACTIVE));
     }
 
     @Test
@@ -158,7 +188,8 @@ class GasPlayerExposureCacheTest {
         assertFalse(cache.receive(packet(11, 0), model(), 101));
         cache.focus(FOCUS);
         assertNull(cache.current(102), "restoring authority must not restore its old sample");
-        assertFalse(cache.receive(packet(9, 0), model(), 102),
+        assertFalse(
+                cache.receive(packet(9, 0), model(), 102),
                 "old danger must not cross the UNKNOWN/CLEAR sequence fence");
         assertFalse(cache.receive(packet(10, 0), model(), 103));
         assertNull(cache.current(103));
@@ -169,7 +200,8 @@ class GasPlayerExposureCacheTest {
         assertFalse(cache.receive(packet(11, 0), model(), 141));
         cache.focus(null);
         cache.focus(FOCUS);
-        assertFalse(cache.receive(packet(11, 0), model(), 142),
+        assertFalse(
+                cache.receive(packet(11, 0), model(), 142),
                 "expiry and a second temporary loss must still retain the fence");
         assertTrue(cache.receive(packet(12, 0), model(), 143));
     }
@@ -188,12 +220,14 @@ class GasPlayerExposureCacheTest {
         cache.reset();
         cache.focus(new GasPlayerExposureCache.Identity(DIMENSION, 18));
         assertNull(cache.current(103));
-        assertTrue(cache.receive(newSession, model(), 104),
+        assertTrue(
+                cache.receive(newSession, model(), 104),
                 "a real disconnect clears the fence even for the same identity");
         cache.focus(null);
         cache.invalidate();
         cache.focus(new GasPlayerExposureCache.Identity(DIMENSION, 18));
-        assertFalse(cache.receive(newSession, model(), 105),
+        assertFalse(
+                cache.receive(newSession, model(), 105),
                 "invalidate must retire the last session across a temporary null");
         cache.reset();
         cache.focus(new GasPlayerExposureCache.Identity(DIMENSION, 18));
@@ -222,7 +256,9 @@ class GasPlayerExposureCacheTest {
         cache.focus(null);
         cache.invalidate();
         cache.focus(other);
-        assertFalse(cache.receive(first, model(), 105), "retired session is blocked in every dimension");
+        assertFalse(
+                cache.receive(first, model(), 105),
+                "retired session is blocked in every dimension");
         assertNull(cache.current(105));
     }
 
@@ -244,19 +280,33 @@ class GasPlayerExposureCacheTest {
         var cache = new GasPlayerExposureCache();
         cache.focus(FOCUS);
         int gas = model().bodies().size() - 1;
-        for (var reading : new GasPressure.Reading[] {
-                new GasPressure.Reading(0, 512, 1),
-                new GasPressure.Reading(gas, 4097, 1),
-                new GasPressure.Reading(gas, 512, .2)}) {
-            var bad = GasPlayerExposurePacket.sampled(17, DIMENSION, 999,
-                    new GasPlayerExposure.Sample(GasPlayerExposure.Condition.DANGER,
-                            Optional.of(reading)), GasPlayerExposureValues.initial(), Participation.ACTIVE);
+        for (var reading :
+                new GasPressure.Reading[] {
+                    new GasPressure.Reading(0, 512, 1),
+                    new GasPressure.Reading(gas, 4097, 1),
+                    new GasPressure.Reading(gas, 512, .2)
+                }) {
+            var bad =
+                    GasPlayerExposurePacket.sampled(
+                            17,
+                            DIMENSION,
+                            999,
+                            new GasPlayerExposure.Sample(
+                                    GasPlayerExposure.Condition.DANGER, Optional.of(reading)),
+                            GasPlayerExposureValues.initial(),
+                            Participation.ACTIVE);
             assertFalse(cache.receive(bad, model(), 1));
         }
-        var falseSafe = GasPlayerExposurePacket.sampled(17, DIMENSION, 999,
-                new GasPlayerExposure.Sample(GasPlayerExposure.Condition.SAFE,
-                        Optional.of(new GasPressure.Reading(gas, 512, 1))),
-                GasPlayerExposureValues.initial(), Participation.ACTIVE);
+        var falseSafe =
+                GasPlayerExposurePacket.sampled(
+                        17,
+                        DIMENSION,
+                        999,
+                        new GasPlayerExposure.Sample(
+                                GasPlayerExposure.Condition.SAFE,
+                                Optional.of(new GasPressure.Reading(gas, 512, 1))),
+                        GasPlayerExposureValues.initial(),
+                        Participation.ACTIVE);
         assertFalse(cache.receive(falseSafe, model(), 1));
         assertTrue(cache.receive(packet(1, 0), model(), 1));
     }

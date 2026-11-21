@@ -4,7 +4,6 @@ import static dev.starfold.sky.SpaceTest.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.Sources;
 import dev.starfold.chart.GroundSolar;
 import dev.starfold.chart.PlanetShape;
 import dev.starfold.geometry.BentStripGeometry.Point;
@@ -356,17 +355,26 @@ class SpaceRestTest {
     @Test
     void runtimeCoastsWithoutDragAndOnlyUntrackedRegionEntitiesReceiveTheFold() throws Exception {
         var advance = SpaceBytecode.calls("space/SpaceServer", "advanceLead");
-        SpaceBytecode.before(advance, "SpaceServer.absorbLeadImpulse", "PhysicsPipeline.addLinearAndAngularVelocity");
+        SpaceBytecode.before(
+                advance,
+                "SpaceServer.absorbLeadImpulse",
+                "PhysicsPipeline.addLinearAndAngularVelocity");
         SpaceBytecode.before(advance, "SpaceServer.subtractEntityImpulse", "SpaceServer.dragFrame");
         SpaceBytecode.before(advance, "SpaceServer.dragFrame", "Space$Frame.toward");
         var subtract = SpaceBytecode.calls("space/SpaceServer", "subtractEntityImpulse");
         SpaceBytecode.before(subtract, "Space.in", "Entity.setDeltaMovement");
         SpaceBytecode.before(subtract, "SableFrames.tracked", "Entity.setDeltaMovement");
-        assertFalse(subtract.stream().anyMatch(c -> c.endsWith(".teleportTo") || c.endsWith(".setPos")));
+        assertFalse(
+                subtract.stream()
+                        .anyMatch(c -> c.endsWith(".teleportTo") || c.endsWith(".setPos")));
         var fold = SpaceBytecode.calls("space/SpaceServer", "absorbLeadImpulse");
         assertTrue(fold.contains("SpaceFlightMath.gain"));
         assertTrue(fold.contains("SpaceFlightMath.blendPush"));
-        assertFalse(fold.stream().anyMatch(c -> c.contains("PhysicsPipeline") || c.contains("Entity.")));
-        assertTrue(SpaceBytecode.calls("space/SpaceServer", "coastLead").contains("ShipParking.coastFrame"));
+        assertFalse(
+                fold.stream()
+                        .anyMatch(c -> c.contains("PhysicsPipeline") || c.contains("Entity.")));
+        assertTrue(
+                SpaceBytecode.calls("space/SpaceServer", "coastLead")
+                        .contains("ShipParking.coastFrame"));
     }
 }

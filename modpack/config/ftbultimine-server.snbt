@@ -1,0 +1,24 @@
+{
+  "features": {
+    "right_click_axe": false,
+    "right_click_shovel": false,
+    "right_click_hoe": false,
+    "right_click_harvesting": false,
+    "right_click_crystals": false,
+    "single_crop_harvesting": false
+  },
+  "costs_limits": {
+    "max_blocks": 32,
+    "exhaustion_per_block": 20.0,
+    "experience_per_block": 0.0,
+    "require_tool": true,
+    "require_valid_tool_for_block": true,
+    "ultimine_cooldown": 0
+  },
+  "misc": {
+    "merge_tags": [],
+    "merge_tags_shaped": [],
+    "prevent_tool_break": 0,
+    "cancel_on_block_break_fail": true
+  }
+}

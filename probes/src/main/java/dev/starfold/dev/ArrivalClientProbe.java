@@ -35,20 +35,18 @@ public final class ArrivalClientProbe {
             }
         org.slf4j.LoggerFactory.getLogger("starfold-probe")
                 .info(
-                        "PROBE ARRIVAL_FRAME wall {} game {} ns {} interval {} region {} remote {} own {} near {} missing {} parents {} coverage {} tiles {} parentNs {}",
+                        "PROBE ARRIVAL_FRAME wall {} game {} ns {} interval {} region {} remote {} near {} missing {} parents {} coverage {} tiles {}",
                         System.currentTimeMillis(),
                         mc.level.getGameTime(),
                         now - start,
                         interval,
                         SpaceClient.active(),
                         dev.starfold.DevelopmentHooks.remoteDraw,
-                        dev.starfold.DevelopmentHooks.ownDraw,
                         near,
                         !mc.level.getChunkSource().hasChunk(x, z),
                         GroundRenderer.probeParents(),
                         GroundViewClient.coverageReady(),
-                        GroundRenderer.probeParentTiles(),
-                        dev.starfold.DevelopmentHooks.parentNanos);
+                        GroundRenderer.probeParentTiles());
     }
 
     private ArrivalClientProbe() {}

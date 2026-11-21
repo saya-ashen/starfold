@@ -1,5 +1,6 @@
 """Offline layout invariants; these do not replace flight acceptance."""
 import collections
+import json
 import unittest
 from pathlib import Path
 
@@ -16,10 +17,15 @@ class MinimalHullTest(unittest.TestCase):
         self.assertEqual(count['minecraft:oak_door'], 4)
         mass = {'minecraft:cobblestone': 2, 'minecraft:oak_planks': .5,
                 'minecraft:oak_door': .25, 'minecraft:lever': 0}
-        self.assertEqual(sum(mass.get(k, 1) * v for k, v in count.items()), 312.5)
+        # Current core tags plus fixed Sable 2.0.5 category masses, not dev.71 mass.
+        root = Path(__file__).resolve().parents[2]
+        heavy = json.loads((root / 'src/main/resources/data/sable/tags/block/heavy.json').read_text())
+        mass.update({block: 2 for block in heavy['values']})
+        total = sum(mass.get(k, 1) * v for k, v in count.items())
+        self.assertEqual(total, 330.5)
         moment = sum(y * mass.get(s.split('[')[0], 1)
                      for (x, y, z), s in blocks().items())
-        self.assertAlmostEqual(moment / 312.5, -3.2624)
+        self.assertAlmostEqual(moment / total, -3.1422, places=4)
 
     def test_direction_pairs(self):
         for direction in ('north', 'south', 'west', 'east', 'up', 'down'):

@@ -30,7 +30,10 @@ public final class ShaderUniforms {
         if (u != null) {
             u.set(x);
             u.upload();
-        } else GL20.glUniform1i(location(s, name), x);
+        } else {
+            int at = location(s, name);
+            if (at >= 0) GL20.glUniform1i(at, x);
+        }
     }
 
     public static void set(ShaderInstance s, String name, float x) {
@@ -38,7 +41,10 @@ public final class ShaderUniforms {
         if (u != null) {
             u.set(x);
             u.upload();
-        } else GL20.glUniform1f(location(s, name), x);
+        } else {
+            int at = location(s, name);
+            if (at >= 0) GL20.glUniform1f(at, x);
+        }
     }
 
     public static void set(ShaderInstance s, String name, float x, float y) {
@@ -46,7 +52,10 @@ public final class ShaderUniforms {
         if (u != null) {
             u.set(x, y);
             u.upload();
-        } else GL20.glUniform2f(location(s, name), x, y);
+        } else {
+            int at = location(s, name);
+            if (at >= 0) GL20.glUniform2f(at, x, y);
+        }
     }
 
     public static void set(ShaderInstance s, String name, float x, float y, float z) {
@@ -54,7 +63,10 @@ public final class ShaderUniforms {
         if (u != null) {
             u.set(x, y, z);
             u.upload();
-        } else GL20.glUniform3f(location(s, name), x, y, z);
+        } else {
+            int at = location(s, name);
+            if (at >= 0) GL20.glUniform3f(at, x, y, z);
+        }
     }
 
     public static void set(ShaderInstance s, String name, float x, float y, float z, float w) {
@@ -62,6 +74,9 @@ public final class ShaderUniforms {
         if (u != null) {
             u.set(x, y, z, w);
             u.upload();
-        } else GL20.glUniform4f(location(s, name), x, y, z, w);
+        } else {
+            int at = location(s, name);
+            if (at >= 0) GL20.glUniform4f(at, x, y, z, w);
+        }
     }
 }

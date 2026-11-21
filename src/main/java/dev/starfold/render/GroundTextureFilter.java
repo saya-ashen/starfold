@@ -13,8 +13,8 @@ public final class GroundTextureFilter implements AutoCloseable {
     private static int cachedAtlas = -1, cachedLast;
     public final int lastMip;
     private final int atlas, min, mag, sampler, maxLevel;
-    private final boolean anisotropic, samplers, changed;
-    private final float anisotropy, minLod, maxLod, bias;
+    private final boolean samplers, changed;
+    private final float minLod, maxLod, bias;
 
     static void invalidateResources() {
         cachedAtlas = -1;
@@ -45,8 +45,6 @@ public final class GroundTextureFilter implements AutoCloseable {
                         .getTexture(TextureAtlas.LOCATION_BLOCKS)
                         .getId();
         var caps = GL.getCapabilities();
-        anisotropic =
-                caps.GL_EXT_texture_filter_anisotropic || caps.GL_ARB_texture_filter_anisotropic;
         samplers = caps.OpenGL33 || caps.GL_ARB_sampler_objects;
         sampler = samplers ? GL30.glGetIntegeri(ARBSamplerObjects.GL_SAMPLER_BINDING, 0) : 0;
         changed = mode != 2;
@@ -59,34 +57,25 @@ public final class GroundTextureFilter implements AutoCloseable {
             minLod = GL11.glGetTexParameterf(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MIN_LOD);
             maxLod = GL11.glGetTexParameterf(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LOD);
             bias = GL11.glGetTexParameterf(GL11.GL_TEXTURE_2D, GL14.GL_TEXTURE_LOD_BIAS);
-            anisotropy =
-                    anisotropic
-                            ? GL11.glGetTexParameterf(
-                                    GL11.GL_TEXTURE_2D,
-                                    EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT)
-                            : 1;
-            lastMip = lastMip(atlas, maxLevel,
-                    i -> GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, i, GL11.GL_TEXTURE_WIDTH));
+            lastMip =
+                    lastMip(
+                            atlas,
+                            maxLevel,
+                            i ->
+                                    GL11.glGetTexLevelParameteri(
+                                            GL11.GL_TEXTURE_2D, i, GL11.GL_TEXTURE_WIDTH));
             if (changed) {
                 GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, lastMip);
                 GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MIN_LOD, 0);
                 GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LOD, lastMip);
                 GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL14.GL_TEXTURE_LOD_BIAS, 0);
+                // Match native terrain: nearest texels, blended mip levels, existing anisotropy.
                 GL11.glTexParameteri(
                         GL11.GL_TEXTURE_2D,
                         GL11.GL_TEXTURE_MIN_FILTER,
-                        lastMip > 0 ? GL11.GL_LINEAR_MIPMAP_LINEAR : GL11.GL_LINEAR);
+                        lastMip > 0 ? GL11.GL_NEAREST_MIPMAP_LINEAR : GL11.GL_NEAREST);
                 GL11.glTexParameteri(
                         GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-                if (anisotropic)
-                    GL11.glTexParameterf(
-                            GL11.GL_TEXTURE_2D,
-                            EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT,
-                            Math.min(
-                                    8,
-                                    GL11.glGetFloat(
-                                            EXTTextureFilterAnisotropic
-                                                    .GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
             }
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
@@ -106,11 +95,6 @@ public final class GroundTextureFilter implements AutoCloseable {
             GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL14.GL_TEXTURE_LOD_BIAS, bias);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, min);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, mag);
-            if (anisotropic)
-                GL11.glTexParameterf(
-                        GL11.GL_TEXTURE_2D,
-                        EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT,
-                        anisotropy);
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
             if (samplers) ARBSamplerObjects.glBindSampler(0, sampler);

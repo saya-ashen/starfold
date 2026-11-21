@@ -55,7 +55,10 @@ public final class ShipRecords {
 
     public static void refresh(ServerLevel level) {
         var observer = observers.get(level);
-        if (observer != null) { observer.refresh(); ShipHost.get().mapSync(level); }
+        if (observer != null) {
+            observer.refresh();
+            ShipHost.get().mapSync(level);
+        }
     }
 
     /** Sample release before the region folds motion or changes its labels. */

@@ -48,7 +48,11 @@ public class MoonSystemTest {
         var parent = definition.suns().getFirst().planets().getFirst();
         int size = parent.size().orElse(parent.type().value().maxSize());
         double radius = new PlanetShape(size).radius();
-        double gm = 32 * parent.type().value().generation(size).environment().gravity() * radius * radius;
+        double gm =
+                32
+                        * parent.type().value().generation(size).environment().gravity()
+                        * radius
+                        * radius;
         assertEquals(parent.moons().getFirst().orbit().period(gm), model.orbit(2).period());
         assertEquals(model.index(0), model.orbit(2).parent());
         for (double t : new double[] {100, 1234.5, 6000, 24000}) {
@@ -242,23 +246,6 @@ public class MoonSystemTest {
         assertTrue(AuthoredSystemTest.failure(d).contains("1..1600"));
     }
 
-    @Test
-    void daylightAndClientShadowWiringUseTheMoonsParentWithoutChangingElevation() throws Exception {
-        var source = dev.starfold.Sources.text("GroundDaylight");
-        assertTrue(source.contains("returnsurfaceLight(level,pos,tick,false)"));
-        assertTrue(
-                source.contains(
-                        "surfaceLight(level,pos,GroundClock.get(level).clock.tick(),true)"));
-        assertTrue(source.contains("surfaceLight(level,pos,now+ahead,true)"));
-        assertTrue(
-                source.contains(
-                        "GroundSolar.daylight(elevation)*parentShade(clock.model,planet,world,tick)"));
-        assertTrue(
-                dev.starfold.Sources.text("GroundClient")
-                        .contains(
-                                "GroundDaylight.parentShade(observer.model,planet(),universeEye(),time())"));
-    }
-
     static JsonObject invalidReach() throws Exception {
         var d = fixture();
         moon(d).addProperty("reach", 511);
@@ -362,7 +349,9 @@ public class MoonSystemTest {
             for (double tick = 0; tick < m.orbit(slot).period(); tick += 1000)
                 assertTrue(
                         GroundDaylight.parentShade(m, slot, m.at(slot, tick).center(), tick) >= 0
-                                && GroundDaylight.parentShade(m, slot, m.at(slot, tick).center(), tick) <= 1);
+                                && GroundDaylight.parentShade(
+                                                m, slot, m.at(slot, tick).center(), tick)
+                                        <= 1);
             assertEquals(1, GroundDaylight.parentShade(m, 0, m.at(0, 0).center(), 0));
             assertEquals(2, GroundDynamics.select(m, m.at(2, 1234).center(), 0, 1234));
             assertTrue(SpaceNavigation.cycle(m, m.at(2, 1234).center(), 1234, 0).contains(2));

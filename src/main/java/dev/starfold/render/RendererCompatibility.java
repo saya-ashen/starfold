@@ -16,12 +16,7 @@ public final class RendererCompatibility {
             return loaded.test("sentrymechanicalarm")
                     && loaded.test("tacz")
                     && loaded.test("sable");
-        if (mixin.startsWith("dev.starfold.mixin.DevPort"))
-            return Boolean.getBoolean("starfold.portProbe");
-        // Both setupRender and allChanged belong to vanilla's terrain compiler/view area.
-        // Replacing that compiler must not leave half of its projected observer installed.
         if (mixin.equals("dev.starfold.mixin.HullBottomCacheMixin")
-                || mixin.equals("dev.starfold.mixin.PilotPoseProbeMixin")
                 || mixin.equals("dev.starfold.mixin.SableShipWriteMixin")
                 || mixin.equals("dev.starfold.mixin.SableShipStorageMixin")
                 || mixin.equals("dev.starfold.mixin.SableShipSerializationMixin")
