@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "starfold_materials:aluminum_hull_plating"
+  },
+  "result": {
+    "id": "starfold_materials:hull_trim",
+    "count": 1
+  }
+}

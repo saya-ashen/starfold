@@ -5,7 +5,11 @@
 Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭六面世界。走过面的边缘时不传送、不重载；多颗星球和恒星
 处在同一个维度里，在它们之间飞行没有加载画面：开一艘用机械动力（Create）和机械动力：航空学（Create Aeronautics）造的飞船，或者背上推进背包。
 
-**状态：alpha。** 目前以单人游戏为主，多人和与其他模组的兼容暂不是目标。版本之间不保证存档兼容，更新前请备份。
+![炉心上空的 C-07 母舰与 S-01 小艇](docs/gallery/escape-velocity-cover.jpg)
+
+[CurseForge 模组页](https://www.curseforge.com/minecraft/mc-mods/starfold) · [Escape Velocity 生存整合包](modpack/README.md) · [图库](docs/gallery/README.md)
+
+**当前为 Alpha 测试版，主要覆盖单人。** 模组 `0.4.0-alpha.3` 更新了飞船操控和地形渲染，并修复了已测试的部分 Create、Mekanism 设备在旋转接缝处的兼容问题。更新前请备份世界。
 
 ## 内容
 
@@ -22,17 +26,20 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 | | |
 |---|---|
 | Minecraft | 1.21.1 |
+| Java | 21 |
 | NeoForge | 21.1.247 或更新 |
 | Sable | 2.0.5 或 2.0.6（必需） |
 | 机械动力（Create）、机械动力：航空学（Create Aeronautics） | 造船和体验包预设需要 |
 | Immersive Aircraft | 可选；给起始飞船加一架飞行器 |
 
 安装 `starfold_worlds` 获得体验星球和预设；可选安装 `starfold_extras` 获得初始飞船、停机坪和指南书（需要 Worlds、Create 和 Create Aeronautics）。
-`starfold_materials` 提供轻质铝合金外壳板与重型锇合金耐压壳（完整方块、半砖）；金属原料由其他模组通过通用标签提供。数值见[暂定材料平衡](materials/BALANCE.md)。
+Atlas 需与 Starfold 本体版本完全一致。Mining 提供矿物测绘和提取设备。Materials 提供轻质铝外壳板、锇耐压壳和舰体装饰。CurseForge 版 Worlds 包含 Biotech，依赖 GeckoLib 4.8.2。
 
 星球渲染需要原版渲染器，不支持光影包。模组声明与 `gravity_changer` 不兼容。
 
 ## 游玩
+
+默认飞船键位见[玩家手册的造船与试飞章节](docs/escape-velocity-player-guide_zh-CN.md#阶段-3--造一艘能回来的首船)。
 
 想从空手生存一路玩到星际返航，请看 [Escape Velocity 玩家手册](docs/escape-velocity-player-guide_zh-CN.md)。
 
@@ -83,10 +90,12 @@ Java 源码用 google-java-format 1.28.0 的 AOSP 风格格式化
   | 模块 | 职责与源码路径 |
   |---|---|
   | `atlas` | 星球测绘及星图、星系图、地面地图：`atlas/src/main/java/dev/starfold/atlas` |
+  | `monsoon` | 客户端季节积雪与植被渲染：`monsoon/src/main/java/dev/starfold/monsoon`；Ecliptic Seasons 适配仍待发行许可确认 |
   | `devtools` | 按需启用的客户端 CPU/GPU 性能分析：`devtools/src/main/java/dev/starfold/devtools` |
   | `probes` | 开发探针、被动测量及探针 mixin：`probes/src/main/java/dev/starfold/{dev,probe,probes}`；仅供开发 |
   | `worlds` | 体验星球、群系与世界预设：`worlds/src/main/java/dev/starfold/worlds` 及 `worlds/src/main/resources` |
   | `extras` | 可选起始飞船、停机坪与指南书：`extras/src/main/java/dev/starfold/extras`；飞船结构位于 `extras/src/main/resources/data/starfold_extras/structure` |
+  | `mining` | 矿物测绘、航点联动和提取设备：`mining/src/main/java/dev/starfold/mining` |
   | `materials` | 铝原料、外壳板与耐压壳组件：`materials/src/main/java/dev/starfold/materials` 及 `materials/src/main/resources` |
   | `biotech` | 血肉虫巢地形、有机材料与宿主遭遇：`biotech/src/main/java/dev/starfold/biotech` 及 `biotech/src/main/resources` |
 

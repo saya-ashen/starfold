@@ -14,66 +14,21 @@ import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
 
 class HelmCommandTest {
-    // tools/ship/rocket.py, body-local positions relative to a centre near (0,.5,0).
-    private record Jet(Direction nozzle, Vector3d arm) {}
-
-    private static final Jet[] ROCKET = {
-        new Jet(Direction.EAST, new Vector3d(4, 1, 0)),
-        new Jet(Direction.WEST, new Vector3d(-4, 0, 0)),
-        new Jet(Direction.DOWN, new Vector3d(0, 0, 0)),
-        new Jet(Direction.UP, new Vector3d(1, 1, -1)),
-        new Jet(Direction.UP, new Vector3d(1, 1, 1)),
-        new Jet(Direction.NORTH, new Vector3d(-4, 0, -2)),
-        new Jet(Direction.SOUTH, new Vector3d(4, 1, 2)),
-        new Jet(Direction.SOUTH, new Vector3d(-4, 0, 2)),
-        new Jet(Direction.NORTH, new Vector3d(4, 1, -2))
-    };
-
-    private static java.util.List<Integer> fired(int bits, boolean free) {
-        var result = new java.util.ArrayList<Integer>();
-        for (int i = 0; i < ROCKET.length; i++) {
-            var t = ROCKET[i];
-            if (fires(bits, Direction.WEST, t.nozzle(), t.arm(), free)) result.add(i);
-        }
-        return result;
-    }
-
     @Test
-    void starterKeysSelectExactlyTheirThrusters() {
-        assertEquals(java.util.List.of(0), fired(FORWARD, false));
-        assertEquals(java.util.List.of(1), fired(BACK, false));
-        assertEquals(java.util.List.of(2), fired(UP, false));
-        assertEquals(java.util.List.of(3, 4), fired(DOWN, false));
-        assertEquals(java.util.List.of(5, 6), fired(LEFT, false));
-        assertEquals(java.util.List.of(7, 8), fired(RIGHT, false));
-        assertTrue(fired(SPRINT, false).isEmpty());
-        assertTrue(fired(0, false).isEmpty());
-    }
-
-    @Test
-    void freeAttitudeADOnlyRollsAndDoesNotFire() {
-        assertTrue(fired(LEFT, true).isEmpty());
-        assertTrue(fired(RIGHT, true).isEmpty());
-        assertEquals(java.util.List.of(0), fired(FORWARD | LEFT, true));
-        assertEquals(1, roll(LEFT));
-        assertEquals(-1, roll(RIGHT));
-    }
-
-    @Test
-    void yawSignWorksForEveryForwardAndRejectsSideTranslation() {
-        for (var f :
-                new Direction[] {
-                    Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST
-                }) {
-            var forward = new Vector3d(f.getStepX(), 0, f.getStepZ());
-            var right = new Vector3d(forward).cross(0, 1, 0);
-            var leftPush = Direction.getNearest(-right.x, 0, -right.z);
-            assertTrue(fires(LEFT, f, leftPush.getOpposite(), new Vector3d(forward).mul(4), false));
-            assertTrue(fires(LEFT, f, leftPush, new Vector3d(forward).mul(-4), false));
-            assertFalse(
-                    fires(RIGHT, f, leftPush.getOpposite(), new Vector3d(forward).mul(4), false));
-            assertFalse(fires(LEFT, f, leftPush.getOpposite(), new Vector3d(right).mul(2), false));
-            assertFalse(fires(RIGHT, f, leftPush.getOpposite(), new Vector3d(right).mul(2), false));
+    void translationSelectsTheMatchingNozzlesForEveryBow() {
+        for (var bow : Direction.Plane.HORIZONTAL) {
+            var left = bow.getCounterClockWise();
+            var right = bow.getClockWise();
+            assertTrue(fires(FORWARD, bow, bow.getOpposite()));
+            assertTrue(fires(BACK, bow, bow));
+            assertTrue(fires(UP, bow, Direction.DOWN));
+            assertTrue(fires(DOWN, bow, Direction.UP));
+            assertTrue(fires(LEFT, bow, left.getOpposite()));
+            assertTrue(fires(RIGHT, bow, right.getOpposite()));
+            assertFalse(fires(LEFT, bow, right.getOpposite()));
+            assertFalse(fires(RIGHT, bow, left.getOpposite()));
+            assertFalse(fires(LEFT | RIGHT, bow, left.getOpposite()));
+            assertFalse(fires(SPRINT, bow, bow));
         }
     }
 

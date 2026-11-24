@@ -1,5 +1,5 @@
 plugins { id 'net.neoforged.moddev' version '2.0.148'; id 'java-test-fixtures' }
-version = providers.gradleProperty('candidateVersion').getOrElse('0.4.0-alpha.1')
+version = providers.gradleProperty('candidateVersion').getOrElse('0.4.0-alpha.3')
 group = 'dev.starfold'
 base { archivesName = 'starfold' }
 def survivalPack = providers.gradleProperty('survivalPack').isPresent()
@@ -53,6 +53,7 @@ dependencies {
     testCompileOnly files(sableEmbeddedJars)
     // Compile only: a shim for Create's shafts across face seams, applied only where Create is installed.
     compileOnly 'maven.modrinth:create:UjX6dr61'
+    compileOnly 'maven.modrinth:Ce6I4WUE:5KzzycBT'
     // Real-content integration tests still use the Worlds-owned registry fixture.
     testImplementation(testFixtures(project(':worlds'))) { transitive = false }
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'

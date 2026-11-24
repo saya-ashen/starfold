@@ -1,6 +1,7 @@
 package dev.starfold.ground;
 
 import dev.starfold.chart.GroundChart;
+import dev.starfold.compat.mekanism.MekanismMenuImages;
 import dev.starfold.geometry.BentStripGeometry.Point;
 import dev.starfold.geometry.ChartLabSpace;
 import dev.starfold.geometry.ChartOrientation;
@@ -76,7 +77,7 @@ public final class PacketMap {
         }
     }
 
-    static BlockPos plane(ServerPlayer player, ObserverFrame frame, BlockPos pos) {
+    public static BlockPos plane(ServerPlayer player, ObserverFrame frame, BlockPos pos) {
         var p = plane(player, frame, pos.getX() + .5, pos.getY(), pos.getZ() + .5);
         return p == null
                 ? null
@@ -123,7 +124,9 @@ public final class PacketMap {
         if (packet
                 instanceof
                 net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket custom) {
-            var mapped = PayloadMap.relabel(p, custom.payload());
+            var mapped = custom.payload() instanceof net.neoforged.neoforge.network.payload.AdvancedOpenScreenPayload menu
+                    ? MekanismMenuImages.relabel(p, f, menu)
+                    : PayloadMap.relabel(p, custom.payload());
             return mapped == custom.payload()
                     ? packet
                     : new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(
@@ -206,11 +209,10 @@ public final class PacketMap {
         if (packet instanceof ClientboundBlockEntityDataPacket b) {
             var at = plane(p, f, b.getPos());
             if (at == null) return NOTHING;
-            var tag = b.getTag().copy();
-            if (tag.contains("x")) {
-                tag.putInt("x", at.getX());
-                tag.putInt("z", at.getZ());
-            }
+            var pos = b.getPos();
+            var tag = BlockEntityImages.tag(
+                    b.getTag(), pos, at, b.getType(),
+                    turns(access, f, pos.getX(), pos.getY(), pos.getZ()), p, f);
             return BlockEntityPacketAccess.starfold$create(at, b.getType(), tag);
         }
         if (packet instanceof ClientboundBlockEventPacket b) {
@@ -407,26 +409,14 @@ public final class PacketMap {
         // A block that is in no chart is another mod's (a block of a Sable body, in its plot):
         // where it is, which face of
         // it was touched and where on it are that mod's own coordinates, and go on as sent.
-        if (packet instanceof ServerboundUseItemOnPacket use
-                        && elsewhere(p, f, use.getHitResult().getBlockPos())
-                || packet instanceof ServerboundPlayerActionPacket action
+        if (packet instanceof ServerboundPlayerActionPacket action
                         && elsewhere(p, f, action.getPos())
                 || packet instanceof ServerboundSignUpdatePacket sign
                         && elsewhere(p, f, sign.getPos())) return packet;
         if (packet instanceof ServerboundUseItemOnPacket use) {
-            var hit = use.getHitResult();
-            var at =
-                    f.toStorage(
-                            new Point(
-                                    hit.getLocation().x, hit.getLocation().y, hit.getLocation().z));
-            return new ServerboundUseItemOnPacket(
-                    use.getHand(),
-                    new BlockHitResult(
-                            new Vec3(at.x(), at.y(), at.z()),
-                            f.directionToStorage(hit.getDirection()),
-                            f.toStorage(hit.getBlockPos()),
-                            hit.isInside()),
-                    use.getSequence());
+            var hit = storageHit(p, use.getHitResult());
+            return hit == use.getHitResult() ? packet
+                    : new ServerboundUseItemOnPacket(use.getHand(), hit, use.getSequence());
         }
         if (packet instanceof ServerboundPlayerActionPacket action)
             return new ServerboundPlayerActionPacket(
@@ -443,6 +433,18 @@ public final class PacketMap {
                     f.toStorage(sign.getPos()), sign.isFrontText(), l[0], l[1], l[2], l[3]);
         }
         return packet;
+    }
+
+    /** Convert a client block hit to the observer's root chart, including its seam halo. */
+    public static BlockHitResult storageHit(ServerPlayer player, BlockHitResult hit) {
+        if (!ObserverFrames.active(player)) return hit;
+        var frame = ObserverFrames.get(player);
+        if (frame.isIdentity() || elsewhere(player, frame, hit.getBlockPos())) return hit;
+        var location = hit.getLocation();
+        var at = frame.toStorage(new Point(location.x, location.y, location.z));
+        return new BlockHitResult(
+                new Vec3(at.x(), at.y(), at.z()), frame.directionToStorage(hit.getDirection()),
+                frame.toStorage(hit.getBlockPos()), hit.isInside());
     }
 
     /** A position a client sent that was never on its observer's plane (see plane): brought back to storage it lies in no chart. */

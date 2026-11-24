@@ -1,0 +1,11 @@
+{
+  "parent": "minecraft:block/block",
+  "loader": "neoforge:obj",
+  "model": "starfold_materials:models/block/bridge_glass_corner_bottom.obj",
+  "automatic_culling": false,
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "starfold_materials:block/bridge_glass"
+  },
+  "render_type": "minecraft:translucent"
+}

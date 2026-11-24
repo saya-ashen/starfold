@@ -1,0 +1,164 @@
+{
+  "variants": {
+    "facing=north,half=bottom,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_bottom",
+      "y": 0
+    },
+    "facing=east,half=bottom,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_bottom",
+      "y": 90
+    },
+    "facing=south,half=bottom,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_bottom",
+      "y": 180
+    },
+    "facing=west,half=bottom,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_bottom",
+      "y": 270
+    },
+    "facing=north,half=top,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_top",
+      "y": 0
+    },
+    "facing=east,half=top,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_top",
+      "y": 90
+    },
+    "facing=south,half=top,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_top",
+      "y": 180
+    },
+    "facing=west,half=top,shape=ramp": {
+      "model": "starfold_materials:block/hull_trim_ramp_top",
+      "y": 270
+    },
+    "facing=north,half=bottom,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_bottom",
+      "y": 0
+    },
+    "facing=east,half=bottom,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_bottom",
+      "y": 90
+    },
+    "facing=south,half=bottom,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_bottom",
+      "y": 180
+    },
+    "facing=west,half=bottom,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_bottom",
+      "y": 270
+    },
+    "facing=north,half=top,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_top",
+      "y": 0
+    },
+    "facing=east,half=top,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_top",
+      "y": 90
+    },
+    "facing=south,half=top,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_top",
+      "y": 180
+    },
+    "facing=west,half=top,shape=half_ramp": {
+      "model": "starfold_materials:block/hull_trim_half_ramp_top",
+      "y": 270
+    },
+    "facing=north,half=bottom,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_bottom",
+      "y": 0
+    },
+    "facing=east,half=bottom,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_bottom",
+      "y": 90
+    },
+    "facing=south,half=bottom,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_bottom",
+      "y": 180
+    },
+    "facing=west,half=bottom,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_bottom",
+      "y": 270
+    },
+    "facing=north,half=top,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_top",
+      "y": 0
+    },
+    "facing=east,half=top,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_top",
+      "y": 90
+    },
+    "facing=south,half=top,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_top",
+      "y": 180
+    },
+    "facing=west,half=top,shape=high_ramp": {
+      "model": "starfold_materials:block/hull_trim_high_ramp_top",
+      "y": 270
+    },
+    "facing=north,half=bottom,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_bottom",
+      "y": 0
+    },
+    "facing=east,half=bottom,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_bottom",
+      "y": 90
+    },
+    "facing=south,half=bottom,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_bottom",
+      "y": 180
+    },
+    "facing=west,half=bottom,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_bottom",
+      "y": 270
+    },
+    "facing=north,half=top,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_top",
+      "y": 0
+    },
+    "facing=east,half=top,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_top",
+      "y": 90
+    },
+    "facing=south,half=top,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_top",
+      "y": 180
+    },
+    "facing=west,half=top,shape=bevel": {
+      "model": "starfold_materials:block/hull_trim_bevel_top",
+      "y": 270
+    },
+    "facing=north,half=bottom,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_bottom",
+      "y": 0
+    },
+    "facing=east,half=bottom,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_bottom",
+      "y": 90
+    },
+    "facing=south,half=bottom,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_bottom",
+      "y": 180
+    },
+    "facing=west,half=bottom,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_bottom",
+      "y": 270
+    },
+    "facing=north,half=top,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_top",
+      "y": 0
+    },
+    "facing=east,half=top,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_top",
+      "y": 90
+    },
+    "facing=south,half=top,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_top",
+      "y": 180
+    },
+    "facing=west,half=top,shape=corner": {
+      "model": "starfold_materials:block/hull_trim_corner_top",
+      "y": 270
+    }
+  }
+}

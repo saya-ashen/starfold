@@ -29,22 +29,32 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 
-/** What a ship needs where there is no air: a thruster that pushes by itself, and a gyro that keeps the deck level,
- *  damps horizontal drift. Lift nozzles, not the gyro, carry the ship's weight.
- *  A booster hastens every thruster on the body. Thrusters accept controller commands or redstone; gyros need
- *  redstone. None pushes anything off a Sable body.
- *  Crafted from vanilla materials; fuel is opt-in through datapacks. */
+/**
+ * What a ship needs where there is no air: a thruster that pushes by itself, and a gyro that keeps
+ * the deck level, damps horizontal drift. Lift nozzles, not the gyro, carry the ship's weight. A
+ * booster hastens every thruster on the body. Thrusters accept controller commands or redstone;
+ * gyros need redstone. None pushes anything off a Sable body. Crafted from vanilla materials; fuel
+ * is opt-in through datapacks.
+ */
 public final class Thrusters {
-    /** Full nozzle force; ten lifts support the material-mass Hauler at approximately 55% throttle. */
+    /**
+     * Full nozzle force; ten lifts support the material-mass Hauler at approximately 55% throttle.
+     */
     public static final double THRUST = 3350, BOOST = 4;
 
-    /** A gyro turns the deck level at up to TURN radians a second, and takes about a twentieth of a second to bite. It
-     *  wears away turning about the up at STEER a second, so that a ship holds its heading and a turning thruster sets a
-     *  rate of turn. YAW is its corrective target, not a final cap on later actor impulses. Each gyro contributes
-     *  damping; two on the starter hull oppose the turning pair. Where there is no air nothing else stops a spin. */
+    /**
+     * A gyro turns the deck level at up to TURN radians a second, and takes about a twentieth of a
+     * second to bite. It wears away turning about the up at STEER a second, so that a ship holds
+     * its heading and a turning thruster sets a rate of turn. YAW is its corrective target, not a
+     * final cap on later actor impulses. Each gyro contributes damping; two on the starter hull
+     * oppose the turning pair. Where there is no air nothing else stops a spin.
+     */
     public static final double TURN = 1.5, YAW = 1, STEER = 1, BITE = 20;
 
-    /** Horizontal drift damping per second under a powered gyro. Vertical damping is real lift control. */
+    /**
+     * Horizontal drift damping per second under a powered gyro. Vertical damping is real lift
+     * control.
+     */
     public static final double HOLD = .5;
 
     private static final java.util.Map<ServerSubLevel, Long> STEADIED =
@@ -78,7 +88,10 @@ public final class Thrusters {
     private static final java.util.Map<ServerSubLevel, Push> PUSHING =
             java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 
-    /** Sum powered unit pushes in Level axes for this tick, with the same actor-order grace as lifting. */
+    /**
+     * Sum powered unit pushes in Level axes for this tick, with the same actor-order grace as
+     * lifting.
+     */
     public record Push(long tick, dev.starfold.geometry.BentStripGeometry.Point direction) {
         public Push add(long now, dev.starfold.geometry.BentStripGeometry.Point push) {
             return new Push(now, now == tick ? direction.add(push) : push);
@@ -342,7 +355,10 @@ public final class Thrusters {
         return tier;
     }
 
-    /** The nozzle is on the side the block faces; the ship is pushed the other way, harder for a stronger signal. */
+    /**
+     * The nozzle is on the side the block faces; the ship is pushed the other way, harder for a
+     * stronger signal.
+     */
     public static final class ThrusterBlock extends Block implements EntityBlock {
         ThrusterBlock(Properties properties) {
             super(properties);
@@ -425,8 +441,9 @@ public final class Thrusters {
             int power = HelmServer.power(body, getBlockPos(), getBlockState());
             if (power == 0) return;
             // A point and a direction of the body's own, as its blocks lie in their plot.
-            var push =
-                    getBlockState().getValue(BlockStateProperties.FACING).getOpposite().getNormal();
+            var state = getBlockState();
+            var nozzle = state.getValue(BlockStateProperties.FACING);
+            var push = nozzle.getOpposite().getNormal();
             double impulse =
                     impulse(
                             power,
@@ -449,16 +466,24 @@ public final class Thrusters {
                         body,
                         (key, old) -> old == null ? new Push(tick, unit) : old.add(tick, unit));
             }
-            handle.applyImpulseAtPoint(
-                    new Vector3d(at.getX() + .5, at.getY() + .5, at.getZ() + .5),
-                    new Vector3d(
-                            push.getX() * impulse, push.getY() * impulse, push.getZ() * impulse));
+            var nozzlePoint = new Vector3d(at.getX() + .5, at.getY() + .5, at.getZ() + .5);
+            var force = new Vector3d(push.getX(), push.getY(), push.getZ()).mul(impulse);
+            var center = body.getMassTracker().getCenterOfMass();
+            if (center != null && HelmServer.translates(body, nozzle)) {
+                // The pilot requests translation. Redstone still applies its share at the nozzle.
+                double balanced = 1 - state.getValue(BlockStateProperties.POWER) / (double) power;
+                nozzlePoint.lerp(center, balanced);
+            }
+            handle.applyImpulseAtPoint(nozzlePoint, force);
         }
     }
 
-    /** Powered, it turns the body until its own up is the up of the planet below, stops it rolling and pitching, and
-     *  holds its turning about that up to a rate a crew can stand on; the lift controller commands real nozzles
-     *  while SableFrames damps horizontal drift. Unpowered it is a block. */
+    /**
+     * Powered, it turns the body until its own up is the up of the planet below, stops it rolling
+     * and pitching, and holds its turning about that up to a rate a crew can stand on; the lift
+     * controller commands real nozzles while SableFrames damps horizontal drift. Unpowered it is a
+     * block.
+     */
     static final class GyroBlock extends Block implements EntityBlock {
         GyroBlock(Properties properties) {
             super(properties);
@@ -538,14 +563,34 @@ public final class Thrusters {
                             externalRoll);
             // Ground supports the hull. Do not overwrite contact-solver spin with either
             // leveling or damping; UP, steering or departure restores the gyro immediately.
-            if (resting) return;
-            var correction =
-                    level(
-                            new Quaterniond(body.logicalPose().orientation()),
-                            handle.getAngularVelocity(new Vector3d()),
-                            step,
-                            externalRoll);
-            if (chart) correction.y *= LiftControl.CHART_YAW_DAMPING;
+            double yaw = chart ? HelmServer.chartYaw(body) : 0;
+            double roll = chart ? HelmServer.chartRoll(body) : 0;
+            if (resting && yaw == 0) return;
+            var orientation = new Quaterniond(body.logicalPose().orientation());
+            var spin = handle.getAngularVelocity(new Vector3d());
+            var correction = level(orientation, spin, step, externalRoll);
+            if (chart) {
+                if (roll != 0 && !resting) {
+                    var nose = HelmServer.forward(body);
+                    var axis = new Vector3d(nose.x(), 0, nose.z());
+                    if (axis.lengthSquared() > 1e-8) {
+                        var bank =
+                                new Quaterniond()
+                                        .rotateAxis(-Math.toRadians(20) * roll, axis.normalize());
+                        correction =
+                                bank.transform(
+                                        level(
+                                                bank.conjugate(new Quaterniond()).mul(orientation),
+                                                bank.transformInverse(spin, new Vector3d()),
+                                                step,
+                                                false));
+                    }
+                }
+                correction.y =
+                        yaw == 0
+                                ? correction.y * LiftControl.CHART_YAW_DAMPING
+                                : (yaw - spin.y) * Math.min(1, BITE * step);
+            }
             handle.addLinearAndAngularVelocity(new Vector3d(), correction);
         }
     }
@@ -616,9 +661,12 @@ public final class Thrusters {
         }
     }
 
-    /** The change of spin that brings a body's up towards the level's up: about the axis that carries one to the other,
-     *  faster the further off it is, and against whatever roll and pitch it has. Spin about the up itself is worn away
-     *  slowly, and corrected toward YAW beyond it; later actor impulses can exceed that target. */
+    /**
+     * The change of spin that brings a body's up towards the level's up: about the axis that
+     * carries one to the other, faster the further off it is, and against whatever roll and pitch
+     * it has. Spin about the up itself is worn away slowly, and corrected toward YAW beyond it;
+     * later actor impulses can exceed that target.
+     */
     public static Vector3d level(Quaterniond orientation, Vector3d spin, double step) {
         return level(orientation, spin, step, false);
     }

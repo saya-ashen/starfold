@@ -52,6 +52,8 @@
       "dev.starfold.mixin.GroundSurfaceChunkMixin",
       "dev.starfold.mixin.GroundTopologyPlayerMixin",
       "dev.starfold.mixin.GroundTopologyLevelMixin",
+      "dev.starfold.mixin.GroundBlockCapabilityMixin",
+      "dev.starfold.mixin.GroundBlockCapabilityCacheMixin",
       "dev.starfold.mixin.PlanetCoreChunkMixin",
       "dev.starfold.mixin.StructureTemplateEntitiesMixin",
       "dev.starfold.mixin.GroundTopologyCollisionMixin",
@@ -151,13 +153,113 @@
         ],
         "reason": "Optional Sentry Mechanical Arm NetworkHandler is not in the packaged audit archives; its sendToNearby invocation selector cannot be resolved against the supplied dependencies.",
         "coverage": "Registration and compiled @Mixin target identity are checked here. No targeted upstream bytecode or transformed-runtime coverage exists for sendToNearby."
-      },
-      "dev.starfold.mixin.CreateSeamRotationMixin": {
+      }
+    }
+  },
+  "starfold.create.mixins.json": {
+    "audited": [],
+    "exemptions": {
+      "dev.starfold.compat.create.mixin.CreateSeamRotationMixin": {
         "targets": [
           "com.simibubi.create.content.kinetics.RotationPropagator"
         ],
-        "reason": "Create RotationPropagator is not in the packaged audit archives; its getRotationSpeedModifier wrapper and getAxisModifier shadow need the optional Create archive.",
-        "coverage": "Registration and compiled @Mixin target identity are checked here. No targeted upstream bytecode or transformed-runtime coverage exists for the Create rotation shim."
+        "reason": "Create RotationPropagator is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The pair calculation and source-facing selectors target Create 6.0.10."
+      },
+      "dev.starfold.compat.create.mixin.CreateBeltConnectorMixin": {
+        "targets": ["com.simibubi.create.content.kinetics.belt.item.BeltConnectorItem"],
+        "reason": "The optional Create archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The connector was exercised in Create 6.0.10."
+      },
+      "dev.starfold.compat.create.mixin.CreateBeltEntityMixin": {
+        "targets": ["com.simibubi.create.content.kinetics.belt.BeltBlockEntity"],
+        "reason": "The optional Create archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. Canonical controller storage was verified in Create 6.0.10."
+      },
+      "dev.starfold.compat.create.mixin.CreateArmPlacementMixin": {
+        "targets": ["com.simibubi.create.content.kinetics.mechanicalArm.ArmPlacementPacket"],
+        "reason": "The optional Create archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The placement handler targets Create 6.0.10."
+      },
+      "dev.starfold.compat.create.mixin.CreateChainConnectionPacketMixin": {
+        "targets": ["com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorConnectionPacket"],
+        "reason": "The optional Create archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The settings handler targets Create 6.0.10."
+      },
+      "dev.starfold.compat.create.mixin.CreateChainConveyorMixin": {
+        "targets": ["com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorBlockEntity"],
+        "reason": "The optional Create archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The reciprocal-link selectors target Create 6.0.10."
+      },
+      "dev.starfold.compat.create.mixin.CreateConfigurationPacketMixin": {
+        "targets": ["com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket"],
+        "reason": "The optional Create archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The configuration handler targets Create 6.0.10."
+      }
+    }
+  },
+  "starfold.mekanism.mixins.json": {
+    "audited": [],
+    "exemptions": {
+      "dev.starfold.compat.mekanism.mixin.MekanismTileUpdateMixin": {
+        "targets": ["mekanism.common.tile.base.TileEntityUpdateable"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The tracking gate and update codec were inspected in Mekanism 10.7.19.85."
+      },
+      "dev.starfold.compat.mekanism.mixin.MekanismTransmitterSeamMixin": {
+        "targets": ["mekanism.common.content.network.transmitter.Transmitter"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The mutual-connection and refresh methods target Mekanism 10.7.19.85."
+      },
+      "dev.starfold.compat.mekanism.mixin.MekanismOrphanPathMixin": {
+        "targets": ["mekanism.common.lib.transmitter.TransmitterNetworkRegistry$OrphanPathFinder"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The network traversal targets Mekanism 10.7.19.85."
+      },
+      "dev.starfold.compat.mekanism.mixin.MekanismStructureNodes": {
+        "targets": ["mekanism.common.lib.multiblock.Structure"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The member map targets Mekanism 10.7.19.85."
+      },
+      "dev.starfold.compat.mekanism.mixin.MekanismTankValidatorMixin": {
+        "targets": ["mekanism.common.lib.multiblock.CuboidStructureValidator"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. Cell validation and valve creation target Mekanism 10.7.19.85."
+      },
+      "dev.starfold.compat.mekanism.mixin.MekanismTankFormationMixin": {
+        "targets": ["mekanism.common.lib.multiblock.FormationProtocol"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The shape assignment targets Mekanism 10.7.19.85."
+      },
+      "dev.starfold.compat.mekanism.mixin.MekanismTankDataMixin": {
+        "targets": ["mekanism.common.lib.multiblock.MultiblockData"],
+        "reason": "The optional Mekanism archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. Bounds queries target Mekanism 10.7.19.85."
+      }
+    }
+  },
+  "starfold.jade.mixins.json": {
+    "audited": [],
+    "exemptions": {
+      "dev.starfold.compat.jade.mixin.JadeBlockRequestMixin": {
+        "targets": ["snownee.jade.impl.BlockAccessorImpl$SyncData"],
+        "reason": "The optional Jade archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. Request selectors were inspected in Jade 15.10.6."
+      },
+      "dev.starfold.compat.jade.mixin.JadeBlockResponseMixin": {
+        "targets": ["snownee.jade.impl.BlockAccessorImpl"],
+        "reason": "The optional Jade archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The response selector was inspected in Jade 15.10.6."
+      }
+    }
+  },
+  "starfold.flywheel.mixins.json": {
+    "audited": [],
+    "exemptions": {
+      "dev.starfold.compat.flywheel.mixin.FlywheelReversedDepthMixin": {
+        "targets": ["dev.engine_room.flywheel.backend.glsl.ShaderSources$SourceFinder"],
+        "reason": "The optional Flywheel archive is outside the packaged audit inputs.",
+        "coverage": "Registration and target identity are checked here. The shader loader and depth comparison were inspected in Flywheel 1.0.6."
       }
     }
   },

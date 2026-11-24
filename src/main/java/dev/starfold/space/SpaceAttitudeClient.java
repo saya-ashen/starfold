@@ -20,7 +20,9 @@ public final class SpaceAttitudeClient {
     private static Object lookBody;
     private static boolean looking;
     private static float lookYaw;
-    static final double AIM = 45, CHASE = .16, AIM_TURN = 120, EPSILON = .02;
+    static final double AIM = 45, CHASE = .16;
+    private static float lastYaw;
+    private static boolean lastInSpace;
 
     public static record Pointer(double x, double y) {
         Pointer move(double dx, double dy) {
@@ -30,13 +32,17 @@ public final class SpaceAttitudeClient {
             return new Pointer(nx * scale, ny * scale);
         }
 
-        // Close the final sub-epsilon gap once instead of leaving an asymptotic residual.
-        Pointer step() {
+        Pointer step(Pointer previous, double span, boolean space) {
             double length = Math.hypot(x, y);
-            if (length == 0) return this;
-            double angle = Math.min(AIM_TURN / 20, length * CHASE);
-            if (length <= EPSILON) angle = length;
-            return new Pointer(x * angle / length, y * angle / length);
+            double acceleration = dev.starfold.ship.HelmTurn.acceleration(span, space);
+            double angle =
+                    Math.min(
+                            dev.starfold.ship.HelmTurn.rate(span, space),
+                            Math.min(length * CHASE, Math.sqrt(2 * acceleration * length)));
+            var desired = length > 0 ? new Pointer(x * angle / length, y * angle / length) : this;
+            double dx = desired.x - previous.x, dy = desired.y - previous.y;
+            double ratio = Math.min(1, acceleration / Math.max(1e-300, Math.hypot(dx, dy)));
+            return new Pointer(previous.x + ratio * dx, previous.y + ratio * dy);
         }
 
         Pointer remaining(Pointer turn) {
@@ -44,8 +50,8 @@ public final class SpaceAttitudeClient {
         }
     }
 
-    // Freeze the coming subtraction at the tick boundary; frame mouse deltas remain immediate.
-    private static Pointer pointer = new Pointer(0, 0), plannedStep = new Pointer(0, 0);
+    private static final Pointer ZERO = new Pointer(0, 0);
+    private static Pointer pointer = ZERO, previousTurn = ZERO, plannedStep = ZERO;
 
     static Pointer draw(Pointer offset, Pointer step, double partial) {
         return offset.x() == 0 && offset.y() == 0
@@ -69,8 +75,7 @@ public final class SpaceAttitudeClient {
     }
 
     private static void recenter() {
-        pointer = new Pointer(0, 0);
-        plannedStep = new Pointer(0, 0);
+        pointer = previousTurn = plannedStep = ZERO;
         mouseYaw = mousePitch = 0;
         mouseBody = null;
     }
@@ -82,8 +87,8 @@ public final class SpaceAttitudeClient {
     public static void initialize(net.neoforged.bus.api.IEventBus modBus) {
         up = key("pitch_up", GLFW.GLFW_KEY_UP);
         down = key("pitch_down", GLFW.GLFW_KEY_DOWN);
-        left = key("roll_left", GLFW.GLFW_KEY_LEFT);
-        right = key("roll_right", GLFW.GLFW_KEY_RIGHT);
+        left = key("roll_left", GLFW.GLFW_KEY_Q);
+        right = key("roll_right", GLFW.GLFW_KEY_E);
         modBus.addListener(
                 (net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent event) -> {
                     for (var key : new KeyMapping[] {up, down, left, right}) event.register(key);
@@ -111,25 +116,28 @@ public final class SpaceAttitudeClient {
         return !SpaceClient.arriving();
     }
 
-    /** Arguments have already passed vanilla sensitivity, smoothing and invert-Y; Entity.turn uses 0.15 degrees. */
+    /**
+     * Arguments have already passed vanilla sensitivity, smoothing and invert-Y; Entity.turn uses
+     * 0.15 degrees.
+     */
     public static boolean mouse(double x, double y) {
         if (HelmClient.scopeMouse(x, y)) {
             recenter();
             return true;
         }
         if (!prepare()) return false;
-        pointer = pointer.move(x * .15, -y * .15);
+        pointer = pointer.move(x * .15, SpaceClient.active() ? -y * .15 : 0);
         return true;
     }
 
     private static boolean prepare() {
         var mc = Minecraft.getInstance();
         var body = HelmClient.body();
-        if (body != lookBody || !SpaceClient.active()) {
+        if (body != lookBody) {
             looking = false;
             lookBody = body;
         }
-        if (body != null && SpaceClient.active() && OrbitFlightControls.freeLook()) {
+        if (body != null && OrbitFlightControls.freeLook()) {
             if (!looking) {
                 lookYaw = mc.player.getYRot();
                 looking = true;
@@ -139,13 +147,16 @@ public final class SpaceAttitudeClient {
             mc.player.yRotO = lookYaw;
             looking = false;
         }
-        if (!mouseFlight()) {
+        if (!mouseFlight() && !chartMouseFlight()) {
             recenter();
             return false;
         }
-        if (mouseBody != body) {
+        boolean space = SpaceClient.active();
+        if (mouseBody != body || lastInSpace != space) {
             recenter();
             mouseBody = body;
+            lastInSpace = space;
+            lastYaw = HelmClient.pilotYaw();
         }
         {
             float yaw = HelmClient.pilotYaw();
@@ -157,9 +168,19 @@ public final class SpaceAttitudeClient {
         return true;
     }
 
+    private static boolean chartMouseFlight() {
+        var mc = Minecraft.getInstance();
+        return !SpaceClient.active()
+                && HelmClient.body() != null
+                && mc.screen == null
+                && (mc.isWindowActive() || DevelopmentHooks.driving.getAsBoolean())
+                && mc.options.getCameraType() != net.minecraft.client.CameraType.THIRD_PERSON_FRONT
+                && !OrbitFlightControls.freeLook();
+    }
+
     private static void tick() {
         var mc = Minecraft.getInstance();
-        if (!SpaceClient.active() || HelmClient.body() == null) {
+        if (HelmClient.body() == null) {
             sent = false;
             looking = false;
             lookBody = null;
@@ -169,10 +190,23 @@ public final class SpaceAttitudeClient {
         boolean active =
                 mc.screen == null
                         && (mc.isWindowActive() || DevelopmentHooks.driving.getAsBoolean());
-        float pitch = active ? (up.isDown() ? 1 : 0) - (down.isDown() ? 1 : 0) : 0,
-                roll = active ? (right.isDown() ? 1 : 0) - (left.isDown() ? 1 : 0) : 0;
-        prepare();
-        var turn = pointer.step();
+        float
+                pitch =
+                        active && SpaceClient.active()
+                                ? (up.isDown() ? 1 : 0) - (down.isDown() ? 1 : 0)
+                                : 0,
+                roll = active ? (left.isDown() ? 1 : 0) - (right.isDown() ? 1 : 0) : 0;
+        var body = HelmClient.body();
+        boolean aiming = prepare();
+        boolean space = SpaceClient.active();
+        double span = dev.starfold.ship.HelmTurn.span(body);
+        float yaw = HelmClient.pilotYaw();
+        if (aiming && !space)
+            pointer =
+                    pointer.remaining(
+                            new Pointer(net.minecraft.util.Mth.wrapDegrees(yaw - lastYaw), 0));
+        lastYaw = yaw;
+        var turn = aiming ? pointer.step(previousTurn, span, space) : ZERO;
         mouseYaw = turn.x();
         mousePitch = -turn.y();
         if (pitch != 0 || roll != 0 || sent || mouseYaw != 0 || mousePitch != 0) {
@@ -186,9 +220,10 @@ public final class SpaceAttitudeClient {
                                 mouseYaw,
                                 mousePitch);
         }
-        pointer = pointer.remaining(turn);
-        plannedStep = pointer.step();
-        sent = pitch != 0 || roll != 0;
+        if (space) pointer = pointer.remaining(turn);
+        previousTurn = turn;
+        plannedStep = space ? pointer.step(turn, span, true) : ZERO;
+        sent = pitch != 0 || roll != 0 || mouseYaw != 0 || mousePitch != 0;
         mouseYaw = mousePitch = 0;
     }
 

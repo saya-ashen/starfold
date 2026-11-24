@@ -22,7 +22,7 @@ class PrepareRuntimeTest(unittest.TestCase):
         self.dest = root / 'instance'
         self.cache = root / 'cache'
         for path in (self.pack / 'config', self.pack / 'kubejs',
-                     self.pack / 'mods', self.dest, self.cache):
+                     self.pack / 'mods', self.pack / 'schematics', self.dest, self.cache):
             path.mkdir(parents=True)
         for name, value in (('PACK', self.pack), ('DEST', self.dest), ('CACHE', self.cache)):
             context = patch.object(staging, name, value)
@@ -45,12 +45,16 @@ class PrepareRuntimeTest(unittest.TestCase):
             'server.properties': 'private settings',
             'options.txt': 'player options',
             'config/local.txt': 'local additions',
+            'schematics/player-build.nbt': 'player blueprint',
         }
         for path, text in originals.items():
             self.put(path, text)
         self.put('config/current.txt', 'old config')
+        blueprint = b'\x1f\x8b\x00'
+        (self.pack / 'schematics/s01.nbt').write_bytes(blueprint)
         staging.stage_managed_files()
         self.assertEqual('new config', (self.dest / 'config/current.txt').read_text())
+        self.assertEqual(blueprint, (self.dest / 'schematics/s01.nbt').read_bytes())
         for path, text in originals.items():
             self.assertEqual(text, (self.dest / path).read_text())
 

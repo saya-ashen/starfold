@@ -4,7 +4,7 @@ The default isolated instance is build/survival-stage1/instance; --instance sele
 another directory for independent validation. The Gradle sources supply
 Starfold modules, Sable, and GeckoLib; all other exact pinned archives go in mods/.
 Existing saves, options, server properties, and player files are left intact.
-Only previously managed config/kubejs files are pruned when removed from source;
+Only previously managed runtime files are pruned when removed from source;
 without a manifest, migration recognizes only legacy chapters 00.snbt..08.snbt.
 """
 from pathlib import Path
@@ -20,11 +20,12 @@ CACHE = ROOT / 'build/pi/jars'
 
 
 def stage_managed_files():
-    for name in ('config', 'kubejs'):
+    roots = ('config', 'kubejs', 'schematics')
+    for name in roots:
         if not (PACK / name).is_dir():
             raise FileNotFoundError(PACK / name)
     sources = {path.relative_to(PACK).as_posix(): path
-               for name in ('config', 'kubejs')
+               for name in roots
                for path in (PACK / name).rglob('*') if path.is_file()}
     manifest = DEST / '.prepare-runtime-managed.json'
     pending = manifest.with_suffix('.json.tmp')
@@ -41,7 +42,7 @@ def stage_managed_files():
     for relative in previous | sources.keys():
         path = Path(relative)
         if (path.is_absolute() or len(path.parts) < 2
-                or path.parts[0] not in ('config', 'kubejs')
+                or path.parts[0] not in roots
                 or '..' in path.parts or path.as_posix() != relative):
             raise ValueError(f'Invalid managed-file path: {relative}')
         # Never follow runtime links into saves or other unmanaged directories.

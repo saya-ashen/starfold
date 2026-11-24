@@ -1,12 +1,12 @@
 name = "Starfold: Escape Velocity"
 author = "Starfold"
-version = "0.4.0-alpha.1"
+version = "0.4.0-alpha.3"
 pack-format = "packwiz:1.1.0"
 
 [index]
 file = "index.toml"
 hash-format = "sha256"
-hash = "fd29b6b0c8dabc697714c43ef48bf7fa993952728f074ae7b58dff39f8f9efb7"
+hash = "c19280d3ef9255fb711d809562e7fd76a39e4558f2da774d077c974d65361914"
 
 [versions]
 minecraft = "1.21.1"

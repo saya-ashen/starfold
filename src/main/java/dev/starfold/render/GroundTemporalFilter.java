@@ -28,7 +28,9 @@ public final class GroundTemporalFilter {
 
     public static void begin(Camera camera, Matrix4f cameraView) {
         active = false;
-        if (failed || !GroundClient.projectedFrame()) {
+        if (failed || !GroundClient.projectedFrame()
+                || (dev.starfold.DevelopmentHooks.groundFilmCamera.test(camera.getEntity())
+                        && Boolean.getBoolean("starfold.film.disableTaa"))) {
             valid = false;
             return;
         }

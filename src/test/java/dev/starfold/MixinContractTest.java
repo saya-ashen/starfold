@@ -48,6 +48,7 @@ class MixinContractTest {
                 CONFIGS.getOrDefault(
                         path,
                         (path.startsWith("net/minecraft/")
+                                        || path.startsWith("net/neoforged/neoforge/")
                                         || path.startsWith("com/mojang/blaze3d/"))
                                 ? "starfold.auditUpstream"
                                 : path.startsWith("dev/ryanhcode/sable/")
@@ -60,6 +61,10 @@ class MixinContractTest {
     private static final Map<String, String> CONFIGS =
             Map.of(
                     "starfold.mixins.json", "starfold.auditJar",
+                    "starfold.create.mixins.json", "starfold.auditJar",
+                    "starfold.mekanism.mixins.json", "starfold.auditJar",
+                    "starfold.jade.mixins.json", "starfold.auditJar",
+                    "starfold.flywheel.mixins.json", "starfold.auditJar",
                     "starfold_probes.mixins.json", "starfold.auditProbes",
                     "starfold_worlds.mixins.json", "starfold.auditPack");
 
@@ -359,35 +364,31 @@ class MixinContractTest {
     /** A type in the mixin package that the configuration does not list cannot be loaded at all. */
     @Test
     void everyTypeInTheMixinPackageIsAListedMixin() throws Exception {
-        for (String module : List.of("", "probes/", "worlds/")) {
-            Set<String> listed;
-            try (var in =
-                    resource(
-                            module.isEmpty()
-                                    ? "starfold.mixins.json"
-                                    : "starfold_"
-                                            + module.substring(0, module.length() - 1)
-                                            + ".mixins.json")) {
+        for (var config : CONFIGS.entrySet()) {
+            var module = switch (config.getValue()) {
+                case "starfold.auditProbes" -> "probes/";
+                case "starfold.auditPack" -> "worlds/";
+                default -> "";
+            };
+            var listed = new TreeSet<String>();
+            String packagePath;
+            try (var in = resource(config.getKey(), config.getValue())) {
                 var json =
                         com.google.gson.JsonParser.parseString(new String(in.readAllBytes()))
                                 .getAsJsonObject();
-                listed = new TreeSet<>();
+                packagePath = json.get("package").getAsString().replace('.', '/');
                 for (var key : List.of("mixins", "client", "server"))
                     if (json.has(key))
                         json.getAsJsonArray(key).forEach(e -> listed.add(e.getAsString()));
             }
             var files = new TreeSet<String>();
-            try (var paths =
-                    java.nio.file.Files.list(
-                            java.nio.file.Path.of(
-                                    module
-                                            + "src/main/java/dev/starfold/"
-                                            + (module.isEmpty() ? "mixin" : module + "mixin")))) {
+            try (var paths = java.nio.file.Files.list(
+                    java.nio.file.Path.of(module + "src/main/java/" + packagePath))) {
                 paths.map(path -> path.getFileName().toString())
                         .filter(name -> name.endsWith(".java"))
                         .forEach(name -> files.add(name.substring(0, name.length() - 5)));
             }
-            assertEquals(listed, files);
+            assertEquals(listed, files, config.getKey());
         }
     }
 

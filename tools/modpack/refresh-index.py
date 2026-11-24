@@ -4,7 +4,7 @@ import hashlib
 import re
 
 pack = Path(__file__).resolve().parents[2] / 'modpack'
-files = sorted(path for directory in ('config', 'kubejs', 'mods')
+files = sorted(path for directory in ('config', 'kubejs', 'mods', 'schematics')
                for path in (pack / directory).rglob('*')
                if path.is_file() and (directory != 'mods' or path.name.endswith('.pw.toml')))
 lines = ['hash-format = "sha256"', '']

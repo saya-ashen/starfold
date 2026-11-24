@@ -26,11 +26,11 @@ hash = "414daff9d9865ef93f5c88ad9a821fdbbd857d73577f63ef161f1a0223121613"
 
 [[files]]
 file = "config/ftbquests/quests/chapters/1000000000050000.snbt"
-hash = "caa8222f9fc3da7bf0aaeaa82ccc036ec5cc1e35b7a9abe3941a120a99d02fa9"
+hash = "c063a4456db372682f7e5561b683e305c03e7df0c0b7589dbf8ef596083e5153"
 
 [[files]]
 file = "config/ftbquests/quests/chapters/1000000000060000.snbt"
-hash = "bd2b349ff6004152f4a1a5463e714651a36fb594244c216874bed0b4d28afa7d"
+hash = "8e4d373bda2c3ee6bf3a8f26c6c1e73b08c940eeedc36188f2534d42deb599c7"
 
 [[files]]
 file = "config/ftbquests/quests/chapters/1000000000070000.snbt"
@@ -46,11 +46,11 @@ hash = "57c3ef422b94cc77bdeb326f7920202cc39144bc2cedb3816f7d27a24560d4d4"
 
 [[files]]
 file = "config/ftbquests/quests/lang/en_us.snbt"
-hash = "20e12977fd41dd5c153684aea145625c8ecee20994f2ba8660125c6cbecef491"
+hash = "6b2c53d99f6186b94b30626ffce455496655563d668bc26b1fdb7ff748f7a93a"
 
 [[files]]
 file = "config/ftbquests/quests/lang/zh_cn.snbt"
-hash = "046d58029dae045a2a8a753e50d4cb3f94d6d3714843aeb285e288cb6da41a73"
+hash = "ea158c238754f6c1d5e102e4c79d182b6070005ad729b71218b6d046cc631f17"
 
 [[files]]
 file = "config/ftbultimine-server.snbt"
@@ -158,7 +158,7 @@ hash = "ba34e8231f7e38feaeb6b388467f8c52b0ba63c2e21c552da88a9d9a268daf69"
 
 [[files]]
 file = "kubejs/server_scripts/progression.js"
-hash = "d4db945ef223bfcc08b4d620a57572d5b61b699efc69f0c718bf118e4d12d33c"
+hash = "3b6aa3193cced6efa0a105b13054f1625cea63992821cb7e4a135660f5007b0a"
 
 [[files]]
 file = "mods/architectury-api.pw.toml"
@@ -284,3 +284,35 @@ metafile = true
 file = "mods/sable.pw.toml"
 hash = "dd26eb7fdc743b18513e5cb4dabeb6c6754ac21327cdad742f54a59d5bbd3e71"
 metafile = true
+
+[[files]]
+file = "schematics/c07-door-port.nbt"
+hash = "7834253fed37445f0c76484e9192b64ba0e049a7bdcc41318006f50a435b3224"
+
+[[files]]
+file = "schematics/c07-door-starboard.nbt"
+hash = "80cee64518d14e26e13e86d244523f4f5f3990802bc666542502b3ca9edf5323"
+
+[[files]]
+file = "schematics/c07-hull-1.nbt"
+hash = "54ab4431111c8d101a52ef1ad7231763a1a7e717ffd501bba61f043ab236c507"
+
+[[files]]
+file = "schematics/c07-hull-2.nbt"
+hash = "f9dfcb6e77495c551411f8f05cc1256f9e5b524457fb4bd21351ed7f091dfcc1"
+
+[[files]]
+file = "schematics/c07-hull-3.nbt"
+hash = "a4af905b81c8cd015b2111d073f92383bac3d3a9b3d68e1c0f860f80d036a772"
+
+[[files]]
+file = "schematics/c07-hull-4.nbt"
+hash = "b272857ca33b0a3bb599814e3e9c6533545a8d27f78dd2770b3d9f946401c990"
+
+[[files]]
+file = "schematics/s01.nbt"
+hash = "25af72403f84e8281d3d35e2659d792acd400a02dff803c44e57d65e73c9e759"
+
+[[files]]
+file = "schematics/ship-schematics.json"
+hash = "24c0b9ff738e1d91fe804e0fb85b6e82bf6d986f20463453541c731b9b6d71b3"

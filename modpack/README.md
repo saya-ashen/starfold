@@ -1,49 +1,31 @@
-# Survival pack source (provisional name in `pack.toml`)
+# Starfold Escape Velocity
 
-## Design and progression
+![C-07 and S-01 above Hearth](../docs/gallery/escape-velocity-cover.jpg)
 
-The [中文玩家手册](../docs/escape-velocity-player-guide_zh-CN.md) walks through the survival campaign, from creating a world to returning from the first interstellar expedition.
+[Install on CurseForge](https://www.curseforge.com/minecraft/modpacks/starfold-escape-velocity) · [Gallery](../docs/gallery/README.md) · [中文玩家手册](../docs/escape-velocity-player-guide_zh-CN.md)
 
-See the 整合包设计文档：从零生存流程
-for the staged design, with a separate flowchart, goals, acceptance criteria and
-open questions for each stage. Proposed designs are distinguished from current
-rules in [`RULES.md`](RULES.md). Stage one has implemented guide delivery,
-Ultimine, mining, resource-aware natural spawning and a home structure policy;
-one complete ordinary-survival route has passed acceptance. See the
-current runtime record.
-The stage-two work adds underwater ecology,
-a compact `starfold_mining:oil_extractor` using CDG's shared oil reserves, and
-revises the quest graph while preserving all existing IDs; subsequent stage-three
-through stage-seven work brings the current total to 9 chapters / 110 quests.
-Controlled oil conservation, shutdown boundaries and fresh-JVM persistence have
-passed; ocean generation has been observed on all six faces. The ordinary-survival mining, powered brass and two natural-oil batches are
-accepted; electronics and precision parts remain outside that runtime acceptance.
-Stage-two testing is closed; see its final record for the exact boundaries.
-Optional planetary transport uses the existing Create Aeronautics; its flight
-acceptance is separate from the required ground industry route. See the
-current stage-two evidence and
-material budget for precise limits.
+Start from scratch on Hearth. Build a Create workshop and a fuel supply, assemble a ship with Create Aeronautics, and use Atlas to plan off-world resource trips. Later quests lead into gas collection, the Host encounter and interstellar travel. C-07 and S-01 are buildable schematics for players who want a carrier and shuttle project.
 
-The stage-three reference adds a
-fuel/cargo hull proposal, current recipe budget and offline lift/fuel calculator.
-A manual local landing, reboarding and repair record now precedes space entry.
-A separately authorized supplied-fixture test passed short fuelled local flight,
-reboarding, repair and native assembly; survival manufacture, payload, endurance
-and off-world travel remain unqualified. Development does not authorize long
-automatic gameplay tests.
+Install from CurseForge using Java 21. In a fresh single-player world, select **Starfold: Experience**, then open the starting guide and FTB Quests. Pack `0.4.0-alpha.3` targets Minecraft 1.21.1 and NeoForge 21.1.247. Select **Beta** in the CurseForge file list to find this version.
 
-The stage-four reference
-adds target selection, sequential fuel budgeting, and manual departure/loading/
-unloading records. Raw ore is unloaded at home before smelting. The offline
-voyage checker checks declared consistency only; it does not authenticate ship
-identity or cargo provenance. Full off-world mining and same-ship return have
-not been tested in this stage.
+## First flight
 
-The stage-five reference
-adds sustained hydrogen supply, offline lightweight/fuel comparison and manual
-upgrade/repeated-route records. Resource errands are optional choices; no fixed
-bucket-to-orbit promise remains. Recipe and model checks do not qualify actual
-hydrogen production, lightweight handling or repeated resource voyages.
+Right-click the helm of an assembled ship to take control. Check that all six thrust directions work, the gyros have power, and the fuel tanks feed the thrusters. Practice takeoff and landing with a light load before carrying ore.
+
+| Default input | While piloting |
+| --- | --- |
+| `W/S`, `A/D`, `Space/Shift` | Move forward/back, strafe and climb/descend. |
+| Mouse, `Q/E` | Steer. `Q/E` banks near the ground and rolls in space. |
+| `Ctrl` + movement | Boost. `Space + Ctrl` cancels automatic arrival when active. |
+| `F5`, hold left `Alt` | Cycle views or look around. Scroll to zoom in chase view. |
+| `M`, `F`, `G` | Open Atlas, lock or clear the aimed-at space target, or cycle space targets. Target locking requires a tier-2 or tier-3 scope. |
+| `R` | Leave the helm after landing and settling. |
+
+Use Atlas's **Set navigation target** while piloting to send a destination to the ship. Watch relative speed and distance and leave room to brake before descent. The [Chinese player guide](../docs/escape-velocity-player-guide_zh-CN.md) covers assembly, fuel, the first osmium haul and the full interstellar route.
+
+Fission reactors, fusion reactors, industrial turbines and their dedicated parts have their crafting recipes deferred in `0.4.0-alpha.3`. Uranium and deuterium remain available, including Amber's deuterium collection for the interstellar drive.
+
+## Building from source
 
 Minecraft 1.21.1 / NeoForge 21.1.247. Run packwiz commands **inside this directory**:
 
@@ -76,7 +58,7 @@ JEI 19.70.0.460 declares MC `[1.21,1.21.1)`. This is accepted by the bundled FML
 patch third-party jars or mistake that range alone for an incompatibility.
 MezzConfig is JEI's CurseForge dependency (also embedded at an older version).
 
-The stage-six/seven reference
+The [stage-six/seven reference](../docs/modpack-design/gas-and-interstellar-reference.md)
 opens gas collection and Host preparation in parallel and joins them at drive
 fabrication. New manual records cover withdrawal/recollection, installation,
 expedition planning, another-system landing, outpost save/rejoin and return.
@@ -84,12 +66,16 @@ Generic late-game stock samples are optional; actual recipe costs remain.
 The experience universe defines eight additional stars beyond the one-sun home system
 (nine suns in a newly generated current layout); the named starter system is only
 the home system. The sequential planner accepts deuterium and explicit drive /
-outside-home declarations, without route or gameplay certification. The bounded stage-six/seven runtime report records gas collection, deuterium bottling and interstellar-drive crafting with prepared fixtures. It also records the open Host, outbound propulsion, landing and return checks.
+outside-home declarations, without route or gameplay certification. Bounded tests with prepared fixtures covered gas collection, deuterium bottling and interstellar-drive crafting. The Host encounter, outbound propulsion, landing and return remain open in those tests.
 
 
-## Starfold JARs bundled in both exports
+## C-07 and S-01 construction schematics
 
-None has a CurseForge project/file entry yet. Build the six modules first, then run `tools/modpack/export-local.py` as shown above. The final client and server ZIPs contain the merged builds under `overrides/mods/`:
+Use Create's Schematic Table with an Empty Schematic to select `s01.nbt` or the C-07 files. Each C-07 hull section can be assigned to its own Schematicannon. `schematics/ship-schematics.json` lists the offsets from a shared shipyard origin and the block counts. Keep the supplied west-facing orientation for both ships. Use the listed offsets to align all C-07 sections and doors. Use the keep-existing-solid-blocks setting and supply materials and gunpowder to each cannon. Print in a clear berth. After a server restart, check each cannon and press Play if it says Ready. Before assembly, check both gyros in each hull. Re-place the adjacent redstone block if a printed gyro remains unpowered. Physical assembly, door hinges, and docking are separate steps.
+
+## Starfold modules in the pack
+
+The CurseForge release pins five downloadable files: Starfold, Atlas, Mining, Materials and Worlds with Biotech. Source-based client and server exports bundle the following six individually built JARs under `overrides/mods/`:
 
 - `starfold-<version>.jar` (core)
 - `starfold_worlds-<version>.jar` (experience planets and presets; the pack's
@@ -224,11 +210,11 @@ they do not automatically detect tank telemetry, transport or completed travel.
 The Host uses a kill task; ganglion and drive possession use item tasks. All 104
 prior quest/task/reward identities remain attached to their original quests.
 Retired IDs `1000000000070500`–`1000000000070700` are not reused.
-The Stage 6/7 reference
+The [Stage 6/7 reference](../docs/modpack-design/gas-and-interstellar-reference.md)
 explains material costs, pressure limits and the remaining gameplay checks.
 
 Rename only `pack.toml`'s `name` and the `file.0000000000000001.title` key in quest
 `lang/en_us.snbt` (the generator reads the name from `pack.toml`).
 Other quest text does not duplicate the provisional pack name.
 
-The bounded stage-three runtime report records supplied-fixture local flight, reboarding, repair and native assembly. Survival manufacture, payload, endurance and off-world travel remain unqualified. The independent test instance is saved and stopped.
+Bounded stage-three testing recorded supplied-fixture local flight, reboarding, repair and native assembly. Survival manufacture, payload, endurance and off-world travel remain unqualified. The independent test instance is saved and stopped.

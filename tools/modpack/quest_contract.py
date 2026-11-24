@@ -23,12 +23,14 @@ PRIOR_STAGE_QUEST_IDS = LEGACY_QUEST_IDS | frozenset({
     '1000000000050D00', '1000000000050E00', '1000000000050F00',
     '1000000000060C00', '1000000000060D00',
 })
-NEW_QUEST_IDS = frozenset(f'100000000008{i:02X}00' for i in range(11, 17))
+SHIPYARD_QUEST_IDS = frozenset({'1000000000051000', '1000000000060E00'})
+NEW_QUEST_IDS = frozenset(f'100000000008{i:02X}00' for i in range(11, 17)) | SHIPYARD_QUEST_IDS
 OPTIONAL_QUEST_IDS = frozenset(
     {f'100000000003{i:02X}00' for i in (1, 2, 3, 4, 5, 8, 9)}
     | {'1000000000040200', '1000000000020F00', '1000000000050500'}
     | {f'100000000006{i:02X}00' for i in (1, 2, 3, 6, 7, 8, 9, 10)}
-    | {f'100000000008{i:02X}00' for i in (1, 2, 3, 4)})
+    | {f'100000000008{i:02X}00' for i in (1, 2, 3, 4)}
+    | SHIPYARD_QUEST_IDS)
 EXPEDITION_CHAIN = (
     '1000000000080A00', '1000000000080C00', '1000000000080D00',
     '1000000000080800', '1000000000080E00', '1000000000080F00',
@@ -95,6 +97,8 @@ def validate_graph_contract(quests):
 
     # Exact edges express the records that must be completed immediately beforehand.
     edges = {
+        '1000000000051000': ['1000000000050E00'],
+        '1000000000060E00': ['1000000000051000', '1000000000060C00'],
         '1000000000040100': ['1000000000020E00'],  # Workshop opens fuel independently of ship parts.
         '1000000000041200': ['1000000000040A00'],  # Local reboarding trial.
         '1000000000050C00': ['1000000000041200'],

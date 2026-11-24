@@ -1,4 +1,7 @@
 {
+  "message.starfold_mining.survey.waypoint_full": "探矿记录已保存。航点已达上限（%s 个）。删除一个航点后重新扫描，即可添加导航标记。",
+  "message.starfold_mining.survey.history_full": "探矿记录已达上限（%s 条）。已替换最早的一条记录，其航点仍然保留。",
+  "message.starfold_mining.survey.data_error": "无法读取或保存探矿记录。已有记录仍然保留。",
   "block.starfold_mining.mining_platform": "采矿平台",
   "container.starfold_mining.mining_platform": "采矿平台",
   "itemGroup.starfold_mining": "Starfold：采矿",

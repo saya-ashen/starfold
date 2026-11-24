@@ -20,6 +20,8 @@ public final class DevelopmentHooks {
     public static Arrival arrival = new Arrival() {};
     public static Relight relight = new Relight() {};
     public static boolean remoteDraw;
+    public static Predicate<net.minecraft.world.entity.Entity> groundFilmCamera = entity -> false;
+    public static Predicate<net.minecraft.world.entity.Entity> groundFilmObserver = entity -> false;
 
     public interface MoveListener {
         void accept(

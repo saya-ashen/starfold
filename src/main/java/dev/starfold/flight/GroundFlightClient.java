@@ -72,6 +72,8 @@ public final class GroundFlightClient {
     private static float partial;
     private static double renderTime;
     private static PlanetShape.Pose renderPose;
+    private static PlanetShape.Pose probeCameraPose;
+    private static Quaterniond probeCameraAim;
     private static final LinkedHashMap<Long, GroundFlightPackets.Input> pending =
             new LinkedHashMap<>();
 
@@ -140,6 +142,7 @@ public final class GroundFlightClient {
         queuedToggles = 0;
         pending.clear();
         renderPose = null;
+        releaseProbeCamera();
         renderTime = 0;
     }
 
@@ -199,6 +202,7 @@ public final class GroundFlightClient {
                     mask = packet.mask();
                     boolean handoff = controlled && !packet.controlled(),
                             underWay = controlled && packet.controlled();
+                    if (session != packet.session() || !packet.controlled()) releaseProbeCamera();
                     state = previous = packet.state();
                     session = packet.session();
                     sequence = ack = 0;
@@ -273,6 +277,7 @@ public final class GroundFlightClient {
                     controlled = nextControlled;
                     renderPose = null;
                     if (!controlled) {
+                        releaseProbeCamera();
                         if (handoff) handoff();
                         else aim = GroundDynamics.orientation(model, state, state.tick());
                     } else apply();
@@ -730,7 +735,22 @@ public final class GroundFlightClient {
                         model.at(state.planet(), renderTime).local(world));
     }
 
+    /** Dev probe only: hold the current rendered pose and orientation in the planet's frame. */
+    public static boolean lockProbeCamera() {
+        if (!controlled() || waiting || probeCameraPose != null) return false;
+        var pose = pose();
+        probeCameraAim = chartAim();
+        probeCameraPose = pose;
+        return true;
+    }
+
+    public static void releaseProbeCamera() {
+        probeCameraPose = null;
+        probeCameraAim = null;
+    }
+
     public static PlanetShape.Pose pose() {
+        if (probeCameraPose != null) return probeCameraPose;
         if (renderPose == null) prepare(partial);
         return renderPose;
     }
@@ -744,6 +764,7 @@ public final class GroundFlightClient {
     }
 
     public static Quaterniond chartAim() {
+        if (probeCameraAim != null) return new Quaterniond(probeCameraAim);
         return PlanetOrbit.frame(PlanetShape.of(state.planet()), pose())
                 .rotation()
                 .conjugate()

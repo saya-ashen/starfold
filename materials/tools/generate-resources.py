@@ -26,6 +26,110 @@ def png(name, pixels, folder='block', alpha=False):
     path.write_bytes(image)
 
 
+def ship_shapes():
+    outline = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    profiles = {
+        'ramp': (lambda x, z: z, [outline]),
+        'half_ramp': (lambda x, z: z / 2, [outline]),
+        'high_ramp': (lambda x, z: .5 + z / 2, [outline]),
+        'bevel': (lambda x, z: min(1, .5 + z),
+                  [[(0, 0), (1, 0), (1, .5), (0, .5)], [(0, .5), (1, .5), (1, 1), (0, 1)]]),
+        'corner': (min, [[(0, 0), (1, 0), (1, 1)], [(0, 0), (1, 1), (0, 1)]]),
+    }
+    for name, texture in [('hull_trim', f'{NS}:block/aluminum_hull_plating'),
+                          ('dark_hull_trim', f'{NS}:block/osmium_pressure_hull'),
+                          ('bridge_glass', f'{NS}:block/bridge_glass')]:
+        glass = name == 'bridge_glass'
+        directory = ROOT / f'assets/{NS}/models/block'
+        (directory / f'{name}.mtl').write_text(f'newmtl surface\nKd 1 1 1\nmap_Kd {texture}\n')
+        variants = {}
+        for profile, (height, regions) in profiles.items():
+            for half in ('bottom', 'top'):
+                model = f'{name}_{profile}_{half}'
+                lines = [f'mtllib {name}.mtl', 'usemtl surface']
+                count = 0
+
+                def face(points, axis):
+                    nonlocal count
+                    if half == 'top':
+                        points = [(x, 1 - y, z) for x, y, z in reversed(points)]
+                    points = list(dict.fromkeys(points))
+                    if len(points) < 3:
+                        return
+                    u, v = [i for i in range(3) if i != axis]
+                    for p in points:
+                        lines.extend(('v ' + ' '.join(map(str, p)), f'vt {p[u]} {p[v]}'))
+                    lines.append('f ' + ' '.join(f'{i}/{i}' for i in range(count + 1, count + 1 + len(points))))
+                    count += len(points)
+
+                def upper(x, z):
+                    h = height(x, z)
+                    return (x, .125 + .875 * h if glass else h, z)
+
+                def lower(x, z):
+                    return (x, .875 * height(x, z) if glass else 0, z)
+
+                for region in regions:
+                    face([upper(*p) for p in reversed(region)], 1)
+                    face([lower(*p) for p in region], 1)
+                # Open glass sides avoid doubled translucent faces between matching panels.
+                if not glass:
+                    edge = outline if profile != 'bevel' else [(0, 0), (1, 0), (1, .5), (1, 1), (0, 1), (0, .5)]
+                    for a, b in zip(edge, edge[1:] + edge[:1]):
+                        face([lower(*a), upper(*a), upper(*b), lower(*b)], 0 if a[0] == b[0] else 2)
+                (directory / f'{model}.obj').write_text('\n'.join(lines) + '\n')
+                write(f'assets/{NS}/models/block/{model}.json', {
+                    'parent': 'minecraft:block/block', 'loader': 'neoforge:obj',
+                    'model': f'{NS}:models/block/{model}.obj', 'automatic_culling': False,
+                    'ambientocclusion': False, 'textures': {'particle': texture},
+                    **({'render_type': 'minecraft:translucent'} if glass else {}),
+                })
+                for direction, rotation in [('north', 0), ('east', 90), ('south', 180), ('west', 270)]:
+                    variants[f'facing={direction},half={half},shape={profile}'] = {
+                        'model': f'{NS}:block/{model}', 'y': rotation,
+                    }
+        write(f'assets/{NS}/blockstates/{name}.json', {'variants': variants})
+        write(f'assets/{NS}/models/item/{name}.json', {'parent': f'{NS}:block/{name}_ramp_bottom'})
+        write(f'data/{NS}/loot_table/blocks/{name}.json', {'type': 'minecraft:block', 'pools': [
+            {'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{name}'}],
+             'conditions': [{'condition': 'minecraft:survives_explosion'}]
+                            + ([{'condition': 'minecraft:match_tool', 'predicate': {'predicates': {
+                                'minecraft:enchantments': [{'enchantments': 'minecraft:silk_touch', 'levels': {'min': 1}}],
+                            }}}] if glass else [])}]})
+        write(f'data/{NS}/recipe/{name}.json', {'type': 'minecraft:stonecutting',
+            'ingredient': {'item': {'hull_trim': f'{NS}:aluminum_hull_plating',
+                                    'dark_hull_trim': f'{NS}:osmium_pressure_hull',
+                                    'bridge_glass': 'minecraft:glass'}[name]},
+            'result': {'id': f'{NS}:{name}', 'count': 1}})
+    png('bridge_glass', [bytes([0]) + b''.join(
+        bytes((120, 194, 220, 145 if x == y or x == y + 1 else 52)) for x in range(16))
+        for y in range(16)], alpha=True)
+
+
+def hull_light():
+    name = 'cyan_hull_light'
+    model = f'{NS}:block/{name}'
+    pixels = []
+    for y in range(16):
+        row = bytearray([0])
+        for x in range(16):
+            edge = min(x, y, 15 - x, 15 - y)
+            row.extend((44, 124, 167) if edge == 0 else (104, 211, 248) if edge == 1 else (138, 230, 255))
+        pixels.append(bytes(row))
+    png(name, pixels)
+    write(f'assets/{NS}/blockstates/{name}.json', {'variants': {'': {'model': model}}})
+    write(f'assets/{NS}/models/block/{name}.json', {
+        'parent': 'minecraft:block/cube_all', 'textures': {'all': model},
+    })
+    write(f'assets/{NS}/models/item/{name}.json', {'parent': model})
+    write(f'data/{NS}/recipe/{name}.json', {'type': 'minecraft:crafting_shapeless',
+        'ingredients': [{'item': 'minecraft:sea_lantern'}, {'item': 'minecraft:cyan_dye'}],
+        'result': {'id': f'{NS}:{name}', 'count': 1}})
+    write(f'data/{NS}/loot_table/blocks/{name}.json', {'type': 'minecraft:block', 'pools': [
+        {'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{name}'}],
+         'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
+
+
 def panel(name, base):
     pixels = []
     for y in range(16):
@@ -90,9 +194,9 @@ for name, color, mass, metal in zip(names, [(180, 195, 208), (57, 74, 96)], [.5,
 write(f'data/{NS}/tags/block/pressure_hulls.json', {'replace': False, 'values': [f'{NS}:osmium_pressure_hull', f'{NS}:osmium_pressure_hull_slab']})
 write(f'data/{NS}/starfold/hull_pressure/osmium_pressure_hull.json', {'blocks': f'#{NS}:pressure_hulls', 'pressure': .85})
 aluminum_blocks = ['bauxite_ore', 'deepslate_bauxite_ore', 'raw_aluminum_block', 'aluminum_block']
-write('data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in all_blocks + aluminum_blocks]})
-write('data/minecraft/tags/block/needs_stone_tool.json', {'replace': False, 'values': [f'{NS}:{b}' for b in all_blocks[:2] + aluminum_blocks]})
-write('data/minecraft/tags/block/needs_iron_tool.json', {'replace': False, 'values': [f'{NS}:{b}' for b in all_blocks[2:]]})
+write('data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in all_blocks + aluminum_blocks + ['hull_trim', 'dark_hull_trim']]})
+write('data/minecraft/tags/block/needs_stone_tool.json', {'replace': False, 'values': [f'{NS}:{b}' for b in all_blocks[:2] + aluminum_blocks + ['hull_trim']]})
+write('data/minecraft/tags/block/needs_iron_tool.json', {'replace': False, 'values': [f'{NS}:{b}' for b in all_blocks[2:] + ['dark_hull_trim']]})
 for locale, labels in [('en_us', ['Aluminum Alloy Hull Plating', 'Osmium Alloy Pressure Hull']),
                        ('zh_cn', ['铝合金外壳板', '锇合金耐压壳'])]:
     lang = {}
@@ -108,7 +212,14 @@ for locale, labels in [('en_us', ['Aluminum Alloy Hull Plating', 'Osmium Alloy P
                          ('aluminum_nugget', 'Aluminum Nugget', '铝粒')]:
         kind = 'block' if name in aluminum_blocks else 'item'
         lang[f'{kind}.{NS}.{name}'] = en if locale == 'en_us' else zh
+    lang[f'block.{NS}.hull_trim'] = 'Shaped Hull Plating' if locale == 'en_us' else '异形船体装甲'
+    lang[f'block.{NS}.dark_hull_trim'] = 'Dark Hull Trim' if locale == 'en_us' else '深色船体饰板'
+    lang[f'block.{NS}.cyan_hull_light'] = 'Cyan Hull Light' if locale == 'en_us' else '青蓝船体灯'
+    lang[f'block.{NS}.bridge_glass'] = 'Sloped Bridge Glass' if locale == 'en_us' else '斜面舰桥玻璃'
     write(f'assets/{NS}/lang/{locale}.json', lang)
+
+ship_shapes()
+hull_light()
 
 # Only assets, processing recipes and tags: no configured/placed features or biome modifiers.
 for name in aluminum_blocks:

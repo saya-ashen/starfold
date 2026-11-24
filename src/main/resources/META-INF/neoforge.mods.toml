@@ -13,6 +13,18 @@ description='''Planets you can walk all the way around, built from real Minecraf
 [[mixins]]
 config="starfold.mixins.json"
 
+[[mixins]]
+config="starfold.create.mixins.json"
+
+[[mixins]]
+config="starfold.mekanism.mixins.json"
+
+[[mixins]]
+config="starfold.jade.mixins.json"
+
+[[mixins]]
+config="starfold.flywheel.mixins.json"
+
 [[dependencies.starfold]]
 modId="neoforge"
 type="required"

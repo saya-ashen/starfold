@@ -317,7 +317,15 @@ chapters[6][2][:] = [aluminum, expansion[0x1000000000060400],
 # Rotor components precede the manual flight trial; envelopes are a separate free-build option.
 air = {entry_ids[id(entry)]: entry for entry in chapters[3][2]}
 chapters[3][2][:] = [air[0x1000000000030000 + i * 0x100] for i in (1, 2, 8, 3, 4, 9, 5)]
-optional_ids = {entry_ids[id(entry)] for entry in chapters[3][2]} | {0x1000000000040200, 0x1000000000050500, entry_ids[id(crafters)]}
+shuttle_plans = add_entry(5, 0x1000000000051000, (
+    'item', 'create:schematic_table', 1, 'S-01 explorer blueprints', 'S-01 探索艇蓝图',
+    'Use an Empty Schematic at the Schematic Table and select s01.nbt from the pack. Preview in a clear berth with the bow facing west, then supply a Schematicannon with gunpowder and the materials it lists. Keep existing solid blocks and leave Skip Missing Blocks off so the cannon waits for supplies. Before assembly, check both gyros and re-place their adjacent redstone blocks if the gyros are unpowered. Assemble the finished hull with a Physics Assembler and glue, leaving the berth on the ground. Fill the ordinary tank and perform a local flight before carrying cargo.',
+    '将空白蓝图放入蓝图桌，选择整合包自带的 s01.nbt。在空旷船坞预览，保持船头朝西，再按蓝图炮给出的清单供应材料和火药。保留已有实心方块，关闭跳过缺料，让蓝图炮停工等补货。打印后检查两台陀螺仪。如未通电，重新放置紧邻的红石块。用胶和物理组装器组装船体，船坞留在地面。给普通储罐加油，先完成近地试飞再载货。'))
+carrier_plans = add_entry(6, 0x1000000000060E00, (
+    'checkmark', '', 1, 'Plan the C-07 shipyard', '规划 C-07 母舰船坞',
+    'Select c07-hull-1.nbt through c07-hull-4.nbt at the Schematic Table. Keep the bow facing west and use a common origin. Offsets (X Y Z) are (0 7 5), (40 1 6), (72 1 0), and (92 6 3). Print one section at a time or assign one cannon to each. The port and starboard doors have separate blueprints at (42 0 20) and (42 0 10). Leave room for door swing and keep the work area loaded. After a server restart, check each cannon and press Play if it says Ready. Build the two doors and the shuttle as separate bodies from the carrier.',
+    '在蓝图桌选择 c07-hull-1.nbt 至 c07-hull-4.nbt。保持船头朝西，以同一船坞原点定位。四段的 X Y Z 偏移分别为 (0 7 5)、(40 1 6)、(72 1 0)、(92 6 3)。可单炮逐段施工，也可四炮各打一段。左右舱门用独立蓝图，偏移分别为 (42 0 20) 和 (42 0 10)。给舱门留出摆动净空，保持施工区块加载。服务器重启后检查每门炮，显示就绪时按开始继续。两扇舱门和小艇都要与母舰分开组装。'))
+optional_ids = {entry_ids[id(entry)] for entry in chapters[3][2]} | {0x1000000000040200, 0x1000000000050500, entry_ids[id(crafters)], entry_ids[id(shuttle_plans)], entry_ids[id(carrier_plans)]}
 optional_ids.update(0x1000000000060000 + i * 0x100 for i in resource_indices)
 # Generic reserve samples remain useful optional stock, not arbitrary late-game gates.
 optional_ids.update(0x1000000000080000 + i * 0x100 for i in (1, 2, 3, 4))
@@ -356,6 +364,9 @@ chain([drive, drive_installation, expedition_plan, gas[0x1000000000080800],
 for i in (1, 2, 3, 4):
     chain([gas[0x1000000000080000 + i * 0x100]], entry_ids[id(route_record)])
 chain([metals[0x1000000000050500]], 0x1000000000050300)
+chain([shuttle_plans], entry_ids[id(trip_delivery)])
+chain([carrier_plans], entry_ids[id(shuttle_plans)])
+dependencies[entry_ids[id(carrier_plans)]].append(entry_ids[id(upgrade_record)])
 for i in resource_indices:
     chain([expansion[0x1000000000060000 + i * 0x100]], entry_ids[id(hydrogen_run)])
 dependencies[entry_ids[id(drive)]].extend([entry_ids[id(flesh[2])], entry_ids[id(flesh[3])]])

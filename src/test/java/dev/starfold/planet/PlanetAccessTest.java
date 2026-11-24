@@ -92,6 +92,30 @@ class PlanetAccessTest {
     }
 
     @Test
+    void localProjectionMatchesWorldReadAndTransportedPorts() {
+        var access = PlanetAccess.SHARED;
+        var source = new BlocksView();
+        var view = GroundTerrain.view(source, access, GroundSpace.DEFAULT_MASK);
+        var reference = new BlockPos(5140, 150, 2047);
+        var outward = net.minecraft.core.Direction.SOUTH;
+        var state = Blocks.OAK_STAIRS.defaultBlockState();
+        for (var query : List.of(reference, reference.south(), reference.south().east())) {
+            var local = access.localBlock(query);
+            var owner = local.address().owner();
+            source.blocks.put(owner, local.address().write(state));
+            assertEquals(local, access.project(reference, owner));
+            assertSame(state, view.getBlockState(query));
+        }
+        var next = access.localBlock(reference.relative(outward));
+        assertNotEquals(0, next.address().turns());
+        var inlet = next.address().ownerDirection(outward.getOpposite());
+        assertEquals(reference, access.localBlock(next.address().owner().relative(inlet)).address().owner());
+        assertEquals(net.minecraft.core.Direction.UP,
+                next.address().ownerDirection(net.minecraft.core.Direction.UP));
+        assertNull(access.project(reference, reference.offset(32768, 0, 0)));
+    }
+
+    @Test
     void blockEntityQueriesReturnOnlyTheCanonicalEntityOfTheirPlanet() {
         var access = PlanetAccess.SHARED;
         var source = new BlocksView();

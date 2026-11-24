@@ -2,6 +2,10 @@
 
 [中文](CHANGELOG_zh-CN.md)
 
+## 0.4.0-alpha.3
+
+The core, Atlas, Mining and Worlds (including Biotech on CurseForge) update ship controls, terrain rendering and tested Create and Mekanism seam interactions. Dynamic Tanks can form across a rotated face seam. Escape Velocity updates those four pins and defers the crafting recipes for nuclear multiblocks and their dedicated parts.
+
 ## 0.4.0-alpha.1
 
 First test release for Starfold 0.4.0, with matching Escape Velocity client and server packages.

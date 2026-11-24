@@ -100,33 +100,13 @@ class SpaceAssistTest {
     }
 
     @Test
-    void pointerAimClampsAndChasesWithoutOvershoot() {
-        assertEquals(45, SpaceAttitudeClient.AIM);
-        assertEquals(120, SpaceAttitudeClient.AIM_TURN);
-        assertEquals(.16, SpaceAttitudeClient.CHASE);
-        assertEquals(.02, SpaceAttitudeClient.EPSILON);
+    void pointerAimClampsAndRetainsDirection() {
         var centre = new SpaceAttitudeClient.Pointer(0, 0);
-        var p = centre.move(30, 0);
-        double total = 0;
-        for (int i = 0; i < 100; i++) {
-            var turn = p.step();
-            assertTrue(Math.hypot(turn.x(), turn.y()) <= 6);
-            assertTrue(turn.x() >= 0 && turn.x() <= p.x());
-            total += turn.x();
-            p = p.remaining(turn);
-            if (i == 3) assertEquals(15, p.x(), .1);
-        }
-        assertEquals(30, total, 1e-10);
-        assertEquals(centre, p);
-        assertEquals(centre, centre.step());
         var full = centre.move(200, 200);
         assertEquals(45, Math.hypot(full.x(), full.y()), 1e-10);
-        assertEquals(6, Math.hypot(full.step().x(), full.step().y()), 1e-10);
         assertEquals(45, centre.move(200, 0).x());
-        p = centre.move(30, 0);
-        p = p.remaining(p.step()).move(15, 0);
-        assertEquals(40.2, p.x(), 1e-10);
-        assertTrue(centre.move(0, -15).step().y() < 0);
+        assertEquals(centre, centre.step(centre, 24, true));
+        assertTrue(centre.move(0, -15).step(centre, 24, true).y() < 0);
     }
 
     @Test

@@ -2,7 +2,6 @@ package dev.starfold.space;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import dev.starfold.ship.HelmCommand;
 import dev.starfold.ship.Thrusters;
 import dev.starfold.sky.Space;
 import dev.starfold.sky.SpaceTest;
@@ -14,10 +13,6 @@ import org.junit.jupiter.api.Test;
 class SpaceRollTest {
     @Test
     void directLeftWishRollsLeftWithoutReadingThrusterTorque() {
-        assertEquals(1, HelmCommand.roll(HelmCommand.LEFT));
-        assertEquals(-1, HelmCommand.roll(HelmCommand.RIGHT));
-        assertEquals(0, HelmCommand.roll(HelmCommand.LEFT | HelmCommand.RIGHT));
-        assertEquals(1, HelmCommand.roll(HelmCommand.LEFT | HelmCommand.SPRINT));
         var turn =
                 SpaceFlightMath.attitude(
                         Space.Frame.IDENTITY,
@@ -29,7 +24,7 @@ class SpaceRollTest {
                         true,
                         90,
                         0,
-                        HelmCommand.roll(HelmCommand.LEFT));
+                        1);
         var down = turn.transform(new Vector3d(0, -1, 0));
         assertTrue(down.z < 0);
         assertEquals(0, down.x, 1e-12);

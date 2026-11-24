@@ -327,7 +327,11 @@ require(process.cwd() + '/modpack/kubejs/server_scripts/progression.js');
 assert.equal(made.length, 10);
 assert.deepEqual(removed, made);
 assert.equal(new Set(made).size, 10);
-assert.deepEqual(removedIds, ['mekanismgenerators:separator/heavy_water']);
+assert.deepEqual(removedIds.map(String), [
+  'mekanismgenerators:separator/heavy_water',
+  String(/^mekanismgenerators:(fission_reactor|reactor|turbine)\//),
+  String(/^mekanismgenerators:(electromagnetic_coil|rotational_complex|saturating_condenser|hohlraum|laser_focus_matrix)$/),
+]);
 '''
 subprocess.run(['node', '-e', mock], check=True)
 assert pins['ftb-ultimine-forge']['filename'] == 'ftb-ultimine-neoforge-2101.1.15.jar'
@@ -428,7 +432,7 @@ if quest_root.exists():
     assert orbit[nav_index]['id'] == '1000000000050800'
     # Exactly two authoritative copies of the provisional name across pack runtime source.
     name = tomllib.loads((pack / 'pack.toml').read_text())['name']
-    assert sum(p.read_text().count(name) for p in pack.rglob('*') if p.is_file() and p.suffix != '.jar') == 2
+    assert sum(p.read_text().count(name) for p in pack.rglob('*') if p.is_file() and p.suffix not in ('.jar', '.nbt')) == 2
     print(f'PASS: 9 chapters / {total} quests, real task IDs, unique IDs, acyclic dependencies, bilingual key parity, supply-only rewards')
 
 index = tomllib.loads((pack / 'index.toml').read_text())
@@ -438,7 +442,7 @@ for entry in index['files']:
 excluded_sources = {'README.md', 'RULES.md', 'ids.md', 'ids.json', '.gitignore', '.packwizignore'}
 assert 'RULES.md' in (pack / '.packwizignore').read_text().splitlines()
 assert not any(entry['file'] in excluded_sources or entry['file'].endswith(('.py', '.jar')) for entry in index['files'])
-expected_inputs = {p.relative_to(pack).as_posix() for directory in ('config', 'kubejs', 'mods')
+expected_inputs = {p.relative_to(pack).as_posix() for directory in ('config', 'kubejs', 'mods', 'schematics')
                    for p in (pack / directory).rglob('*')
                    if p.is_file() and (directory != 'mods' or p.name.endswith('.pw.toml'))}
 assert {entry['file'] for entry in index['files']} == expected_inputs, 'Packwiz index must include every runtime source'

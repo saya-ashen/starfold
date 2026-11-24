@@ -74,6 +74,7 @@ public final class ImageStream {
 
     private static final Map<ServerPlayer, View> VIEWS = new WeakHashMap<>();
     private static final Map<ServerLevel, Set<BlockPos>> DIRTY = new WeakHashMap<>();
+    private static final Map<ServerLevel, Set<BlockPos>> DIRTY_BLOCK_ENTITIES = new WeakHashMap<>();
     private static final Map<ServerLevel, Map<Long, LightChanges>> LIT = new WeakHashMap<>();
     public static final int CHUNKS_PER_TICK = 24;
     public static final long BUDGET_NS = 6_000_000;
@@ -86,6 +87,7 @@ public final class ImageStream {
     public static void clear() {
         VIEWS.clear();
         DIRTY.clear();
+        DIRTY_BLOCK_ENTITIES.clear();
         LIT.clear();
     }
 
@@ -207,6 +209,11 @@ public final class ImageStream {
         DevelopmentHooks.relight.changed(level, owner);
     }
 
+    /** Queue block entity data for the observers tracking its images. */
+    public static void blockEntityChanged(ServerLevel level, BlockPos owner) {
+        DIRTY_BLOCK_ENTITIES.computeIfAbsent(level, l -> new LinkedHashSet<>()).add(owner.immutable());
+    }
+
     /** Published structural light only: solar time/brightness never dirties these nibbles. */
     public static void lit(ServerLevel level, LightLayer layer, SectionPos section) {
         var engine = level.getLightEngine();
@@ -234,6 +241,8 @@ public final class ImageStream {
                                         || e.getKey().level() != e.getValue().level
                                         || !active(e.getKey()));
         var dirty = DIRTY.remove(level);
+        var dirtyBlockEntities = DIRTY_BLOCK_ENTITIES.remove(level);
+        if (dirtyBlockEntities != null && dirty != null) dirtyBlockEntities.removeAll(dirty);
         var lit = LIT.remove(level);
         long now = level.getGameTime();
         var access = PlanetAccess.of(level);
@@ -303,7 +312,9 @@ public final class ImageStream {
                     view.approachOwners = owners;
                 }
             }
-            if (dirty != null) for (var owner : dirty) forward(level, player, view, owner, now);
+            if (dirty != null) for (var owner : dirty) forward(level, player, view, owner, now, true);
+            if (dirtyBlockEntities != null)
+                for (var owner : dirtyBlockEntities) forward(level, player, view, owner, now, false);
             if (lit != null)
                 for (var e : view.sent.entrySet())
                     for (long owner : e.getValue().owners) {
@@ -547,27 +558,25 @@ public final class ImageStream {
             var c = columns[i];
             int x = image.getMinBlockX() + (i & 15), z = image.getMinBlockZ() + (i >> 4);
             for (var be : entities.get(c.chunk, c.x, c.z))
-                blockEntity(player, be, new BlockPos(x, be.getBlockPos().getY(), z));
+                blockEntity(player, frame, be, new BlockPos(x, be.getBlockPos().getY(), z), c.turns);
         }
         return true;
     }
 
     private static void blockEntity(
             ServerPlayer player,
+            ObserverFrame frame,
             net.minecraft.world.level.block.entity.BlockEntity be,
-            BlockPos at) {
-        var tag = blockEntityTag(be.getUpdateTag(player.registryAccess()), at);
+            BlockPos at,
+            int turns) {
+        var tag = BlockEntityImages.tag(
+                be.getUpdateTag(player.registryAccess()), be.getBlockPos(), at, be.getType(), turns, player, frame);
         PacketMap.raw(player, BlockEntityPacketAccess.starfold$create(at, be.getType(), tag));
     }
 
     static net.minecraft.nbt.CompoundTag blockEntityTag(
             net.minecraft.nbt.CompoundTag original, BlockPos at) {
-        var tag = original.copy();
-        if (tag.contains("x")) {
-            tag.putInt("x", at.getX());
-            tag.putInt("z", at.getZ());
-        }
-        return tag;
+        return BlockEntityImages.tag(original, at, at, null, 0, null, null);
     }
 
     /** The owners' real light, column by column. Vanilla light at the image position is the empty halo's. */
@@ -756,7 +765,8 @@ public final class ImageStream {
     }
 
     private static void forward(
-            ServerLevel level, ServerPlayer player, View view, BlockPos owner, long now) {
+            ServerLevel level, ServerPlayer player, View view, BlockPos owner, long now,
+            boolean blockChanged) {
         var access = PlanetAccess.of(level);
         long chunk = ChunkPos.asLong(owner.getX() >> 4, owner.getZ() >> 4);
         for (var e : view.sent.entrySet()) {
@@ -766,15 +776,14 @@ public final class ImageStream {
                 var r = resolve(access, view.frame, x0 + (i & 15), z0 + (i >> 4));
                 if (r[0] != owner.getX() || r[1] != owner.getZ()) continue;
                 var at = new BlockPos(x0 + (i & 15), owner.getY(), z0 + (i >> 4));
-                PacketMap.raw(
-                        player,
-                        new ClientboundBlockUpdatePacket(
-                                at,
-                                ChartOrientation.state(level.getBlockState(owner), (int) r[2])));
+                if (blockChanged) {
+                    PacketMap.raw(player, new ClientboundBlockUpdatePacket(
+                            at, ChartOrientation.state(level.getBlockState(owner), (int) r[2])));
+                    // Server light settles asynchronously after the block change.
+                    view.light.mark(e.getKey(), now + 4, now);
+                }
                 var be = level.getBlockEntity(owner);
-                if (be != null) blockEntity(player, be, at);
-                // Server light settles asynchronously after the block change.
-                view.light.mark(e.getKey(), now + 4, now);
+                if (be != null) blockEntity(player, view.frame, be, at, (int) r[2]);
                 break;
             }
         }

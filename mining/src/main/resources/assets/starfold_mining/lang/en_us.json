@@ -1,4 +1,7 @@
 {
+  "message.starfold_mining.survey.waypoint_full": "Survey saved. Your waypoint book is full (%s). Remove a waypoint and rescan to add a navigation marker.",
+  "message.starfold_mining.survey.history_full": "Survey history is full (%s). The oldest survey was replaced. Its waypoint is still in your book.",
+  "message.starfold_mining.survey.data_error": "Could not read or save your mining surveys. Your existing discoveries were kept.",
   "block.starfold_mining.mining_platform": "Mining Platform",
   "container.starfold_mining.mining_platform": "Mining Platform",
   "itemGroup.starfold_mining": "Starfold: Mining",

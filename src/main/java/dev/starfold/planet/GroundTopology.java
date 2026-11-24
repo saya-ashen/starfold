@@ -31,6 +31,10 @@ public final class GroundTopology {
         public BlockState write(BlockState query) {
             return ChartOrientation.state(query, turns);
         }
+
+        public net.minecraft.core.Direction ownerDirection(net.minecraft.core.Direction direction) {
+            return ChartOrientation.direction(direction, turns);
+        }
     }
 
     public record Notification(BlockPos target, BlockPos source, int turns) {}

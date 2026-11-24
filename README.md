@@ -6,8 +6,11 @@ A Minecraft 1.21.1 NeoForge mod in which planets are closed, six-faced worlds bu
 over a face edge without a teleport or a reload, several planets and suns share one dimension, and you fly between
 them without a loading screen, in a ship built with Create and Create Aeronautics or on a thruster pack.
 
-**Status: alpha.** Development targets single-player; multiplayer and compatibility with other mods are not a goal
-yet. Saves are not kept compatible between versions, so back up before updating.
+![C-07 and S-01 above Hearth](docs/gallery/escape-velocity-cover.jpg)
+
+[Starfold on CurseForge](https://www.curseforge.com/minecraft/mc-mods/starfold) · [Escape Velocity survival pack](modpack/README.md) · [Gallery](docs/gallery/README.md)
+
+**Status: alpha.** Single-player is the current testing focus. The `0.4.0-alpha.3` mod update includes revised ship controls, terrain rendering and compatibility fixes for tested Create and Mekanism blocks across rotated planet seams. Back up your world before updating.
 
 ## What is in it
 
@@ -29,18 +32,21 @@ yet. Saves are not kept compatible between versions, so back up before updating.
 | | |
 |---|---|
 | Minecraft | 1.21.1 |
+| Java | 21 |
 | NeoForge | 21.1.247 or newer |
 | Sable | 2.0.5 or 2.0.6 (required) |
 | Create, Create Aeronautics | needed to build ships and for the experience preset |
 | Immersive Aircraft | optional; adds an aircraft to the starter ship |
 
 Install `starfold_worlds` for experience planets and presets; optionally add `starfold_extras` for the starter ship, landing pad and guide (requires Worlds, Create and Create Aeronautics).
-`starfold_materials` adds lightweight aluminum hull plating and heavy osmium pressure hulls (full blocks and slabs); metal ingredients come from other mods via common tags. See [provisional material values](materials/BALANCE.md).
+Match Atlas to the exact Starfold core version. Mining adds ore surveys and extraction equipment. Materials provides lightweight aluminum plating, osmium pressure hulls and ship trim. On CurseForge, Worlds includes Biotech and requires GeckoLib 4.8.2.
 
 Planet rendering needs the vanilla renderer: shader packs are not supported. The mod declares itself incompatible
 with `gravity_changer`.
 
 ## Playing
+
+For the default flight controls, see [First flight](modpack/README.md#first-flight).
 
 Create a new world and pick a world type:
 
@@ -105,10 +111,12 @@ those mods skip that check when the directory is absent.
   | Module | Responsibility and source path |
   |---|---|
   | `atlas` | Planet surveys and galaxy/system/ground maps: `atlas/src/main/java/dev/starfold/atlas` |
+  | `monsoon` | Client seasonal snow and vegetation rendering: `monsoon/src/main/java/dev/starfold/monsoon`; Ecliptic Seasons adaptations are pending release clearance |
   | `devtools` | Opt-in client CPU/GPU profiling: `devtools/src/main/java/dev/starfold/devtools` |
   | `probes` | Development probes, passive measurements and probe mixins: `probes/src/main/java/dev/starfold/{dev,probe,probes}`; development only |
   | `worlds` | Experience planets, biomes and world presets: `worlds/src/main/java/dev/starfold/worlds` and `worlds/src/main/resources` |
   | `extras` | Optional starter ship, landing pad and guide: `extras/src/main/java/dev/starfold/extras`; ship structures in `extras/src/main/resources/data/starfold_extras/structure` |
+  | `mining` | Ore surveys, waypoint integration and extraction equipment: `mining/src/main/java/dev/starfold/mining` |
   | `materials` | Aluminum stock, hull plating and pressure hull components: `materials/src/main/java/dev/starfold/materials` and `materials/src/main/resources` |
   | `biotech` | Flesh hive terrain, organic materials and the Host encounter: `biotech/src/main/java/dev/starfold/biotech` and `biotech/src/main/resources` |
 

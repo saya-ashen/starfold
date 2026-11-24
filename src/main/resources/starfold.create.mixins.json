@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "dev.starfold.compat.create.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "CreateSeamRotationMixin",
+    "CreateBeltConnectorMixin",
+    "CreateBeltEntityMixin",
+    "CreateArmPlacementMixin",
+    "CreateChainConnectionPacketMixin",
+    "CreateChainConveyorMixin",
+    "CreateConfigurationPacketMixin"
+  ]
+}

@@ -160,12 +160,8 @@ public final class MiningSurveys {
                 } catch (Waypoint.Failure error) {
                     // A full/duplicate waypoint book does not discard a successful survey.
                     player.sendSystemMessage(
-                            Component.literal(
-                                    "Survey saved; navigation waypoint could not be added (waypoint"
-                                            + " limit "
-                                            + Waypoint.MAX_MARKERS
-                                            + "). Free a waypoint and rescan to enable"
-                                            + " navigation."));
+                            Component.translatable(
+                                    "message.starfold_mining.survey.waypoint_full", Waypoint.MAX_MARKERS));
                 }
             }
             next = withDisplay(next, next.body(), marker);
@@ -174,11 +170,8 @@ public final class MiningSurveys {
             if (surveys.size() == MiningMapApi.MAX_SITES) {
                 surveys.remove(0);
                 player.sendSystemMessage(
-                        Component.literal(
-                                "Survey history is full ("
-                                        + MiningMapApi.MAX_SITES
-                                        + "); the oldest snapshot was replaced. Its ordinary"
-                                        + " waypoint is still in your book."));
+                        Component.translatable(
+                                "message.starfold_mining.survey.history_full", MiningMapApi.MAX_SITES));
             }
             surveys.add(next);
             write(player, surveys);
@@ -265,9 +258,7 @@ public final class MiningSurveys {
         LoggerFactory.getLogger("starfold_mining")
                 .warn("Could not save/read private surveys for {}", player.getUUID(), error);
         player.sendSystemMessage(
-                Component.literal(
-                        "Mining survey data could not be read or saved. Existing discoveries were"
-                                + " preserved."));
+                Component.translatable("message.starfold_mining.survey.data_error"));
     }
 
     private static List<Survey> read(ServerPlayer player) {

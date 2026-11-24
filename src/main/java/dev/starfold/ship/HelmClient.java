@@ -94,7 +94,22 @@ public final class HelmClient {
     }
 
     private static View view(ClientSubLevel body) {
-        return views.getOrDefault(body.getUniqueId(), CHASE);
+        var selected = views.get(body.getUniqueId());
+        if (selected != null) return selected;
+        var scope = defaultScope(body);
+        return scope == null ? CHASE : new View(false, scope.getBlockPos().immutable());
+    }
+
+    private static Thrusters.Scope defaultScope(ClientSubLevel body) {
+        var all = scopes(body);
+        var bow = HelmInputClient.facing(body);
+        for (var scope : all)
+            if (scope.getBlockState()
+                            .getValue(
+                                    net.minecraft.world.level.block.state.properties
+                                            .BlockStateProperties.FACING)
+                    == bow) return scope;
+        return all.isEmpty() ? null : all.getFirst();
     }
 
     private static Vector3d nose(ClientSubLevel body) {
@@ -119,9 +134,10 @@ public final class HelmClient {
     }
 
     private static Thrusters.Scope scope(ClientSubLevel body) {
-        var selected = view(body).scope();
-        if (selected == null) return null;
-        for (var s : scopes(body)) if (s.getBlockPos().equals(selected)) return s;
+        var selected = views.get(body.getUniqueId());
+        if (selected == null) return defaultScope(body);
+        if (selected.scope() == null) return null;
+        for (var s : scopes(body)) if (s.getBlockPos().equals(selected.scope())) return s;
         return null;
     }
 
@@ -218,11 +234,15 @@ public final class HelmClient {
                     (float) (-lookY / angle),
                     (float) (-lookX / angle),
                     0);
+        orient(camera, rotation);
+        return new Vec3(at.x, at.y, at.z);
+    }
+
+    private static void orient(Camera camera, org.joml.Quaternionf rotation) {
         camera.rotation().set(rotation);
         camera.getLookVector().set(0, 0, -1).rotate(rotation);
         camera.getUpVector().set(0, 1, 0).rotate(rotation);
         camera.getLeftVector().set(-1, 0, 0).rotate(rotation);
-        return new Vec3(at.x, at.y, at.z);
     }
 
     private static CameraType previous;
@@ -244,23 +264,30 @@ public final class HelmClient {
 
     private static void tick() {
         var mc = Minecraft.getInstance();
-        boolean active = body() != null;
-        if (previous != null && (!active || player != mc.player)) {
+        var body = body();
+        if (previous != null && (body == null || player != mc.player)) {
             mc.options.setCameraType(previous);
             previous = null;
             player = null;
             lookX = lookY = 0;
         }
-        if (active && previous == null) {
+        if (body == null) return;
+        var id = body.getUniqueId();
+        var selection = views.get(id);
+        if (previous == null) {
             previous = mc.options.getCameraType();
             player = mc.player;
-            var b = body();
-            nose(b);
             mc.options.setCameraType(
-                    view(b).first() ? CameraType.FIRST_PERSON : CameraType.THIRD_PERSON_BACK);
+                    selection != null && selection.first()
+                            ? CameraType.FIRST_PERSON
+                            : CameraType.THIRD_PERSON_BACK);
         }
-        if (active && view(body()).scope() != null && scope(body()) == null) {
-            views.put(body().getUniqueId(), CHASE);
+        if (selection == null) {
+            // Sable may deliver the plot chunks after pilot authority arrives.
+            var initial = view(body);
+            if (initial.scope() != null) views.put(id, initial);
+        } else if (selection.scope() != null && scope(body) == null) {
+            views.put(id, CHASE);
             mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         }
     }
@@ -277,25 +304,38 @@ public final class HelmClient {
         double x = box.maxX() - box.minX() + 1,
                 y = box.maxY() - box.minY() + 1,
                 z = box.maxZ() - box.minZ() + 1;
+        var pose = body.renderPose(partial);
         var pivot =
-                body.renderPose(partial)
-                        .transformPosition(
-                                new Vector3d(
-                                        box.minX() + x / 2,
-                                        box.minY() + y / 2,
-                                        box.minZ() + z / 2));
+                pose.transformPosition(
+                        new Vector3d(box.minX() + x / 2, box.minY() + y / 2, box.minZ() + z / 2));
         var centre = new Vec3(pivot.x, pivot.y, pivot.z);
         double distance =
                 Math.clamp(2.5 * Math.sqrt(x * x + y * y + z * z) / 2 + 6, 12, 64)
-                        * (mc.options.getCameraType() == CameraType.THIRD_PERSON_BACK
-                                ? zoom
-                                : 1); // Tilt only the stand-back direction: level sight clears the
-        // roof, with the hull below centre.
-        var back =
-                (ShipClientHost.get().mouseSteering()
-                                ? Vec3.directionFromRotation(CHASE_TILT, camera.getYRot())
-                                : new Vec3(camera.getLookVector()))
-                        .scale(-1);
+                        * (mc.options.getCameraType() == CameraType.THIRD_PERSON_BACK ? zoom : 1);
+        var offset = new Vec3(camera.getLookVector()).scale(-distance);
+        if (!OrbitFlightControls.freeLook()) {
+            var nose = nose(body);
+            var up = new Vector3d(0, 1, 0);
+            double slope = Math.tan(Math.toRadians(CHASE_TILT));
+            double length = nose.x == 0 ? z : x;
+            // At the nose, the center ray still clears the top of the bounding box.
+            double height = y / 2 + (distance + length / 2) * slope + 2;
+            var lead = new Vector3d(nose).fma(-slope, up);
+            var standBack = pose.orientation().transform(nose.mul(-distance).fma(height, up));
+            offset = new Vec3(standBack.x, standBack.y, standBack.z);
+            pose.orientation().transform(lead);
+            pose.orientation().transform(up);
+            orient(
+                    camera,
+                    new org.joml.Quaternionf()
+                            .lookAlong(
+                                    new org.joml.Vector3f(
+                                            (float) lead.x, (float) lead.y, (float) lead.z),
+                                    new org.joml.Vector3f((float) up.x, (float) up.y, (float) up.z))
+                            .conjugate());
+        }
+        distance = offset.length();
+        var back = offset.normalize();
         // Sable's vanilla zoom sees glass too. Keep the eight terrain rays but ignore this hull, in
         // its render pose.
         var poses = (LevelPoseProviderExtension) mc.level;

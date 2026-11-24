@@ -58,7 +58,7 @@ public final class GroundRenderer {
 
     static final int LOD_THREADS = Math.clamp(Runtime.getRuntime().availableProcessors() / 3, 1, 6);
     static final int MAX_PENDING_UPLOADS = Math.max(16, 4 * LOD_THREADS);
-    public static boolean probeOff, probeTiming;
+    public static boolean probeOff, probeTiming, probeWarmup;
     public static long probeCpuNanos, probeGpuNanos, probeMultiNanos, probeSkyNanos, probePrepNanos;
     public static int probeDraws, probeTiles, probeSubDraws, probeGroups, probeCompactGroups;
     private static double lodFov = 70;
@@ -997,9 +997,10 @@ public final class GroundRenderer {
         long backlog = meshes.arenas.pendingCopyBytes();
         for (var p : meshes.pendingUploads) backlog += p.mesh.built.bytes();
         long started = System.nanoTime();
-        var budget = new GroundUploadBudget(started + GroundViewPolicy.FRAME_BUDGET_NS, backlog);
+        long frameBudget = probeWarmup ? 12_000_000 : GroundViewPolicy.FRAME_BUDGET_NS;
+        var budget = new GroundUploadBudget(started + frameBudget, backlog);
         // Leave room in the same frame for already prepared uploads and packed-cache hits.
-        long captureDeadline = started + GroundViewPolicy.FRAME_BUDGET_NS / 2;
+        long captureDeadline = started + frameBudget / 2;
         meshes.arenas.progressGrowth(budget);
         long maskWork = RenderWorkDiagnostics.start();
         try { prepareMasks(budget); }
@@ -1470,6 +1471,35 @@ public final class GroundRenderer {
             if (ready) count++;
         }
         return count;
+    }
+
+    /** Whether the current view has reached its runtime LOD targets and drained build work. */
+    public static boolean probeViewSettled() {
+        return probeParents() == 6 && probeVisibleSettled();
+    }
+
+    /** Local footage only needs the roots seen by this camera, including its horizon. */
+    public static boolean probeVisibleSettled() {
+        return !probeOff
+                && tree != null
+                && cut != null
+                && cut.pureCount + cut.maskedCount > 0
+                && GroundViewClient.coverageReady()
+                && noDemand
+                && !tree.hasTargetUpdates()
+                && meshes.scheduler.jobs() == 0
+                && meshes.scheduler.completed() == 0
+                && meshes.pendingUploads.isEmpty();
+    }
+
+    public static String probeViewWork() {
+        return "faces=" + probeParents()
+                + " coverage=" + GroundViewClient.coverageReady()
+                + " targetUpdates=" + (tree != null && tree.hasTargetUpdates())
+                + " noDemand=" + noDemand
+                + " jobs=" + meshes.scheduler.jobs()
+                + " completed=" + meshes.scheduler.completed()
+                + " uploads=" + meshes.pendingUploads.size();
     }
 
     public static String performance() {

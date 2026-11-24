@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "dev.starfold.compat.jade.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "JadeBlockRequestMixin",
+    "JadeBlockResponseMixin"
+  ]
+}

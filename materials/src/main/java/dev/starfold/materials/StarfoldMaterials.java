@@ -42,6 +42,14 @@ public final class StarfoldMaterials {
                     BLOCKS.register(name, () -> new Block(Block.Properties.ofFullCopy(template)));
             ITEMS.registerSimpleBlockItem(block);
         }
+        ITEMS.registerSimpleBlockItem(BLOCKS.register("hull_trim", () ->
+                new HullShapeBlock(properties().noOcclusion(), false)));
+        ITEMS.registerSimpleBlockItem(BLOCKS.register("bridge_glass", () ->
+                new HullShapeBlock(Block.Properties.ofFullCopy(Blocks.GLASS).noOcclusion(), true)));
+        ITEMS.registerSimpleBlockItem(BLOCKS.register("dark_hull_trim", () ->
+                new HullShapeBlock(properties().mapColor(MapColor.COLOR_GRAY).noOcclusion(), false)));
+        ITEMS.registerSimpleBlockItem(BLOCKS.register("cyan_hull_light", () ->
+                new Block(Block.Properties.ofFullCopy(Blocks.SEA_LANTERN).mapColor(MapColor.COLOR_CYAN))));
         for (String name : new String[] {"raw_aluminum", "aluminum_ingot", "aluminum_nugget"})
             ITEMS.registerSimpleItem(name);
         BLOCKS.register(bus);

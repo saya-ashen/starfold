@@ -77,8 +77,9 @@ public abstract class GroundTopologyLevelMixin {
         return be != null || !level.isClientSide ? be : GroundSeams.clientBlockEntity(level, owner);
     }
 
-    @ModifyVariable(method = "removeBlockEntity", at = @At("HEAD"), argsOnly = true, ordinal = 0)
-    private BlockPos starfold$nativeEntity(BlockPos pos) {
+    // A block query needs its own storage chunk; whole halo chunks can have several owners.
+    @ModifyVariable(method = {"isLoaded", "removeBlockEntity"}, at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private BlockPos starfold$ownerPosition(BlockPos pos) {
         var level = (Level) (Object) this;
         var access = PlanetAccess.of(level);
         return PlanetLevels.canonical(level) && access.inChart(pos)

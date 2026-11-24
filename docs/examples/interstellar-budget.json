@@ -1,0 +1,11 @@
+{
+  "fuel": "deuterium",
+  "drive_installed": true,
+  "dry_mass": 500,
+  "initial_fuel_mb": 8000,
+  "reserve_mb": 4000,
+  "legs": [
+    {"name": "synthetic outbound acceleration and braking", "delta_v": 1000, "outside_home_system": true},
+    {"name": "synthetic loaded return acceleration and braking", "delta_v": 1000, "added_mass": 20, "outside_home_system": true}
+  ]
+}

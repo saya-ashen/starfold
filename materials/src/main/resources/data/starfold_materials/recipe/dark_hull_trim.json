@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "starfold_materials:osmium_pressure_hull"
+  },
+  "result": {
+    "id": "starfold_materials:dark_hull_trim",
+    "count": 1
+  }
+}

@@ -334,15 +334,23 @@ public final class GroundClient {
 
     public static Point eye() {
         if (renderFrame.active) return renderFrame.frameEye;
+        var mc = Minecraft.getInstance();
+        var camera = mc.getCameraEntity();
+        if (dev.starfold.DevelopmentHooks.groundFilmObserver.test(camera))
+            return access().chart(storage(camera.getEyePosition(renderFrame.partial)));
         if (GroundFlightClient.controlled()) return GroundFlightClient.eye();
-        var v = Minecraft.getInstance().player.getEyePosition(renderFrame.partial);
+        var v = mc.player.getEyePosition(renderFrame.partial);
         return access().chart(storage(v));
     }
 
     public static GroundSpace.Pose pose() {
         if (renderFrame.active) return renderFrame.framePose;
+        var mc = Minecraft.getInstance();
+        var camera = mc.getCameraEntity();
+        if (dev.starfold.DevelopmentHooks.groundFilmObserver.test(camera))
+            return new GroundSpace.Pose(Face.VALUES[face()], eye());
         if (GroundFlightClient.controlled()) return GroundFlightClient.pose().renderPose();
-        var p = Minecraft.getInstance().player.getPosition(renderFrame.partial);
+        var p = mc.player.getPosition(renderFrame.partial);
         return access().body(storage(p)).renderPose();
     }
 
@@ -664,12 +672,14 @@ public final class GroundClient {
         if (SpaceClient.present()) return;
         if (!ready()
                 || !RendererGuard.pipelineSupported()
-                || camera.getEntity() != Minecraft.getInstance().player) return;
+                || (camera.getEntity() != Minecraft.getInstance().player
+                        && !dev.starfold.DevelopmentHooks.groundFilmCamera.test(camera.getEntity()))) return;
         // Move only the view, not the chart observer used for topology and coverage.
         var p = Minecraft.getInstance().player.getEyePosition(delta);
         var d = camera.getPosition().subtract(p);
         renderFrame.viewOffset =
                 GroundFlightClient.controlled()
+                                || dev.starfold.DevelopmentHooks.groundFilmObserver.test(camera.getEntity())
                         ? new Point(0, 0, 0)
                         : frame().vectorToStorage(new Point(d.x, d.y, d.z));
         // Chart axes as they lie in client coordinates (the frame may be turned), then into view

@@ -2,9 +2,9 @@ package dev.starfold.ship;
 
 import net.minecraft.core.Direction;
 
-import org.joml.Vector3dc;
-
-/** The same body-axis selector on the physics and rendering sides. No world or block-state writes. */
+/**
+ * The same body-axis selector on the physics and rendering sides. No world or block-state writes.
+ */
 public final class HelmCommand {
     public static final int FORWARD = 1,
             BACK = 2,
@@ -28,27 +28,27 @@ public final class HelmCommand {
         return booster && (bits & SPRINT) != 0;
     }
 
-    /** Positive up moment yaws left for every horizontal bow. Free-flight A is positive frame roll. */
-    public static int roll(int bits) {
-        return ((bits & LEFT) != 0 ? 1 : 0) - ((bits & RIGHT) != 0 ? 1 : 0);
+    public static boolean strafes(int bits, Direction forward, Direction nozzle) {
+        var push = nozzle.getOpposite();
+        int side = forward.getStepX() * push.getStepZ() - forward.getStepZ() * push.getStepX();
+        return side < 0 && (bits & (LEFT | RIGHT)) == LEFT
+                || side > 0 && (bits & (LEFT | RIGHT)) == RIGHT;
     }
 
-    public static boolean fires(
-            int bits, Direction forward, Direction nozzle, Vector3dc arm, boolean free) {
+    public static boolean fires(int bits, Direction forward, Direction nozzle) {
         var push = nozzle.getOpposite();
         double along = push.getStepX() * forward.getStepX() + push.getStepZ() * forward.getStepZ();
         if ((bits & FORWARD) != 0 && along > .5
                 || (bits & BACK) != 0 && along < -.5
                 || (bits & UP) != 0 && push == Direction.UP
                 || (bits & DOWN) != 0 && push == Direction.DOWN) return true;
-        double side = -forward.getStepZ() * push.getStepX() + forward.getStepX() * push.getStepZ(),
-                torque = arm.z() * push.getStepX() - arm.x() * push.getStepZ();
-        return !free
-                && Math.abs(side) > .5
-                && ((bits & LEFT) != 0 && torque > 1e-6 || (bits & RIGHT) != 0 && torque < -1e-6);
+        return strafes(bits, forward, nozzle);
     }
 
-    /** Runtime-only ownership: one pilot per hull/controller, one controller per pilot. Never serialized. */
+    /**
+     * Runtime-only ownership: one pilot per hull/controller, one controller per pilot. Never
+     * serialized.
+     */
     static final class Pilots<B, P> {
         private final java.util.Map<B, P> owners = new java.util.HashMap<>();
 
@@ -62,6 +62,12 @@ public final class HelmCommand {
 
         P owner(B body) {
             return owners.get(body);
+        }
+
+        B body(P pilot) {
+            for (var entry : owners.entrySet())
+                if (entry.getValue().equals(pilot)) return entry.getKey();
+            return null;
         }
 
         void release(B body) {

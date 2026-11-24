@@ -13,7 +13,7 @@ class AimDrawTest {
                 new Pointer[] {
                     new Pointer(30, 0), new Pointer(-12, 20), new Pointer(.01, 0), new Pointer(0, 0)
                 }) {
-            var step = offset.step();
+            var step = offset.step(new Pointer(0, 0), 24, true);
             var next = offset.remaining(step);
             assertEquals(offset, draw(offset, step, 0));
             assertEquals(next.x(), draw(offset, step, 1).x(), 1e-9);
@@ -29,9 +29,31 @@ class AimDrawTest {
     }
 
     @Test
+    void largeHullStartsSlowerAndBrakesBeforeSettling() {
+        var zero = new Pointer(0, 0);
+        var target = new Pointer(40, 0);
+        var small = target.step(zero, 34, true);
+        var large = target.step(zero, 121, true);
+        assertTrue(large.x() < small.x());
+        double peak = 0;
+        for (int tick = 0; tick < 140; tick++) {
+            var next = target.step(large, 121, true);
+            assertTrue(
+                    Math.abs(next.x() - large.x())
+                            <= dev.starfold.ship.HelmTurn.acceleration(121, true) + 1e-9);
+            peak = Math.max(peak, next.x());
+            target = target.remaining(next);
+            large = next;
+        }
+        assertTrue(peak > small.x());
+        assertEquals(0, target.x(), 1e-4);
+        assertEquals(0, large.x(), 1e-4);
+    }
+
+    @Test
     void midTickMouseIsImmediateAndDoesNotChangeThePlannedStep() {
         var offset = new Pointer(30, 4);
-        var step = offset.step();
+        var step = offset.step(new Pointer(0, 0), 24, true);
         for (double partial : new double[] {0, .25, .5, .75, 1}) {
             var a = draw(offset, step, partial);
             var b = draw(offset.move(2, -3), step, partial);

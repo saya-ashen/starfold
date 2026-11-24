@@ -5,6 +5,7 @@ import static dev.starfold.space.SpaceServer.lead;
 
 import dev.starfold.chart.CelestialTarget;
 import dev.starfold.chart.GroundSpace;
+import dev.starfold.ship.HelmServer;
 import dev.starfold.sky.GroundClock;
 import dev.starfold.sky.Space;
 
@@ -124,7 +125,10 @@ final class SpaceSessions {
         if (old != null && old.owner().owns(player)) views.remove(player);
     }
 
-    /** Repeated metadata tolerates packets arriving while a client is between Levels; never captures a flight. */
+    /**
+     * Repeated metadata tolerates packets arriving while a client is between Levels; never captures
+     * a flight.
+     */
     static long view(net.minecraft.server.level.ServerPlayer player) {
         if (!Space.in(player)) {
             removeView(player);
@@ -170,6 +174,7 @@ final class SpaceSessions {
     static void wish(net.minecraft.server.level.ServerPlayer player, SpacePackets.Attitude packet) {
         if (!packet.finite() || !Space.in(player)) {
             wishes.remove(player);
+            if (packet.finite()) HelmServer.chartAttitude(player, packet.mouseYaw(), packet.roll());
             return;
         }
         var container =

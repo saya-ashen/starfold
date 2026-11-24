@@ -108,6 +108,33 @@ public final class PlanetAccess {
         return tile == null ? null : originAt(observerX, observerZ).add(tile.point(chart(target)));
     }
 
+    public record LocalBlock(BlockPos position, GroundTopology.Address address) {
+        public LocalBlock {
+            position = position.immutable();
+        }
+    }
+
+    /** Positions and directions in a local chart share the same route to storage. */
+    public LocalBlock localBlock(BlockPos position) {
+        return inChart(position) ? new LocalBlock(position, address(position)) : null;
+    }
+
+    /** Express a nearby owner block in the reference owner's chart, when that image maps back to it. */
+    public BlockPos adjacentImage(BlockPos reference, BlockPos owner) {
+        var block = project(reference, owner);
+        return block == null ? null : block.position();
+    }
+
+    public LocalBlock project(BlockPos reference, BlockPos owner) {
+        if (!inChart(reference) || !inChart(owner)) return null;
+        var point = image(reference.getX() + .5, reference.getZ() + .5,
+                new Point(owner.getX() + .5, owner.getY() + .5, owner.getZ() + .5));
+        if (point == null) return null;
+        var projected = BlockPos.containing(point.x(), point.y(), point.z());
+        var block = localBlock(projected);
+        return block != null && block.address().owner().equals(owner) ? block : null;
+    }
+
     /** A place in the middle of a face of a planet: an observer there sees that face's chart. */
     public Point middle(int planet, int face) {
         var o = origin(planet, face);

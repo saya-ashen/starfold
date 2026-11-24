@@ -6,6 +6,7 @@
     "starfold_materials:bauxite_ore",
     "starfold_materials:deepslate_bauxite_ore",
     "starfold_materials:raw_aluminum_block",
-    "starfold_materials:aluminum_block"
+    "starfold_materials:aluminum_block",
+    "starfold_materials:hull_trim"
   ]
 }

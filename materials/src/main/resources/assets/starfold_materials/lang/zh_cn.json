@@ -9,5 +9,9 @@
   "block.starfold_materials.aluminum_block": "铝块",
   "item.starfold_materials.raw_aluminum": "粗铝",
   "item.starfold_materials.aluminum_ingot": "铝锭",
-  "item.starfold_materials.aluminum_nugget": "铝粒"
+  "item.starfold_materials.aluminum_nugget": "铝粒",
+  "block.starfold_materials.hull_trim": "异形船体装甲",
+  "block.starfold_materials.dark_hull_trim": "深色船体饰板",
+  "block.starfold_materials.cyan_hull_light": "青蓝船体灯",
+  "block.starfold_materials.bridge_glass": "斜面舰桥玻璃"
 }

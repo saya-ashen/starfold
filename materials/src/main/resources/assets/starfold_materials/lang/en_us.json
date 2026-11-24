@@ -9,5 +9,9 @@
   "block.starfold_materials.aluminum_block": "Block of Aluminum",
   "item.starfold_materials.raw_aluminum": "Raw Aluminum",
   "item.starfold_materials.aluminum_ingot": "Aluminum Ingot",
-  "item.starfold_materials.aluminum_nugget": "Aluminum Nugget"
+  "item.starfold_materials.aluminum_nugget": "Aluminum Nugget",
+  "block.starfold_materials.hull_trim": "Shaped Hull Plating",
+  "block.starfold_materials.dark_hull_trim": "Dark Hull Trim",
+  "block.starfold_materials.cyan_hull_light": "Cyan Hull Light",
+  "block.starfold_materials.bridge_glass": "Sloped Bridge Glass"
 }

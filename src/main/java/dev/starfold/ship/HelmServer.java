@@ -16,7 +16,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import org.joml.Vector3d;
 
-/** Server-owned, deliberately unsaved helm sessions. A missing input lease always means no command. */
+/**
+ * Server-owned, deliberately unsaved helm sessions. A missing input lease always means no command.
+ */
 public final class HelmServer {
     private static final HelmCommand.Pilots<ServerSubLevel, ServerPlayer> pilots =
             new HelmCommand.Pilots<>();
@@ -34,6 +36,9 @@ public final class HelmServer {
         int bits;
         boolean liftWarned;
         long tick = Long.MIN_VALUE;
+        long attitudeTick = Long.MIN_VALUE;
+        double mouseYaw;
+        float roll;
 
         Session(ServerPlayer player, ServerSubLevel body, BlockPos pos, Direction facing) {
             this.player = player;
@@ -190,19 +195,41 @@ public final class HelmServer {
         var nozzle = state.getValue(BlockStateProperties.FACING);
         if (LiftServer.owns(body, nozzle)) return LiftServer.power(body, nozzle);
         var s = sessions.get(body);
-        int bits = bits(body);
-        var center = body.getMassTracker().getCenterOfMass();
         return HelmCommand.effective(
                 state.getValue(BlockStateProperties.POWER),
-                s != null
-                        && center != null
-                        && HelmCommand.fires(
-                                bits,
-                                s.facing,
-                                state.getValue(BlockStateProperties.FACING),
-                                new Vector3d(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5)
-                                        .sub(center),
-                                ShipHost.get().externalRoll(s.player.level(), body)));
+                s != null && HelmCommand.fires(bits(body), s.facing, nozzle));
+    }
+
+    static boolean translates(ServerSubLevel body, Direction nozzle) {
+        var s = sessions.get(body);
+        return s != null
+                && nozzle.getAxis().isHorizontal()
+                && HelmCommand.fires(bits(body), s.facing, nozzle);
+    }
+
+    public static void chartAttitude(ServerPlayer player, float yaw, float roll) {
+        var body = pilots.body(player);
+        var s = sessions.get(body);
+        if (s == null || !valid(s) || !LiftServer.enabled(body)) return;
+        long now = player.level().getGameTime();
+        s.mouseYaw = Math.clamp((s.attitudeTick == now ? s.mouseYaw : 0) + yaw, -6, 6);
+        s.roll = Math.clamp(roll, -1, 1);
+        s.attitudeTick = now;
+    }
+
+    static double chartYaw(ServerSubLevel body) {
+        var s = sessions.get(body);
+        if (s == null || !HelmCommand.fresh(s.attitudeTick, body.getLevel().getGameTime()))
+            return 0;
+        double limit = HelmTurn.rate(HelmTurn.span(body), false);
+        return Math.toRadians(-Math.clamp(s.mouseYaw, -limit, limit)) * 20;
+    }
+
+    static double chartRoll(ServerSubLevel body) {
+        var s = sessions.get(body);
+        return s != null && HelmCommand.fresh(s.attitudeTick, body.getLevel().getGameTime())
+                ? s.roll
+                : 0;
     }
 
     static boolean boosted(ServerSubLevel body) {
@@ -235,7 +262,8 @@ public final class HelmServer {
                     if (Boolean.getBoolean("starfold.helmProbe"))
                         org.slf4j.LoggerFactory.getLogger("starfold-airstair")
                                 .info(
-                                        "AIRSTAIR HELM EXIT tick={} hull={} result={} space={} landedWithStair={}",
+                                        "AIRSTAIR HELM EXIT tick={} hull={} result={} space={}"
+                                                + " landedWithStair={}",
                                         now,
                                         s.body.getUniqueId(),
                                         leaving ? "leave" : "confirm-required",

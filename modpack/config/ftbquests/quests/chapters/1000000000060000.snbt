@@ -391,6 +391,33 @@
         "1000000000050F00"
       ],
       "optional": true
+    },
+    {
+      "id": "1000000000060E00",
+      "x": 2.0,
+      "y": 6.0,
+      "tasks": [
+        {
+          "id": "1000000000060E01",
+          "type": "checkmark"
+        }
+      ],
+      "rewards": [
+        {
+          "id": "1000000000060E02",
+          "type": "item",
+          "item": {
+            "id": "minecraft:iron_ingot",
+            "count": 1
+          },
+          "count": 2
+        }
+      ],
+      "dependencies": [
+        "1000000000051000",
+        "1000000000060C00"
+      ],
+      "optional": true
     }
   ]
 }

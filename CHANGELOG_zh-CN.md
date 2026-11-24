@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## 0.4.0-alpha.3
+
+更新本体、Atlas、Mining 和 Worlds（CurseForge 版含 Biotech），调整飞船操作与地形渲染，改善已测试的 Create、Mekanism 设备跨接缝兼容性。动态储罐可跨旋转接缝成形。Escape Velocity 同步更新四个模组，并暂缓核能多方块及专用部件的合成。
+
 ## 0.4.0-alpha.1
 
 Starfold 0.4.0 首个测试版，附 Escape Velocity 客户端和服务端包。

@@ -46,6 +46,10 @@ ServerEvents.recipes(event => {
   // Keep reversible rotary conversion: it only converts already-skimmed deuterium.
   event.remove({ id: 'mekanismgenerators:separator/heavy_water' })
 
+  // Defer nuclear multiblocks until seam support is ready. Keep registered blocks for existing saves.
+  event.remove({ id: /^mekanismgenerators:(fission_reactor|reactor|turbine)\// })
+  event.remove({ id: /^mekanismgenerators:(electromagnetic_coil|rotational_complex|saturating_condenser|hohlraum|laser_focus_matrix)$/ })
+
   // Ten ingredients retain the original material counts and require mechanical crafting.
   event.remove({ output: 'starfold:interstellar_drive' })
   event.custom({

@@ -307,6 +307,10 @@
   "quest.1000000000050F00.quest_desc": [
     "Manual production record, not automatic telemetry: supply water and sustained power to the Electrolytic Separator, send chemical hydrogen to a Rotary Condensentrator in condensing mode, then transfer fluid hydrogen to a compatible ship tank. Configure the unused oxygen output so it cannot block production. Record two separately collected batches, input/output quantities, power, ports, mode and tank readings. Verify extraction support; a bucket alone does not prove this chain. Budget ascent and return from actual mass and gravity; no fixed bucket promise."
   ],
+  "quest.1000000000051000.title": "S-01 explorer blueprints",
+  "quest.1000000000051000.quest_desc": [
+    "Use an Empty Schematic at the Schematic Table and select s01.nbt from the pack. Preview in a clear berth with the bow facing west, then supply a Schematicannon with gunpowder and the materials it lists. Keep existing solid blocks and leave Skip Missing Blocks off so the cannon waits for supplies. Before assembly, check both gyros and re-place their adjacent redstone blocks if the gyros are unpowered. Assemble the finished hull with a Physics Assembler and glue, leaving the berth on the ground. Fill the ordinary tank and perform a local flight before carrying cargo."
+  ],
   "chapter.1000000000060000.title": "6 · System expansion",
   "quest.1000000000060B00.title": "Fabricate aluminum hull plating",
   "quest.1000000000060B00.quest_desc": [
@@ -359,6 +363,10 @@
   "quest.1000000000060A00.title": "Outpost maintenance",
   "quest.1000000000060A00.quest_desc": [
     "Steel Paxel acquired. Stock tools and repair materials at established outposts."
+  ],
+  "quest.1000000000060E00.title": "Plan the C-07 shipyard",
+  "quest.1000000000060E00.quest_desc": [
+    "Select c07-hull-1.nbt through c07-hull-4.nbt at the Schematic Table. Keep the bow facing west and use a common origin. Offsets (X Y Z) are (0 7 5), (40 1 6), (72 1 0), and (92 6 3). Print one section at a time or assign one cannon to each. The port and starboard doors have separate blueprints at (42 0 20) and (42 0 10). Leave room for door swing and keep the work area loaded. After a server restart, check each cannon and press Play if it says Ready. Build the two doors and the shuttle as separate bodies from the carrier."
   ],
   "chapter.1000000000070000.title": "7 · Anomalies and combat",
   "quest.1000000000070100.title": "Combat protection",

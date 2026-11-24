@@ -12,8 +12,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-import org.joml.Vector3d;
-
 /** Recipient-specific pilot authority plus leased hull commands for every tracking client. */
 public final class HelmInputClient {
     private record Received(HelmPackets.State state, long tick) {}
@@ -157,17 +155,7 @@ public final class HelmInputClient {
                                             : lift.down()));
         var s = state(body.getUniqueId());
         return HelmCommand.effective(
-                redstone,
-                s != null
-                        && HelmCommand.fires(
-                                s.bits(),
-                                s.facing(),
-                                state.getValue(BlockStateProperties.FACING),
-                                new Vector3d(
-                                        pos.getX() + .5 - s.cx(),
-                                        pos.getY() + .5 - s.cy(),
-                                        pos.getZ() + .5 - s.cz()),
-                                s.free()));
+                redstone, s != null && HelmCommand.fires(s.bits(), s.facing(), nozzle));
     }
 
     static boolean sprint(ClientSubLevel body) {

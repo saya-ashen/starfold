@@ -202,7 +202,10 @@ public final class SpaceServer extends SavedData {
         return get(level).frame;
     }
 
-    /** A latecomer uses the occupied region's frame; changing it would move every body already there. */
+    /**
+     * A latecomer uses the occupied region's frame; changing it would move every body already
+     * there.
+     */
     public static Space.Frame entering(
             ServerLevel level,
             Space.Motion universeMotion,
@@ -255,8 +258,11 @@ public final class SpaceServer extends SavedData {
         }
     }
 
-    /** Sample nearest/arrival intent; filter the piloted fold and braking push; fold/relabel, drag,
-     * switch reference, turn, skip arrival assist, cruise, radial/tangential govern, prefetch, anchor. */
+    /**
+     * Sample nearest/arrival intent; filter the piloted fold and braking push; fold/relabel, drag,
+     * switch reference, turn, skip arrival assist, cruise, radial/tangential govern, prefetch,
+     * anchor.
+     */
     public static void step(
             ServerLevel level, dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer container) {
         var bodies = spaceBodies(container);
@@ -297,8 +303,10 @@ public final class SpaceServer extends SavedData {
                 level, container, bodies, clock.model, value.frame, clock.tick());
     }
 
-    /** Actors have already applied thrust when Sable publishes this event, before integration.
-     * Recheck each substep so sustained thrust cannot creep through a tick-end velocity wall. */
+    /**
+     * Actors have already applied thrust when Sable publishes this event, before integration.
+     * Recheck each substep so sustained thrust cannot creep through a tick-end velocity wall.
+     */
     private static void sunPhysics(
             dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics, double step) {
         var level = physics.getLevel();
@@ -332,7 +340,9 @@ public final class SpaceServer extends SavedData {
         }
     }
 
-    /** After gravity cancellation, undo native linear damping only in space, including followers. */
+    /**
+     * After gravity cancellation, undo native linear damping only in space, including followers.
+     */
     private static void spacePhysics(
             dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem physics, double step) {
         var level = physics.getLevel();
@@ -360,7 +370,9 @@ public final class SpaceServer extends SavedData {
         }
     }
 
-    /** Bounding sphere about the logical anchor covers the full rotating hull, not just its helm. */
+    /**
+     * Bounding sphere about the logical anchor covers the full rotating hull, not just its helm.
+     */
     private static double sunPadding(dev.ryanhcode.sable.sublevel.ServerSubLevel body) {
         var box = SableFrames.cabinBounds(body);
         if (box == null) return 0;
@@ -509,8 +521,18 @@ public final class SpaceServer extends SavedData {
                 }
                 pitch = wish.pitch();
                 roll = wish.roll();
-                mouseYaw = wish.mouseYaw();
-                mousePitch = wish.mousePitch();
+                double limit =
+                        dev.starfold.ship.HelmTurn.rate(
+                                dev.starfold.ship.HelmTurn.span(lead), true);
+                double scale =
+                        Math.min(
+                                1,
+                                limit
+                                        / Math.max(
+                                                1e-300,
+                                                Math.hypot(wish.mouseYaw(), wish.mousePitch())));
+                mouseYaw = wish.mouseYaw() * scale;
+                mousePitch = wish.mousePitch() * scale;
                 wishes.put(player, new Wish(lead, pitch, roll, 0, 0, wish.tick()));
                 break;
             }
@@ -521,7 +543,6 @@ public final class SpaceServer extends SavedData {
                                     model.at(nearest, tick).center().sub(universe),
                                     value.frame.universeVelocity(GroundEphemeris.ZERO, model, tick),
                                     model.at(nearest, tick).velocity());
-            if (piloted && !arriving) roll += HelmCommand.roll(HelmServer.bits(lead));
             var up = lead.logicalPose().orientation().transform(new org.joml.Vector3d(0, 1, 0));
             var turn =
                     arriving
@@ -637,7 +658,9 @@ public final class SpaceServer extends SavedData {
                                     model.at(nearest, tick).velocity());
             org.slf4j.LoggerFactory.getLogger("starfold-probe")
                     .info(
-                            "PROBE ARRIVAL_MODE game {} nearest {} piloted {} arriving {} height {} speed {} closing {} impulse {} kept {} push {} assistSkipped {}",
+                            "PROBE ARRIVAL_MODE game {} nearest {} piloted {} arriving {} height {}"
+                                + " speed {} closing {} impulse {} kept {} push {} assistSkipped"
+                                + " {}",
                             level.getGameTime(),
                             nearest,
                             piloted,
@@ -916,7 +939,8 @@ public final class SpaceServer extends SavedData {
             if (!value.anchorBlocked)
                 org.slf4j.LoggerFactory.getLogger("starfold")
                         .warn(
-                                "Skipped space re-anchor: hull {} or its crew would cross a chart boundary",
+                                "Skipped space re-anchor: hull {} or its crew would cross a chart"
+                                    + " boundary",
                                 body);
             value.anchorBlocked = true;
             return false;

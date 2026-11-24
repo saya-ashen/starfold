@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:block/block",
+  "loader": "neoforge:obj",
+  "model": "starfold_materials:models/block/hull_trim_bevel_top.obj",
+  "automatic_culling": false,
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "starfold_materials:block/aluminum_hull_plating"
+  }
+}

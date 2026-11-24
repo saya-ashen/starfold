@@ -1,9 +1,11 @@
 package dev.starfold.mixin;
 
 import dev.starfold.ground.ChunkViews;
+import dev.starfold.ground.ImageStream;
 import dev.starfold.planet.PlanetAccess;
 import dev.starfold.planet.PlanetLevels;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -16,6 +18,7 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Halo chunk coordinates resolve to live views of their canonical owners instead of loading the empty storage
@@ -83,6 +86,18 @@ public abstract class GroundChunkViewMixin {
         if (!starfold$ghost(x, z)) return;
         var columns = ChunkViews.columns(PlanetAccess.of(level), x, z);
         ci.setReturnValue(ChunkViews.ready(level, columns) ? ChunkViews.view(level, x, z) : null);
+    }
+
+    @Inject(method = "blockChanged", at = @At("TAIL"))
+    private void starfold$updateEntityImages(BlockPos pos, CallbackInfo ci) {
+        if (Thread.currentThread() != mainThread || !PlanetLevels.canonical(level)) return;
+        var access = PlanetAccess.of(level);
+        if (!access.inChart(pos)) return;
+        var owner = access.address(pos).owner();
+        var chunk = ((ServerChunkCache) (Object) this).getChunkNow(owner.getX() >> 4, owner.getZ() >> 4);
+        if (chunk != null && chunk.getBlockState(owner).hasBlockEntity()) {
+            ImageStream.blockEntityChanged(level, owner);
+        }
     }
 
     @Inject(method = "hasChunk", at = @At("HEAD"), cancellable = true)

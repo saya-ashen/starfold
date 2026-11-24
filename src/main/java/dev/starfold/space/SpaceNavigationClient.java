@@ -24,7 +24,10 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 import java.util.*;
 
-/** Projection capture and input adapter. Widgets consume one immutable frame, never query flight state. */
+/**
+ * Projection capture and input adapter. Widgets consume one immutable frame, never query flight
+ * state.
+ */
 public final class SpaceNavigationClient {
     private static FlightSnapshot snapshot;
     private static net.minecraft.client.multiplayer.ClientLevel level;
@@ -303,7 +306,9 @@ public final class SpaceNavigationClient {
                 && mc.screen == null;
     }
 
-    /** Capture the world projection before vanilla replaces it with the GUI orthographic projection. */
+    /**
+     * Capture the world projection before vanilla replaces it with the GUI orthographic projection.
+     */
     private static Point hullBearing(
             Space.Frame frame,
             GroundEphemeris.Model model,
@@ -388,7 +393,15 @@ public final class SpaceNavigationClient {
         boolean boost = flight.boosted();
         int launchPlanet = SpaceClientHost.get().launchPlanet();
         if (chart) {
-            captureChart(mc, helm, tier, thrust, flight, boost, launchPlanet);
+            captureChart(
+                    mc,
+                    helm,
+                    tier,
+                    pointer.x() * pointerScale,
+                    thrust,
+                    flight,
+                    boost,
+                    launchPlanet);
             return;
         }
         captureSpace(
@@ -408,6 +421,7 @@ public final class SpaceNavigationClient {
             Minecraft mc,
             dev.ryanhcode.sable.sublevel.ClientSubLevel helm,
             int tier,
+            double pointerX,
             FlightSnapshot.Thrust thrust,
             dev.starfold.ship.HelmPackets.State flight,
             boolean boost,
@@ -446,7 +460,7 @@ public final class SpaceNavigationClient {
                         GroundEphemeris.ZERO,
                         planet,
                         thrust,
-                        0,
+                        pointerX,
                         0,
                         ground.clearance(),
                         HullLandingClient.vertical(),

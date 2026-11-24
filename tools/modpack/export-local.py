@@ -13,8 +13,11 @@ MODULES = {'starfold': ROOT, **{
     for module in ('worlds', 'atlas', 'materials', 'mining', 'biotech')
 }}
 
+CURSEFORGE_MODULES = {'starfold': (1739128, 9792443), 'starfold_atlas': (1821211, 9792446),
+                      'starfold_mining': (1821221, 9792452)}
 
-def export(side, version, output):
+
+def export(side, version, output, curseforge_modules=None):
     pack = tomllib.loads((PACK / 'pack.toml').read_text())
     index_path = PACK / pack['index']['file']
     if hashlib.sha256(index_path.read_bytes()).hexdigest() != pack['index']['hash']:
@@ -34,15 +37,24 @@ def export(side, version, output):
                 files.append({'projectID': pin['project-id'], 'fileID': pin['file-id'], 'required': True})
         else:
             entries.append((f"overrides/{entry['file']}", content))
-    jars = [root / 'build/libs' / f'{mod}-{version}.jar' for mod, root in MODULES.items()]
-    for jar, mod in zip(jars, MODULES, strict=True):
-        with ZipFile(jar) as archive:
-            metadata = tomllib.loads(archive.read('META-INF/neoforge.mods.toml').decode())
-            if [(entry['modId'], entry['version']) for entry in metadata['mods']] != [(mod, version)]:
-                raise ValueError(f'Unexpected mod ID or version in {jar}')
+    jars = []
+    if curseforge_modules is None:
+        for mod, root in MODULES.items():
+            jar = root / 'build/libs' / f'{mod}-{version}.jar'
+            with ZipFile(jar) as archive:
+                metadata = tomllib.loads(archive.read('META-INF/neoforge.mods.toml').decode())
+                if [(entry['modId'], entry['version']) for entry in metadata['mods']] != [(mod, version)]:
+                    raise ValueError(f'Unexpected mod ID or version in {jar}')
+            jars.append(jar)
+    else:
+        for project, file in curseforge_modules.values():
+            if project in {entry['projectID'] for entry in files}:
+                raise ValueError(f'Duplicate CurseForge project ID: {project}')
+            files.append({'projectID': project, 'fileID': file, 'required': True})
     manifest = {
         'manifestType': 'minecraftModpack', 'manifestVersion': 1,
-        'name': pack['name'], 'version': pack['version'], 'author': pack['author'],
+        'name': pack['name'], 'version': version if curseforge_modules is not None else pack['version'],
+        'author': pack['author'],
         'minecraft': {'version': pack['versions']['minecraft'], 'modLoaders': [
             {'id': f"neoforge-{pack['versions']['neoforge']}", 'primary': True}]},
         'files': files, 'overrides': 'overrides',
@@ -60,7 +72,18 @@ def export(side, version, output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--side', choices=['client', 'server'], required=True)
-    parser.add_argument('--version', default='0.4.0-alpha.1', help='Gradle candidateVersion used for the jars')
+    parser.add_argument('--version', default='0.4.0-alpha.3', help='Gradle candidateVersion used for the jars')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--curseforge-worlds-file-id', type=int, help='Approved file containing Worlds and Biotech')
+    parser.add_argument('--curseforge-materials-file-id', type=int, help='Approved Materials file with schematic blocks')
     args = parser.parse_args()
-    export(args.side, args.version, args.output)
+    module_pins = None
+    if args.curseforge_worlds_file_id is not None or args.curseforge_materials_file_id is not None:
+        worlds, materials = args.curseforge_worlds_file_id, args.curseforge_materials_file_id
+        if not worlds or not materials or worlds < 1 or materials < 1:
+            parser.error('both CurseForge file IDs must be positive integers')
+        if worlds == 9734410 or materials == 9734415:
+            parser.error('the original Worlds and Materials files lack the content required by this pack')
+        module_pins = {**CURSEFORGE_MODULES, 'starfold_worlds': (1821220, worlds),
+                       'starfold_materials': (1821222, materials)}
+    export(args.side, args.version, args.output, module_pins)
