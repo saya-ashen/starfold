@@ -8,7 +8,7 @@ them without a loading screen, in a ship built with Create and Create Aeronautic
 
 ![C-07 and S-01 above Hearth](docs/gallery/escape-velocity-cover.jpg)
 
-[Starfold on CurseForge](https://www.curseforge.com/minecraft/mc-mods/starfold) · [Escape Velocity survival pack](modpack/README.md) · [Gallery](docs/gallery/README.md)
+[Starfold on CurseForge](https://www.curseforge.com/minecraft/mc-mods/starfold) · [Download Escape Velocity](https://www.curseforge.com/minecraft/modpacks/starfold-escape-velocity) · [Player handbook](https://starfold.saya.love/en/) · [Gallery](docs/gallery/README.md)
 
 **Status: alpha.** Single-player is the current testing focus. The `0.4.0-alpha.3` mod update includes revised ship controls, terrain rendering and compatibility fixes for tested Create and Mekanism blocks across rotated planet seams. Back up your world before updating.
 

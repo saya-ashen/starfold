@@ -7,7 +7,7 @@ Minecraft 1.21.1 NeoForge 模组：星球是由真实原版区块构成的封闭
 
 ![炉心上空的 C-07 母舰与 S-01 小艇](docs/gallery/escape-velocity-cover.jpg)
 
-[CurseForge 模组页](https://www.curseforge.com/minecraft/mc-mods/starfold) · [Escape Velocity 生存整合包](modpack/README.md) · [图库](docs/gallery/README.md)
+[CurseForge 模组页](https://www.curseforge.com/minecraft/mc-mods/starfold) · [下载 Escape Velocity 生存整合包](https://www.curseforge.com/minecraft/modpacks/starfold-escape-velocity) · [玩家手册](https://starfold.saya.love/zh-cn/) · [图库](docs/gallery/README.md)
 
 **当前为 Alpha 测试版，主要覆盖单人。** 模组 `0.4.0-alpha.3` 更新了飞船操控和地形渲染，并修复了已测试的部分 Create、Mekanism 设备在旋转接缝处的兼容问题。更新前请备份世界。
 
@@ -39,9 +39,9 @@ Atlas 需与 Starfold 本体版本完全一致。Mining 提供矿物测绘和提
 
 ## 游玩
 
-默认飞船键位见[玩家手册的造船与试飞章节](docs/escape-velocity-player-guide_zh-CN.md#阶段-3--造一艘能回来的首船)。
+默认飞船键位见[玩家手册的造船与试飞章节](https://starfold.saya.love/zh-cn/progression/first-ship/)。
 
-想从空手生存一路玩到星际返航，请看 [Escape Velocity 玩家手册](docs/escape-velocity-player-guide_zh-CN.md)。
+想从空手生存一路玩到星际返航，请看 [Escape Velocity 玩家手册](https://starfold.saya.love/zh-cn/)。
 
 新建世界并选择世界类型：
 
