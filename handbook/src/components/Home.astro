@@ -127,11 +127,14 @@ const references = [
         </p>
 
         <div class="hb-hero__actions">
-          <a class="hb-btn hb-btn--primary" href={link('start')}>
-            <span>{zh ? '开始游玩（开档指引）' : 'Getting Started'}</span>
+          <a class="hb-btn hb-btn--primary" href="https://www.curseforge.com/minecraft/modpacks/starfold-escape-velocity">
+            <span>{zh ? '在 CurseForge 下载整合包' : 'Download on CurseForge'}</span>
             <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
               <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.5 4l4 4-4 4" />
             </svg>
+          </a>
+          <a class="hb-btn hb-btn--ghost" href={link('start')}>
+            {zh ? '开始游玩' : 'Getting Started'}
           </a>
           <a class="hb-btn hb-btn--ghost" href={link('worlds')}>
             {zh ? '母星系图鉴' : 'Worlds & Moons'}
