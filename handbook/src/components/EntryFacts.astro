@@ -1,0 +1,25 @@
+---
+interface Props {
+  facts: { label: string; value: string; href?: string; tone?: 'default' | 'accent' | 'warn' }[];
+}
+const { facts } = Astro.props;
+---
+<dl class="entry-facts not-content">
+  {facts.map(({ label, value, href, tone = 'default' }) => (
+    <div class:list={['entry-facts__item', `tone-${tone}`]}>
+      <dt>{label}</dt>
+      <dd>
+        {href ? (
+          <a href={href}>
+            <span>{value}</span>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M5 11L11 5M6.5 5H11v4.5" />
+            </svg>
+          </a>
+        ) : (
+          <span>{value}</span>
+        )}
+      </dd>
+    </div>
+  ))}
+</dl>

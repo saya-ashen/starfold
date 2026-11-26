@@ -1,0 +1,26 @@
+---
+title: "Boss 档案"
+---
+
+import Figure from '../../../components/Figure.astro';
+
+import SystemMap from '../../../components/SystemMap.astro';
+import EntryFacts from '../../../components/EntryFacts.astro';
+
+<EntryFacts
+  facts={[
+    { label: '当前 Boss', value: '宿主（The Host）', href: '/zh-cn/bosses/host/', tone: 'warn' },
+    { label: '遭遇天体', value: '血肉（琥珀最外侧卫星）', href: '/zh-cn/worlds/flesh/' },
+    { label: '战前攻略', value: '6B · 血肉与宿主', href: '/zh-cn/progression/flesh-host/' },
+  ]}
+/>
+
+| Boss | 栖息地 | 关键掉落与用途 | 刷新周期 |
+| --- | --- | --- | --- |
+| [宿主](/zh-cn/bosses/host/) | 琥珀最外侧卫星 [血肉](/zh-cn/worlds/flesh/) 上的指定巢穴巨坑 | 每次固定掉落 **4 个宿主神经节**，用于制作星际跃迁引擎 | 同一颗星球击败后 **7 个游戏日** |
+
+首次前往建议先读 [6B · 血肉与宿主](/zh-cn/progression/flesh-host/) 完成停泊净空与撤离航点准备。具体触发条件、囊体阶段打法与实机图均收纳在 [宿主条目](/zh-cn/bosses/host/) 的防剧透折叠区内。
+
+<SystemMap mode="amber" />
+
+<Figure image="world-flesh" width={930} height={605} alt={"实机截图 · 血肉的巢穴外围。"} caption={"实机截图 · 血肉的巢穴外围。"} />

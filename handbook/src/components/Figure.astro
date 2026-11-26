@@ -1,0 +1,28 @@
+---
+interface Props {
+  caption: string;
+  image?: string;
+  alt?: string;
+  compact?: boolean;
+  width?: number;
+  height?: number;
+}
+
+const { caption, image, alt = '', width = 1440, height = 810 } = Astro.props;
+---
+
+{image && (
+  <figure class="handbook-figure not-content">
+    <div class="handbook-figure__frame">
+      <img
+        src={`/media/${image}.webp`}
+        alt={alt || caption}
+        width={width}
+        height={height}
+        loading="lazy"
+        decoding="async"
+      />
+    </div>
+    {caption && <figcaption>{caption}</figcaption>}
+  </figure>
+)}

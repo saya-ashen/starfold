@@ -1,0 +1,285 @@
+---
+import SystemMap from './SystemMap.astro';
+
+const zh = Astro.url.pathname.startsWith('/zh-cn/');
+const locale = zh ? 'zh-cn' : 'en';
+const link = (path: string) => `/${locale}/${path}/`;
+
+const stages = [
+  {
+    code: '01',
+    slug: 'hearth',
+    zh: '在炉心定居',
+    en: 'Settle on Hearth',
+    descZh: '建营地、标基地与矿口航点，备齐水力工坊材料',
+    descEn: 'Establish base, mark Atlas waypoints, gather initial workshop stock',
+  },
+  {
+    code: '02',
+    slug: 'workshop-fuel',
+    zh: '工坊与两批燃料',
+    en: 'Workshop & Fuel',
+    descZh: '搭水力产线，采原油并分馏出首批兼容航空燃料',
+    descEn: 'Build water-powered assembly, pump crude oil, refine two fuel batches',
+  },
+  {
+    code: '03',
+    slug: 'first-ship',
+    zh: '首船与本地试飞',
+    en: 'First Ship & Local Test',
+    descZh: '组装首艘飞船，在炉心验证升力、制动、停泊与重登',
+    descEn: 'Assemble your first hull and verify lift, braking, parking, and boarding',
+  },
+  {
+    code: '04',
+    slug: 'osmium-round-trip',
+    zh: '首次采锇往返',
+    en: 'First Osmium Round Trip',
+    descZh: '前往砾星或砧星采回原锇，核算载重湿重安全返航',
+    descEn: 'Fly to Fleck or Anvil for raw osmium and return within wet-mass limits',
+  },
+  {
+    code: '05',
+    slug: 'hydrogen-supply',
+    zh: '工业扩张与液氢',
+    en: 'Industry & Liquid Hydrogen',
+    descZh: '制取液氢燃料，采铝土减重、采萤石升级观察镜',
+    descEn: 'Produce liquid hydrogen, lighten hulls with bauxite, upgrade scope',
+  },
+  {
+    code: '6A',
+    slug: 'deuterium',
+    zh: '琥珀采氘',
+    en: 'Collect Deuterium on Amber',
+    descZh: '装气体采集口进入琥珀外层，在 0.5/0.85 耐压线内收氘',
+    descEn: 'Skim Amber’s outer atmosphere below 0.5 / 0.85 hull pressure limits',
+  },
+  {
+    code: '6B',
+    slug: 'flesh-host',
+    zh: '血肉与宿主',
+    en: 'Flesh & The Host',
+    descZh: '深入琥珀最外轨卫星巢坑，清除囊体击败宿主取神经节',
+    descEn: 'Land outside Flesh’s nest pit, clear cysts, defeat The Host for ganglia',
+  },
+  {
+    code: '07',
+    slug: 'interstellar-expedition',
+    zh: '星际远征与返航',
+    en: 'Interstellar Expedition',
+    descZh: '组装星际跃迁引擎跨星系航行，核对远征据点并原船返航',
+    descEn: 'Build the interstellar drive, jump systems, and complete return haul',
+  },
+];
+
+const quickWorlds = [
+  { slug: 'hearth', zh: '炉心', en: 'Hearth', tagZh: '母星', tagEn: 'Home', tone: 'home' },
+  { slug: 'fleck', zh: '砾星', en: 'Fleck', tagZh: '原锇', tagEn: 'Osmium', tone: 'mineral' },
+  { slug: 'anvil', zh: '砧星', en: 'Anvil', tagZh: '原锇', tagEn: 'Osmium', tone: 'mineral' },
+  { slug: 'saffron', zh: '赭沙', en: 'Saffron', tagZh: '铝土', tagEn: 'Bauxite', tone: 'mineral' },
+  { slug: 'amber', zh: '琥珀', en: 'Amber', tagZh: '采氘', tagEn: 'Deuterium', tone: 'gas' },
+  { slug: 'rime', zh: '霜原', en: 'Rime', tagZh: '锡/铅', tagEn: 'Tin/Lead', tone: 'mineral' },
+  { slug: 'prism', zh: '晶棱', en: 'Prism', tagZh: '萤石', tagEn: 'Fluorite', tone: 'mineral' },
+  { slug: 'flesh', zh: '血肉', en: 'Flesh', tagZh: '宿主', tagEn: 'Host', tone: 'danger' },
+  { slug: 'cinder', zh: '烬岩', en: 'Cinder', tagZh: '玄武岩', tagEn: 'Basalt', tone: 'neutral' },
+  { slug: 'viridia', zh: '苍翠', en: 'Viridia', tagZh: '繁茂', tagEn: 'Lush', tone: 'neutral' },
+  { slug: 'pelagia', zh: '群澜', en: 'Pelagia', tagZh: '群岛', tagEn: 'Islands', tone: 'neutral' },
+  { slug: 'haven', zh: '菌港', en: 'Haven', tagZh: '蘑菇', tagEn: 'Fungal', tone: 'neutral' },
+  { slug: 'hush', zh: '寂痕', en: 'Hush', tagZh: '幽匿', tagEn: 'Sculk', tone: 'neutral' },
+  { slug: 'ivory', zh: '象牙', en: 'Ivory', tagZh: '末地', tagEn: 'End', tone: 'neutral' },
+];
+
+const references = [
+  { slug: 'flight-controls', zh: '飞行键位', en: 'Flight Controls', hintZh: '近地、太空驾驶与紧急中止键', hintEn: 'Surface, orbital & abort controls' },
+  { slug: 'atlas', zh: 'Atlas 与航点', en: 'Atlas & Waypoints', hintZh: 'M 键星图锁定、船体追踪与落点标记', hintEn: 'Globe view, hull tracking & pins' },
+  { slug: 'oil', zh: '原油勘探与抽取', en: 'Oil Survey & Extraction', hintZh: '油藏定位、钻井搭建与管道入罐', hintEn: 'Finding wells, pump rigs & storage' },
+  { slug: 'troubleshooting', zh: '航行与故障自救', en: 'Flight & Troubleshooting', hintZh: '飞不起来、失速、超压与迷航处理', hintEn: 'Overweight, stalls, pressure & recovery' },
+  { slug: 'preflight', zh: '长途出发检查表', en: 'Preflight Checklist', hintZh: '离港前燃油、备件、舷梯与航点核对', hintEn: 'Fuel, spares, airstairs & waypoint check' },
+];
+---
+
+<div class="hb-home not-content">
+  {/* Hero Command Deck */}
+  <section class="hb-hero" aria-labelledby="_top">
+    <picture class="hb-hero__media">
+      <source media="(max-width: 48rem)" srcset="/media/escape-velocity-cover-mobile.webp" />
+      <img
+        src="/media/escape-velocity-cover.webp"
+        width="1440"
+        height="810"
+        fetchpriority="high"
+        alt={zh ? 'C-07 母舰和 S-01 小艇飞越炉心轨道' : 'The C-07 carrier and S-01 shuttle in orbit above Hearth'}
+      />
+    </picture>
+    <div class="hb-hero__scrim" aria-hidden="true"></div>
+
+    <a class="hb-mobile-lang" href={zh ? '/en/' : '/zh-cn/'} lang={zh ? 'en' : 'zh-CN'}>
+      {zh ? 'English' : '简体中文'}
+    </a>
+
+    <div class="hb-shell hb-hero__inner">
+      <div class="hb-hero__content">
+        <h1 id="_top">Escape Velocity</h1>
+        <p class="hb-hero__lead">
+          {zh
+            ? '星海折越（Starfold）单人生存航行手册。速查母星系 14 颗天体、采氘耐压界线、宿主战斗准备与 C-07 / S-01 建造蓝图。'
+            : 'Field manual for Starfold: Escape Velocity. Look up all 14 home-system bodies, Amber pressure limits, Host preparation, and C-07 / S-01 ship schematics.'}
+        </p>
+
+        <div class="hb-hero__actions">
+          <a class="hb-btn hb-btn--primary" href={link('start')}>
+            <span>{zh ? '开始游玩（开档指引）' : 'Getting Started'}</span>
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.5 4l4 4-4 4" />
+            </svg>
+          </a>
+          <a class="hb-btn hb-btn--ghost" href={link('worlds')}>
+            {zh ? '母星系图鉴' : 'Worlds & Moons'}
+          </a>
+          <a class="hb-btn hb-btn--ghost" href={link('schematics')}>
+            {zh ? '飞船蓝图' : 'Ship Schematics'}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* Progression Track: Stages 1 -> 7 */}
+  <section class="hb-section" aria-labelledby="stages-heading">
+    <div class="hb-shell">
+      <div class="hb-section__head">
+        <h2 id="stages-heading">{zh ? '七阶段生存推进路线' : 'Seven-Stage Survival Route'}</h2>
+        <a class="hb-inline-link" href={link('progression/hearth')}>
+          <span>{zh ? '从阶段 01 顺序阅读' : 'Start at Stage 01'}</span>
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.5 4l4 4-4 4" /></svg>
+        </a>
+      </div>
+
+      <ol class="hb-stage-grid">
+        {stages.map((s) => (
+          <li>
+            <a class="hb-stage-card" href={link(`progression/${s.slug}`)}>
+              <div class="hb-stage-card__head">
+                <span class="hb-stage-code">{s.code}</span>
+                <strong>{zh ? s.zh : s.en}</strong>
+              </div>
+              <p>{zh ? s.descZh : s.descEn}</p>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  {/* Interactive Home System Map + 14-Body Direct Index */}
+  <section class="hb-section" aria-labelledby="atlas-heading">
+    <div class="hb-shell">
+      <div class="hb-section__head">
+        <h2 id="atlas-heading">{zh ? '母星系星图与 14 天体速查' : 'Home System Atlas & 14 Destinations'}</h2>
+        <div class="hb-section__links">
+          <a class="hb-inline-link" href={link('worlds/types')}>{zh ? '按地貌分类对照' : 'Terrain Types'}</a>
+          <a class="hb-inline-link" href={link('worlds')}>{zh ? '完整天体目录' : 'Full World Index'}</a>
+        </div>
+      </div>
+
+      <SystemMap mode="system" />
+
+      <div class="hb-world-pills">
+        {quickWorlds.map((w) => (
+          <a class={`hb-world-pill tone-${w.tone}`} href={link(`worlds/${w.slug}`)}>
+            <strong>{zh ? w.zh : w.en}</strong>
+            <span>{zh ? w.tagZh : w.tagEn}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {/* Ships & Schematics + Host Boss & Quick Reference */}
+  <section class="hb-section hb-section--last" aria-labelledby="ops-heading">
+    <div class="hb-shell hb-ops-grid">
+      {/* Left: Ships & Blueprints */}
+      <div class="hb-panel hb-ship-panel">
+        <div class="hb-ship-panel__media">
+          <img
+            src="/media/carrier-over-fleck.webp"
+            width="1440"
+            height="810"
+            loading="lazy"
+            decoding="async"
+            alt={zh ? '砾星轨道上空的 C-07 母舰' : 'The C-07 carrier in orbit above Fleck'}
+          />
+        </div>
+        <div class="hb-ship-panel__body">
+          <h2 id="ops-heading">{zh ? '飞船与工程蓝图' : 'Ships & Construction Schematics'}</h2>
+          <p>
+            {zh
+              ? '生存模式可自由造船，也可在 Create 蓝图桌选用整合包自带的 S-01 或 C-07 蓝图。'
+              : 'Design your own survival ship, or use Create’s Schematic Table to load the S-01 and C-07 schematics included in the modpack.'}
+          </p>
+          <div class="hb-ship-links">
+            <a href={link('ships/c07')}>
+              <strong>{zh ? 'C-07 母舰' : 'C-07 Carrier'}</strong>
+              <span>{zh ? '分段船体与偏移基准' : 'Segmented hull & offsets'}</span>
+            </a>
+            <a href={link('ships/s01')}>
+              <strong>{zh ? 'S-01 小艇' : 'S-01 Shuttle'}</strong>
+              <span>{zh ? '整体打印与舷梯登船' : 'Single-piece hull & boarding'}</span>
+            </a>
+            <a href={link('schematics')}>
+              <strong>{zh ? '蓝图使用指南' : 'Schematic Build Guide'}</strong>
+              <span>{zh ? '含 S-01、C-07 六分段与坐标表' : 'S-01, 6 C-07 parts & JSON offsets'}</span>
+            </a>
+            <a href={link('ships')}>
+              <strong>{zh ? '飞船选型对比' : 'Ship Directory'}</strong>
+              <span>{zh ? '自建首船与蓝图船适用场景' : 'Custom starter vs. schematic hulls'}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Boss Dossier + Flight Reference */}
+      <div class="hb-side-stack">
+        <div class="hb-panel hb-boss-panel">
+          <div class="hb-boss-panel__head">
+            <div>
+              <h2>{zh ? 'Boss 档案：宿主' : 'Boss Dossier: The Host'}</h2>
+              <p>
+                {zh
+                  ? '栖息于琥珀最外侧卫星「血肉」的指定巢穴巨坑。击败掉落 4 个宿主神经节（合成星际跃迁引擎必需），7 个游戏日复现。战斗细节默认折叠防剧透。'
+                  : 'Inhabits designated nest pits on Flesh, Amber’s outermost moon. Drops 4 Host Ganglia required for the interstellar drive; respawns after 7 in-game days.'}
+              </p>
+            </div>
+          </div>
+          <div class="hb-boss-panel__actions">
+            <a class="hb-btn hb-btn--warn" href={link('bosses/host')}>
+              {zh ? '查看宿主档案' : 'Open Host Entry'}
+            </a>
+            <a class="hb-btn hb-btn--ghost" href={link('progression/flesh-host')}>
+              {zh ? '6B · 战前准备路线' : 'Stage 6B Prep Guide'}
+            </a>
+          </div>
+        </div>
+
+        <div class="hb-panel hb-ref-panel">
+          <h2>{zh ? '航行速查手册' : 'Flight Quick Reference'}</h2>
+          <ul class="hb-ref-list">
+            {references.map((r) => (
+              <li>
+                <a href={link(`reference/${r.slug}`)}>
+                  <div>
+                    <strong>{zh ? r.zh : r.en}</strong>
+                    <span>{zh ? r.hintZh : r.hintEn}</span>
+                  </div>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M6 3.5L10.5 8 6 12.5" />
+                  </svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

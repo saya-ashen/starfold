@@ -1,0 +1,42 @@
+---
+title: "C-07 与 S-01 蓝图"
+---
+
+import Figure from '../../../components/Figure.astro';
+
+Escape Velocity 整合包自带 C-07 母舰和 S-01 小艇的建造蓝图，**安装整合包后无需另行下载**。生存开局没有现成的飞船，你可以选用蓝图建造，也可以自己设计第一艘船。
+
+## 单独下载蓝图
+
+如果你使用其他兼容的模组配置，可以在这里单独下载蓝图。
+
+- **S-01 小艇** [s01.nbt](/schematics/s01.nbt)
+- **C-07 母舰** [c07-hull-1](/schematics/c07-hull-1.nbt) · [c07-hull-2](/schematics/c07-hull-2.nbt) · [c07-hull-3](/schematics/c07-hull-3.nbt) · [c07-hull-4](/schematics/c07-hull-4.nbt) · [c07-door-port](/schematics/c07-door-port.nbt) · [c07-door-starboard](/schematics/c07-door-starboard.nbt)
+- [分段坐标与方块数量](/schematics/ship-schematics.json)
+
+## 导入与建造
+
+1. 在 Create 的**蓝图桌**上放入空白蓝图，选择所需的船型文件。预览时让两艘船的船头都朝西，并按占地选择净空足够的船坞。
+2. S-01 按整体蓝图定位。C-07 按分段蓝图放置，以配套偏移表为准：各段使用同一定位基准和对应朝向。逐段预览并核对接缝。
+3. 给蓝图炮（Schematicannon）供应所需方块和火药，再开始建造。完工后检查漏件、舱门、朝外的舷梯、喷口方向和飞船控制器。确认陀螺仪已通电，必要时重新放置相邻的红石块。组装时排除地面和支架。
+4. 加少量兼容燃料，核对供油与湿重，在炉心完成一次起飞、制动、着陆和重登。
+
+<Figure image="schematic-table" width={530} height={415} alt={"实机截图 · 在 Create 蓝图桌中选择整合包自带的 .nbt 文件。"} caption={"实机截图 · 在 Create 蓝图桌中选择整合包自带的 .nbt 文件。"} />
+
+<Figure image="diagram-c07-layout" width={1200} height={675} alt={"定位示意 · ①–④ 为船体，⑤–⑥ 为左、右舱门。图从上方看，括号内是各段相对共同原点的 X、Y、Z 偏移。"} caption={"定位示意 · ①–④ 为船体，⑤–⑥ 为左、右舱门。图从上方看，括号内是各段相对共同原点的 X、Y、Z 偏移。"} />
+
+<div className="hb-callout hb-callout--check">
+
+**完成条件：** 各段对齐、装置可用，飞船通过本地试飞。
+
+</div>
+
+<Figure image="hearth-shipyard" width={1440} height={810} alt={"停在炉心船坞的 C-07"} caption={"停在炉心船坞的 C-07"} />
+
+<Figure image="carrier-over-fleck" width={1440} height={810} alt={"砾星上空的 C-07"} caption={"砾星上空的 C-07"} />
+
+## 继续查阅
+
+- [C-07 母舰](/zh-cn/ships/c07/)
+- [S-01 小艇](/zh-cn/ships/s01/)
+- [3 · 首船与本地试飞](/zh-cn/progression/first-ship/)

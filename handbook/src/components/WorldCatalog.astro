@@ -1,0 +1,209 @@
+---
+const zh = Astro.url.pathname.startsWith('/zh-cn/');
+const locale = zh ? 'zh-cn' : 'en';
+const link = (slug: string) => `/${locale}/worlds/${slug}/`;
+
+const sectors = [
+  {
+    titleZh: '炉心轨道圈 · 开局与首航采锇',
+    titleEn: 'Hearth Orbit · Start & First Osmium Run',
+    items: [
+      {
+        slug: 'hearth',
+        zh: '炉心',
+        en: 'Hearth',
+        typeZh: '家园行星',
+        typeEn: 'Homeworld',
+        badgeZh: '基地与工坊',
+        badgeEn: 'Base & Workshop',
+        tone: 'home',
+        noteZh: '常规工坊矿产齐全，无锇与钻石；标记住所、工坊与油井航点。',
+        noteEn: 'Standard workshop ores, no osmium or diamonds; waypoint base, workshop, and oil.',
+      },
+      {
+        slug: 'fleck',
+        zh: '砾星',
+        en: 'Fleck',
+        typeZh: '炉心卫星 · 小行星',
+        typeEn: 'Hearth Moon · Asteroid',
+        badgeZh: '原锇候选',
+        badgeEn: 'Raw Osmium',
+        tone: 'mineral',
+        noteZh: '距炉心最近的采锇候选；停船避开折点异常区，装矿后重算湿重。',
+        noteEn: 'Closest osmium candidate; park clear of fold anomalies and recheck loaded mass.',
+      },
+      {
+        slug: 'anvil',
+        zh: '砧星',
+        en: 'Anvil',
+        typeZh: '岩质行星',
+        typeEn: 'Rocky Planet',
+        badgeZh: '原锇候选',
+        badgeEn: 'Raw Osmium',
+        tone: 'mineral',
+        noteZh: '另一处首航采锇目标；出发前与砾星比对实时轨道距离与探矿结果。',
+        noteEn: 'Alternative first osmium target; compare live distance and survey results with Fleck.',
+      },
+    ],
+  },
+  {
+    titleZh: '琥珀气态系 · 采氘、特种矿料与宿主',
+    titleEn: 'Amber System · Deuterium, Specialty Ores & The Host',
+    items: [
+      {
+        slug: 'amber',
+        zh: '琥珀',
+        en: 'Amber',
+        typeZh: '气态巨行星',
+        typeEn: 'Gas Giant',
+        badgeZh: '气层采氘',
+        badgeEn: 'Deuterium',
+        tone: 'gas',
+        noteZh: '无地表落点；在气层外试制动与退路，低压外层采氘，严守 0.5 / 0.85 耐压界线。',
+        noteEn: 'No solid surface; test braking outside atmosphere and harvest in low-pressure outer band.',
+      },
+      {
+        slug: 'cinder',
+        zh: '烬岩',
+        en: 'Cinder',
+        typeZh: '琥珀卫星 · 玄武岩',
+        typeEn: 'Amber Moon · Basalt',
+        badgeZh: '内轨卫星',
+        badgeEn: 'Inner Moon',
+        tone: 'neutral',
+        noteZh: 'Atlas 导航需锁定烬岩本身；低速观察玄武岩地形高差后再着陆。',
+        noteEn: 'Target Cinder directly in Atlas; inspect basalt relief at low speed before touchdown.',
+      },
+      {
+        slug: 'rime',
+        zh: '霜原',
+        en: 'Rime',
+        typeZh: '琥珀卫星 · 冰冻',
+        typeEn: 'Amber Moon · Ice',
+        badgeZh: '锡与铅',
+        badgeEn: 'Tin & Lead',
+        tone: 'mineral',
+        noteZh: '产出锡矿与铅矿；成片亮冰面仍有陡坡，需确认起落净空与登船步道路线。',
+        noteEn: 'Source of tin and lead; bright ice sheets hide slopes—verify landing clearance first.',
+      },
+      {
+        slug: 'prism',
+        zh: '晶棱',
+        en: 'Prism',
+        typeZh: '琥珀卫星 · 晶体',
+        typeEn: 'Amber Moon · Crystal',
+        badgeZh: '萤石 / 钻石',
+        badgeEn: 'Fluorite',
+        tone: 'mineral',
+        noteZh: '采萤石升级导航观察镜，亦含石英、紫水晶及少量深层钻石。',
+        noteEn: 'Mine fluorite to upgrade the navigation scope; also holds quartz, amethyst, and deep diamond.',
+      },
+      {
+        slug: 'flesh',
+        zh: '血肉',
+        en: 'Flesh',
+        typeZh: '琥珀最外侧卫星',
+        typeEn: 'Outermost Amber Moon',
+        badgeZh: '宿主巢穴',
+        badgeEn: 'Host Nest',
+        tone: 'danger',
+        noteZh: '指定巢穴巨坑栖息着 Boss「宿主」；在坑外安全距离停船并先标记退路。',
+        noteEn: 'Home to The Host in designated nest pits; park clear of the pit and mark your retreat route.',
+      },
+    ],
+  },
+  {
+    titleZh: '母星系其余行星 · 船体减重与远轨勘探',
+    titleEn: 'Other System Planets · Hull Lightening & Exploration',
+    items: [
+      {
+        slug: 'saffron',
+        zh: '赭沙',
+        en: 'Saffron',
+        typeZh: '沙漠行星',
+        typeEn: 'Desert Planet',
+        badgeZh: '铝土矿',
+        badgeEn: 'Bauxite',
+        tone: 'mineral',
+        noteZh: '采集铝土矿制作铝合金外壳板以减轻船体重量；返航前仍需按实装矿重核算燃料。',
+        noteEn: 'Mine bauxite for Aluminum Alloy Hull Plating to cut mass; recalculate return fuel after loading.',
+      },
+      {
+        slug: 'viridia',
+        zh: '苍翠',
+        en: 'Viridia',
+        typeZh: '繁茂行星',
+        typeEn: 'Lush Planet',
+        tone: 'neutral',
+        noteZh: '植被茂密；从树冠间隙识别开阔实地面，确保再次起飞净空。',
+        noteEn: 'Dense canopy; locate open ground beneath foliage with unobstructed vertical clearance.',
+      },
+      {
+        slug: 'pelagia',
+        zh: '群澜',
+        en: 'Pelagia',
+        typeZh: '群岛行星',
+        typeEn: 'Archipelago Planet',
+        tone: 'neutral',
+        noteZh: '水域分隔岛屿；落点需选连续陆地，确保无需涉水即可步行回船。',
+        noteEn: 'Water-divided islands; land on contiguous ground with a dry walk back to your airstairs.',
+      },
+      {
+        slug: 'haven',
+        zh: '菌港',
+        en: 'Haven',
+        typeZh: '蘑菇行星',
+        typeEn: 'Mushroom Planet',
+        tone: 'neutral',
+        noteZh: '可借巨型蘑菇辨认方位，切勿将菌盖误判为停泊地面。',
+        noteEn: 'Use giant mushrooms as landmarks, never as landing pads—touch down on solid ground.',
+      },
+      {
+        slug: 'hush',
+        zh: '寂痕',
+        en: 'Hush',
+        typeZh: '幽匿行星',
+        typeEn: 'Sculk Planet',
+        tone: 'neutral',
+        noteZh: '深色幽匿地表易掩盖断崖与折点异常区；下船前备足照明并打好船位标记。',
+        noteEn: 'Dark sculk hides drop-offs and fold anomalies; carry lighting and waypoint your ship.',
+      },
+      {
+        slug: 'ivory',
+        zh: '象牙',
+        en: 'Ivory',
+        typeZh: '末地地貌行星',
+        typeEn: 'End-like Planet',
+        tone: 'neutral',
+        noteZh: '接近时严格看相对速度与平台真实边缘，未看清完整落点范围前先中止着陆。',
+        noteEn: 'Brake by relative velocity and confirm platform edges visually before committing to land.',
+      },
+    ],
+  },
+];
+---
+
+<div class="world-catalog not-content">
+  {sectors.map((sector) => (
+    <section class="world-sector">
+      <h2>{zh ? sector.titleZh : sector.titleEn}</h2>
+      <div class="world-grid">
+        {sector.items.map((w) => (
+          <a href={link(w.slug)} class={`world-card tone-${w.tone}`}>
+            <img class="world-card__image" src={`/media/world-thumbs/${w.slug}.webp`} alt="" width="480" height="270" loading="lazy" decoding="async" />
+            <div class="world-card__top">
+              <div>
+                <strong>{zh ? w.zh : w.en}</strong>
+                <span class="world-card__type">{zh ? w.typeZh : w.typeEn}</span>
+              </div>
+              {(zh ? w.badgeZh : w.badgeEn) && (
+                <span class={`hb-badge hb-badge--${w.tone}`}>{zh ? w.badgeZh : w.badgeEn}</span>
+              )}
+            </div>
+            <p>{zh ? w.noteZh : w.noteEn}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
+</div>

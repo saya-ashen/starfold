@@ -1,0 +1,29 @@
+---
+title: "飞船与蓝图"
+---
+
+import Figure from '../../../components/Figure.astro';
+import EntryFacts from '../../../components/EntryFacts.astro';
+
+<EntryFacts
+  facts={[
+    { label: '官方蓝图', value: '整合包自带蓝图与偏移表', href: '/zh-cn/schematics/' },
+    { label: '自建首船', value: '3 · 首船与本地试飞', href: '/zh-cn/progression/first-ship/' },
+    { label: '操控速查', value: '飞行键位', href: '/zh-cn/reference/flight-controls/' },
+  ]}
+/>
+
+| 船型 | 适用场景 | 蓝图方式 | 建造前置条件 |
+| --- | --- | --- | --- |
+| [C-07 母舰](/zh-cn/ships/c07/) | 建造大型分段船体与远航补给平台 | 可选，六分段 `.nbt` | 配套偏移表、船坞净空、Schematicannon 与足量备料 |
+| [S-01 小艇](/zh-cn/ships/s01/) | 建造紧凑飞船，练习停泊、舷梯与登船 | 可选，整体 `.nbt` | 蓝图文件、Schematicannon 与船体材料 |
+| [自建首船](/zh-cn/progression/first-ship/) | 生存开局首飞与早期采矿往返 | 无需蓝图 | 水力工坊、基础船体部件、兼容燃料与炉心试飞 |
+
+<Figure image="hearth-shipyard" width={1440} height={810} alt={"炉心船坞的 C-07"} caption={"停泊在炉心船坞的 C-07 母舰"} />
+
+## 常用操作直达
+
+- [C-07 与 S-01 蓝图导入与建造](/zh-cn/schematics/)
+- [2 · 工坊与两批燃料（供油与输油）](/zh-cn/progression/workshop-fuel/)
+- [飞行键位（近地、轨道与中止自动抵达）](/zh-cn/reference/flight-controls/)
+- [航行与故障排查（湿重超载、无法离地）](/zh-cn/reference/troubleshooting/)

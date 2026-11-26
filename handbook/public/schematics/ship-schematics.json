@@ -1,0 +1,206 @@
+[
+  {
+    "file": "c07-hull-1.nbt",
+    "offset": [
+      0,
+      7,
+      5
+    ],
+    "size": [
+      40,
+      21,
+      30
+    ],
+    "blocks": 6520,
+    "bytes": 18797,
+    "block_counts": {
+      "minecraft:gray_concrete": 1899,
+      "minecraft:lever": 1,
+      "minecraft:light_blue_stained_glass": 96,
+      "minecraft:light_gray_concrete": 19,
+      "minecraft:ochre_froglight": 38,
+      "minecraft:orange_concrete": 6,
+      "minecraft:polished_andesite": 458,
+      "minecraft:polished_andesite_stairs": 3,
+      "minecraft:polished_blackstone_bricks": 40,
+      "minecraft:polished_deepslate": 2048,
+      "minecraft:smooth_stone": 346,
+      "starfold:helm": 1,
+      "starfold:scope_precise": 1,
+      "starfold:thruster": 144,
+      "starfold_materials:aluminum_hull_plating": 1308,
+      "starfold_materials:bridge_glass": 52,
+      "starfold_materials:cyan_hull_light": 8,
+      "starfold_materials:dark_hull_trim": 26,
+      "starfold_materials:hull_trim": 26
+    }
+  },
+  {
+    "file": "c07-hull-2.nbt",
+    "offset": [
+      40,
+      1,
+      6
+    ],
+    "size": [
+      32,
+      42,
+      28
+    ],
+    "blocks": 6932,
+    "bytes": 19720,
+    "block_counts": {
+      "create:fluid_tank": 1,
+      "minecraft:gray_concrete": 4539,
+      "minecraft:ladder": 6,
+      "minecraft:lever": 1,
+      "minecraft:light_gray_concrete": 38,
+      "minecraft:ochre_froglight": 151,
+      "minecraft:orange_concrete": 75,
+      "minecraft:polished_andesite": 958,
+      "minecraft:polished_blackstone_bricks": 254,
+      "minecraft:polished_deepslate": 378,
+      "minecraft:redstone_block": 2,
+      "minecraft:smooth_stone": 50,
+      "simulated:docking_connector": 1,
+      "starfold:gyro": 2,
+      "starfold:thruster": 84,
+      "starfold_materials:aluminum_hull_plating": 367,
+      "starfold_materials:cyan_hull_light": 25
+    }
+  },
+  {
+    "file": "c07-hull-3.nbt",
+    "offset": [
+      72,
+      1,
+      0
+    ],
+    "size": [
+      20,
+      35,
+      40
+    ],
+    "blocks": 6766,
+    "bytes": 18800,
+    "block_counts": {
+      "minecraft:gray_concrete": 4918,
+      "minecraft:ochre_froglight": 57,
+      "minecraft:orange_concrete": 41,
+      "minecraft:polished_andesite": 404,
+      "minecraft:polished_blackstone_bricks": 116,
+      "minecraft:polished_deepslate": 453,
+      "minecraft:smooth_stone": 106,
+      "starfold:thruster": 94,
+      "starfold_materials:aluminum_hull_plating": 571,
+      "starfold_materials:cyan_hull_light": 6
+    }
+  },
+  {
+    "file": "c07-hull-4.nbt",
+    "offset": [
+      92,
+      6,
+      3
+    ],
+    "size": [
+      21,
+      26,
+      34
+    ],
+    "blocks": 6746,
+    "bytes": 18428,
+    "block_counts": {
+      "minecraft:gray_concrete": 4340,
+      "minecraft:orange_concrete": 132,
+      "minecraft:polished_andesite": 40,
+      "minecraft:polished_deepslate": 990,
+      "starfold:thruster": 96,
+      "starfold_materials:aluminum_hull_plating": 668,
+      "starfold_materials:cyan_hull_light": 480
+    }
+  },
+  {
+    "file": "c07-door-port.nbt",
+    "offset": [
+      42,
+      0,
+      20
+    ],
+    "size": [
+      36,
+      1,
+      10
+    ],
+    "blocks": 360,
+    "bytes": 1141,
+    "block_counts": {
+      "minecraft:gray_concrete": 16,
+      "minecraft:ochre_froglight": 4,
+      "minecraft:orange_concrete": 16,
+      "minecraft:polished_andesite": 270,
+      "minecraft:polished_deepslate": 54
+    }
+  },
+  {
+    "file": "c07-door-starboard.nbt",
+    "offset": [
+      42,
+      0,
+      10
+    ],
+    "size": [
+      36,
+      1,
+      10
+    ],
+    "blocks": 360,
+    "bytes": 1143,
+    "block_counts": {
+      "minecraft:gray_concrete": 32,
+      "minecraft:ochre_froglight": 8,
+      "minecraft:orange_concrete": 32,
+      "minecraft:polished_andesite": 240,
+      "minecraft:polished_deepslate": 48
+    }
+  },
+  {
+    "file": "s01.nbt",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "size": [
+      33,
+      11,
+      16
+    ],
+    "blocks": 1505,
+    "bytes": 5057,
+    "block_counts": {
+      "create:fluid_tank": 1,
+      "minecraft:black_concrete": 58,
+      "minecraft:gray_concrete": 553,
+      "minecraft:ladder": 6,
+      "minecraft:lever": 2,
+      "minecraft:light_blue_stained_glass": 28,
+      "minecraft:orange_concrete": 35,
+      "minecraft:polished_andesite": 11,
+      "minecraft:polished_blackstone": 24,
+      "minecraft:polished_blackstone_bricks": 6,
+      "minecraft:polished_deepslate": 148,
+      "minecraft:redstone_block": 2,
+      "minecraft:smooth_stone": 21,
+      "simulated:docking_connector": 1,
+      "starfold:airstair": 1,
+      "starfold:gyro": 2,
+      "starfold:helm": 1,
+      "starfold:scope_precise": 2,
+      "starfold:thruster": 103,
+      "starfold_materials:aluminum_hull_plating": 472,
+      "starfold_materials:bridge_glass": 16,
+      "starfold_materials:dark_hull_trim": 12
+    }
+  }
+]

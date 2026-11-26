@@ -1,0 +1,29 @@
+---
+title: "Ships & Schematics"
+---
+
+import Figure from '../../../components/Figure.astro';
+import EntryFacts from '../../../components/EntryFacts.astro';
+
+<EntryFacts
+  facts={[
+    { label: 'Schematics', value: 'Included Schematics & Offsets', href: '/en/schematics/' },
+    { label: 'Starter Hull', value: '3 · First Ship & Test Flight', href: '/en/progression/first-ship/' },
+    { label: 'Controls', value: 'Flight Controls', href: '/en/reference/flight-controls/' },
+  ]}
+/>
+
+| Ship | Role | Schematic | Build Requirements |
+| --- | --- | --- | --- |
+| [C-07 Carrier](/en/ships/c07/) | Larger multi-section hull for long-range operations | Optional; 6-part `.nbt` | Matching offset table, shipyard space, Schematicannon, and stock |
+| [S-01 Shuttle](/en/ships/s01/) | Compact hull for practicing parking, airstairs, and boarding | Optional; single `.nbt` | Schematic file, Schematicannon, and hull materials |
+| [Custom First Ship](/en/progression/first-ship/) | First survival flight and early mining round trips | None required | Water workshop, basic ship parts, compatible fuel, and local test flight |
+
+<Figure image="hearth-shipyard" width={1440} height={810} alt={"The C-07 in the Hearth shipyard"} caption={"The C-07 carrier parked at the Hearth shipyard"} />
+
+## Related Operations
+
+- [Import & Build C-07 and S-01 Schematics](/en/schematics/)
+- [2 · Workshop & Fuel Transfer](/en/progression/workshop-fuel/)
+- [Flight Controls (Surface, Orbit & Abort)](/en/reference/flight-controls/)
+- [Flight & Troubleshooting (Wet Mass & Lift)](/en/reference/troubleshooting/)

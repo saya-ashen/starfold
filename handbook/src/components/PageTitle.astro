@@ -1,0 +1,38 @@
+---
+const route = Astro.locals.starlightRoute;
+const id = route.entry.id;
+const isHome = id === 'en' || id === 'zh-cn';
+const zh = Astro.url.pathname.startsWith('/zh-cn/');
+const locale = zh ? 'zh-cn' : 'en';
+
+const parts = id.split('/');
+const sectionSlug = parts.length > 1 ? parts[1] : '';
+
+const sectionMap: Record<string, { zh: string; en: string; href?: string }> = {
+  worlds: { zh: '星球与卫星', en: 'Worlds & Moons', href: `/${locale}/worlds/` },
+  progression: { zh: '七阶段攻略', en: 'Survival Guide' },
+  ships: { zh: '飞船与蓝图', en: 'Ships & Schematics', href: `/${locale}/ships/` },
+  bosses: { zh: 'Boss 档案', en: 'Bosses', href: `/${locale}/bosses/` },
+  reference: { zh: '航行速查', en: 'Flight Reference' },
+};
+
+const currentSection = parts.length > 2 ? sectionMap[sectionSlug] : undefined;
+---
+{!isHome && (
+  <div class="hb-page-header">
+    <nav class="hb-breadcrumbs not-content" aria-label={zh ? '页面路径' : 'Breadcrumb'}>
+      <a href={`/${locale}/`}>{zh ? '手册首页' : 'Handbook'}</a>
+      {currentSection && (
+        <>
+          <span aria-hidden="true">/</span>
+          {currentSection.href ? (
+            <a href={currentSection.href}>{zh ? currentSection.zh : currentSection.en}</a>
+          ) : (
+            <span>{zh ? currentSection.zh : currentSection.en}</span>
+          )}
+        </>
+      )}
+    </nav>
+    <h1 id="_top">{route.entry.data.title}</h1>
+  </div>
+)}

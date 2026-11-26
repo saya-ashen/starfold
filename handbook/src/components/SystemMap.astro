@@ -1,0 +1,164 @@
+---
+interface Props {
+  mode?: 'system' | 'amber';
+}
+const { mode = 'system' } = Astro.props;
+const zh = Astro.url.pathname.startsWith('/zh-cn/');
+const locale = zh ? 'zh-cn' : 'en';
+const link = (slug: string) => `/${locale}/${slug}/`;
+
+const innerPlanets = [
+  { slug: 'worlds/anvil', x: 222, y: 162, r: 7.5, tone: 'mineral', zh: '砧星', en: 'Anvil', subZh: '原锇候选', subEn: 'Osmium', labelPos: 'bottom' },
+  { slug: 'worlds/viridia', x: 292, y: 162, r: 7, tone: 'neutral', zh: '苍翠', en: 'Viridia', subZh: '繁茂', subEn: 'Lush', labelPos: 'top' },
+  { slug: 'worlds/pelagia', x: 356, y: 162, r: 7, tone: 'neutral', zh: '群澜', en: 'Pelagia', subZh: '群岛', subEn: 'Islands', labelPos: 'bottom' },
+  { slug: 'worlds/saffron', x: 424, y: 162, r: 7.5, tone: 'mineral', zh: '赭沙', en: 'Saffron', subZh: '铝土矿', subEn: 'Bauxite', labelPos: 'top' },
+  { slug: 'worlds/haven', x: 492, y: 162, r: 6.5, tone: 'neutral', zh: '菌港', en: 'Haven', subZh: '蘑菇', subEn: 'Fungal', labelPos: 'bottom' },
+  { slug: 'worlds/hush', x: 556, y: 162, r: 6.5, tone: 'neutral', zh: '寂痕', en: 'Hush', subZh: '幽匿', subEn: 'Sculk', labelPos: 'top' },
+  { slug: 'worlds/ivory', x: 620, y: 162, r: 7, tone: 'neutral', zh: '象牙', en: 'Ivory', subZh: '末地', subEn: 'End-like', labelPos: 'bottom' },
+];
+
+const amberMoons = [
+  { slug: 'worlds/cinder', angle: -56, dist: 50, r: 4.5, tone: 'neutral', zh: '烬岩', en: 'Cinder', lx: -8, ly: -12, anchor: 'end' },
+  { slug: 'worlds/rime', angle: 46, dist: 68, r: 5, tone: 'mineral', zh: '霜原', en: 'Rime', lx: -8, ly: 14, anchor: 'end' },
+  { slug: 'worlds/prism', angle: -32, dist: 88, r: 5, tone: 'mineral', zh: '晶棱', en: 'Prism', lx: 10, ly: -8, anchor: 'start' },
+  { slug: 'worlds/flesh', angle: 18, dist: 110, r: 6, tone: 'danger', zh: '血肉', en: 'Flesh', lx: 11, ly: 5, anchor: 'start' },
+];
+---
+
+{mode === 'system' ? (
+  <div class="sysmap not-content">
+    <div class="sysmap__scroll">
+      <svg
+        class="sysmap__svg"
+        viewBox="0 0 920 296"
+        role="img"
+        aria-label={zh ? '母星系轨道示意图：点击任意星球或卫星查看条目' : 'Home system orbital chart: select any world or moon to open its entry'}
+      >
+        <defs>
+          <radialGradient id="starGlow" cx="0%" cy="50%" r="75%">
+            <stop offset="0%" stop-color="var(--hb-amber)" stop-opacity="0.48" />
+            <stop offset="45%" stop-color="var(--hb-amber)" stop-opacity="0.1" />
+            <stop offset="100%" stop-color="var(--hb-amber)" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="amberGas" cx="38%" cy="38%" r="65%">
+            <stop offset="0%" stop-color="#f6c478" />
+            <stop offset="65%" stop-color="#c97d35" />
+            <stop offset="100%" stop-color="#7c4318" />
+          </radialGradient>
+        </defs>
+
+        {/* Background grid & ecliptic axis */}
+        <rect x="0" y="0" width="920" height="296" fill="url(#starGlow)" opacity="0.55" />
+        <line x1="34" y1="162" x2="896" y2="162" class="sysmap__axis" />
+        {[128, 222, 292, 356, 424, 492, 556, 620, 768].map((x) => (
+          <path d={`M ${x} 34 Q ${x + 16} 162 ${x} 272`} class="sysmap__orbit-arc" />
+        ))}
+
+        {/* Primary Star */}
+        <circle cx="-18" cy="162" r="46" class="sysmap__star" />
+        <circle cx="-18" cy="162" r="56" class="sysmap__star-ring" />
+
+        {/* Hearth + Fleck Subsystem */}
+        <circle cx="128" cy="162" r="42" class="sysmap__moon-orbit" />
+        <a href={link('worlds/hearth')} class="sysmap__node tone-home">
+          <circle cx="128" cy="162" r="16" class="sysmap__hit" />
+          <circle cx="128" cy="162" r="10.5" class="sysmap__body" />
+          <circle cx="128" cy="162" r="14.5" class="sysmap__halo" />
+          <text x="128" y="194" text-anchor="middle" class="sysmap__name">{zh ? '炉心' : 'Hearth'}</text>
+          <text x="128" y="210" text-anchor="middle" class="sysmap__meta">{zh ? '开局母星' : 'Homeworld'}</text>
+        </a>
+        <a href={link('worlds/fleck')} class="sysmap__node tone-mineral">
+          <circle cx="156" cy="130" r="14" class="sysmap__hit" />
+          <circle cx="156" cy="130" r="5" class="sysmap__body" />
+          <text x="156" y="116" text-anchor="middle" class="sysmap__name sysmap__name--sm">{zh ? '砾星' : 'Fleck'}</text>
+          <text x="156" y="102" text-anchor="middle" class="sysmap__meta">{zh ? '原锇卫星' : 'Osmium'}</text>
+        </a>
+
+        {/* Mid-system Terrestrial Planets */}
+        {innerPlanets.map((p) => {
+          const isTop = p.labelPos === 'top';
+          const nameY = isTop ? p.y - 18 : p.y + 25;
+          const metaY = isTop ? p.y - 33 : p.y + 40;
+          return (
+            <a href={link(p.slug)} class={`sysmap__node tone-${p.tone}`}>
+              <circle cx={p.x} cy={p.y} r="16" class="sysmap__hit" />
+              <circle cx={p.x} cy={p.y} r={p.r} class="sysmap__body" />
+              <text x={p.x} y={nameY} text-anchor="middle" class="sysmap__name">{zh ? p.zh : p.en}</text>
+              <text x={p.x} y={metaY} text-anchor="middle" class="sysmap__meta">{zh ? p.subZh : p.subEn}</text>
+            </a>
+          );
+        })}
+
+        {/* Amber Gas Giant + 4 Moons */}
+        {[50, 68, 88, 110].map((r, idx) => (
+          <circle cx="768" cy="162" r={r} class:list={['sysmap__moon-orbit', { 'is-outer': idx === 3 }]} />
+        ))}
+        <a href={link('worlds/amber')} class="sysmap__node tone-gas">
+          <circle cx="768" cy="162" r="26" class="sysmap__hit" />
+          <circle cx="768" cy="162" r="22" class="sysmap__atmo" />
+          <circle cx="768" cy="162" r="16.5" fill="url(#amberGas)" class="sysmap__gas-core" />
+          <text x="768" y="198" text-anchor="middle" class="sysmap__name">{zh ? '琥珀' : 'Amber'}</text>
+          <text x="768" y="213" text-anchor="middle" class="sysmap__meta">{zh ? '气态采氘' : 'Deuterium'}</text>
+        </a>
+
+        {amberMoons.map((m) => {
+          const rad = (m.angle * Math.PI) / 180;
+          const cx = Math.round(768 + Math.cos(rad) * m.dist);
+          const cy = Math.round(162 + Math.sin(rad) * m.dist);
+          return (
+            <a href={link(m.slug)} class={`sysmap__node tone-${m.tone}`}>
+              <circle cx={cx} cy={cy} r="14" class="sysmap__hit" />
+              <circle cx={cx} cy={cy} r={m.r} class="sysmap__body" />
+              {m.tone === 'danger' && <circle cx={cx} cy={cy} r="9.5" class="sysmap__danger-ring" />}
+              <text x={cx + m.lx} y={cy + m.ly} text-anchor={m.anchor} class="sysmap__name sysmap__name--sm">
+                {zh ? m.zh : m.en}
+              </text>
+            </a>
+          );
+        })}
+      </svg>
+    </div>
+    <div class="sysmap__legend">
+      <span><i class="dot dot--home"></i>{zh ? '开局母星（炉心）' : 'Starting homeworld (Hearth)'}</span>
+      <span><i class="dot dot--mineral"></i>{zh ? '关键矿产 / 氘气补给' : 'Key ore & deuterium stops'}</span>
+      <span><i class="dot dot--danger"></i>{zh ? '血肉（宿主 Boss 巢穴）' : 'Flesh (The Host nest)'}</span>
+      <span class="sysmap__hint">{zh ? '点击图中天体可直接打开对应档案' : 'Select any body to open its entry'}</span>
+    </div>
+  </div>
+) : (
+  <div class="sysmap sysmap--amber not-content">
+    <svg
+      class="sysmap__svg"
+      viewBox="0 0 680 220"
+      role="img"
+      aria-label={zh ? '琥珀卫星系轨道关系：烬岩、霜原、晶棱与最外侧的血肉' : 'Amber moon system: Cinder, Rime, Prism, and outermost Flesh'}
+    >
+      <line x1="78" y1="114" x2="640" y2="114" class="sysmap__axis" />
+      {[195, 295, 405, 535].map((x, idx) => (
+        <path d={`M ${x} 20 Q ${x + 26} 114 ${x} 204`} class:list={['sysmap__orbit-arc', { 'is-danger': idx === 3 }]} />
+      ))}
+
+      <a href={link('worlds/amber')} class="sysmap__node tone-gas">
+        <circle cx="84" cy="114" r="42" class="sysmap__atmo" />
+        <circle cx="84" cy="114" r="30" class="sysmap__body" />
+        <text x="84" y="174" text-anchor="middle" class="sysmap__name">{zh ? '琥珀' : 'Amber'}</text>
+        <text x="84" y="191" text-anchor="middle" class="sysmap__meta">{zh ? '气层低压采氘' : 'Outer-layer deuterium'}</text>
+      </a>
+
+      {[
+        { slug: 'worlds/cinder', x: 199, nameZh: '烬岩', nameEn: 'Cinder', subZh: '01 · 玄武岩', subEn: '01 · Basalt', tone: 'neutral' },
+        { slug: 'worlds/rime', x: 299, nameZh: '霜原', nameEn: 'Rime', subZh: '02 · 冰冻（锡/铅）', subEn: '02 · Ice (Tin/Lead)', tone: 'mineral' },
+        { slug: 'worlds/prism', x: 409, nameZh: '晶棱', nameEn: 'Prism', subZh: '03 · 晶体（萤石）', subEn: '03 · Crystal (Fluorite)', tone: 'mineral' },
+        { slug: 'worlds/flesh', x: 539, nameZh: '血肉', nameEn: 'Flesh', subZh: '04 · 最外轨 · 宿主巢穴', subEn: '04 · Outermost · Host Nest', tone: 'danger' },
+      ].map((m) => (
+        <a href={link(m.slug)} class={`sysmap__node tone-${m.tone}`}>
+          <circle cx={m.x} cy="114" r="18" class="sysmap__hit" />
+          <circle cx={m.x} cy="114" r={m.tone === 'danger' ? 8.5 : 6.5} class="sysmap__body" />
+          {m.tone === 'danger' && <circle cx={m.x} cy="114" r="13" class="sysmap__danger-ring" />}
+          <text x={m.x} y="86" text-anchor="middle" class="sysmap__name">{zh ? m.nameZh : m.nameEn}</text>
+          <text x={m.x} y="146" text-anchor="middle" class="sysmap__meta">{zh ? m.subZh : m.subEn}</text>
+        </a>
+      ))}
+    </svg>
+  </div>
+)}

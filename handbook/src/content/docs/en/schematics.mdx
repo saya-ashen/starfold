@@ -1,0 +1,42 @@
+---
+title: "C-07 & S-01 Schematics"
+---
+
+import Figure from '../../../components/Figure.astro';
+
+The Escape Velocity modpack includes the C-07 Carrier and S-01 Shuttle schematics. **No separate download is needed.** You start survival without a ship and can either build from a schematic or design your own first ship.
+
+## Standalone schematic downloads
+
+If you use a different compatible mod setup, you can download the schematic files here.
+
+- **S-01 Shuttle** [s01.nbt](/schematics/s01.nbt)
+- **C-07 Carrier** [c07-hull-1](/schematics/c07-hull-1.nbt) · [c07-hull-2](/schematics/c07-hull-2.nbt) · [c07-hull-3](/schematics/c07-hull-3.nbt) · [c07-hull-4](/schematics/c07-hull-4.nbt) · [c07-door-port](/schematics/c07-door-port.nbt) · [c07-door-starboard](/schematics/c07-door-starboard.nbt)
+- [Section offsets and block counts](/schematics/ship-schematics.json)
+
+## Import and build
+
+1. Place an Empty Schematic in Create’s **Schematic Table** and select the file for the ship you want to build. Keep the bow facing west for either ship. Preview the footprint before choosing a berth with enough clearance.
+2. Place the S-01 as a single schematic. For the C-07, use the matching offset table and each section’s orientation, measuring from the same reference point. Preview each section and check its seams.
+3. Supply the **Schematicannon** with the required blocks and gunpowder, then build. Check for missing blocks and verify the hatch, outward-facing airstair, thruster direction, and Ship controller. Check that the gyroscopes are powered and re-place their adjacent redstone blocks if needed. Exclude ground and supports during assembly.
+4. Add a little compatible fuel, check the fuel feed and wet weight, then take off, brake, land, and reboard on Hearth.
+
+<Figure image="schematic-table-en" width={530} height={415} alt={"In-game capture · Select an included .nbt file at Create’s Schematic Table."} caption={"In-game capture · Select an included .nbt file at Create’s Schematic Table."} />
+
+<Figure image="diagram-c07-layout" width={1200} height={675} alt={"Placement diagram · ①–④ are hull sections, ⑤–⑥ are the port and starboard doors. Coordinates are X, Y, Z offsets from the shared origin, viewed from above."} caption={"Placement diagram · ①–④ are hull sections, ⑤–⑥ are the port and starboard doors. Coordinates are X, Y, Z offsets from the shared origin, viewed from above."} />
+
+<div className="hb-callout hb-callout--check">
+
+**You’re done when** the sections line up, the equipment works, and the ship has flown locally.
+
+</div>
+
+<Figure image="hearth-shipyard" width={1440} height={810} alt={"The C-07 parked at the Hearth shipyard"} caption={"The C-07 parked at the Hearth shipyard"} />
+
+<Figure image="carrier-over-fleck" width={1440} height={810} alt={"The C-07 above Fleck"} caption={"The C-07 above Fleck"} />
+
+## See also
+
+- [C-07 Carrier](/en/ships/c07/)
+- [S-01 Shuttle](/en/ships/s01/)
+- [3 · Build & Test Your First Ship](/en/progression/first-ship/)

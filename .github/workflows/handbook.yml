@@ -1,0 +1,41 @@
+name: Deploy handbook
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'handbook/**'
+      - '.github/workflows/handbook.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: handbook-production
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: handbook/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: handbook
+      - name: Build handbook
+        run: npm run build
+        working-directory: handbook
+      - name: Deploy static assets
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: handbook
+          wranglerVersion: '4.168.0'
+          command: deploy
